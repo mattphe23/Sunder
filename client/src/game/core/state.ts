@@ -4,7 +4,7 @@
 import { generateMap, claimBorders, rng } from "./mapgen";
 import {
   GameState, Tribe, Unit, UnitType, UNIT_STATS, TRIBE_DEFS, TechId,
-  Difficulty, idx, PORT_COST, TECHS, RecapEntry,
+  Difficulty, idx, PORT_COST, TECHS, RecapEntry, GUARDIAN_TRIBE,
 } from "./types";
 import {
   reachableTiles, attackableUnits, previewCombat, techCost, canResearch,
@@ -145,6 +145,15 @@ class GameStore {
       if (c.tribe === null) continue;
       units.push(makeUnit(nextUnitId++, "warrior", c.tribe, c.x, c.y));
     }
+    // neutral guardians on great ruins: tough stationary defenders
+    for (const t of tiles) {
+      if (!t.greatRuin) continue;
+      const g = makeUnit(nextUnitId++, "swordsman", GUARDIAN_TRIBE, t.x, t.y);
+      g.guardian = true;
+      g.moved = true;
+      g.attacked = true; // guardians never act — they only retaliate
+      units.push(g);
+    }
     this.state = {
       ...emptyState(),
       phase: "playing",
@@ -178,6 +187,11 @@ class GameStore {
     s.currentTribe = tribeIdx;
     const tribe = s.tribes[tribeIdx];
     if (!tribe.alive) { this.nextTribe(); return; }
+    // score history: snapshot all tribes once per game turn (when tribe 0 begins)
+    if (tribeIdx === 0) {
+      for (const t of s.tribes) this.updateScore(t.index);
+      s.scoreHistory[s.turn] = s.tribes.map((t) => (t.alive ? t.score : 0));
+    }
     // turn replay: show what rivals did while the human waited
     if (tribe.isHuman && s.recap.length > 0) {
       s.showRecap = true;
@@ -241,6 +255,7 @@ class GameStore {
 
   updateScore(tribeIdx: number) {
     const s = this.state;
+    if (tribeIdx < 0) return;
     const t = s.tribes[tribeIdx];
     const cities = s.cities.filter((c) => c.tribe === tribeIdx);
     const units = s.units.filter((u) => u.tribe === tribeIdx);
@@ -320,6 +335,7 @@ class GameStore {
   private exploreRuin(u: Unit) {
     const s = this.state;
     const t = tileAt(s, u.x, u.y);
+    if (t.greatRuin) { this.exploreGreatRuin(u, t); return; }
     if (!t.ruin) return;
     t.ruin = false;
     const tribe = s.tribes[u.tribe];
@@ -353,6 +369,45 @@ class GameStore {
     }
     s.log.unshift(msg);
     this.recordRecap({ kind: "ruin", text: msg, tribe: u.tribe });
+    this.exploreAround();
+  }
+
+  /** great ruin: bigger reward, reachable only after the guardian falls */
+  private exploreGreatRuin(u: Unit, t: { greatRuin: boolean; x: number; y: number }) {
+    const s = this.state;
+    t.greatRuin = false;
+    const tribe = s.tribes[u.tribe];
+    const roll = rng(s.seed + s.turn * 131 + u.x * 17 + u.y * 41)();
+    let msg: string;
+    if (roll < 0.45) {
+      const stars = 12 + Math.floor(roll * 14); // 12–18 stars
+      tribe.stars += stars;
+      msg = `${tribe.name} claimed the Great Ruin — a hoard of ${stars} stars!`;
+    } else if (roll < 0.75) {
+      const unknown = TECHS.filter((q) => !tribe.techs.includes(q.id) && (q.requires === null || tribe.techs.includes(q.requires)));
+      if (unknown.length > 0) {
+        const pick = unknown[Math.floor(roll * 100) % unknown.length];
+        tribe.techs.push(pick.id);
+        tribe.stars += 8;
+        msg = `${tribe.name} claimed the Great Ruin — ${pick.name} and 8 stars!`;
+      } else {
+        tribe.stars += 15;
+        msg = `${tribe.name} claimed the Great Ruin — 15 stars!`;
+      }
+    } else {
+      const spot = this.freeSpotNear(u.x, u.y);
+      if (spot) {
+        const nu = makeUnit(s.nextUnitId++, "swordsman", u.tribe, spot.x, spot.y);
+        s.units.push(nu);
+        tribe.stars += 5;
+        msg = `${tribe.name} claimed the Great Ruin — a veteran Swordsman and 5 stars!`;
+      } else {
+        tribe.stars += 15;
+        msg = `${tribe.name} claimed the Great Ruin — 15 stars!`;
+      }
+    }
+    s.log.unshift(msg);
+    this.recordRecap({ kind: "greatRuin", text: msg, tribe: u.tribe });
     this.exploreAround();
   }
 
@@ -416,6 +471,12 @@ class GameStore {
       s.units = s.units.filter((q) => q.id !== d.id);
       a.kills++;
       defenderDied = true;
+      if (d.guardian) {
+        s.log.unshift(`${s.tribes[a.tribe].name} slew the Guardian of the Great Ruin!`);
+        if (a.tribe !== s.humanTribe) {
+          this.recordRecap({ kind: "greatRuin", text: `${s.tribes[a.tribe].name} slew a Great Ruin guardian`, tribe: a.tribe });
+        }
+      }
     }
     if (a.hp <= 0) {
       s.units = s.units.filter((q) => q.id !== a.id);
@@ -427,7 +488,7 @@ class GameStore {
       defenderDied, attackerDied, ax, ay, dx: dxp, dy: dyp,
     });
     // recap: rival combat involving the player or visible to them
-    if (a.tribe !== s.humanTribe) {
+    if (a.tribe !== s.humanTribe && d.tribe !== GUARDIAN_TRIBE) {
       const aName = UNIT_STATS[a.type].name, dName = UNIT_STATS[d.type].name;
       const target = d.tribe === s.humanTribe ? `your ${dName}` : `${s.tribes[d.tribe].name}'s ${dName}`;
       const outcome = defenderDied ? "destroyed" : `hit (−${result.damageToDefender})`;
@@ -524,6 +585,7 @@ class GameStore {
   exploreAround() {
     const s = this.state;
     for (const u of s.units) {
+      if (u.tribe < 0) continue; // guardians don't explore or reveal
       for (let dy = -2; dy <= 2; dy++) {
         for (let dx = -2; dx <= 2; dx++) {
           const x = u.x + dx, y = u.y + dy;
@@ -604,6 +666,7 @@ function emptyState(): GameState {
     aiThinking: false,
     recap: [],
     showRecap: false,
+    scoreHistory: [],
   };
 }
 

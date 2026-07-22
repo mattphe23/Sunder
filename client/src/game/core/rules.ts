@@ -22,7 +22,7 @@ export function cityAt(s: GameState, x: number, y: number): City | undefined {
 
 function hasTech(s: GameState, tribe: number, tech: TechId | null): boolean {
   if (tech === null) return true;
-  return s.tribes[tribe].techs.includes(tech);
+  return s.tribes[tribe]?.techs.includes(tech) ?? false;
 }
 
 /** movement cost to ENTER a tile; Infinity = impassable */
@@ -46,7 +46,7 @@ function moveCost(s: GameState, unit: Unit, t: Tile): number {
     case "mountain": return hasTech(s, tribe, "climbing") ? 2 : Infinity;
     case "forest": return hasTech(s, tribe, "forestry") ? 1 : 2;
     case "grass": {
-      const passive = s.tribes[tribe].passive;
+      const passive = s.tribes[tribe]?.passive;
       return passive === "outriders" ? 0.5 : 1;
     }
   }
@@ -56,10 +56,10 @@ export const BOAT_MOVEMENT = 3;
 
 /** Dijkstra reachable tiles for a unit with its movement points */
 export function reachableTiles(s: GameState, unit: Unit): { x: number; y: number }[] {
-  if (unit.moved) return [];
+  if (unit.moved || unit.tribe < 0) return [];
   const stats = UNIT_STATS[unit.type];
   let mp = unit.boat ? BOAT_MOVEMENT : stats.movement;
-  if (s.tribes[unit.tribe].passive === "outriders") mp += 0; // handled via 0.5 grass cost
+  if (s.tribes[unit.tribe]?.passive === "outriders") mp += 0; // handled via 0.5 grass cost
   const dist = new Map<number, number>();
   const start = idx(unit.x, unit.y, s.size);
   dist.set(start, 0);
@@ -114,6 +114,8 @@ export interface CombatResult {
 function defenseBonus(s: GameState, defender: Unit): number {
   if (defender.boat) return 0.7; // embarked units are vulnerable
   const t = tileAt(s, defender.x, defender.y);
+  if (defender.guardian) return 1.4; // guardians hold sacred ground
+  if (defender.tribe < 0) return 1;
   const city = cityAt(s, defender.x, defender.y);
   if (city && city.tribe === defender.tribe) {
     return hasTech(s, defender.tribe, "freeSpirit") ? 1.6 : 1.3;
@@ -127,7 +129,7 @@ export function previewCombat(s: GameState, attacker: Unit, defender: Unit): Com
   const aStats = UNIT_STATS[attacker.type];
   const dStats = UNIT_STATS[defender.type];
   let atk = aStats.attack;
-  if (s.tribes[attacker.tribe].passive === "forgeborn") atk *= 1.15;
+  if (attacker.tribe >= 0 && s.tribes[attacker.tribe].passive === "forgeborn") atk *= 1.15;
   const attackForce = atk * (attacker.hp / attacker.maxHp);
   const defenseForce = dStats.defense * (defender.hp / defender.maxHp) * defenseBonus(s, defender);
   const total = attackForce + defenseForce;

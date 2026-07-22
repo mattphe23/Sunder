@@ -216,6 +216,45 @@ export class BoardRenderer {
       stump.parent = this.root;
       decor.push(stump);
     }
+    if (t.greatRuin) {
+      // GREAT RUIN: golden twin obelisks flanking a floating radiant core
+      let goldMat = this.mats.get("greatruin-gold");
+      if (!goldMat) {
+        goldMat = new StandardMaterial("greatruin-gold", this.scene);
+        goldMat.diffuseColor = Color3.FromHexString("#e8c766");
+        goldMat.emissiveColor = Color3.FromHexString("#7a5c14");
+        this.mats.set("greatruin-gold", goldMat);
+      }
+      let coreMat = this.mats.get("greatruin-core");
+      if (!coreMat) {
+        coreMat = new StandardMaterial("greatruin-core", this.scene);
+        coreMat.diffuseColor = Color3.FromHexString("#fff3c4");
+        coreMat.emissiveColor = Color3.FromHexString("#e0a92e");
+        this.mats.set("greatruin-core", coreMat);
+      }
+      for (const sx of [-0.28, 0.28]) {
+        const pillar = MeshBuilder.CreateCylinder("greatruin", { diameterTop: 0.1, diameterBottom: 0.22, height: 0.8, tessellation: 4 }, this.scene);
+        pillar.position = new Vector3(t.x - c + sx, top + 0.4, t.y - c - 0.18);
+        pillar.rotation.y = Math.PI / 4;
+        pillar.material = goldMat;
+        pillar.metadata = { tile: true, x: t.x, y: t.y };
+        pillar.parent = this.root;
+        decor.push(pillar);
+      }
+      const core = MeshBuilder.CreateIcoSphere("greatruincore", { radius: 0.14, subdivisions: 1 }, this.scene);
+      core.position = new Vector3(t.x - c, top + 0.95, t.y - c - 0.18);
+      core.material = coreMat;
+      core.metadata = { tile: true, x: t.x, y: t.y };
+      core.parent = this.root;
+      decor.push(core);
+      // stone plinth base
+      const plinth = MeshBuilder.CreateBox("greatruinbase", { width: 0.7, depth: 0.4, height: 0.12 }, this.scene);
+      plinth.position = new Vector3(t.x - c, top + 0.06, t.y - c - 0.18);
+      plinth.material = this.mat("#767a9e");
+      plinth.metadata = { tile: true, x: t.x, y: t.y };
+      plinth.parent = this.root;
+      decor.push(plinth);
+    }
     const city = t.cityId !== null ? s.cities[t.cityId] : null;
     if (city) {
       const isNeutral = city.tribe === null;
@@ -270,7 +309,8 @@ export class BoardRenderer {
       // fog: enemy units only shown when their tile is currently visible
       const explored = s.tiles[idx(u.x, u.y, s.size)].explored[s.humanTribe];
       if (!explored) continue;
-      if (u.tribe !== s.humanTribe && !isVisibleTo(s, s.humanTribe, u.x, u.y)) continue;
+      // guardians are stationary landmarks: show once explored; other rivals need live vision
+      if (!u.guardian && u.tribe !== s.humanTribe && !isVisibleTo(s, s.humanTribe, u.x, u.y)) continue;
       seen.add(u.id);
       let node = this.unitMeshes.get(u.id);
       if (!node) {
@@ -307,6 +347,33 @@ export class BoardRenderer {
   private buildUnitMesh(s: GameState, u: Unit): TransformNode {
     const node = new TransformNode("u" + u.id, this.scene);
     node.parent = this.root;
+    if (u.guardian) {
+      // Great Ruin guardian: obsidian sentinel with a glowing amber eye
+      const gbody = MeshBuilder.CreateCylinder("b", { diameterTop: 0.16, diameterBottom: 0.4, height: 0.55, tessellation: 5 }, this.scene);
+      gbody.material = this.mat("#2b2540");
+      gbody.parent = node;
+      gbody.isPickable = false;
+      const eye = MeshBuilder.CreateIcoSphere("h", { radius: 0.09, subdivisions: 1 }, this.scene);
+      eye.position.y = 0.34;
+      let eyeMat = this.mats.get("guardian-eye");
+      if (!eyeMat) {
+        eyeMat = new StandardMaterial("guardian-eye", this.scene);
+        eyeMat.diffuseColor = Color3.FromHexString("#ffb938");
+        eyeMat.emissiveColor = Color3.FromHexString("#d98f1f");
+        this.mats.set("guardian-eye", eyeMat);
+      }
+      eye.material = eyeMat;
+      eye.parent = node;
+      eye.isPickable = false;
+      for (const sx of [-0.22, 0.22]) {
+        const p = MeshBuilder.CreateBox("p", { size: 0.14 }, this.scene);
+        p.position.set(sx, 0.18, 0);
+        p.material = this.mat("#443c66");
+        p.parent = node;
+        p.isPickable = false;
+      }
+      return node;
+    }
     const col = s.tribes[u.tribe].color;
     const shapes: Record<UnitType, () => Mesh> = {
       warrior: () => MeshBuilder.CreateBox("b", { size: 0.3 }, this.scene),

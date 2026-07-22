@@ -6,6 +6,10 @@ import { game } from "../core/state";
 import { TRIBE_DEFS, Difficulty } from "../core/types";
 import { Button } from "@/components/ui/button";
 import { Swords, Star, Play } from "lucide-react";
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid,
+  Tooltip as RTooltip, ResponsiveContainer,
+} from "recharts";
 
 const MENU_BG = "/manus-storage/menu-bg_b1164e9a.png";
 const LOGO = "/manus-storage/logo_c79c0f53.png";
@@ -180,10 +184,23 @@ export function GameOver() {
   const winner = s.winner !== null ? s.tribes[s.winner] : null;
   const won = s.winner === s.humanTribe;
   const ranked = [...s.tribes].sort((a, b) => b.score - a.score);
+  // score trajectory data: one row per recorded turn
+  const history = s.scoreHistory ?? [];
+  const chartData = history.map((row, turn) => {
+    const d: Record<string, number> = { turn: turn + 1 };
+    s.tribes.forEach((t, i) => { d[t.name] = row[i] ?? 0; });
+    return d;
+  });
+  // include the final scores as a last point
+  if (s.tribes.length > 0) {
+    const last: Record<string, number> = { turn: history.length + 1 };
+    s.tribes.forEach((t) => { last[t.name] = t.alive ? t.score : 0; });
+    chartData.push(last);
+  }
   return (
     <div className="absolute inset-0 z-40 flex items-center justify-center bg-[#141433]/90 p-4 backdrop-blur-sm">
       <div
-        className="w-full max-w-sm rounded-lg border-2 bg-[#10102c] p-6 text-center shadow-2xl"
+        className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-lg border-2 bg-[#10102c] p-6 text-center shadow-2xl"
         style={{ borderColor: won ? "#ffb93877" : "rgba(255,255,255,0.12)", boxShadow: won ? "0 0 60px rgba(255,185,56,0.25)" : undefined }}
       >
         <div className="mb-2 flex justify-center"><Spark className={`h-5 w-5 ${won ? "text-amber-400" : "text-slate-500"}`} /></div>
@@ -213,6 +230,44 @@ export function GameOver() {
             </div>
           ))}
         </div>
+        {chartData.length > 1 && (
+          <div className="mt-4 rounded-md border border-white/10 bg-white/[0.03] p-2 pt-3">
+            <p className="mb-1 text-left font-display text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
+              Score trajectory
+            </p>
+            <ResponsiveContainer width="100%" height={170}>
+              <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -18 }}>
+                <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
+                <XAxis
+                  dataKey="turn"
+                  tick={{ fill: "#8b8fb8", fontSize: 10 }}
+                  axisLine={{ stroke: "rgba(255,255,255,0.15)" }}
+                  tickLine={false}
+                  label={{ value: "turn", position: "insideBottomRight", fill: "#666a94", fontSize: 9, dy: 2 }}
+                />
+                <YAxis tick={{ fill: "#8b8fb8", fontSize: 10 }} axisLine={false} tickLine={false} />
+                <RTooltip
+                  contentStyle={{
+                    background: "#191940", border: "1px solid rgba(255,255,255,0.15)",
+                    borderRadius: 8, fontSize: 11, color: "#e2e4f5",
+                  }}
+                  labelFormatter={(l: unknown) => `Turn ${l}`}
+                />
+                {s.tribes.map((t) => (
+                  <Line
+                    key={t.index}
+                    type="monotone"
+                    dataKey={t.name}
+                    stroke={t.color}
+                    strokeWidth={t.index === s.humanTribe ? 2.5 : 1.5}
+                    dot={false}
+                    strokeOpacity={t.index === s.humanTribe ? 1 : 0.75}
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
         <Button onClick={() => g.toMenu()} className="mt-5 w-full bg-amber-400 font-display font-black tracking-wider text-[#1b1b3f] shadow-[0_0_24px_rgba(255,185,56,0.35)] hover:bg-amber-300">
           Play Again
         </Button>

@@ -58,7 +58,7 @@ export function generateMap(size: number, seed: number, tribeCount: number): Map
       else terrain = forestNoise(fx, fy) > 0.58 ? "forest" : "grass";
       tiles.push({
         x, y, terrain, resource: null, cityId: null, ownerCityId: null,
-        explored: new Array(tribeCount).fill(false), port: null, ruin: false,
+        explored: new Array(tribeCount).fill(false), port: null, ruin: false, greatRuin: false,
       });
     }
   }
@@ -143,6 +143,37 @@ export function generateMap(size: number, seed: number, tribeCount: number): Map
     if (nearRuin) continue;
     t.ruin = true;
     placedRuins++;
+  }
+
+  // great ruins: 1 per map (2 on 13×13+), on land, far from ALL capitals and normal ruins
+  const greatTarget = size >= 13 ? 2 : 1;
+  const greatCandidates = [...landTiles]
+    .filter((t) => t.cityId === null && !t.ruin && t.resource === null)
+    .map((t) => ({
+      t,
+      minCapDist: Math.min(...capitals.map((c) => Math.abs(c.x - t.x) + Math.abs(c.y - t.y))),
+    }))
+    .filter((e) => e.minCapDist >= Math.floor(size * 0.35))
+    .sort((a, b) => b.minCapDist - a.minCapDist);
+  let placedGreat = 0;
+  for (const e of greatCandidates) {
+    if (placedGreat >= greatTarget) break;
+    const nearOther = tiles.some((q) => q.greatRuin && Math.abs(q.x - e.t.x) + Math.abs(q.y - e.t.y) < 6);
+    if (nearOther) continue;
+    e.t.greatRuin = true;
+    e.t.terrain = "grass"; // ensure reachable
+    placedGreat++;
+  }
+  // fallback: if none matched the distance filter, take the farthest available land tile
+  if (placedGreat === 0) {
+    const fallback = [...landTiles]
+      .filter((t) => t.cityId === null && !t.ruin)
+      .sort((a, b) => {
+        const da = Math.min(...capitals.map((c) => Math.abs(c.x - a.x) + Math.abs(c.y - a.y)));
+        const db = Math.min(...capitals.map((c) => Math.abs(c.x - b.x) + Math.abs(c.y - b.y)));
+        return db - da;
+      })[0];
+    if (fallback) { fallback.greatRuin = true; fallback.terrain = "grass"; }
   }
 
   // claim borders around owned capitals

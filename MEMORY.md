@@ -84,7 +84,26 @@
   tribe-color border + To battle dismiss worked; dismissRecap cleared recap. Ruin obelisk renders
   (gray-violet pillars visible dimmed at map edge (10,2), explored fog dim correct). TS clean.
 - NOTE: window.__polyforge.newGame takes { humanTribe, difficulty, size, seed }.
-- REMAINING: full-page screenshots + checkpoint + delivery.
+
+## v5 (great ruins + score chart) — IMPLEMENTED, needs browser verify
+- types.ts: Tile.greatRuin, Unit.guardian?, GUARDIAN_TRIBE=-1, RecapEntry kind "greatRuin",
+  GameState.scoreHistory: number[][]
+- mapgen.ts: 1 great ruin/map (2 on ≥13), min dist ≥ floor(size*0.35) from capitals, fallback farthest
+- state.ts: guardian spawn in newGame (swordsman, moved/attacked=true, never acts);
+  exploreGreatRuin: 12–18 stars | tech+8 stars | veteran swordsman+5 stars; guardian-slain log/recap;
+  scoreHistory snapshot in beginTurn when tribeIdx===0; updateScore guards tribeIdx<0;
+  exploreAround skips tribe<0; attack recap skips guardian targets
+- rules.ts: defenseBonus guardian 1.4; tribes[...]?. guards for tribe -1; reachableTiles returns [] for guardians
+- ai.ts: guarded great ruin worth 95 for strong units (atk≥3) else 50; unguarded 120; +20 score to kill guardian
+- scene.ts: guardian mesh (obsidian cone + amber eye + pauldrons); great ruin = gold twin obelisks +
+  floating core + plinth; guardians render once explored (no live-vision need)
+- Menu.tsx GameOver: recharts LineChart of scoreHistory, human line thicker, max-w-md, scrollable
+- TS CLEAN. VERIFIED in browser (seed 4242, 9×9):
+  * great ruin at (8,3) with guardian (swordsman, 15hp, tribe -1); gold twin-obelisk monument renders
+  * guardian preview 7/7 (1.4 def bonus works); died in 2 knight attacks; "slew the Guardian" log fired
+  * stepping on cleared great ruin granted Riding tech + 8 stars, tile cleared
+  * scoreHistory recorded 9 rows over 8 turns; GameOver chart renders 4 faction lines w/ tooltip
+  * save cleared, reset to menu. v5 DONE — checkpoint + deliver next.
 - Test tip: reload page first, then `const mod = await import('/src/game/core/state.ts');
   window.__g = mod.game;` newGame({size:11,humanTribe:0,difficulty:'normal',seed:12345});
   human warrior id=1 at (9,7).

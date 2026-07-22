@@ -18,6 +18,8 @@ export interface Tile {
   port: number | null;
   /** ancient ruin awaiting exploration (grants a reward, then cleared) */
   ruin: boolean;
+  /** rare great ruin — guarded by a neutral guardian; bigger reward once claimed */
+  greatRuin: boolean;
 }
 
 export interface City {
@@ -79,7 +81,12 @@ export interface Unit {
   kills: number;
   /** naval: unit is embarked on a boat */
   boat: boolean;
+  /** neutral guardian: never moves, guards a great ruin */
+  guardian?: boolean;
 }
+
+/** pseudo-tribe index for neutral guardian units (not a real tribe) */
+export const GUARDIAN_TRIBE = -1;
 
 export type TechId =
   | "hunting"
@@ -155,7 +162,7 @@ export type Difficulty = "easy" | "normal" | "hard";
 
 /** One entry in the start-of-turn recap of what rivals did. */
 export interface RecapEntry {
-  kind: "combat" | "capture" | "cityLost" | "ruin" | "fallen";
+  kind: "combat" | "capture" | "cityLost" | "ruin" | "greatRuin" | "fallen";
   text: string;
   /** tribe responsible (for color accents) */
   tribe: number;
@@ -185,6 +192,8 @@ export interface GameState {
   recap: RecapEntry[];
   /** recap ready to display at the start of the human turn */
   showRecap: boolean;
+  /** per-tribe score at the END of each turn: scoreHistory[turn-1][tribeIdx] */
+  scoreHistory: number[][];
 }
 
 export const idx = (x: number, y: number, size: number) => y * size + x;

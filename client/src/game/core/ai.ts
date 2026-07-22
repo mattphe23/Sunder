@@ -82,7 +82,9 @@ function aiUnitAction(store: StoreLike, u: Unit, tribeIdx: number) {
     let best = targets[0], bestScore = -Infinity;
     for (const t of targets) {
       const r = previewCombat(s, u, t);
-      const score = r.damageToDefender + (r.defenderDies ? 15 : 0) - r.damageToAttacker * 1.2 - (r.attackerDies ? 25 : 0);
+      let score = r.damageToDefender + (r.defenderDies ? 15 : 0) - r.damageToAttacker * 1.2 - (r.attackerDies ? 25 : 0);
+      // guardians gate a big reward: worth extra risk when the kill is close
+      if (t.guardian) score += r.defenderDies ? 20 : 5;
       if (score > bestScore) { bestScore = score; best = t; }
     }
     if (bestScore > 0) {
@@ -103,10 +105,13 @@ function aiUnitAction(store: StoreLike, u: Unit, tribeIdx: number) {
   }
   // ancient ruins: strong pull when close (free reward for scouting)
   for (const t of s.tiles) {
-    if (!t.ruin) continue;
+    if (!t.ruin && !t.greatRuin) continue;
     const dist = Math.max(Math.abs(t.x - u.x), Math.abs(t.y - u.y));
     if (dist > 6) continue;
-    objectives.push({ x: t.x, y: t.y, w: 85 - dist * 6 });
+    const guarded = t.greatRuin && s.units.some((g) => g.guardian && g.x === t.x && g.y === t.y);
+    // unguarded great ruin is the juiciest prize on the map; guarded ones attract strong units
+    const base = t.greatRuin ? (guarded ? (UNIT_STATS[u.type].attack >= 3 ? 95 : 50) : 120) : 85;
+    objectives.push({ x: t.x, y: t.y, w: base - dist * 6 });
   }
   for (const e of s.units) {
     if (e.tribe === tribeIdx) continue;
