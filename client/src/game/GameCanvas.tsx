@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { BoardRenderer } from "./render/scene";
 import { game } from "./core/state";
+import { sound } from "./sound";
 import { unitAt, cityAt, reachableTiles, attackableUnits } from "./core/rules";
 
 export default function GameCanvas() {
@@ -38,6 +39,8 @@ export default function GameCanvas() {
       if (s.phase === "menu") return;
       if (e.type === "combat") {
         r.lungeUnit(s, e.attackerId, e.dx, e.dy);
+        const atk = s.units.find((u) => u.id === e.attackerId);
+        sound.play(atk?.type === "catapult" ? "catapult" : "attack");
         // slight delay so numbers appear at impact
         setTimeout(() => {
           r.showDamageNumber(s, e.dx, e.dy, e.dmg, "#ff6b6b");
@@ -47,7 +50,10 @@ export default function GameCanvas() {
       if (e.type === "captured") {
         const city = s.cities[e.cityId];
         r.starBurst(s, city.x, city.y, s.tribes[e.tribe].color);
+        if (e.tribe === s.humanTribe) sound.play("capture");
       }
+      if (e.type === "turnStarted" && e.tribe === s.humanTribe && s.turn > 0) sound.play("turn");
+      if (e.type === "sfx") sound.play(e.name);
     });
 
     r.onPick = ({ x, y }) => {

@@ -13,13 +13,15 @@ import {
   POP_PER_LEVEL, canBuildPort,
 } from "./rules";
 import { runAiTurn } from "./ai";
+import { evaluateAchievements, AchievementDef } from "./achievements";
 
 export type GameEvent =
   | { type: "changed" }
   | { type: "unitMoved"; unitId: number; fromX: number; fromY: number; toX: number; toY: number }
   | { type: "combat"; attackerId: number; defenderId: number; dmg: number; retaliation: number; defenderDied: boolean; attackerDied: boolean; ax: number; ay: number; dx: number; dy: number }
   | { type: "captured"; cityId: number; tribe: number }
-  | { type: "turnStarted"; tribe: number };
+  | { type: "turnStarted"; tribe: number }
+  | { type: "sfx"; name: "plunder" | "heal" | "promote" | "ruin" | "victory" | "defeat" | "catapult" };
 
 type Listener = (e: GameEvent) => void;
 
@@ -124,9 +126,10 @@ class GameStore {
 
   // ---------- lifecycle ----------
 
-  newGame(opts: { size: number; humanTribe: number; difficulty: Difficulty; seed?: number; preset?: MapPreset }) {
+  newGame(opts: { size: number; humanTribe: number; difficulty: Difficulty; seed?: number; preset?: MapPreset; humanTribes?: number[] }) {
     const seed = opts.seed ?? Math.floor(Math.random() * 2 ** 31);
     const preset: MapPreset = opts.preset ?? "continents";
+    const humans = opts.humanTribes && opts.humanTribes.length > 0 ? [...opts.humanTribes].sort((a, b) => a - b) : [opts.humanTribe];
     const { tiles, cities } = generateMap(opts.size, seed, TRIBE_DEFS.length, preset);
     const tribes: Tribe[] = TRIBE_DEFS.map((d, i) => ({
       index: i,
@@ -135,7 +138,7 @@ class GameStore {
       colorName: d.colorName,
       passive: d.passive,
       passiveDesc: d.passiveDesc,
-      isHuman: i === opts.humanTribe,
+      isHuman: humans.includes(i),
       stars: 5,
       techs: [d.startTech],
       alive: true,
@@ -162,14 +165,16 @@ class GameStore {
       size: opts.size,
       seed,
       preset,
-      showIntro: true,
+      showIntro: humans.length === 1,
       difficulty: opts.difficulty,
       tribes,
       tiles,
       cities,
       units,
       nextUnitId,
-      humanTribe: opts.humanTribe,
+      humanTribe: humans[0],
+      humanTribes: humans,
+      handoff: humans.length > 1 ? humans[0] : null,
       currentTribe: 0,
     };
     this.state.stats = tribes.map(() => emptyStats());
@@ -192,13 +197,21 @@ class GameStore {
     s.currentTribe = tribeIdx;
     const tribe = s.tribes[tribeIdx];
     if (!tribe.alive) { this.nextTribe(); return; }
+    // hot-seat: repoint the "viewing human" and block with a hand-off screen
+    const hotseat = (s.humanTribes?.length ?? 1) > 1;
+    if (hotseat && tribe.isHuman) {
+      s.humanTribe = tribeIdx;
+      s.handoff = tribeIdx;
+      s.recap = []; // recaps are cross-player info leaks in hot-seat
+      s.showRecap = false;
+    }
     // score history: snapshot all tribes once per game turn (when tribe 0 begins)
     if (tribeIdx === 0) {
       for (const t of s.tribes) this.updateScore(t.index);
       s.scoreHistory[s.turn] = s.tribes.map((t) => (t.alive ? t.score : 0));
     }
     // turn replay: show what rivals did while the human waited
-    if (tribe.isHuman && s.recap.length > 0) {
+    if (!hotseat && tribe.isHuman && s.recap.length > 0) {
       s.showRecap = true;
     }
     const income = starIncome(s, tribeIdx) + this.aiBonus(tribeIdx);
@@ -208,14 +221,16 @@ class GameStore {
       if (u.tribe === tribeIdx) { u.moved = false; u.attacked = false; }
     }
     // Auren Arcanist: mends adjacent friendly units +2 HP at the start of the turn
+    let healed = false;
     for (const a of s.units) {
       if (a.tribe !== tribeIdx || a.type !== "arcanist") continue;
       for (const f of s.units) {
         if (f.tribe !== tribeIdx || f.id === a.id || f.hp >= f.maxHp) continue;
         const d = Math.max(Math.abs(f.x - a.x), Math.abs(f.y - a.y));
-        if (d === 1) f.hp = Math.min(f.maxHp, f.hp + 2);
+        if (d === 1) { f.hp = Math.min(f.maxHp, f.hp + 2); healed = true; }
       }
     }
+    if (healed && tribeIdx === s.humanTribe) this.emit({ type: "sfx", name: "heal" });
     this.updateScore(tribeIdx);
     this.emit({ type: "turnStarted", tribe: tribeIdx });
     this.emit({ type: "changed" });
@@ -268,6 +283,8 @@ class GameStore {
     s.winner = alive[0]?.index ?? null;
     s.phase = "gameover";
     this.recordVictory();
+    this.onGameOver();
+    this.emit({ type: "sfx", name: s.winner === s.humanTribe ? "victory" : "defeat" });
     this.emit({ type: "changed" });
   }
 
@@ -354,6 +371,12 @@ class GameStore {
     this.emit({ type: "changed" });
   }
 
+  /** hot-seat: the next player has taken the device and reveals their board */
+  confirmHandoff() {
+    this.state.handoff = null;
+    this.emit({ type: "changed" });
+  }
+
   /** increment a per-tribe match statistic (safe for guardians / legacy saves) */
   private bumpStat(tribeIdx: number, key: keyof ReturnType<typeof emptyStats>, amount = 1) {
     const s = this.state;
@@ -370,6 +393,7 @@ class GameStore {
     if (t.greatRuin) { this.exploreGreatRuin(u, t); return; }
     if (!t.ruin) return;
     t.ruin = false;
+    if (u.tribe === s.humanTribe) this.emit({ type: "sfx", name: "ruin" });
     const tribe = s.tribes[u.tribe];
     const roll = rng(s.seed + s.turn * 97 + u.x * 13 + u.y * 31)();
     let msg: string;
@@ -555,7 +579,9 @@ class GameStore {
         s.tribes[a.tribe].stars += loot;
         if (loot > 0) {
           this.bumpStat(a.tribe, "starsEarned", loot);
+          this.bumpStat(a.tribe, "starsPlundered", loot);
           s.log.unshift(`${s.tribes[a.tribe].name}'s Raider plundered ${loot}★ from ${victim.name}!`);
+          this.emit({ type: "sfx", name: "plunder" });
         }
       }
       // Veterancy: 3 kills promotes the unit — +5 max HP and a full heal
@@ -565,11 +591,13 @@ class GameStore {
         a.hp = a.maxHp;
         const tn = s.tribes[a.tribe]?.name ?? "A";
         s.log.unshift(`${tn} ${a.type} was promoted to Veteran! (+5 max HP)`);
+        if (a.tribe === s.humanTribe) this.emit({ type: "sfx", name: "promote" });
         if (a.tribe !== s.humanTribe) {
           this.recordRecap({ kind: "combat", text: `A ${tn} ${a.type} became a Veteran`, tribe: a.tribe });
         }
       }
       if (d.guardian) {
+        this.bumpStat(a.tribe, "guardiansSlain");
         s.log.unshift(`${s.tribes[a.tribe].name} slew the Guardian of the Great Ruin!`);
         if (a.tribe !== s.humanTribe) {
           this.recordRecap({ kind: "greatRuin", text: `${s.tribes[a.tribe].name} slew a Great Ruin guardian`, tribe: a.tribe });
@@ -642,6 +670,7 @@ class GameStore {
     u.moved = true; u.attacked = true;
     s.log.unshift(`${s.tribes[u.tribe].name} captured ${city.name}!`);
     this.bumpStat(u.tribe, "citiesCaptured");
+    if (wasCapital) this.bumpStat(u.tribe, "capitalsCaptured");
     city.walls = false; // walls are torn down when a city falls
     this.emit({ type: "captured", cityId: city.id, tribe: u.tribe });
     if (u.tribe !== s.humanTribe) {
@@ -748,14 +777,25 @@ class GameStore {
       s.winner = alive[0].index;
       s.phase = "gameover";
       this.recordVictory();
+      this.onGameOver();
+      this.emit({ type: "sfx", name: s.winner === s.humanTribe ? "victory" : "defeat" });
     }
-    const human = s.tribes[s.humanTribe];
-    if (human && !human.alive && s.phase === "playing") {
-      // player eliminated: game over immediately
+    const humans = s.humanTribes ?? [s.humanTribe];
+    const anyHumanAlive = humans.some((h) => s.tribes[h]?.alive);
+    if (!anyHumanAlive && s.phase === "playing") {
+      // all human players eliminated: game over immediately
       const best = alive.sort((a, b) => b.score - a.score)[0];
       s.winner = best?.index ?? null;
       s.phase = "gameover";
+      this.onGameOver();
+      this.emit({ type: "sfx", name: "defeat" });
     }
+  }
+
+  /** feats unlocked by the game that just ended (shown on the game-over screen) */
+  newAchievements: AchievementDef[] = [];
+  private onGameOver() {
+    this.newAchievements = evaluateAchievements(this.state);
   }
 
   /** Hall of Conquest: persist the human's victory; keep best 5 per difficulty */
@@ -763,7 +803,10 @@ class GameStore {
   private recordVictory() {
     const s = this.state;
     this.newHallEntry = false;
-    if (s.winner !== s.humanTribe) return;
+    if (s.winner === null || !(s.humanTribes ?? [s.humanTribe]).includes(s.winner)) return;
+    // hot-seat wins don't enter the solo Hall of Conquest ladder
+    if ((s.humanTribes?.length ?? 1) > 1) return;
+    s.humanTribe = s.winner;
     this.updateScore(s.humanTribe);
     const entry: HallEntry = {
       difficulty: s.difficulty,

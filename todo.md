@@ -30,3 +30,28 @@
 - [x] Browser verified: Auren (blue) + Vessari (violet) cards correct; dismiss works; saved showIntro
       false after dismissal (Continue safe); mid-intro reload persists true (card re-shows)
 - [x] localStorage cleaned; ready for checkpoint v11 + deliver
+
+# Polyforge v12 — Sound + Hot-seat + Achievements (v11 = ce763395)
+
+## 1. Sound design
+- [x] Menu music generated + uploaded (/manus-storage/menu-theme_ab3abdad.mp3, HEAD 200 audio/mpeg)
+- [x] sound.ts engine: 11 synth SFX + music loop w/ fade — all play without errors (verified in console)
+- [x] Mute toggle TopBar + menu, persists polyforge-muted (verified "1"/"0" round-trip)
+- [x] SFX wired to store events via GameCanvas subscription + click sounds on primary buttons
+
+## 2. Pass-and-play hot-seat multiplayer
+- [x] Menu mode toggle + P1-P4 faction picks; BEGIN label shows "N PLAYERS + M AI"
+- [x] humanTribes in state; humanTribe repoints per human turn (fog + HUD follow, verified TopBar Auren→Kharzul)
+- [x] Hand-off blocking overlay verified for both P1 (Auren) and P2 (Kharzul); confirm reveals board
+- [x] Full cycle verified: Auren end → Kharzul handoff → end → 2 AI ran → turn 1 wrapped to Auren handoff
+- [x] Tutorial + intro skipped in hot-seat; recaps cleared (info-leak prevention); solo mode regression OK
+- [x] Win/lose: gameover only when all humans dead; hot-seat wins skip Hall ladder
+
+## 3. Achievements
+- [x] achievements.ts with 8 feats; TribeStats += capitalsCaptured/guardiansSlain/starsPlundered
+- [x] Evaluated at all 3 gameover paths; unlock banners on GameOver screen
+- [x] Menu Achievements collapsible (N/8 counter, locked/unlocked grid)
+- [x] Console-verified: win unlocks all 8, repeat=0, loss unlocks only loseOk 3, hot-seat skipped
+
+## 4. Verify + deliver
+- [x] pnpm check clean; browser verified; test localStorage cleaned; ready for checkpoint v12

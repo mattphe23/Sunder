@@ -214,8 +214,10 @@ export interface TribeStats {
   ruinsClaimed: number;
   citiesCaptured: number;
   techsResearched: number;
+  capitalsCaptured: number;
+  guardiansSlain: number;
+  starsPlundered: number;
 }
-
 export const emptyStats = (): TribeStats => ({
   battlesWon: 0,
   unitsLost: 0,
@@ -223,6 +225,9 @@ export const emptyStats = (): TribeStats => ({
   ruinsClaimed: 0,
   citiesCaptured: 0,
   techsResearched: 0,
+  capitalsCaptured: 0,
+  guardiansSlain: 0,
+  starsPlundered: 0,
 });
 
 export interface GameState {
@@ -246,6 +251,10 @@ export interface GameState {
   /** log messages for the ticker */
   log: string[];
   humanTribe: number;
+  /** hot-seat: all human-controlled tribe indices (solo = [humanTribe]) */
+  humanTribes?: number[];
+  /** hot-seat: tribe index awaiting the pass-the-device hand-off screen, or null */
+  handoff?: number | null;
   aiThinking: boolean;
   /** events since the human's last turn, shown as a recap */
   recap: RecapEntry[];

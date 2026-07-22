@@ -9,6 +9,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Star, Swords, FlaskConical, X, ChevronRight, Anchor, Ship, Skull, Shield, Flag, Landmark, ScrollText, Undo2 } from "lucide-react";
 import { useState } from "react";
+import { MuteButton } from "./MuteButton";
+import { sound } from "../sound";
 
 const panel = "rounded-xl border border-white/10 bg-[#1b1b3f]/85 backdrop-blur-md shadow-xl shadow-black/40 text-slate-100";
 
@@ -135,14 +137,17 @@ export function TopBar() {
         </span>
         <span className="text-xs text-slate-300/80">Turn {s.turn + 1}/{s.maxTurns}</span>
       </div>
-      <div className={`${panel} pointer-events-auto px-4 py-2 text-xs`}>
-        {s.aiThinking || !isMyTurn ? (
-          <span className="animate-pulse text-slate-300">
-            {s.tribes[s.currentTribe]?.name} is thinking…
-          </span>
-        ) : (
-          <span className="text-emerald-300">Your turn</span>
-        )}
+      <div className="flex items-center gap-2">
+        <div className={`${panel} pointer-events-auto px-4 py-2 text-xs`}>
+          {s.aiThinking || !isMyTurn ? (
+            <span className="animate-pulse text-slate-300">
+              {s.tribes[s.currentTribe]?.name} is thinking…
+            </span>
+          ) : (
+            <span className="text-emerald-300">Your turn</span>
+          )}
+        </div>
+        <MuteButton />
       </div>
     </div>
   );
@@ -174,7 +179,7 @@ export function BottomBar({ onOpenTech }: { onOpenTech: () => void }) {
         <Button
           size="lg"
           disabled={!isMyTurn}
-          onClick={() => g.endTurn()}
+          onClick={() => { sound.play("click"); g.endTurn(); }}
           className="gap-2 bg-amber-400 font-display font-bold text-[#1b1b3f] shadow-lg shadow-amber-500/25 transition-transform hover:bg-amber-300 active:scale-[0.97]"
         >
           End Turn <ChevronRight className="h-4 w-4" />
@@ -269,7 +274,7 @@ export function SelectionPanel() {
               <button
                 key={ut}
                 disabled={!afford}
-                onClick={() => g.train(city.id, ut)}
+                onClick={() => { sound.play("click"); g.train(city.id, ut); }}
                 title={st.perk}
                 className={`flex items-center justify-between rounded-md border px-2 py-1 text-xs transition-colors ${unique ? "border-violet-400/40" : "border-white/10"} ${afford ? (unique ? "bg-violet-400/10 hover:bg-violet-400/20" : "bg-white/5 hover:bg-white/15") : "opacity-40"}`}
               >

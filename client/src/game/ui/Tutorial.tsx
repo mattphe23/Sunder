@@ -100,6 +100,8 @@ export function Tutorial() {
   });
 
   if (!active || s.phase !== "playing") return null;
+  // hot-seat games skip the guided tutorial — it targets a single commander
+  if ((s.humanTribes?.length ?? 1) > 1) return null;
   const cur = STEPS[step];
   if (!cur) return null;
 

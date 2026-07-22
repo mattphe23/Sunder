@@ -196,3 +196,46 @@
   clears; persisted via autoSave JSON so Continue never re-shows after dismissal but mid-intro
   reload re-shows. tribe.color / tribe.passiveDesc field names confirmed correct.
 - Verified in browser: Auren + Vessari cards, dismiss, persistence both directions. TS clean.
+
+## v12 IN PROGRESS: sound + hot-seat + achievements (v11 = ce763395)
+- Preview URL: https://3000-i6ec6uow94ogf0k6buvye-ab5232aa.us2.manus.computer
+- MUSIC generated + uploaded: /manus-storage/menu-theme_ab3abdad.mp3 (117s ambient loop)
+- sound.ts DONE: SoundEngine class, synth SFX (click/attack/catapult/capture/plunder/heal/ruin/turn/
+  promote/victory/defeat), playMenuMusic/stopMenuMusic w/ fade, kick() for autoplay, muted persisted
+  "polyforge-muted", onChange listeners. Export const sound.
+- state.ts DONE: GameEvent union + { type:"sfx", name: plunder|heal|promote|ruin|victory|defeat|catapult };
+  emits at raider plunder, human promote, human ruin explore, human arcanist heal (beginTurn),
+  endByScore + checkDominationWin + human-eliminated (victory/defeat).
+- SOUND DONE: GameCanvas plays attack/catapult/capture/turn + sfx events; Home.tsx music lifecycle
+  (menu=playMenuMusic, game=stop) + pointerdown kick(); MuteButton.tsx in TopBar + MainMenu top-right;
+  click sfx on End Turn/train/Begin Conquest. TS clean. NOT yet browser-verified.
+- HOT-SEAT DONE (TS clean, NOT browser-verified yet):
+  * types.ts: GameState.humanTribes?: number[], handoff?: number|null
+  * state.ts newGame accepts humanTribes; isHuman via humans.includes(i); humanTribe=humans[0];
+    handoff=humans[0] when >1; showIntro only when solo. beginTurn: hotseat → repoint s.humanTribe,
+    set s.handoff=tribeIdx, clear recap. checkDominationWin: gameover only when ALL humans dead;
+    recordVictory skips hall in hotseat, sets s.humanTribe=s.winner for GameOver "won" display.
+    confirmHandoff() clears handoff.
+  * Handoff.tsx: z-[60] solid full-screen "Pass the device to <Faction>" + confirm button. In Home.tsx.
+  * Menu.tsx: mode toggle solo|hotseat (User/Users icons), togglePlayer 2-4 picks w/ P1-P4 badges,
+    startGame() branches; hotseat GameOver shows "<NAME> WINS". Tutorial gated off in hotseat.
+- ACHIEVEMENTS DONE (TS clean): achievements.ts (8 defs: first-win, flawless, three-capitals, blitz<15,
+  ruin-hunter 3, guardian-slayer, plunderer 10★, hard-win; loadAchievements/evaluateAchievements,
+  key polyforge-achievements). TribeStats += capitalsCaptured/guardiansSlain/starsPlundered (bumped in
+  state.ts attack/capture). state.ts onGameOver() at all 3 gameover sites → game.newAchievements.
+  Menu.tsx: AchievementGrid + collapsible panel (Award icon, N/8 count) under Hall of Conquest; GameOver
+  shows "Achievement unlocked" banners.
+- VERIFY PROGRESS (new preview URL https://3000-i6ec6uow94ogf0k6buvye-ab5232aa.us2.manus.computer):
+  * Dev server restart was needed (stale Vite module graph → sound.ts/achievements.ts/Handoff.tsx 404).
+  * Menu renders: mode toggle Solo|Pass&Play OK, mute button top-right OK, Achievements 0/8 panel OK.
+  * Hot-seat: started 2P (Auren P1 + Kharzul P2 + 2 AI) — handoff screen "PASS THE DEVICE TO Auren"
+    shows correctly with faction color + stars + confirm button.
+  * REMAINING VERIFY: confirm handoff → play Auren turn, End Turn → AI? No: tribe order 0..3, Kharzul=1
+    human → next handoff; check humanTribe repoints (TopBar shows Kharzul, fog changes); music/SFX check
+    (kick + menu music playing, attack sound); achievements: simulate win via console to check unlock
+    (or skip — logic simple); then clear polyforge-* localStorage, checkpoint v12, deliver.
+- Key API notes: game.subscribe((e) => ...) returns unsub; combat event has attackerId (look up
+  s.units.find for type==="catapult" for catapult sound — may be dead, check defenderDied/attackerDied);
+  Menu.tsx has MainMenu + GameOver; Hud.tsx has TopBar (top-left pill) + BottomBar.
+- humanTribe currently single number s.humanTribe; hot-seat needs humanTribes: number[] approach —
+  keep s.humanTribe as "current human" pointer to minimize refactor; isHuman flag on Tribe exists.

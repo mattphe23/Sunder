@@ -7,6 +7,11 @@ import { TRIBE_DEFS, Difficulty } from "../core/types";
 import { MAP_PRESETS, MapPreset } from "../core/mapgen";
 import { Button } from "@/components/ui/button";
 import { Swords, Star, Play, Trophy, ChevronDown } from "lucide-react";
+import { Users, User } from "lucide-react";
+import { Award, Shield, Flag, Zap, Landmark, Skull, Coins, Flame, Lock } from "lucide-react";
+import { ACHIEVEMENTS, loadAchievements, AchievementDef } from "../core/achievements";
+import { MuteButton } from "./MuteButton";
+import { sound } from "../sound";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip as RTooltip, ResponsiveContainer,
@@ -37,18 +42,68 @@ function FacetRule() {
   );
 }
 
+const ACH_ICONS: Record<AchievementDef["icon"], React.ComponentType<{ className?: string }>> = {
+  trophy: Trophy, shield: Shield, flag: Flag, zap: Zap,
+  landmark: Landmark, skull: Skull, coins: Coins, flame: Flame,
+};
+
+/** Achievement grid — shared between the menu panel and the game-over screen */
+function AchievementGrid({ unlocked }: { unlocked: Set<string> }) {
+  return (
+    <div className="grid grid-cols-2 gap-1.5">
+      {ACHIEVEMENTS.map((a) => {
+        const got = unlocked.has(a.id);
+        const Icon = ACH_ICONS[a.icon];
+        return (
+          <div
+            key={a.id}
+            className={`flex items-start gap-2 rounded-md px-2.5 py-2 ${got ? "bg-amber-400/10" : "bg-white/[0.04]"}`}
+            style={{ boxShadow: got ? "inset 0 0 0 1px rgba(255,185,56,0.35)" : "inset 0 0 0 1px rgba(255,255,255,0.06)" }}
+          >
+            <span className={`mt-0.5 shrink-0 ${got ? "text-amber-400" : "text-slate-600"}`}>
+              {got ? <Icon className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+            </span>
+            <span>
+              <span className={`block font-display text-[11px] font-bold ${got ? "text-amber-200" : "text-slate-400"}`}>{a.name}</span>
+              <span className={`block text-[10px] leading-tight ${got ? "text-slate-300" : "text-slate-500"}`}>{a.desc}</span>
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function MainMenu() {
   const g = useGame();
   const [faction, setFaction] = useState(0);
+  const [mode, setMode] = useState<"solo" | "hotseat">("solo");
+  const [players, setPlayers] = useState<number[]>([0, 1]); // hot-seat: selected tribe indices in seat order
   const [difficulty, setDifficulty] = useState<Difficulty>("normal");
   const [size, setSize] = useState(11);
   const [preset, setPreset] = useState<MapPreset>("continents");
   const [hallOpen, setHallOpen] = useState(false);
   const [hallTab, setHallTab] = useState<Difficulty>("normal");
   const [hall] = useState(() => loadHall());
+  const [achOpen, setAchOpen] = useState(false);
+  const [achievements] = useState(() => loadAchievements());
   const tribe = TRIBE_DEFS[faction];
   const saved = game.savedSummary();
   const hallCount = (["easy", "normal", "hard"] as Difficulty[]).reduce((n, d) => n + (hall[d]?.length ?? 0), 0);
+  const togglePlayer = (i: number) => {
+    setPlayers((prev) => {
+      if (prev.includes(i)) return prev.length > 2 ? prev.filter((p) => p !== i) : prev; // keep ≥2
+      return prev.length < 4 ? [...prev, i] : prev;
+    });
+  };
+  const startGame = () => {
+    sound.play("click");
+    if (mode === "hotseat") {
+      g.newGame({ size, humanTribe: Math.min(...players), difficulty, preset, humanTribes: players });
+    } else {
+      g.newGame({ size, humanTribe: faction, difficulty, preset });
+    }
+  };
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#141433] px-4 py-10">
@@ -86,6 +141,9 @@ export function MainMenu() {
       <Spark className="pointer-events-none absolute right-[16%] top-[30%] h-2 w-2 animate-pulse text-cyan-300/60" style={{ animationDelay: "0.7s" }} />
       <Spark className="pointer-events-none absolute left-[22%] bottom-[22%] h-2 w-2 animate-pulse text-emerald-300/60" style={{ animationDelay: "1.3s" }} />
 
+      {/* sound toggle */}
+      <div className="absolute right-6 top-6 z-30"><MuteButton /></div>
+
       <div className="relative z-20 flex w-full max-w-lg flex-col items-center">
         <img src={LOGO} alt="Polyforge" className="mb-3 h-20 w-20 drop-shadow-[0_0_32px_rgba(255,185,56,0.55)]" />
         <h1 className="font-display text-5xl font-black tracking-tight text-white drop-shadow-[0_2px_18px_rgba(61,123,255,0.35)]">
@@ -103,21 +161,36 @@ export function MainMenu() {
           style={{ borderColor: `${tribe.color}55`, boxShadow: `0 0 40px ${tribe.color}22, inset 0 1px 0 rgba(255,255,255,0.06)` }}
         >
           <p className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-amber-300">
-            <Spark className="h-3 w-3" /> Choose your faction
+            <Spark className="h-3 w-3" /> {mode === "solo" ? "Choose your faction" : "Choose 2–4 player factions"}
           </p>
+          {/* game mode: solo vs pass-and-play */}
+          <div className="mb-3 flex gap-1">
+            {([["solo", "Solo vs AI", User], ["hotseat", "Pass & Play", Users]] as const).map(([id, label, Icon]) => (
+              <button
+                key={id}
+                onClick={() => setMode(id)}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 font-display text-xs font-bold transition-colors ${mode === id ? "border-amber-400 bg-amber-400/20 text-amber-200 shadow-[0_0_12px_rgba(255,185,56,0.25)]" : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"}`}
+              >
+                <Icon className="h-3.5 w-3.5" /> {label}
+              </button>
+            ))}
+          </div>
           <div className="grid grid-cols-2 gap-2">
             {TRIBE_DEFS.map((t, i) => (
               <button
                 key={t.name}
-                onClick={() => setFaction(i)}
-                className={`relative overflow-hidden rounded-md border-l-4 p-3 text-left transition-all duration-150 active:scale-[0.97] ${faction === i ? "bg-white/10" : "bg-white/[0.04] hover:bg-white/10"}`}
+                onClick={() => (mode === "solo" ? setFaction(i) : togglePlayer(i))}
+                className={`relative overflow-hidden rounded-md border-l-4 p-3 text-left transition-all duration-150 active:scale-[0.97] ${(mode === "solo" ? faction === i : players.includes(i)) ? "bg-white/10" : "bg-white/[0.04] hover:bg-white/10"}`}
                 style={{
                   borderLeftColor: t.color,
-                  boxShadow: faction === i ? `0 0 18px ${t.color}44, inset 0 0 0 1px ${t.color}66` : "inset 0 0 0 1px rgba(255,255,255,0.08)",
+                  boxShadow: (mode === "solo" ? faction === i : players.includes(i)) ? `0 0 18px ${t.color}44, inset 0 0 0 1px ${t.color}66` : "inset 0 0 0 1px rgba(255,255,255,0.08)",
                 }}
               >
-                {faction === i && (
+                {(mode === "solo" ? faction === i : players.includes(i)) && (
                   <Spark className="absolute right-2 top-2 h-3 w-3" style={{ color: t.color }} />
+                )}
+                {mode === "hotseat" && players.includes(i) && (
+                  <span className="absolute bottom-2 right-2 rounded bg-white/15 px-1.5 py-0.5 font-mono text-[9px] font-bold text-white">P{players.indexOf(i) + 1}</span>
                 )}
                 <div className="mb-1 flex items-center gap-2">
                   <span className="h-3 w-3 rotate-45" style={{ background: t.color, boxShadow: `0 0 8px ${t.color}` }} />
@@ -180,10 +253,10 @@ export function MainMenu() {
 
         <Button
           size="lg"
-          onClick={() => g.newGame({ size, humanTribe: faction, difficulty, preset })}
+          onClick={startGame}
           className="mt-5 w-full gap-2 rounded-lg bg-amber-400 py-6 font-display text-lg font-black tracking-widest text-[#1b1b3f] shadow-[0_0_40px_rgba(255,185,56,0.4)] transition-transform hover:bg-amber-300 active:scale-[0.98]"
         >
-          <Swords className="h-5 w-5" /> BEGIN CONQUEST
+          <Swords className="h-5 w-5" /> {mode === "solo" ? "BEGIN CONQUEST" : `BEGIN — ${players.length} PLAYERS${players.length < 4 ? ` + ${4 - players.length} AI` : ""}`}
         </Button>
         {saved && (
           <Button
@@ -242,6 +315,24 @@ export function MainMenu() {
             </div>
           )}
         </div>
+
+        {/* Achievements — feats of the solo campaign */}
+        <div className="mt-2 w-full">
+          <button
+            onClick={() => setAchOpen(!achOpen)}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 font-display text-xs font-bold uppercase tracking-[0.2em] text-slate-300 transition-colors hover:bg-white/10 active:scale-[0.98]"
+          >
+            <Award className="h-3.5 w-3.5 text-amber-400" />
+            Achievements
+            <span className="rounded bg-amber-400/20 px-1.5 py-0.5 font-mono text-[10px] text-amber-300">{achievements.size}/{ACHIEVEMENTS.length}</span>
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${achOpen ? "rotate-180" : ""}`} />
+          </button>
+          {achOpen && (
+            <div className="mt-2 rounded-lg border border-white/10 bg-[#10102c]/85 p-3 backdrop-blur-md">
+              <AchievementGrid unlocked={achievements} />
+            </div>
+          )}
+        </div>
         <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-[11px] font-medium text-slate-300">
           <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
           Capture all rival capitals — or lead in score when turn 30 ends. Every faction is free and fair.
@@ -255,7 +346,10 @@ export function GameOver() {
   const g = useGame();
   const s = g.state;
   const winner = s.winner !== null ? s.tribes[s.winner] : null;
-  const won = s.winner === s.humanTribe;
+  const hotseat = (s.humanTribes?.length ?? 1) > 1;
+  const won = hotseat
+    ? s.winner !== null && (s.humanTribes ?? []).includes(s.winner)
+    : s.winner === s.humanTribe;
   const ranked = [...s.tribes].sort((a, b) => b.score - a.score);
   // score trajectory data: one row per recorded turn
   const history = s.scoreHistory ?? [];
@@ -278,7 +372,7 @@ export function GameOver() {
       >
         <div className="mb-2 flex justify-center"><Spark className={`h-5 w-5 ${won ? "text-amber-400" : "text-slate-500"}`} /></div>
         <h2 className={`font-display text-4xl font-black tracking-wide ${won ? "text-amber-400 drop-shadow-[0_0_20px_rgba(255,185,56,0.5)]" : "text-slate-300"}`}>
-          {won ? "VICTORY" : "DEFEAT"}
+          {hotseat && won && winner ? `${winner.name.toUpperCase()} WINS` : won ? "VICTORY" : "DEFEAT"}
         </h2>
         {winner && (
           <p className="mt-2 text-sm text-slate-300">
@@ -289,6 +383,19 @@ export function GameOver() {
           <p className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-amber-400/50 bg-amber-400/15 px-3 py-1 text-[11px] font-bold text-amber-300">
             <Trophy className="h-3 w-3" /> New Hall of Conquest record!
           </p>
+        )}
+        {game.newAchievements.length > 0 && (
+          <div className="mt-3 space-y-1.5">
+            {game.newAchievements.map((a) => {
+              const Icon = ACH_ICONS[a.icon];
+              return (
+                <div key={a.id} className="flex items-center justify-center gap-2 rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-1.5">
+                  <Icon className="h-4 w-4 text-amber-400" />
+                  <span className="font-display text-xs font-bold text-amber-200">Achievement unlocked: {a.name}</span>
+                </div>
+              );
+            })}
+          </div>
         )}
         <div className="my-4"><FacetRule /></div>
         <div className="space-y-1.5">
