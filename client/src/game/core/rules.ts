@@ -111,14 +111,16 @@ export interface CombatResult {
 }
 
 /** defense bonus from terrain/city (Polytopia-style ideas, our tuning) */
-function defenseBonus(s: GameState, defender: Unit): number {
+function defenseBonus(s: GameState, defender: Unit, attacker?: Unit): number {
   if (defender.boat) return 0.7; // embarked units are vulnerable
   const t = tileAt(s, defender.x, defender.y);
   if (defender.guardian) return 1.4; // guardians hold sacred ground
   if (defender.tribe < 0) return 1;
   const city = cityAt(s, defender.x, defender.y);
   if (city && city.tribe === defender.tribe) {
-    if (city.walls) return WALL_DEFENSE_BONUS; // fortified — strongest static bonus
+    // siege: catapults hurl boulders straight over ramparts — walls give no benefit
+    const siege = attacker?.type === "catapult";
+    if (city.walls && !siege) return WALL_DEFENSE_BONUS; // fortified — strongest static bonus
     return hasTech(s, defender.tribe, "freeSpirit") ? 1.6 : 1.3;
   }
   if (t.terrain === "forest" && hasTech(s, defender.tribe, "archery")) return 1.3;
@@ -132,7 +134,7 @@ export function previewCombat(s: GameState, attacker: Unit, defender: Unit): Com
   let atk = aStats.attack;
   if (attacker.tribe >= 0 && s.tribes[attacker.tribe].passive === "forgeborn") atk *= 1.15;
   const attackForce = atk * (attacker.hp / attacker.maxHp);
-  const defenseForce = dStats.defense * (defender.hp / defender.maxHp) * defenseBonus(s, defender);
+  const defenseForce = dStats.defense * (defender.hp / defender.maxHp) * defenseBonus(s, defender, attacker);
   const total = attackForce + defenseForce;
   const damageToDefender = Math.round((attackForce / total) * atk * 4.5);
   const damageToAttacker = Math.round((defenseForce / total) * dStats.defense * 4.5);

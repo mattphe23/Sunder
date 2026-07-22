@@ -5,6 +5,7 @@ import GameCanvas from "@/game/GameCanvas";
 import { MainMenu, GameOver } from "@/game/ui/Menu";
 import { TopBar, BottomBar, SelectionPanel, TechPanel, LogTicker, BattlePreview, TurnRecap } from "@/game/ui/Hud";
 import { Minimap } from "@/game/ui/Minimap";
+import { Tutorial } from "@/game/ui/Tutorial";
 
 export default function Home() {
   const g = useGame();
@@ -24,6 +25,7 @@ export default function Home() {
       <TurnRecap />
       <BottomBar onOpenTech={() => setTechOpen(true)} />
       <TechPanel open={techOpen} onClose={() => setTechOpen(false)} />
+      <Tutorial />
       {s.phase === "gameover" && <GameOver />}
     </div>
   );

@@ -129,7 +129,7 @@ export const TECHS: TechDef[] = [
   { id: "riding", name: "Riding", tier: 1, requires: null, baseCost: 4, desc: "Unlocks the fast Rider unit." },
   { id: "freeSpirit", name: "Free Spirit", tier: 2, requires: "riding", baseCost: 5, desc: "City defense bonus." },
   { id: "chivalry", name: "Chivalry", tier: 3, requires: "freeSpirit", baseCost: 6, desc: "Unlocks the mighty Knight." },
-  { id: "mathematics", name: "Mathematics", tier: 3, requires: "forestry", baseCost: 6, desc: "Unlocks the Catapult." },
+  { id: "mathematics", name: "Mathematics", tier: 3, requires: "forestry", baseCost: 6, desc: "Unlocks the Catapult — siege engine that ignores city walls." },
   { id: "sailing", name: "Sailing", tier: 2, requires: "organization", baseCost: 5, desc: "Build ports; units embark on boats to cross shallow water." },
   { id: "navigation", name: "Navigation", tier: 3, requires: "sailing", baseCost: 6, desc: "Boats can cross deep ocean tiles." },
 ];

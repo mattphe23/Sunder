@@ -682,7 +682,7 @@ class GameStore {
       this.recordVictory();
     }
     const human = s.tribes[s.humanTribe];
-    if (!human.alive && s.phase === "playing") {
+    if (human && !human.alive && s.phase === "playing") {
       // player eliminated: game over immediately
       const best = alive.sort((a, b) => b.score - a.score)[0];
       s.winner = best?.index ?? null;

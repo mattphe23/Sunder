@@ -29,7 +29,12 @@ export function runAiTurn(store: StoreLike, tribeIdx: number) {
   const available = TECHS.filter((t) => canResearch(s, tribeIdx, t.id));
   if (available.length > 0) {
     available.sort((a, b) => techCost(s, tribeIdx, a.id) - techCost(s, tribeIdx, b.id));
-    store.research(available[0].id);
+    // siege pressure: if rivals hold walled cities, beeline toward Mathematics (catapults)
+    const rivalsWalled = s.cities.some((c) => c.tribe !== null && c.tribe !== tribeIdx && c.walls);
+    const siegePath = rivalsWalled
+      ? available.find((t) => t.id === "mathematics" || t.id === "forestry" || t.id === "hunting")
+      : undefined;
+    store.research(siegePath ? siegePath.id : available[0].id);
   }
 
   // 2. harvest affordable resources in own borders
@@ -61,6 +66,12 @@ export function runAiTurn(store: StoreLike, tribeIdx: number) {
     const options = trainableUnits(s, tribeIdx)
       .filter((ut) => UNIT_STATS[ut].cost <= s.tribes[tribeIdx].stars)
       .sort((a, b) => UNIT_STATS[b].cost - UNIT_STATS[a].cost);
+    // siege: when a rival city is walled and catapults are unlocked, favor them strongly
+    const rivalsWalled = s.cities.some((c) => c.tribe !== null && c.tribe !== tribeIdx && c.walls);
+    if (rivalsWalled && options.includes("catapult") && Math.random() < 0.5) {
+      store.train(city.id, "catapult");
+      continue;
+    }
     // mix: 60% best unit, 40% random cheaper for variety
     if (options.length > 0) {
       const pick = Math.random() < 0.6 ? options[0] : options[Math.floor(Math.random() * options.length)];
@@ -94,6 +105,11 @@ function aiUnitAction(store: StoreLike, u: Unit, tribeIdx: number) {
       let score = r.damageToDefender + (r.defenderDies ? 15 : 0) - r.damageToAttacker * 1.2 - (r.attackerDies ? 25 : 0);
       // guardians gate a big reward: worth extra risk when the kill is close
       if (t.guardian) score += r.defenderDies ? 20 : 5;
+      // catapults exist to crack fortified garrisons — bonus for hitting walled-city defenders
+      if (u.type === "catapult") {
+        const dc = cityAt(s, t.x, t.y);
+        if (dc && dc.walls && dc.tribe === t.tribe) score += 10;
+      }
       if (score > bestScore) { bestScore = score; best = t; }
     }
     if (bestScore > 0) {

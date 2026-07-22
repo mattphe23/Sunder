@@ -133,7 +133,26 @@
 - VERIFIED in browser: buildWalls deducted 5★ + log "Fenwick raised city walls!"; wall rampart visible
   around capital; previewCombat withWalls dmgToDef 4 vs noWalls 5, retaliation 6 vs 5 (bonus works);
   stats tracked correctly (battlesWon/unitsLost/starsEarned/citiesCaptured/techsResearched); game-over
-  screen shows stats table + score chart + hall record. TS clean. v7 DONE — cleanup, checkpoint, deliver.
+  screen shows stats table + score chart + hall record. TS clean. v7 DONE — checkpoint 42f3bb74 delivered.
+
+## v8 (current): catapult siege + onboarding tutorial
+- Catapult ALREADY EXISTED in types.ts (cost 8, atk 4, def 0, move 1, range 3, no dash, tech mathematics)
+- rules.ts DONE: defenseBonus(s, defender, attacker?) — attacker.type==="catapult" ignores WALL_DEFENSE_BONUS
+- types.ts DONE: mathematics desc mentions siege trait
+- scene.ts DONE: catapult mesh = tribe-colored base frame + wood arm (rot x -PI/5) + boulder + 2 wheels
+- ai.ts DONE: rivalsWalled => research path hunting→forestry→mathematics; 50% train catapult; +10 attack
+  score vs walled-city defenders
+- Ranged no-retaliation already works via dist > defender range in previewCombat
+- Tutorial.tsx DONE + mounted in Home.tsx. VERIFIED: welcome card shows on fresh profile, "Let's go"
+  advances, selecting warrior advances, moving advances to Claim Villages, "Got it" → Research step,
+  research("hunting") → End Turn step, endTurn → done flag "1" set, overlay gone. Skippable via X/Skip.
+- Catapult VERIFIED: previewCombat catVsWalls dmg 11 identical to catVsNoWalls (walls ignored),
+  warrior vs same walled defender only 3 dmg + 6 retaliation; enemy warrior vs catapult in open = 10 dmg
+  kill (def 0 fragility). Catapult mesh (frame/arm/boulder/wheels) renders; unit panel shows 4 ATK 0 DEF 3 RNG.
+- Note: catapult sits at (1,8) offscreen-left of camera in test; mesh existence confirmed via selection panel.
+- Remaining: clear test save/tutorial flag + hall, reload clean menu, TS check, checkpoint, deliver.
+- Store on window.__polyforge (dev). Save key "polyforge-save", hall key "polyforge-hall".
+- HUD: Hud.tsx panels (unit/city/tech/BattlePreview/TurnRecap), Menu.tsx (MainMenu/GameOver), Home.tsx mounts all.
 - Test tip: reload page first, then `const mod = await import('/src/game/core/state.ts');
   window.__g = mod.game;` newGame({size:11,humanTribe:0,difficulty:'normal',seed:12345});
   human warrior id=1 at (9,7).

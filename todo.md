@@ -1,19 +1,20 @@
-# Polyforge v7 — City Walls + Match Statistics
+# Polyforge v8 — Siege units & Onboarding tutorial
 
-## 1. City walls
-- [ ] types.ts: City.walls?: boolean; WALL_COST constant
-- [ ] rules.ts: wall defense bonus for defenders garrisoned in a walled city
-- [ ] state.ts: buildWalls(cityId) action (level >= 3, cost stars)
-- [ ] scene.ts: rampart ring visual around walled cities
-- [ ] Hud.tsx: Build Walls button in city panel (level 3+, shows cost)
-- [ ] ai.ts: AI builds walls on high-level cities when affordable
+## 1. Catapult siege unit
+- [ ] types.ts: add "catapult" UnitType with stats (high attack, low defense, range 2, move 1, cost ~8), Siegecraft tech unlock
+- [ ] rules.ts: wall bonus ignored when attacker is catapult; range-2 attack targeting
+- [ ] state.ts: no retaliation against ranged catapult attacks
+- [ ] scene.ts: catapult mesh (wooden frame + throwing arm + boulder)
+- [ ] ai.ts: AI researches Siegecraft and trains catapults vs walled cities
+- [ ] Hud.tsx: catapult appears in train list once tech is researched
 
-## 2. Match statistics
-- [ ] types.ts: GameState.stats per tribe { battlesWon, unitsLost, starsEarned, ruinsClaimed, citiesCaptured, techsResearched }
-- [ ] state.ts: increment stats in attack/income/ruins/capture/research; include in save
-- [ ] Menu.tsx: stats panel on GameOver next to score chart
+## 2. Onboarding tutorial
+- [ ] Tutorial overlay component: step-based guide (welcome → select unit → move → capture village → research → end turn)
+- [ ] Trigger on first game ever (localStorage flag polyforge-tutorial-done), skippable
+- [ ] Steps advance on the matching player action; highlight relevant UI areas
 
 ## 3. Verify & deliver
 - [ ] TS check clean
-- [ ] Browser test: walls (bonus applied in combat preview), stats accumulate & show on game over
-- [ ] Clear test saves, checkpoint, deliver
+- [ ] Browser test: catapult vs walled city (no wall bonus, no retaliation), open-field weakness
+- [ ] Browser test: tutorial flow on fresh profile, skip works, doesn't reappear
+- [ ] Clean save/hall state, checkpoint, deliver

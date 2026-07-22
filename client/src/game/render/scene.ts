@@ -423,10 +423,35 @@ export class BoardRenderer {
       rider: () => MeshBuilder.CreateCapsule("b", { radius: 0.13, height: 0.5, orientation: Vector3.Forward() }, this.scene),
       swordsman: () => MeshBuilder.CreateBox("b", { size: 0.34 }, this.scene),
       knight: () => MeshBuilder.CreateCapsule("b", { radius: 0.16, height: 0.55, orientation: Vector3.Forward() }, this.scene),
-      catapult: () => MeshBuilder.CreateCylinder("b", { diameter: 0.36, height: 0.3, tessellation: 8 }, this.scene),
+      catapult: () => {
+        // siege engine: wooden base frame + angled throwing arm + boulder
+        const base = MeshBuilder.CreateBox("b", { width: 0.4, depth: 0.3, height: 0.12 }, this.scene);
+        const wood = this.mat("#8a6a42");
+        const arm = MeshBuilder.CreateBox("arm", { width: 0.06, depth: 0.42, height: 0.06 }, this.scene);
+        arm.position = new Vector3(0, 0.18, -0.05);
+        arm.rotation.x = -Math.PI / 5;
+        arm.material = wood;
+        arm.isPickable = false;
+        arm.parent = base;
+        const boulder = MeshBuilder.CreateIcoSphere("boulder", { radius: 0.08, subdivisions: 1 }, this.scene);
+        boulder.position = new Vector3(0, 0.32, -0.22);
+        boulder.material = this.mat("#9a97a8");
+        boulder.isPickable = false;
+        boulder.parent = base;
+        for (const sx of [-0.17, 0.17]) {
+          const wheel = MeshBuilder.CreateCylinder("wheel", { diameter: 0.14, height: 0.05, tessellation: 8 }, this.scene);
+          wheel.rotation.z = Math.PI / 2;
+          wheel.position = new Vector3(sx, -0.04, 0.08);
+          wheel.material = wood;
+          wheel.isPickable = false;
+          wheel.parent = base;
+        }
+        return base;
+      },
     };
     const body = shapes[u.type]();
-    body.material = this.mat(col);
+    if (u.type !== "catapult") body.material = this.mat(col);
+    else body.material = this.mat(col); // frame carries the tribe color; details stay wood/stone
     body.parent = node;
     body.isPickable = false;
     // head dot for humanoid silhouette
