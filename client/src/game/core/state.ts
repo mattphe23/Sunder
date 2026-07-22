@@ -4,19 +4,19 @@
 import { generateMap, claimBorders } from "./mapgen";
 import {
   GameState, Tribe, Unit, UnitType, UNIT_STATS, TRIBE_DEFS, TechId,
-  Difficulty, idx,
+  Difficulty, idx, PORT_COST,
 } from "./types";
 import {
   reachableTiles, attackableUnits, previewCombat, techCost, canResearch,
   canHarvest, harvestCost, starIncome, tileAt, unitAt, cityAt, trainableUnits,
-  POP_PER_LEVEL,
+  POP_PER_LEVEL, canBuildPort,
 } from "./rules";
 import { runAiTurn } from "./ai";
 
 export type GameEvent =
   | { type: "changed" }
   | { type: "unitMoved"; unitId: number; fromX: number; fromY: number; toX: number; toY: number }
-  | { type: "combat"; attackerId: number; defenderId: number; dmg: number; retaliation: number; defenderDied: boolean; attackerDied: boolean }
+  | { type: "combat"; attackerId: number; defenderId: number; dmg: number; retaliation: number; defenderDied: boolean; attackerDied: boolean; ax: number; ay: number; dx: number; dy: number }
   | { type: "captured"; cityId: number; tribe: number }
   | { type: "turnStarted"; tribe: number };
 
@@ -189,8 +189,18 @@ class GameStore {
     const fromX = u.x, fromY = u.y;
     u.x = x; u.y = y;
     u.moved = true;
+    // naval: embark when entering water (port required by rules), disembark on land
+    const destTerrain = tileAt(s, x, y).terrain;
+    if (destTerrain === "water" || destTerrain === "ocean") {
+      if (!u.boat) s.log.unshift(`${UNIT_STATS[u.type].name} embarked at the port.`);
+      u.boat = true;
+    } else if (u.boat) {
+      u.boat = false;
+      s.log.unshift(`${UNIT_STATS[u.type].name} came ashore.`);
+    }
     const stats = UNIT_STATS[u.type];
     if (!stats.dash) u.attacked = true;
+    if (u.boat) u.attacked = true; // boats cannot attack
     this.exploreAround();
     this.emit({ type: "unitMoved", unitId, fromX, fromY, toX: x, toY: y });
     this.emit({ type: "changed" });
@@ -203,6 +213,7 @@ class GameStore {
     if (!a || !d) return;
     if (!attackableUnits(s, a).some((e) => e.id === defenderId)) return;
     const result = previewCombat(s, a, d);
+    const ax = a.x, ay = a.y, dxp = d.x, dyp = d.y;
     d.hp -= result.damageToDefender;
     a.hp -= result.damageToAttacker;
     a.attacked = true;
@@ -220,9 +231,21 @@ class GameStore {
     this.emit({
       type: "combat", attackerId, defenderId,
       dmg: result.damageToDefender, retaliation: result.damageToAttacker,
-      defenderDied, attackerDied,
+      defenderDied, attackerDied, ax, ay, dx: dxp, dy: dyp,
     });
     this.checkElimination();
+    this.emit({ type: "changed" });
+  }
+
+  buildPort(x: number, y: number) {
+    const s = this.state;
+    const tribeIdx = s.currentTribe;
+    const t = tileAt(s, x, y);
+    if (!canBuildPort(s, tribeIdx, t)) return;
+    if (s.tribes[tribeIdx].stars < PORT_COST) return;
+    s.tribes[tribeIdx].stars -= PORT_COST;
+    t.port = tribeIdx;
+    s.log.unshift(`${s.tribes[tribeIdx].name} built a port.`);
     this.emit({ type: "changed" });
   }
 
@@ -350,7 +373,7 @@ class GameStore {
 
 function makeUnit(id: number, type: UnitType, tribe: number, x: number, y: number): Unit {
   const stats = UNIT_STATS[type];
-  return { id, type, tribe, x, y, hp: stats.hp, maxHp: stats.hp, moved: false, attacked: false, kills: 0 };
+  return { id, type, tribe, x, y, hp: stats.hp, maxHp: stats.hp, moved: false, attacked: false, kills: 0, boat: false };
 }
 
 function emptyState(): GameState {
@@ -377,3 +400,8 @@ function emptyState(): GameState {
 }
 
 export const game = new GameStore();
+
+// dev/testing convenience: expose the singleton store
+if (typeof window !== "undefined") {
+  (window as any).__polyforge = game;
+}

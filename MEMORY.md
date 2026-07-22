@@ -34,3 +34,24 @@
 1. Verify full gameplay loop in browser (move, attack, capture, research, train, game over).
 2. Mobile viewport check + representative screenshots w/ style review.
 3. Save checkpoint, deliver with manus-webdev:// attachment. Research docs already delivered.
+
+## V2 features (combat juice / fog / naval) — Jul 22
+- Checkpoint v1 = c63c25b5 (delivered). Building v2 per user request (all 3 suggestions).
+- DONE code: combat FX (showDamageNumber, lungeUnit, starBurst in scene.ts; wired in GameCanvas
+  via "combat"/"captured" events which now carry ax/ay/dx/dy), fog depth (isVisibleTo in rules.ts;
+  tile/decor visibility 0.45 when explored-not-visible; enemy units hidden unless visible),
+  minimap (ui/Minimap.tsx, canvas, auto-open at size>=13, in Home.tsx), naval (sailing/navigation
+  techs, Tile.port, Unit.boat, PORT_COST=3, buildPort action + AI usage, embark/disembark in
+  moveUnit, boat hull mesh, port pier+mast meshes, port UI in city panel).
+- TS clean; headless sim passes (5 trials).
+- Browser VERIFIED (Jul 22 12:53): damage numbers render (-7 red defender / -7 amber retaliation,
+  billboarded, rise+fade), lunge works, capture star-burst fired on village capture ("Auren
+  captured Halon!" + income +2→+3), minimap toggle opens/closes and shows terrain/cities/units
+  with fog dim, port pier renders on water tile, unit embarks (hull under unit) with log msgs,
+  AI turns run cleanly post-changes (turns 1→3, no console errors). Canvas toDataURL is blank
+  (preserveDrawingBuffer=false) — use browser_view screenshots mid-FX-loop instead.
+- window.__polyforge exposes the live store for dev testing (added in state.ts).
+- Test tip: reload page first, then `const mod = await import('/src/game/core/state.ts');
+  window.__g = mod.game;` newGame({size:11,humanTribe:0,difficulty:'normal',seed:12345});
+  human warrior id=1 at (9,7).
+- After testing: save checkpoint, deliver with manus-webdev:// attachment.

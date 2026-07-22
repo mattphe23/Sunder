@@ -4,6 +4,7 @@ import { useGame } from "@/game/useGame";
 import GameCanvas from "@/game/GameCanvas";
 import { MainMenu, GameOver } from "@/game/ui/Menu";
 import { TopBar, BottomBar, SelectionPanel, TechPanel, LogTicker } from "@/game/ui/Hud";
+import { Minimap } from "@/game/ui/Minimap";
 
 export default function Home() {
   const g = useGame();
@@ -17,6 +18,7 @@ export default function Home() {
       <GameCanvas />
       <TopBar />
       <LogTicker />
+      <Minimap />
       <SelectionPanel />
       <BottomBar onOpenTech={() => setTechOpen(true)} />
       <TechPanel open={techOpen} onClose={() => setTechOpen(false)} />
@@ -24,4 +26,3 @@ export default function Home() {
     </div>
   );
 }
-

@@ -32,6 +32,24 @@ export default function GameCanvas() {
       r.showHighlights(s);
     });
 
+    // combat juice: FX driven by game events
+    const unsubFx = game.subscribe((e) => {
+      const s = game.state;
+      if (s.phase === "menu") return;
+      if (e.type === "combat") {
+        r.lungeUnit(s, e.attackerId, e.dx, e.dy);
+        // slight delay so numbers appear at impact
+        setTimeout(() => {
+          r.showDamageNumber(s, e.dx, e.dy, e.dmg, "#ff6b6b");
+          if (e.retaliation > 0) r.showDamageNumber(s, e.ax, e.ay, e.retaliation, "#ffd76a");
+        }, 120);
+      }
+      if (e.type === "captured") {
+        const city = s.cities[e.cityId];
+        r.starBurst(s, city.x, city.y, s.tribes[e.tribe].color);
+      }
+    });
+
     r.onPick = ({ x, y }) => {
       const s = game.state;
       if (s.phase !== "playing" || s.currentTribe !== s.humanTribe || s.aiThinking) return;
@@ -69,6 +87,7 @@ export default function GameCanvas() {
 
     return () => {
       unsub();
+      unsubFx();
       r.dispose();
       rendererRef.current = null;
     };

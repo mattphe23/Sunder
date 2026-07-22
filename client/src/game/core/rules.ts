@@ -26,10 +26,23 @@ function hasTech(s: GameState, tribe: number, tech: TechId | null): boolean {
 }
 
 /** movement cost to ENTER a tile; Infinity = impassable */
-function moveCost(s: GameState, tribe: number, t: Tile): number {
+function moveCost(s: GameState, unit: Unit, t: Tile): number {
+  const tribe = unit.tribe;
+  if (unit.boat) {
+    // boats travel water; ocean needs Navigation; may land on coastal land (disembark)
+    switch (t.terrain) {
+      case "water": return 1;
+      case "ocean": return hasTech(s, tribe, "navigation") ? 1 : Infinity;
+      case "grass": return 1; // disembark
+      case "forest": return 1.5; // disembark into forest
+      case "mountain": return Infinity;
+    }
+  }
   switch (t.terrain) {
     case "ocean": return Infinity;
-    case "water": return Infinity; // no naval in scope
+    case "water":
+      // land units can embark at a friendly port
+      return t.port === tribe && hasTech(s, tribe, "sailing") ? 1 : Infinity;
     case "mountain": return hasTech(s, tribe, "climbing") ? 2 : Infinity;
     case "forest": return hasTech(s, tribe, "forestry") ? 1 : 2;
     case "grass": {
@@ -39,11 +52,13 @@ function moveCost(s: GameState, tribe: number, t: Tile): number {
   }
 }
 
+export const BOAT_MOVEMENT = 3;
+
 /** Dijkstra reachable tiles for a unit with its movement points */
 export function reachableTiles(s: GameState, unit: Unit): { x: number; y: number }[] {
   if (unit.moved) return [];
   const stats = UNIT_STATS[unit.type];
-  let mp = stats.movement;
+  let mp = unit.boat ? BOAT_MOVEMENT : stats.movement;
   if (s.tribes[unit.tribe].passive === "outriders") mp += 0; // handled via 0.5 grass cost
   const dist = new Map<number, number>();
   const start = idx(unit.x, unit.y, s.size);
@@ -59,7 +74,7 @@ export function reachableTiles(s: GameState, unit: Unit): { x: number; y: number
         const nx = cx + dx, ny = cy + dy;
         if (!inBounds(nx, ny, s.size)) continue;
         const t = tileAt(s, nx, ny);
-        const cost = moveCost(s, unit.tribe, t);
+        const cost = moveCost(s, unit, t);
         const nd = cd + cost;
         if (nd > mp) continue;
         const key = idx(nx, ny, s.size);
@@ -80,6 +95,7 @@ export function attackableUnits(s: GameState, unit: Unit): Unit[] {
   if (unit.attacked) return [];
   const stats = UNIT_STATS[unit.type];
   if (unit.moved && !stats.dash) return [];
+  if (unit.boat) return []; // boats cannot attack (transport only)
   return s.units.filter((e) => {
     if (e.tribe === unit.tribe) return false;
     const d = Math.max(Math.abs(e.x - unit.x), Math.abs(e.y - unit.y));
@@ -96,6 +112,7 @@ export interface CombatResult {
 
 /** defense bonus from terrain/city (Polytopia-style ideas, our tuning) */
 function defenseBonus(s: GameState, defender: Unit): number {
+  if (defender.boat) return 0.7; // embarked units are vulnerable
   const t = tileAt(s, defender.x, defender.y);
   const city = cityAt(s, defender.x, defender.y);
   if (city && city.tribe === defender.tribe) {
@@ -149,6 +166,28 @@ export function harvestCost(s: GameState, tribe: number): number {
   return s.tribes[tribe].passive === "harvesters" ? 1 : 2;
 }
 
+/** naval: can this tribe build a port on tile t? */
+export function canBuildPort(s: GameState, tribe: number, t: Tile): boolean {
+  if (t.terrain !== "water" || t.port !== null) return false;
+  if (!hasTech(s, tribe, "sailing")) return false;
+  if (t.ownerCityId === null) return false;
+  if (s.cities[t.ownerCityId].tribe !== tribe) return false;
+  return true;
+}
+
+/** visibility: tile currently within sight range (2) of any of the tribe's units or cities */
+export function isVisibleTo(s: GameState, tribe: number, x: number, y: number): boolean {
+  for (const u of s.units) {
+    if (u.tribe !== tribe) continue;
+    if (Math.max(Math.abs(u.x - x), Math.abs(u.y - y)) <= 2) return true;
+  }
+  for (const c of s.cities) {
+    if (c.tribe !== tribe) continue;
+    if (Math.max(Math.abs(c.x - x), Math.abs(c.y - y)) <= 2) return true;
+  }
+  return false;
+}
+
 export function canHarvest(s: GameState, tribe: number, t: Tile): boolean {
   if (!t.resource) return false;
   if (t.ownerCityId === null) return false;
@@ -180,4 +219,3 @@ export const POP_PER_LEVEL = 3;
 export function tribeDefs() {
   return TRIBE_DEFS;
 }
-

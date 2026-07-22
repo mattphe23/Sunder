@@ -5,10 +5,11 @@ import {
   Engine, Scene, ArcRotateCamera, HemisphericLight, DirectionalLight,
   Vector3, Color3, Color4, MeshBuilder, StandardMaterial, Mesh,
   TransformNode, PointerEventTypes, Animation, EasingFunction, CubicEase,
+  ParticleSystem, Texture, DynamicTexture,
 } from "@babylonjs/core";
 import { GameState, Tile, Unit, UnitType, idx } from "../core/types";
 import { game } from "../core/state";
-import { reachableTiles, attackableUnits, cityAt } from "../core/rules";
+import { reachableTiles, attackableUnits, cityAt, isVisibleTo } from "../core/rules";
 
 const TILE = 1.02;
 const TERRAIN_COLORS: Record<string, string> = {
@@ -38,6 +39,7 @@ export class BoardRenderer {
   private unitMeshes = new Map<number, TransformNode>();
   private highlightMeshes: Mesh[] = [];
   private mats = new Map<string, StandardMaterial>();
+  private fxMeshes: Mesh[] = [];
   private disposed = false;
   private cameraInitialized = false;
   onPick: ((p: PickInfo) => void) | null = null;
@@ -133,10 +135,28 @@ export class BoardRenderer {
     box.material = this.mat(this.tileColor(s, t));
     box.metadata = { tile: true, x: t.x, y: t.y };
     box.parent = this.root;
+    // fog of war depth: explored but not currently visible → dimmed
+    const visible = isVisibleTo(s, s.humanTribe, t.x, t.y);
+    if (!visible) box.visibility = 0.45;
     this.tileMeshes.set(key, box);
 
     const decor: Mesh[] = [];
     const top = h - 0.4;
+    if (t.port !== null) {
+      // port: wooden pier ring + mast
+      const pier = MeshBuilder.CreateCylinder("port", { diameter: 0.55, height: 0.1, tessellation: 8 }, this.scene);
+      pier.position = new Vector3(t.x - c, top + 0.06, t.y - c);
+      pier.material = this.mat("#a97c50");
+      pier.metadata = { tile: true, x: t.x, y: t.y };
+      pier.parent = this.root;
+      decor.push(pier);
+      const mast = MeshBuilder.CreateCylinder("mast", { diameter: 0.05, height: 0.5, tessellation: 6 }, this.scene);
+      mast.position = new Vector3(t.x - c + 0.15, top + 0.3, t.y - c);
+      mast.material = this.mat(s.tribes[t.port].color);
+      mast.metadata = { tile: true, x: t.x, y: t.y };
+      mast.parent = this.root;
+      decor.push(mast);
+    }
     if (t.terrain === "forest") {
       for (let i = 0; i < 3; i++) {
         const tree = MeshBuilder.CreateCylinder("tr", { diameterTop: 0, diameterBottom: 0.28, height: 0.45, tessellation: 5 }, this.scene);
@@ -156,6 +176,7 @@ export class BoardRenderer {
       decor.push(peak);
     }
     if (t.resource) {
+      if (!visible) { /* resources still shown dimmed */ }
       const rc = t.resource === "fruit" ? "#ff7854" : t.resource === "animal" ? "#c98d4a" : "#9ad7e8";
       const orb = MeshBuilder.CreateIcoSphere("res", { radius: 0.13, subdivisions: 1 }, this.scene);
       orb.position = new Vector3(t.x - c + 0.3, top + 0.14, t.y - c + 0.3);
@@ -191,6 +212,7 @@ export class BoardRenderer {
         decor.push(spire);
       }
     }
+    if (!visible) decor.forEach((m) => (m.visibility = 0.45));
     this.decorMeshes.set(key, decor);
   }
 
@@ -214,12 +236,26 @@ export class BoardRenderer {
     const c = this.center(s.size);
     const seen = new Set<number>();
     for (const u of s.units) {
-      if (!s.tiles[idx(u.x, u.y, s.size)].explored[s.humanTribe]) continue;
+      // fog: enemy units only shown when their tile is currently visible
+      const explored = s.tiles[idx(u.x, u.y, s.size)].explored[s.humanTribe];
+      if (!explored) continue;
+      if (u.tribe !== s.humanTribe && !isVisibleTo(s, s.humanTribe, u.x, u.y)) continue;
       seen.add(u.id);
       let node = this.unitMeshes.get(u.id);
       if (!node) {
         node = this.buildUnitMesh(s, u);
         this.unitMeshes.set(u.id, node);
+      }
+      // naval: show/hide boat hull under the unit
+      const hull = node.getChildMeshes().find((m) => m.name === "hull");
+      if (u.boat && !hull) {
+        const b = MeshBuilder.CreateBox("hull", { width: 0.5, depth: 0.3, height: 0.12 }, this.scene);
+        b.position.y = -0.2;
+        b.material = this.mat("#8a6642");
+        b.parent = node;
+        b.isPickable = false;
+      } else if (!u.boat && hull) {
+        hull.dispose();
       }
       const h = TERRAIN_H[s.tiles[idx(u.x, u.y, s.size)].terrain];
       const target = new Vector3(u.x - c, h - 0.4 + 0.32, u.y - c);
@@ -325,6 +361,111 @@ export class BoardRenderer {
     sel.isPickable = false;
     sel.parent = this.root;
     this.highlightMeshes.push(sel);
+  }
+
+  // ---------- combat juice ----------
+
+  /** floating damage number that rises and fades */
+  showDamageNumber(s: GameState, x: number, y: number, amount: number, color = "#ff6b6b") {
+    if (amount <= 0) return;
+    const c = this.center(s.size);
+    const h = TERRAIN_H[s.tiles[idx(x, y, s.size)].terrain];
+    const size = 256;
+    const dt = new DynamicTexture("dmg", { width: size, height: size }, this.scene, false);
+    dt.hasAlpha = true;
+    const ctx = dt.getContext();
+    ctx.clearRect(0, 0, size, size);
+    dt.drawText(`-${amount}`, null, 150, "bold 110px Fredoka, sans-serif", color, "transparent", true);
+    const plane = MeshBuilder.CreatePlane("dmgp", { size: 0.9 }, this.scene);
+    const m = new StandardMaterial("dmgm", this.scene);
+    m.diffuseTexture = dt;
+    m.emissiveColor = Color3.White();
+    m.useAlphaFromDiffuseTexture = true;
+    m.disableDepthWrite = true;
+    m.backFaceCulling = false;
+    plane.material = m;
+    plane.billboardMode = Mesh.BILLBOARDMODE_ALL;
+    plane.position = new Vector3(x - c, h - 0.4 + 0.9, y - c);
+    plane.isPickable = false;
+    plane.parent = this.root;
+    this.fxMeshes.push(plane);
+
+    const rise = new Animation("rise", "position.y", 60, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
+    rise.setKeys([
+      { frame: 0, value: plane.position.y },
+      { frame: 50, value: plane.position.y + 0.85 },
+    ]);
+    const fade = new Animation("fade", "visibility", 60, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
+    fade.setKeys([
+      { frame: 0, value: 1 },
+      { frame: 30, value: 1 },
+      { frame: 50, value: 0 },
+    ]);
+    plane.animations = [rise, fade];
+    this.scene.beginAnimation(plane, 0, 50, false, 1, () => {
+      plane.dispose();
+      dt.dispose();
+      this.fxMeshes = this.fxMeshes.filter((q) => q !== plane);
+    });
+  }
+
+  /** attacker lunges toward the defender and snaps back */
+  lungeUnit(s: GameState, attackerId: number, tx: number, ty: number) {
+    const node = this.unitMeshes.get(attackerId);
+    if (!node) return;
+    const c = this.center(s.size);
+    const from = node.position.clone();
+    const toward = new Vector3(tx - c, from.y, ty - c);
+    const mid = Vector3.Lerp(from, toward, 0.45);
+    const anim = new Animation("lunge", "position", 60, Animation.ANIMATIONTYPE_VECTOR3, Animation.ANIMATIONLOOPMODE_CONSTANT);
+    anim.setKeys([
+      { frame: 0, value: from },
+      { frame: 6, value: mid },
+      { frame: 14, value: from },
+    ]);
+    const ease = new CubicEase();
+    ease.setEasingMode(EasingFunction.EASINGMODE_EASEOUT);
+    anim.setEasingFunction(ease);
+    node.animations = [anim];
+    this.scene.beginAnimation(node, 0, 14, false);
+  }
+
+  /** amber star-burst particle effect on city capture */
+  starBurst(s: GameState, x: number, y: number, colorHex: string) {
+    const c = this.center(s.size);
+    const h = TERRAIN_H[s.tiles[idx(x, y, s.size)].terrain];
+    const emitter = new Vector3(x - c, h - 0.4 + 0.4, y - c);
+    const ps = new ParticleSystem("burst", 60, this.scene);
+    // procedural spark texture
+    const size = 64;
+    const dt = new DynamicTexture("spark", { width: size, height: size }, this.scene, false);
+    dt.hasAlpha = true;
+    const ctx = dt.getContext() as CanvasRenderingContext2D;
+    ctx.clearRect(0, 0, size, size);
+    const grad = ctx.createRadialGradient(32, 32, 2, 32, 32, 30);
+    grad.addColorStop(0, "rgba(255,255,255,1)");
+    grad.addColorStop(0.4, "rgba(255,215,106,0.9)");
+    grad.addColorStop(1, "rgba(255,185,56,0)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, size, size);
+    dt.update();
+    ps.particleTexture = dt as unknown as Texture;
+    ps.emitter = emitter;
+    ps.minSize = 0.12; ps.maxSize = 0.3;
+    ps.minLifeTime = 0.35; ps.maxLifeTime = 0.7;
+    ps.emitRate = 400;
+    ps.direction1 = new Vector3(-1, 1.5, -1);
+    ps.direction2 = new Vector3(1, 2.5, 1);
+    ps.minEmitPower = 1.2; ps.maxEmitPower = 2.6;
+    ps.gravity = new Vector3(0, -4, 0);
+    const col = Color3.FromHexString(colorHex);
+    ps.color1 = new Color4(1, 0.84, 0.42, 1);
+    ps.color2 = new Color4(col.r, col.g, col.b, 1);
+    ps.colorDead = new Color4(1, 0.72, 0.22, 0);
+    ps.blendMode = ParticleSystem.BLENDMODE_ADD;
+    ps.targetStopDuration = 0.25;
+    ps.disposeOnStop = true;
+    ps.start();
   }
 
   dispose() {

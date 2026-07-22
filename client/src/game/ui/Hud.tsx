@@ -1,12 +1,12 @@
 // Polyforge HUD — Isoglow glass panels over the indigo void; amber star accent.
 import { useGame } from "../useGame";
-import { UNIT_STATS, TECHS, UnitType, TechId } from "../core/types";
+import { UNIT_STATS, TECHS, PORT_COST } from "../core/types";
 import {
   techCost, canResearch, trainableUnits, starIncome, cityAt, canHarvest,
-  harvestCost, tileAt,
+  harvestCost, canBuildPort,
 } from "../core/rules";
 import { Button } from "@/components/ui/button";
-import { Star, Swords, FlaskConical, X, ChevronRight } from "lucide-react";
+import { Star, Swords, FlaskConical, X, ChevronRight, Anchor, Ship } from "lucide-react";
 import { useState } from "react";
 
 const panel = "rounded-xl border border-white/10 bg-[#1b1b3f]/85 backdrop-blur-md shadow-xl shadow-black/40 text-slate-100";
@@ -81,9 +81,13 @@ export function SelectionPanel() {
     return (
       <div className={`${panel} absolute bottom-16 left-3 z-20 w-60 p-3`}>
         <div className="mb-1 flex items-center justify-between">
-          <span className="font-display text-sm font-bold">{st.name}</span>
+          <span className="flex items-center gap-1.5 font-display text-sm font-bold">
+            {unit.boat && <Ship className="h-4 w-4 text-cyan-300" />}
+            {st.name}{unit.boat && " (at sea)"}
+          </span>
           <button onClick={() => g.selectUnit(null)}><X className="h-4 w-4 text-slate-400" /></button>
         </div>
+        {unit.boat && <p className="mb-1 text-[11px] text-cyan-200/80">Embarked — cannot attack; weaker in defense. Land to fight.</p>}
         <div className="mb-2 h-1.5 overflow-hidden rounded bg-white/10">
           <div className="h-full rounded bg-emerald-400" style={{ width: `${(unit.hp / unit.maxHp) * 100}%` }} />
         </div>
@@ -106,6 +110,7 @@ export function SelectionPanel() {
   if (city && city.tribe === s.humanTribe) {
     const me = s.tribes[s.humanTribe];
     const harvestables = s.tiles.filter((t) => t.ownerCityId === city.id && t.resource && canHarvest(s, s.humanTribe, t));
+    const portSites = s.tiles.filter((t) => t.ownerCityId === city.id && canBuildPort(s, s.humanTribe, t));
     return (
       <div className={`${panel} absolute bottom-16 left-3 z-20 w-64 p-3`}>
         <div className="mb-1 flex items-center justify-between">
@@ -146,6 +151,25 @@ export function SelectionPanel() {
                   className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs capitalize hover:bg-white/15"
                 >
                   {t.resource}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+        {portSites.length > 0 && (
+          <>
+            <p className="mb-1 mt-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              Build port ({PORT_COST}★)
+            </p>
+            <div className="flex flex-wrap gap-1">
+              {portSites.map((t) => (
+                <button
+                  key={`p${t.x},${t.y}`}
+                  disabled={me.stars < PORT_COST}
+                  onClick={() => g.buildPort(t.x, t.y)}
+                  className={`flex items-center gap-1 rounded-md border border-white/10 px-2 py-1 text-xs ${me.stars >= PORT_COST ? "bg-white/5 hover:bg-white/15" : "opacity-40"}`}
+                >
+                  <Anchor className="h-3 w-3 text-cyan-300" /> ({t.x},{t.y})
                 </button>
               ))}
             </div>
@@ -212,4 +236,3 @@ export function LogTicker() {
     </div>
   );
 }
-

@@ -14,6 +14,8 @@ export interface Tile {
   /** id of tribe whose city's borders contain this tile (for harvesting) */
   ownerCityId: number | null;
   explored: boolean[]; // per tribe index
+  /** naval: a port built on this water tile (tribe index) or null */
+  port: number | null;
 }
 
 export interface City {
@@ -73,6 +75,8 @@ export interface Unit {
   attacked: boolean;
   /** set when unit is on a capturable city and may capture next action */
   kills: number;
+  /** naval: unit is embarked on a boat */
+  boat: boolean;
 }
 
 export type TechId =
@@ -87,7 +91,9 @@ export type TechId =
   | "freeSpirit"
   | "chivalry"
   | "mathematics"
-  | "forestry";
+  | "forestry"
+  | "sailing"
+  | "navigation";
 
 export interface TechDef {
   id: TechId;
@@ -111,7 +117,12 @@ export const TECHS: TechDef[] = [
   { id: "freeSpirit", name: "Free Spirit", tier: 2, requires: "riding", baseCost: 5, desc: "City defense bonus." },
   { id: "chivalry", name: "Chivalry", tier: 3, requires: "freeSpirit", baseCost: 6, desc: "Unlocks the mighty Knight." },
   { id: "mathematics", name: "Mathematics", tier: 3, requires: "forestry", baseCost: 6, desc: "Unlocks the Catapult." },
+  { id: "sailing", name: "Sailing", tier: 2, requires: "organization", baseCost: 5, desc: "Build ports; units embark on boats to cross shallow water." },
+  { id: "navigation", name: "Navigation", tier: 3, requires: "sailing", baseCost: 6, desc: "Boats can cross deep ocean tiles." },
 ];
+
+/** cost in stars to build a port on a shallow water tile in your city borders */
+export const PORT_COST = 3;
 
 export type FactionPassive = "scholars" | "forgeborn" | "harvesters" | "outriders";
 

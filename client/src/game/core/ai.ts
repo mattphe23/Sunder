@@ -4,9 +4,9 @@
 
 import {
   reachableTiles, attackableUnits, previewCombat, canResearch, canHarvest,
-  trainableUnits, techCost, cityAt, unitAt,
+  trainableUnits, techCost, cityAt, unitAt, canBuildPort,
 } from "./rules";
-import { GameState, TECHS, UNIT_STATS, UnitType, Unit, TechId } from "./types";
+import { GameState, TECHS, UNIT_STATS, UnitType, Unit, TechId, PORT_COST } from "./types";
 
 // avoid circular type import; structural typing for the store
 interface StoreLike {
@@ -17,6 +17,7 @@ interface StoreLike {
   moveUnit(id: number, x: number, y: number): void;
   attack(a: number, d: number): void;
   captureCity(id: number): void;
+  buildPort(x: number, y: number): void;
 }
 
 export function runAiTurn(store: StoreLike, tribeIdx: number) {
@@ -33,6 +34,12 @@ export function runAiTurn(store: StoreLike, tribeIdx: number) {
   // 2. harvest affordable resources in own borders
   for (const t of s.tiles) {
     if (canHarvest(s, tribeIdx, t)) store.harvest(t.x, t.y);
+  }
+
+  // 2b. naval: occasionally build a port if it has Sailing and spare stars
+  if (s.tribes[tribeIdx].stars > PORT_COST + 4) {
+    const site = s.tiles.find((t) => canBuildPort(s, tribeIdx, t));
+    if (site && Math.random() < 0.5) store.buildPort(site.x, site.y);
   }
 
   // 3. train: keep army at ~3 units per city, use best affordable unit type

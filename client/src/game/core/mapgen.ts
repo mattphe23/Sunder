@@ -58,7 +58,7 @@ export function generateMap(size: number, seed: number, tribeCount: number): Map
       else terrain = forestNoise(fx, fy) > 0.58 ? "forest" : "grass";
       tiles.push({
         x, y, terrain, resource: null, cityId: null, ownerCityId: null,
-        explored: new Array(tribeCount).fill(false),
+        explored: new Array(tribeCount).fill(false), port: null,
       });
     }
   }
@@ -149,5 +149,4 @@ export function claimBorders(tiles: Tile[], size: number, city: City) {
     }
   }
 }
-
 
