@@ -162,6 +162,7 @@ class GameStore {
       size: opts.size,
       seed,
       preset,
+      showIntro: true,
       difficulty: opts.difficulty,
       tribes,
       tiles,
@@ -345,6 +346,11 @@ class GameStore {
     const s = this.state;
     s.showRecap = false;
     s.recap = [];
+    this.emit({ type: "changed" });
+  }
+
+  dismissIntro() {
+    this.state.showIntro = false;
     this.emit({ type: "changed" });
   }
 

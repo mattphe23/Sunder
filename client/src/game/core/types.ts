@@ -251,6 +251,8 @@ export interface GameState {
   recap: RecapEntry[];
   /** recap ready to display at the start of the human turn */
   showRecap: boolean;
+  /** faction intro card shown once at match start (persisted, so reloads mid-intro re-show) */
+  showIntro?: boolean;
   /** per-tribe score at the END of each turn: scoreHistory[turn-1][tribeIdx] */
   scoreHistory: number[][];
   /** per-tribe running match statistics (index = tribe index) */

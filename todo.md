@@ -18,4 +18,15 @@
       vs wounded, warden 3 dmg vs defender 4 + climbs w/o tech (warrior blocked), raider +2★/-2★ on kill,
       AI Vessari raider plundered during live AI turn, meshes render distinct
 - [x] localStorage cleared, back to menu
-- [ ] Checkpoint v10 + deliver
+- [x] Checkpoint v10 + deliver (637e6d81)
+
+# Polyforge v11 — Faction intro cards
+
+- [x] Lore + strategy content for all 4 factions (INTROS in FactionIntro.tsx)
+- [x] FactionIntro.tsx overlay (z-50, faction-colored frame/header/CTA, passive + unique unit + openings)
+- [x] Trigger: GameState.showIntro set true in newGame only; dismissIntro() clears; persisted in autoSave
+- [x] Intro card renders above tutorial (z-50 vs z-40) — tutorial appears after dismissal
+- [x] pnpm check clean
+- [x] Browser verified: Auren (blue) + Vessari (violet) cards correct; dismiss works; saved showIntro
+      false after dismissal (Continue safe); mid-intro reload persists true (card re-shows)
+- [x] localStorage cleaned; ready for checkpoint v11 + deliver

@@ -6,6 +6,7 @@ import { MainMenu, GameOver } from "@/game/ui/Menu";
 import { TopBar, BottomBar, SelectionPanel, TechPanel, LogTicker, BattlePreview, TurnRecap } from "@/game/ui/Hud";
 import { Minimap } from "@/game/ui/Minimap";
 import { Tutorial } from "@/game/ui/Tutorial";
+import { FactionIntro } from "@/game/ui/FactionIntro";
 
 export default function Home() {
   const g = useGame();
@@ -26,6 +27,7 @@ export default function Home() {
       <BottomBar onOpenTech={() => setTechOpen(true)} />
       <TechPanel open={techOpen} onClose={() => setTechOpen(false)} />
       <Tutorial />
+      <FactionIntro />
       {s.phase === "gameover" && <GameOver />}
     </div>
   );

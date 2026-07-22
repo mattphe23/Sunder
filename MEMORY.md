@@ -182,3 +182,17 @@
   window.__g = mod.game;` newGame({size:11,humanTribe:0,difficulty:'normal',seed:12345});
   human warrior id=1 at (9,7).
 - After testing: save checkpoint, deliver with manus-webdev:// attachment.
+
+## v10 DONE (637e6d81): faction-unique units, all verified
+- arcanist(Auren, heal +2 adj at turn start), berserker(Kharzul, +50% vs wounded),
+  warden(Sunwei, free mtn move + strong mtn def), raider(Vessari, +2★ plunder/kill)
+- UNIT_STATS entries have `faction?: number` + `perk?: string` fields.
+- Sandbox was reset; new preview URL https://3000-i6ec6uow94ogf0k6buvye-ab5232aa.us2.manus.computer
+
+## v11 DONE: faction intro cards — VERIFIED
+- FactionIntro.tsx (z-50 overlay, faction-colored, lore + passive + unique unit + 3 openings,
+  "To battle" dismiss), mounted in Home.tsx after Tutorial (renders above tutorial's z-40).
+- types.ts GameState.showIntro?: boolean; state.ts newGame sets showIntro=true, dismissIntro()
+  clears; persisted via autoSave JSON so Continue never re-shows after dismissal but mid-intro
+  reload re-shows. tribe.color / tribe.passiveDesc field names confirmed correct.
+- Verified in browser: Auren + Vessari cards, dismiss, persistence both directions. TS clean.
