@@ -1,15 +1,75 @@
 // Polyforge HUD — Isoglow glass panels over the indigo void; amber star accent.
 import { useGame } from "../useGame";
+import { game } from "../core/state";
 import { UNIT_STATS, TECHS, PORT_COST } from "../core/types";
 import {
   techCost, canResearch, trainableUnits, starIncome, cityAt, canHarvest,
   harvestCost, canBuildPort,
 } from "../core/rules";
 import { Button } from "@/components/ui/button";
-import { Star, Swords, FlaskConical, X, ChevronRight, Anchor, Ship } from "lucide-react";
+import { Star, Swords, FlaskConical, X, ChevronRight, Anchor, Ship, Skull, Shield } from "lucide-react";
 import { useState } from "react";
 
 const panel = "rounded-xl border border-white/10 bg-[#1b1b3f]/85 backdrop-blur-md shadow-xl shadow-black/40 text-slate-100";
+
+/** Battle preview — shows predicted damage/retaliation before the attack commits. */
+export function BattlePreview() {
+  const g = useGame();
+  const s = g.state;
+  const p = game.pendingAttack;
+  if (!p || s.phase !== "playing") return null;
+  const attacker = s.units.find((u) => u.id === p.attackerId);
+  const defender = s.units.find((u) => u.id === p.defenderId);
+  if (!attacker || !defender) return null;
+  const aStats = UNIT_STATS[attacker.type];
+  const dStats = UNIT_STATS[defender.type];
+  return (
+    <div className={`${panel} absolute bottom-16 left-1/2 z-30 w-72 -translate-x-1/2 border-red-400/30 p-3`}>
+      <div className="mb-2 flex items-center justify-between">
+        <span className="flex items-center gap-1.5 font-display text-sm font-bold text-red-300">
+          <Swords className="h-4 w-4" /> Battle Preview
+        </span>
+        <button onClick={() => game.cancelAttack()} aria-label="Cancel attack">
+          <X className="h-4 w-4 text-slate-400" />
+        </button>
+      </div>
+      <div className="mb-2 grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-center">
+        <div className="rounded-md bg-white/5 p-2">
+          <p className="text-xs font-bold text-slate-100">{aStats.name}</p>
+          <p className="font-mono text-[11px] text-slate-300">{attacker.hp}/{attacker.maxHp} HP</p>
+          {p.retaliation > 0 ? (
+            <p className={`mt-1 font-mono text-sm font-bold ${p.attackerDies ? "text-red-400" : "text-amber-300"}`}>
+              −{p.retaliation}
+            </p>
+          ) : (
+            <p className="mt-1 flex items-center justify-center gap-1 text-[11px] text-emerald-300">
+              <Shield className="h-3 w-3" /> no retaliation
+            </p>
+          )}
+          {p.attackerDies && <p className="flex items-center justify-center gap-1 text-[10px] text-red-400"><Skull className="h-3 w-3" /> falls</p>}
+        </div>
+        <Swords className="h-5 w-5 text-red-400" />
+        <div className="rounded-md bg-white/5 p-2">
+          <p className="text-xs font-bold text-slate-100">{dStats.name}</p>
+          <p className="font-mono text-[11px] text-slate-300">{defender.hp}/{defender.maxHp} HP</p>
+          <p className={`mt-1 font-mono text-sm font-bold ${p.defenderDies ? "text-red-400" : "text-red-300"}`}>
+            −{p.dmg}
+          </p>
+          {p.defenderDies && <p className="flex items-center justify-center gap-1 text-[10px] text-red-400"><Skull className="h-3 w-3" /> falls</p>}
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <Button size="sm" variant="secondary" className="flex-1 border border-white/10 bg-white/10 text-slate-200 hover:bg-white/20" onClick={() => game.cancelAttack()}>
+          Cancel
+        </Button>
+        <Button size="sm" className="flex-1 gap-1 bg-red-500 font-bold text-white hover:bg-red-400" onClick={() => game.confirmAttack()}>
+          <Swords className="h-3.5 w-3.5" /> Attack
+        </Button>
+      </div>
+      <p className="mt-1.5 text-center text-[10px] text-slate-400">Tip: click the target again to confirm</p>
+    </div>
+  );
+}
 
 export function TopBar() {
   const g = useGame();

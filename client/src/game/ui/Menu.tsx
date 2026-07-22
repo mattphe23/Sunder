@@ -2,9 +2,10 @@
 // edge-framed layout, tribe-color accents, four-point spark motifs, faceted separators.
 import { useState } from "react";
 import { useGame } from "../useGame";
+import { game } from "../core/state";
 import { TRIBE_DEFS, Difficulty } from "../core/types";
 import { Button } from "@/components/ui/button";
-import { Swords, Star } from "lucide-react";
+import { Swords, Star, Play } from "lucide-react";
 
 const MENU_BG = "/manus-storage/menu-bg_b1164e9a.png";
 const LOGO = "/manus-storage/logo_c79c0f53.png";
@@ -37,6 +38,7 @@ export function MainMenu() {
   const [difficulty, setDifficulty] = useState<Difficulty>("normal");
   const [size, setSize] = useState(11);
   const tribe = TRIBE_DEFS[faction];
+  const saved = game.savedSummary();
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#141433] px-4 py-10">
@@ -153,6 +155,16 @@ export function MainMenu() {
         >
           <Swords className="h-5 w-5" /> BEGIN CONQUEST
         </Button>
+        {saved && (
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={() => game.continueGame()}
+            className="mt-2.5 w-full gap-2 rounded-lg border-2 border-emerald-400/60 bg-emerald-400/10 py-5 font-display text-sm font-black tracking-widest text-emerald-200 shadow-[0_0_24px_rgba(52,211,153,0.2)] transition-transform hover:bg-emerald-400/20 active:scale-[0.98]"
+          >
+            <Play className="h-4 w-4" /> CONTINUE — {saved.tribeName}, TURN {saved.turn} ({saved.difficulty})
+          </Button>
+        )}
         <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-[11px] font-medium text-slate-300">
           <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
           Capture all rival capitals — or lead in score when turn 30 ends. Every faction is free and fair.

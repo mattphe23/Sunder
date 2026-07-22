@@ -57,13 +57,20 @@ export default function GameCanvas() {
       const clickedUnit = unitAt(s, x, y);
 
       if (selected && selected.tribe === s.humanTribe) {
-        // attack?
+        // attack? First click stages a preview; clicking the same target again confirms.
         if (clickedUnit && clickedUnit.tribe !== s.humanTribe) {
           if (attackableUnits(s, selected).some((e2) => e2.id === clickedUnit.id)) {
-            game.attack(selected.id, clickedUnit.id);
+            const p = game.pendingAttack;
+            if (p && p.attackerId === selected.id && p.defenderId === clickedUnit.id) {
+              game.confirmAttack();
+            } else {
+              game.stageAttack(selected.id, clickedUnit.id);
+            }
             return;
           }
         }
+        // clicking elsewhere cancels a staged attack
+        if (game.pendingAttack) game.cancelAttack();
         // move?
         if (!clickedUnit && reachableTiles(s, selected).some((t) => t.x === x && t.y === y)) {
           game.moveUnit(selected.id, x, y);

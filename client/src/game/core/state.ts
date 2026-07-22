@@ -22,8 +22,24 @@ export type GameEvent =
 
 type Listener = (e: GameEvent) => void;
 
+const SAVE_KEY = "polyforge-save-v1";
+
+/** Battle preview shown before committing an attack. */
+export interface PendingAttack {
+  attackerId: number;
+  defenderId: number;
+  dmg: number;
+  retaliation: number;
+  defenderDies: boolean;
+  attackerDies: boolean;
+  dx: number;
+  dy: number;
+}
+
 class GameStore {
   state: GameState = emptyState();
+  /** Non-persisted UI state: attack awaiting confirmation. */
+  pendingAttack: PendingAttack | null = null;
   private listeners = new Set<Listener>();
   private snapshotVersion = 0;
 
@@ -37,6 +53,72 @@ class GameStore {
   emit(e: GameEvent) {
     if (e.type === "changed" || true) this.snapshotVersion++;
     this.listeners.forEach((fn) => fn(e));
+    if (e.type === "changed") this.autoSave();
+  }
+
+  // ---------- persistence ----------
+
+  private autoSave() {
+    const s = this.state;
+    try {
+      if (s.phase === "playing") {
+        localStorage.setItem(SAVE_KEY, JSON.stringify(s));
+      } else if (s.phase === "gameover" || s.phase === "menu") {
+        localStorage.removeItem(SAVE_KEY);
+      }
+    } catch {
+      // storage unavailable (private mode/quota) — play without persistence
+    }
+  }
+
+  hasSave(): boolean {
+    try {
+      return localStorage.getItem(SAVE_KEY) !== null;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Peek at saved metadata for the Continue button label. */
+  savedSummary(): { turn: number; tribeName: string; difficulty: string } | null {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) return null;
+      const s = JSON.parse(raw) as GameState;
+      return { turn: s.turn + 1, tribeName: s.tribes[s.humanTribe]?.name ?? "?", difficulty: s.difficulty };
+    } catch {
+      return null;
+    }
+  }
+
+  continueGame(): boolean {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) return false;
+      const s = JSON.parse(raw) as GameState;
+      if (!s || s.phase !== "playing" || !Array.isArray(s.tiles) || s.tiles.length === 0) return false;
+      s.selectedUnitId = null;
+      s.selectedCityId = null;
+      s.aiThinking = false;
+      this.state = s;
+      this.pendingAttack = null;
+      this.emit({ type: "changed" });
+      // if the save happened mid-AI-round, resume AI turns
+      if (s.currentTribe !== s.humanTribe) {
+        const tribe = s.tribes[s.currentTribe];
+        if (tribe && !tribe.isHuman && tribe.alive) {
+          this.state.aiThinking = true;
+          setTimeout(() => {
+            runAiTurn(this, this.state.currentTribe);
+            this.state.aiThinking = false;
+            if (this.state.phase === "playing") this.endTurn();
+          }, 350);
+        }
+      }
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   // ---------- lifecycle ----------
@@ -84,6 +166,8 @@ class GameStore {
 
   toMenu() {
     this.state = emptyState();
+    this.pendingAttack = null;
+    try { localStorage.removeItem(SAVE_KEY); } catch { /* noop */ }
     this.emit({ type: "changed" });
   }
 
@@ -115,6 +199,7 @@ class GameStore {
     if (s.phase !== "playing") return;
     s.selectedUnitId = null;
     s.selectedCityId = null;
+    this.pendingAttack = null;
     this.nextTribe();
   }
 
@@ -168,6 +253,7 @@ class GameStore {
     const s = this.state;
     s.selectedCityId = null;
     s.selectedUnitId = unitId;
+    this.pendingAttack = null;
     this.emit({ type: "changed" });
   }
 
@@ -175,6 +261,39 @@ class GameStore {
     const s = this.state;
     s.selectedUnitId = null;
     s.selectedCityId = cityId;
+    this.pendingAttack = null;
+    this.emit({ type: "changed" });
+  }
+
+  /** Stage an attack: compute the preview and wait for confirmation. */
+  stageAttack(attackerId: number, defenderId: number) {
+    const s = this.state;
+    const a = s.units.find((q) => q.id === attackerId);
+    const d = s.units.find((q) => q.id === defenderId);
+    if (!a || !d) return;
+    if (!attackableUnits(s, a).some((e) => e.id === defenderId)) return;
+    const r = previewCombat(s, a, d);
+    this.pendingAttack = {
+      attackerId, defenderId,
+      dmg: r.damageToDefender,
+      retaliation: r.damageToAttacker,
+      defenderDies: d.hp - r.damageToDefender <= 0,
+      attackerDies: a.hp - r.damageToAttacker <= 0,
+      dx: d.x, dy: d.y,
+    };
+    this.emit({ type: "changed" });
+  }
+
+  confirmAttack() {
+    const p = this.pendingAttack;
+    if (!p) return;
+    this.pendingAttack = null;
+    this.attack(p.attackerId, p.defenderId);
+  }
+
+  cancelAttack() {
+    if (!this.pendingAttack) return;
+    this.pendingAttack = null;
     this.emit({ type: "changed" });
   }
 

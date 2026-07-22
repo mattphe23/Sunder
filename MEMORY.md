@@ -51,6 +51,20 @@
   AI turns run cleanly post-changes (turns 1→3, no console errors). Canvas toDataURL is blank
   (preserveDrawingBuffer=false) — use browser_view screenshots mid-FX-loop instead.
 - window.__polyforge exposes the live store for dev testing (added in state.ts).
+
+## v3 (save/resume + battle preview) — verification progress (Jul 22 13:42)
+- state.ts: SAVE_KEY "polyforge-save-v1"; autoSave on every changed emit (playing→save,
+  menu/gameover→clear); hasSave/savedSummary/continueGame (resumes AI mid-round);
+  stageAttack/confirmAttack/cancelAttack with PendingAttack interface (game.pendingAttack).
+- GameCanvas: first click on attackable enemy stages preview; same-target re-click confirms;
+  clicking elsewhere cancels. Menu.tsx: CONTINUE button (emerald) shows tribe/turn/difficulty.
+- Hud.tsx: BattlePreview panel (bottom-center, red-accent) shows both units, −dmg/−retaliation,
+  kill "falls" markers, Cancel/Attack buttons. Mounted in Home.tsx.
+- VERIFIED in browser: preview panel renders with −5/−5 for warrior vs warrior (seed 4242);
+  confirmAttack applied exactly the previewed numbers (dmg 5, retaliation 5, pending cleared);
+  reload showed "CONTINUE — Auren, TURN 2 (normal)" and restored exact state
+  (turn 1, 19 stars, techs [organization,hunting], 4 units, seed 4242);
+  toMenu cleared the save. TS clean. All v3 features complete.
 - Test tip: reload page first, then `const mod = await import('/src/game/core/state.ts');
   window.__g = mod.game;` newGame({size:11,humanTribe:0,difficulty:'normal',seed:12345});
   human warrior id=1 at (9,7).
