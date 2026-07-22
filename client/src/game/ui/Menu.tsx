@@ -2,10 +2,10 @@
 // edge-framed layout, tribe-color accents, four-point spark motifs, faceted separators.
 import { useState } from "react";
 import { useGame } from "../useGame";
-import { game } from "../core/state";
+import { game, loadHall, HallEntry } from "../core/state";
 import { TRIBE_DEFS, Difficulty } from "../core/types";
 import { Button } from "@/components/ui/button";
-import { Swords, Star, Play } from "lucide-react";
+import { Swords, Star, Play, Trophy, ChevronDown } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip as RTooltip, ResponsiveContainer,
@@ -41,8 +41,12 @@ export function MainMenu() {
   const [faction, setFaction] = useState(0);
   const [difficulty, setDifficulty] = useState<Difficulty>("normal");
   const [size, setSize] = useState(11);
+  const [hallOpen, setHallOpen] = useState(false);
+  const [hallTab, setHallTab] = useState<Difficulty>("normal");
+  const [hall] = useState(() => loadHall());
   const tribe = TRIBE_DEFS[faction];
   const saved = game.savedSummary();
+  const hallCount = (["easy", "normal", "hard"] as Difficulty[]).reduce((n, d) => n + (hall[d]?.length ?? 0), 0);
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#141433] px-4 py-10">
@@ -169,6 +173,53 @@ export function MainMenu() {
             <Play className="h-4 w-4" /> CONTINUE — {saved.tribeName}, TURN {saved.turn} ({saved.difficulty})
           </Button>
         )}
+
+        {/* Hall of Conquest — best victories per difficulty */}
+        <div className="mt-3 w-full">
+          <button
+            onClick={() => setHallOpen(!hallOpen)}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 font-display text-xs font-bold uppercase tracking-[0.2em] text-slate-300 transition-colors hover:bg-white/10 active:scale-[0.98]"
+          >
+            <Trophy className="h-3.5 w-3.5 text-amber-400" />
+            Hall of Conquest
+            {hallCount > 0 && <span className="rounded bg-amber-400/20 px-1.5 py-0.5 font-mono text-[10px] text-amber-300">{hallCount}</span>}
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${hallOpen ? "rotate-180" : ""}`} />
+          </button>
+          {hallOpen && (
+            <div className="mt-2 rounded-lg border border-white/10 bg-[#10102c]/85 p-3 backdrop-blur-md">
+              <div className="mb-2 flex gap-1">
+                {(["easy", "normal", "hard"] as Difficulty[]).map((d) => (
+                  <button key={d} onClick={() => setHallTab(d)}
+                    className={`flex-1 rounded-md border px-2 py-1 font-display text-[11px] font-bold capitalize transition-colors ${hallTab === d ? "border-amber-400 bg-amber-400/20 text-amber-200" : "border-white/10 bg-white/5 text-slate-400 hover:bg-white/10"}`}>
+                    {d} {(hall[d]?.length ?? 0) > 0 && <span className="font-mono text-[9px] opacity-70">({hall[d]!.length})</span>}
+                  </button>
+                ))}
+              </div>
+              {(hall[hallTab]?.length ?? 0) === 0 ? (
+                <p className="py-3 text-center text-[11px] text-slate-400">
+                  No victories on {hallTab} yet — the isles await a conqueror.
+                </p>
+              ) : (
+                <div className="space-y-1">
+                  {hall[hallTab]!.map((e: HallEntry, i: number) => (
+                    <div key={i} className="flex items-center justify-between rounded-md bg-white/5 px-2.5 py-1.5 text-[11px]" style={{ boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.06)" }}>
+                      <span className="flex items-center gap-2">
+                        <span className={`font-mono text-[10px] ${i === 0 ? "text-amber-400" : "text-slate-500"}`}>#{i + 1}</span>
+                        <span className="font-display font-bold text-slate-200">{e.faction}</span>
+                        <span className="text-slate-500">{e.mapSize}×{e.mapSize}</span>
+                      </span>
+                      <span className="flex items-center gap-2.5 font-mono text-slate-300">
+                        <span className="text-emerald-300">T{e.turns}</span>
+                        <span>{e.score}</span>
+                        <span className="text-[9px] text-slate-500">{e.date}</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-[11px] font-medium text-slate-300">
           <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
           Capture all rival capitals — or lead in score when turn 30 ends. Every faction is free and fair.
@@ -210,6 +261,11 @@ export function GameOver() {
         {winner && (
           <p className="mt-2 text-sm text-slate-300">
             <span style={{ color: winner.color }} className="font-bold">{winner.name}</span> rules the isles.
+          </p>
+        )}
+        {won && game.newHallEntry && (
+          <p className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-amber-400/50 bg-amber-400/15 px-3 py-1 text-[11px] font-bold text-amber-300">
+            <Trophy className="h-3 w-3" /> New Hall of Conquest record!
           </p>
         )}
         <div className="my-4"><FacetRule /></div>

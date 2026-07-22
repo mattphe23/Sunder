@@ -250,6 +250,7 @@ class GameStore {
     alive.sort((a, b) => b.score - a.score);
     s.winner = alive[0]?.index ?? null;
     s.phase = "gameover";
+    this.recordVictory();
     this.emit({ type: "changed" });
   }
 
@@ -471,6 +472,17 @@ class GameStore {
       s.units = s.units.filter((q) => q.id !== d.id);
       a.kills++;
       defenderDied = true;
+      // Veterancy: 3 kills promotes the unit — +5 max HP and a full heal
+      if (!a.veteran && !a.guardian && a.kills >= 3) {
+        a.veteran = true;
+        a.maxHp += 5;
+        a.hp = a.maxHp;
+        const tn = s.tribes[a.tribe]?.name ?? "A";
+        s.log.unshift(`${tn} ${a.type} was promoted to Veteran! (+5 max HP)`);
+        if (a.tribe !== s.humanTribe) {
+          this.recordRecap({ kind: "combat", text: `A ${tn} ${a.type} became a Veteran`, tribe: a.tribe });
+        }
+      }
       if (d.guardian) {
         s.log.unshift(`${s.tribes[a.tribe].name} slew the Guardian of the Great Ruin!`);
         if (a.tribe !== s.humanTribe) {
@@ -624,10 +636,12 @@ class GameStore {
 
   checkDominationWin() {
     const s = this.state;
+    if (s.phase !== "playing") return;
     const alive = s.tribes.filter((t) => t.alive);
     if (alive.length === 1) {
       s.winner = alive[0].index;
       s.phase = "gameover";
+      this.recordVictory();
     }
     const human = s.tribes[s.humanTribe];
     if (!human.alive && s.phase === "playing") {
@@ -636,6 +650,54 @@ class GameStore {
       s.winner = best?.index ?? null;
       s.phase = "gameover";
     }
+  }
+
+  /** Hall of Conquest: persist the human's victory; keep best 5 per difficulty */
+  newHallEntry = false;
+  private recordVictory() {
+    const s = this.state;
+    this.newHallEntry = false;
+    if (s.winner !== s.humanTribe) return;
+    this.updateScore(s.humanTribe);
+    const entry: HallEntry = {
+      difficulty: s.difficulty,
+      faction: s.tribes[s.humanTribe].name,
+      turns: Math.max(1, s.turn),
+      score: s.tribes[s.humanTribe].score,
+      mapSize: s.size,
+      date: new Date().toISOString().slice(0, 10),
+    };
+    try {
+      const hall = loadHall();
+      const list = hall[s.difficulty] ?? [];
+      list.push(entry);
+      list.sort((a, b) => a.turns - b.turns || b.score - a.score);
+      hall[s.difficulty] = list.slice(0, 5);
+      localStorage.setItem(HALL_KEY, JSON.stringify(hall));
+      this.newHallEntry = hall[s.difficulty].includes(entry);
+    } catch {
+      // storage unavailable — skip
+    }
+  }
+}
+
+export interface HallEntry {
+  difficulty: Difficulty;
+  faction: string;
+  turns: number;
+  score: number;
+  mapSize: number;
+  date: string;
+}
+
+const HALL_KEY = "polyforge-hall";
+
+export function loadHall(): Record<string, HallEntry[]> {
+  try {
+    const raw = localStorage.getItem(HALL_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
   }
 }
 

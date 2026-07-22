@@ -1,20 +1,20 @@
-# Polyforge v5 — Great Ruins + Score Breakdown
+# Polyforge v6 — Hall of Conquest + Unit Veterancy
 
-## 1. Great ruins (guarded, bigger rewards)
-- [x] types.ts: Tile.greatRuin flag; neutral guardian concept (unit.guardian flag, GUARDIAN_TRIBE=-1)
-- [x] mapgen.ts: 1 great ruin per map (2 on 13×13), on land, far from all capitals
-- [x] state.ts: guardian spawn, big reward roll, recap entries, guardian-slain log
-- [x] rules.ts: guardians attackable (tribe !== check), defensive -1 guards, +1.4 def bonus
-- [x] ai.ts: AI values great ruins; attacks guardian when kill is close
-- [ ] scene.ts: distinct rendering — golden twin-obelisk monument + guardian mesh
-- [x] recap: rival great-ruin claims appear in recap
+## Feature 1: Hall of Conquest (difficulty leaderboard)
+- [ ] state.ts: on human victory, record { difficulty, faction, turns, score, mapSize, date } to
+  localStorage "polyforge-hall" (keep best 5 per difficulty, sorted by fewest turns then highest score)
+- [ ] Menu.tsx: "Hall of Conquest" section/toggle on main menu with per-difficulty tabs showing
+  best victories; empty state when no victories yet
+- [ ] GameOver: badge when the finished match earns a Hall entry (e.g., "New record!")
 
-## 2. Score breakdown screen
-- [ ] state.ts: record per-faction score history each turn (scoreHistory: number[][])
-- [ ] persist scoreHistory in save/restore
-- [ ] GameOver: recharts line chart of score trajectories in faction colors + ranked final scores
+## Feature 2: Unit veterancy
+- [ ] types.ts: Unit.veteran flag (kills already tracked)
+- [ ] state.ts: after a kill, if kills >= 3 and not veteran → promote: veteran=true, maxHp+5, full heal;
+  log + recap-worthy message for human units
+- [ ] scene.ts: golden crest (small diamond/chevron) above veteran units
+- [ ] Hud.tsx: unit panel shows Veteran status and kill count
+- [ ] battle preview: uses live stats so no change needed (maxHp affects defense force)
 
-## 3. Verify & deliver
-- [ ] TS check + headless sim
-- [ ] Browser: guardian blocks ruin until killed, big reward on claim; chart renders on game over
-- [ ] Clear test save, checkpoint, deliver
+## Verify & deliver
+- [ ] TS check + browser verification of both features
+- [ ] Clear test saves, checkpoint, deliver

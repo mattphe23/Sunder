@@ -83,6 +83,8 @@ export interface Unit {
   boat: boolean;
   /** neutral guardian: never moves, guards a great ruin */
   guardian?: boolean;
+  /** veterancy: promoted after 3 kills (+5 max HP) */
+  veteran?: boolean;
 }
 
 /** pseudo-tribe index for neutral guardian units (not a real tribe) */

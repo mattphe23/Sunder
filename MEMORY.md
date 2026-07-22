@@ -103,7 +103,25 @@
   * guardian preview 7/7 (1.4 def bonus works); died in 2 knight attacks; "slew the Guardian" log fired
   * stepping on cleared great ruin granted Riding tech + 8 stars, tile cleared
   * scoreHistory recorded 9 rows over 8 turns; GameOver chart renders 4 faction lines w/ tooltip
-  * save cleared, reset to menu. v5 DONE — checkpoint + deliver next.
+  * save cleared, reset to menu. v5 DONE — delivered (checkpoint 98fa5530).
+
+## v6 (Hall of Conquest + veterancy) — IN PROGRESS
+- state.ts: recordVictory() on endByScore + checkDominationWin (human wins only);
+  HALL_KEY="polyforge-hall", loadHall() export, HallEntry {difficulty,faction,turns,score,mapSize,date};
+  keep best 5/difficulty sorted turns asc then score desc; game.newHallEntry flag for badge
+- Menu.tsx: Hall of Conquest collapsible under Continue btn, per-difficulty tabs, empty state;
+  GameOver "New Hall of Conquest record!" badge (won && game.newHallEntry)
+- veterancy DONE: types.ts Unit.veteran?; state.ts promotes at kills>=3 (+5 maxHp, full heal, log, recap
+  for AI units); scene.ts "crest" polyhedron (gold, spinning) above veterans w/ rebuild-on-promote;
+  Hud.tsx unit panel shows kill pips (3 → Veteran) + Veteran badge. TS CLEAN.
+- VERIFIED (browser, seed 777): warrior kills=2 → killed enemy → veteran=true, maxHp 10→15, full heal,
+  log "promoted to Veteran"; unit panel shows Veteran; Hall of Conquest button on menu with per-difficulty
+  tabs + empty state renders correctly.
+- VERIFIED hall: forced domination win → 1 entry (turns:1, score:650), badge "New Hall of Conquest
+  record!" shown, menu hall lists "#1 Auren 9×9 T1 650". Fixed: checkDominationWin re-entry guard
+  (phase!=="playing" return) prevented double recordVictory; turns clamped to >=1.
+- Crest visual confirmed in board screenshot (unit panel shows "◆ Veteran Warrior", kill pips).
+- localStorage cleared (hall + save). TS clean. v6 DONE — checkpoint + deliver.
 - Test tip: reload page first, then `const mod = await import('/src/game/core/state.ts');
   window.__g = mod.game;` newGame({size:11,humanTribe:0,difficulty:'normal',seed:12345});
   human warrior id=1 at (9,7).

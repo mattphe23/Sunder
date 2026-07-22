@@ -317,6 +317,12 @@ export class BoardRenderer {
         node = this.buildUnitMesh(s, u);
         this.unitMeshes.set(u.id, node);
       }
+      // veterancy: if a unit was promoted after its mesh was built, rebuild to add the crest
+      if (u.veteran && !node.getChildMeshes().some((m) => m.name === "crest")) {
+        node.dispose();
+        node = this.buildUnitMesh(s, u);
+        this.unitMeshes.set(u.id, node);
+      }
       // naval: show/hide boat hull under the unit
       const hull = node.getChildMeshes().find((m) => m.name === "hull");
       if (u.boat && !hull) {
@@ -395,6 +401,25 @@ export class BoardRenderer {
       head.material = this.mat("#f5e6cf");
       head.parent = node;
       head.isPickable = false;
+    }
+    // veteran crest: golden rotating diamond floating above the unit
+    if (u.veteran) {
+      const crest = MeshBuilder.CreatePolyhedron("crest", { type: 1, size: 0.07 }, this.scene);
+      crest.position.y = u.type === "catapult" ? 0.42 : 0.55;
+      let cm = this.mats.get("vet-crest");
+      if (!cm) {
+        cm = new StandardMaterial("vet-crest", this.scene);
+        (cm as StandardMaterial).diffuseColor = Color3.FromHexString("#ffb938");
+        (cm as StandardMaterial).emissiveColor = Color3.FromHexString("#e8a41f");
+        this.mats.set("vet-crest", cm);
+      }
+      crest.material = cm;
+      crest.parent = node;
+      crest.isPickable = false;
+      const spin = new Animation("crestSpin", "rotation.y", 30, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CYCLE);
+      spin.setKeys([{ frame: 0, value: 0 }, { frame: 90, value: Math.PI * 2 }]);
+      crest.animations = [spin];
+      this.scene.beginAnimation(crest, 0, 90, true);
     }
     return node;
   }

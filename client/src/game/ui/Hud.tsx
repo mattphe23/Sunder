@@ -189,10 +189,21 @@ export function SelectionPanel() {
         <div className="mb-1 flex items-center justify-between">
           <span className="flex items-center gap-1.5 font-display text-sm font-bold">
             {unit.boat && <Ship className="h-4 w-4 text-cyan-300" />}
-            {st.name}{unit.boat && " (at sea)"}
+            {unit.veteran && <span className="text-amber-400" title="Veteran">◆</span>}
+            {unit.veteran ? "Veteran " : ""}{st.name}{unit.boat && " (at sea)"}
           </span>
           <button onClick={() => g.selectUnit(null)}><X className="h-4 w-4 text-slate-400" /></button>
         </div>
+        {!unit.veteran && !unit.guardian && (
+          <p className="mb-1 flex items-center gap-1 text-[11px] text-slate-400">
+            Kills:
+            {[0, 1, 2].map((i) => (
+              <span key={i} className={`h-1.5 w-1.5 rotate-45 ${i < unit.kills ? "bg-amber-400" : "bg-white/15"}`} />
+            ))}
+            <span className="ml-1 text-slate-500">3 kills → Veteran (+5 max HP)</span>
+          </p>
+        )}
+        {unit.veteran && <p className="mb-1 text-[11px] text-amber-300/90">Battle-hardened — promoted for 3 kills (+5 max HP)</p>}
         {unit.boat && <p className="mb-1 text-[11px] text-cyan-200/80">Embarked — cannot attack; weaker in defense. Land to fight.</p>}
         <div className="mb-2 h-1.5 overflow-hidden rounded bg-white/10">
           <div className="h-full rounded bg-emerald-400" style={{ width: `${(unit.hp / unit.maxHp) * 100}%` }} />
