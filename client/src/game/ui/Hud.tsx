@@ -7,10 +7,56 @@ import {
   harvestCost, canBuildPort,
 } from "../core/rules";
 import { Button } from "@/components/ui/button";
-import { Star, Swords, FlaskConical, X, ChevronRight, Anchor, Ship, Skull, Shield } from "lucide-react";
+import { Star, Swords, FlaskConical, X, ChevronRight, Anchor, Ship, Skull, Shield, Flag, Landmark, ScrollText } from "lucide-react";
 import { useState } from "react";
 
 const panel = "rounded-xl border border-white/10 bg-[#1b1b3f]/85 backdrop-blur-md shadow-xl shadow-black/40 text-slate-100";
+
+/** Turn replay — recap of what rivals did while the player waited. */
+export function TurnRecap() {
+  const g = useGame();
+  const s = g.state;
+  if (!s.showRecap || s.recap.length === 0 || s.phase !== "playing") return null;
+  const icon = (kind: string) => {
+    switch (kind) {
+      case "combat": return <Swords className="h-3.5 w-3.5 text-red-400" />;
+      case "capture": return <Flag className="h-3.5 w-3.5 text-amber-300" />;
+      case "cityLost": return <Flag className="h-3.5 w-3.5 text-red-400" />;
+      case "ruin": return <Landmark className="h-3.5 w-3.5 text-cyan-300" />;
+      case "fallen": return <Skull className="h-3.5 w-3.5 text-slate-400" />;
+      default: return <ScrollText className="h-3.5 w-3.5 text-slate-400" />;
+    }
+  };
+  return (
+    <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 p-4" onClick={() => game.dismissRecap()}>
+      <div className={`${panel} w-full max-w-sm p-4`} onClick={(e) => e.stopPropagation()}>
+        <div className="mb-2 flex items-center justify-between">
+          <span className="flex items-center gap-2 font-display text-sm font-bold text-amber-300">
+            <ScrollText className="h-4 w-4" /> While you were away…
+          </span>
+          <button onClick={() => game.dismissRecap()} aria-label="Dismiss recap">
+            <X className="h-4 w-4 text-slate-400" />
+          </button>
+        </div>
+        <div className="max-h-64 space-y-1.5 overflow-y-auto">
+          {s.recap.map((e, i) => (
+            <div
+              key={i}
+              className={`flex items-start gap-2 rounded-md border-l-4 bg-white/5 px-2.5 py-1.5 text-xs text-slate-200 ${e.kind === "cityLost" ? "border-red-400/70" : ""}`}
+              style={{ borderLeftColor: e.kind === "cityLost" ? undefined : `${s.tribes[e.tribe]?.color}aa` }}
+            >
+              <span className="mt-0.5 shrink-0">{icon(e.kind)}</span>
+              <span>{e.text}</span>
+            </div>
+          ))}
+        </div>
+        <Button size="sm" className="mt-3 w-full bg-amber-400 font-display font-bold text-[#1b1b3f] hover:bg-amber-300" onClick={() => game.dismissRecap()}>
+          To battle
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 /** Battle preview — shows predicted damage/retaliation before the attack commits. */
 export function BattlePreview() {

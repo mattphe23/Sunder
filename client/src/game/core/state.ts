@@ -1,10 +1,10 @@
 // Polyforge central game state store — framework-agnostic, event-emitting.
 // React subscribes via getSnapshot/subscribe; Babylon render layer listens to events.
 
-import { generateMap, claimBorders } from "./mapgen";
+import { generateMap, claimBorders, rng } from "./mapgen";
 import {
   GameState, Tribe, Unit, UnitType, UNIT_STATS, TRIBE_DEFS, TechId,
-  Difficulty, idx, PORT_COST,
+  Difficulty, idx, PORT_COST, TECHS, RecapEntry,
 } from "./types";
 import {
   reachableTiles, attackableUnits, previewCombat, techCost, canResearch,
@@ -178,6 +178,10 @@ class GameStore {
     s.currentTribe = tribeIdx;
     const tribe = s.tribes[tribeIdx];
     if (!tribe.alive) { this.nextTribe(); return; }
+    // turn replay: show what rivals did while the human waited
+    if (tribe.isHuman && s.recap.length > 0) {
+      s.showRecap = true;
+    }
     tribe.stars += starIncome(s, tribeIdx) + this.aiBonus(tribeIdx);
     for (const u of s.units) {
       if (u.tribe === tribeIdx) { u.moved = false; u.attacked = false; }
@@ -297,6 +301,75 @@ class GameStore {
     this.emit({ type: "changed" });
   }
 
+  /** record a recap entry when the acting tribe is not the human player */
+  private recordRecap(entry: RecapEntry) {
+    const s = this.state;
+    if (s.tribes[entry.tribe]?.isHuman) return;
+    s.recap.push(entry);
+    if (s.recap.length > 12) s.recap.shift();
+  }
+
+  dismissRecap() {
+    const s = this.state;
+    s.showRecap = false;
+    s.recap = [];
+    this.emit({ type: "changed" });
+  }
+
+  /** roll and grant a ruin reward for the unit that stepped on a ruin */
+  private exploreRuin(u: Unit) {
+    const s = this.state;
+    const t = tileAt(s, u.x, u.y);
+    if (!t.ruin) return;
+    t.ruin = false;
+    const tribe = s.tribes[u.tribe];
+    const roll = rng(s.seed + s.turn * 97 + u.x * 13 + u.y * 31)();
+    let msg: string;
+    if (roll < 0.5) {
+      const stars = 5 + Math.floor(roll * 10); // 5–9 stars
+      tribe.stars += stars;
+      msg = `${tribe.name} found ${stars} stars in ancient ruins!`;
+    } else if (roll < 0.8) {
+      const unknown = TECHS.filter((q) => !tribe.techs.includes(q.id) && (q.requires === null || tribe.techs.includes(q.requires)));
+      if (unknown.length > 0) {
+        const pick = unknown[Math.floor(roll * 100) % unknown.length];
+        tribe.techs.push(pick.id);
+        msg = `${tribe.name} learned ${pick.name} from ancient ruins!`;
+      } else {
+        tribe.stars += 6;
+        msg = `${tribe.name} found 6 stars in ancient ruins!`;
+      }
+    } else {
+      // free unit on or near the ruin
+      const spot = this.freeSpotNear(u.x, u.y);
+      if (spot) {
+        const nu = makeUnit(s.nextUnitId++, "warrior", u.tribe, spot.x, spot.y);
+        s.units.push(nu);
+        msg = `A veteran Warrior joined ${tribe.name} at the ruins!`;
+      } else {
+        tribe.stars += 6;
+        msg = `${tribe.name} found 6 stars in ancient ruins!`;
+      }
+    }
+    s.log.unshift(msg);
+    this.recordRecap({ kind: "ruin", text: msg, tribe: u.tribe });
+    this.exploreAround();
+  }
+
+  private freeSpotNear(x: number, y: number): { x: number; y: number } | null {
+    const s = this.state;
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= s.size || ny >= s.size) continue;
+        const t = s.tiles[idx(nx, ny, s.size)];
+        if (t.terrain === "water" || t.terrain === "ocean" || t.terrain === "mountain") continue;
+        if (!unitAt(s, nx, ny)) return { x: nx, y: ny };
+      }
+    }
+    return null;
+  }
+
   // ---------- actions ----------
 
   moveUnit(unitId: number, x: number, y: number) {
@@ -320,6 +393,7 @@ class GameStore {
     const stats = UNIT_STATS[u.type];
     if (!stats.dash) u.attacked = true;
     if (u.boat) u.attacked = true; // boats cannot attack
+    this.exploreRuin(u);
     this.exploreAround();
     this.emit({ type: "unitMoved", unitId, fromX, fromY, toX: x, toY: y });
     this.emit({ type: "changed" });
@@ -352,6 +426,13 @@ class GameStore {
       dmg: result.damageToDefender, retaliation: result.damageToAttacker,
       defenderDied, attackerDied, ax, ay, dx: dxp, dy: dyp,
     });
+    // recap: rival combat involving the player or visible to them
+    if (a.tribe !== s.humanTribe) {
+      const aName = UNIT_STATS[a.type].name, dName = UNIT_STATS[d.type].name;
+      const target = d.tribe === s.humanTribe ? `your ${dName}` : `${s.tribes[d.tribe].name}'s ${dName}`;
+      const outcome = defenderDied ? "destroyed" : `hit (−${result.damageToDefender})`;
+      this.recordRecap({ kind: "combat", text: `${s.tribes[a.tribe].name} ${aName} ${outcome} ${target}`, tribe: a.tribe });
+    }
     this.checkElimination();
     this.emit({ type: "changed" });
   }
@@ -385,6 +466,11 @@ class GameStore {
     u.moved = true; u.attacked = true;
     s.log.unshift(`${s.tribes[u.tribe].name} captured ${city.name}!`);
     this.emit({ type: "captured", cityId: city.id, tribe: u.tribe });
+    if (u.tribe !== s.humanTribe) {
+      const kind: RecapEntry["kind"] = prevOwner === s.humanTribe ? "cityLost" : "capture";
+      const suffix = prevOwner === s.humanTribe ? " — it was yours!" : "";
+      this.recordRecap({ kind, text: `${s.tribes[u.tribe].name} captured ${city.name}${suffix}`, tribe: u.tribe });
+    }
     if (wasCapital && prevOwner !== null) this.checkElimination();
     this.checkDominationWin();
     this.emit({ type: "changed" });
@@ -468,6 +554,7 @@ class GameStore {
         t.alive = false;
         s.units = s.units.filter((u) => u.tribe !== t.index);
         s.log.unshift(`${t.name} has fallen!`);
+        this.recordRecap({ kind: "fallen", text: `${t.name} has fallen!`, tribe: t.index });
       }
     }
     this.checkDominationWin();
@@ -515,6 +602,8 @@ function emptyState(): GameState {
     log: [],
     humanTribe: 0,
     aiThinking: false,
+    recap: [],
+    showRecap: false,
   };
 }
 

@@ -16,6 +16,8 @@ export interface Tile {
   explored: boolean[]; // per tribe index
   /** naval: a port built on this water tile (tribe index) or null */
   port: number | null;
+  /** ancient ruin awaiting exploration (grants a reward, then cleared) */
+  ruin: boolean;
 }
 
 export interface City {
@@ -151,6 +153,14 @@ export type Phase = "menu" | "playing" | "gameover";
 
 export type Difficulty = "easy" | "normal" | "hard";
 
+/** One entry in the start-of-turn recap of what rivals did. */
+export interface RecapEntry {
+  kind: "combat" | "capture" | "cityLost" | "ruin" | "fallen";
+  text: string;
+  /** tribe responsible (for color accents) */
+  tribe: number;
+}
+
 export interface GameState {
   phase: Phase;
   size: number;
@@ -171,6 +181,10 @@ export interface GameState {
   log: string[];
   humanTribe: number;
   aiThinking: boolean;
+  /** events since the human's last turn, shown as a recap */
+  recap: RecapEntry[];
+  /** recap ready to display at the start of the human turn */
+  showRecap: boolean;
 }
 
 export const idx = (x: number, y: number, size: number) => y * size + x;

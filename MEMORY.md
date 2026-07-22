@@ -65,6 +65,26 @@
   reload showed "CONTINUE — Auren, TURN 2 (normal)" and restored exact state
   (turn 1, 19 stars, techs [organization,hunting], 4 units, seed 4242);
   toMenu cleared the save. TS clean. All v3 features complete.
+
+## v4 (ruins + turn recap) — implementation status (Jul 22 13:50)
+- types.ts: Tile.ruin boolean; RecapEntry {kind: combat|capture|cityLost|ruin|fallen, text, tribe};
+  GameState.recap: RecapEntry[], GameState.showRecap: boolean.
+- mapgen.ts: ~1 ruin per 25 tiles (min 2), on empty land, ≥3 manhattan from cities, ≥4 from other ruins.
+- state.ts: exploreRuin(u) in moveUnit — seeded roll: <0.5 → 5-9 stars, <0.8 → free eligible tech
+  (fallback 6 stars), else free warrior at freeSpotNear (fallback 6 stars); logs + recordRecap.
+  recordRecap skips human-tribe actors, caps 12 entries. beginTurn sets showRecap for human when
+  recap non-empty. dismissRecap() clears. attack/captureCity/checkElimination record recap entries.
+- scene.ts: ruin rendered as gray 4-sided obelisk + emissive amber capstone ("ruin-glow" mat) + stump.
+- ai.ts: ruins within dist 6 added as objectives (w 85 - dist*6).
+- Hud.tsx: TurnRecap modal ("While you were away…", icon per kind, tribe-color left border,
+  "To battle" dismiss). Mounted in Home.tsx after BattlePreview.
+- VERIFIED (browser, seed 4242, humanTribe opt key NOT "faction"): 2 ruins placed at (10,2),(5,3);
+  stepping on (5,3) → ruin cleared, free Warrior spawned, log msg, recap NOT polluted by human event;
+  after end-turns recap panel appeared: "While you were away… Vessari captured Lirath" with
+  tribe-color border + To battle dismiss worked; dismissRecap cleared recap. Ruin obelisk renders
+  (gray-violet pillars visible dimmed at map edge (10,2), explored fog dim correct). TS clean.
+- NOTE: window.__polyforge.newGame takes { humanTribe, difficulty, size, seed }.
+- REMAINING: full-page screenshots + checkpoint + delivery.
 - Test tip: reload page first, then `const mod = await import('/src/game/core/state.ts');
   window.__g = mod.game;` newGame({size:11,humanTribe:0,difficulty:'normal',seed:12345});
   human warrior id=1 at (9,7).

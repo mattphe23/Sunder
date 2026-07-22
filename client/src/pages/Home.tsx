@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useGame } from "@/game/useGame";
 import GameCanvas from "@/game/GameCanvas";
 import { MainMenu, GameOver } from "@/game/ui/Menu";
-import { TopBar, BottomBar, SelectionPanel, TechPanel, LogTicker, BattlePreview } from "@/game/ui/Hud";
+import { TopBar, BottomBar, SelectionPanel, TechPanel, LogTicker, BattlePreview, TurnRecap } from "@/game/ui/Hud";
 import { Minimap } from "@/game/ui/Minimap";
 
 export default function Home() {
@@ -21,6 +21,7 @@ export default function Home() {
       <Minimap />
       <SelectionPanel />
       <BattlePreview />
+      <TurnRecap />
       <BottomBar onOpenTech={() => setTechOpen(true)} />
       <TechPanel open={techOpen} onClose={() => setTechOpen(false)} />
       {s.phase === "gameover" && <GameOver />}

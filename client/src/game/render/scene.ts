@@ -185,6 +185,37 @@ export class BoardRenderer {
       orb.parent = this.root;
       decor.push(orb);
     }
+    if (t.ruin) {
+      // ancient ruin: weathered obelisk with a glowing amber capstone
+      const obelisk = MeshBuilder.CreateCylinder("ruin", { diameterTop: 0.12, diameterBottom: 0.26, height: 0.55, tessellation: 4 }, this.scene);
+      obelisk.position = new Vector3(t.x - c, top + 0.28, t.y - c);
+      obelisk.rotation.y = Math.PI / 5;
+      obelisk.material = this.mat("#8f93b8");
+      obelisk.metadata = { tile: true, x: t.x, y: t.y };
+      obelisk.parent = this.root;
+      decor.push(obelisk);
+      const cap = MeshBuilder.CreateIcoSphere("ruincap", { radius: 0.09, subdivisions: 1 }, this.scene);
+      cap.position = new Vector3(t.x - c, top + 0.62, t.y - c);
+      let capMat = this.mats.get("ruin-glow");
+      if (!capMat) {
+        capMat = new StandardMaterial("ruin-glow", this.scene);
+        capMat.diffuseColor = Color3.FromHexString("#ffd76a");
+        capMat.emissiveColor = Color3.FromHexString("#b78a2e");
+        this.mats.set("ruin-glow", capMat);
+      }
+      cap.material = capMat;
+      cap.metadata = { tile: true, x: t.x, y: t.y };
+      cap.parent = this.root;
+      decor.push(cap);
+      // low broken pillar beside it
+      const stump = MeshBuilder.CreateCylinder("ruinstump", { diameterTop: 0.14, diameterBottom: 0.18, height: 0.18, tessellation: 4 }, this.scene);
+      stump.position = new Vector3(t.x - c + 0.26, top + 0.09, t.y - c - 0.2);
+      stump.rotation.y = Math.PI / 7;
+      stump.material = this.mat("#767a9e");
+      stump.metadata = { tile: true, x: t.x, y: t.y };
+      stump.parent = this.root;
+      decor.push(stump);
+    }
     const city = t.cityId !== null ? s.cities[t.cityId] : null;
     if (city) {
       const isNeutral = city.tribe === null;

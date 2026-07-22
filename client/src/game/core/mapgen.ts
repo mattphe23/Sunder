@@ -58,7 +58,7 @@ export function generateMap(size: number, seed: number, tribeCount: number): Map
       else terrain = forestNoise(fx, fy) > 0.58 ? "forest" : "grass";
       tiles.push({
         x, y, terrain, resource: null, cityId: null, ownerCityId: null,
-        explored: new Array(tribeCount).fill(false), port: null,
+        explored: new Array(tribeCount).fill(false), port: null, ruin: false,
       });
     }
   }
@@ -130,6 +130,21 @@ export function generateMap(size: number, seed: number, tribeCount: number): Map
     else if (t.terrain === "mountain" && rand() < p * 0.8) t.resource = "mineral";
   }
 
+  // ancient ruins: ~1 per 25 tiles on land, away from cities and other ruins
+  const ruinTarget = Math.max(2, Math.floor((size * size) / 25));
+  const ruinCandidates = [...landTiles].sort(() => rand() - 0.5);
+  let placedRuins = 0;
+  for (const t of ruinCandidates) {
+    if (placedRuins >= ruinTarget) break;
+    if (t.cityId !== null || t.resource !== null) continue;
+    const nearCity = cities.some((c) => Math.abs(c.x - t.x) + Math.abs(c.y - t.y) < 3);
+    if (nearCity) continue;
+    const nearRuin = tiles.some((q) => q.ruin && Math.abs(q.x - t.x) + Math.abs(q.y - t.y) < 4);
+    if (nearRuin) continue;
+    t.ruin = true;
+    placedRuins++;
+  }
+
   // claim borders around owned capitals
   for (const city of cities) {
     if (city.tribe === null) continue;
@@ -149,4 +164,3 @@ export function claimBorders(tiles: Tile[], size: number, city: City) {
     }
   }
 }
-

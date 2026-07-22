@@ -1,18 +1,18 @@
-# Polyforge v3 — Feature TODO
+# Polyforge v4 — Feature TODO
 
-## 1. Save/Resume
-- [x] Serialize game state to localStorage after every mutating action (auto-save)
-- [x] "Continue" button on the main menu when a save exists
-- [x] Clear save on game over / new game start
-- [x] Verify in browser: play turns, reload page, continue restores exact state
+## 1. Ruins & exploration rewards
+- [ ] Add `ruin` flag to Tile type; place ~1 ruin per 25 tiles in mapgen (land, away from capitals)
+- [ ] Reward roll on entering a ruin: stars (most common), free tech, or free unit
+- [ ] Render ruins as distinct obelisk/monolith meshes; remove mesh once claimed
+- [ ] AI seeks nearby ruins when scouting
+- [ ] Log + toast feedback for the reward received
 
-## 2. Battle Preview Tooltip
-- [x] stageAttack computes preview via previewCombat (damage + retaliation, kill flags)
-- [x] BattlePreview panel with both units, damage, kill markers, Cancel/Attack
-- [x] Confirm-to-attack flow: first click shows preview, second click commits
-- [x] Verify in browser: preview numbers match actual combat results (−5/−5 exact match)
+## 2. Turn replay summary
+- [ ] Track events during AI rounds visible to the player (combat, captures, city losses, ruins)
+- [ ] Show recap panel at the start of the human turn listing what happened
+- [ ] Dismiss on click; skip when nothing happened
 
 ## 3. Verify & deliver
-- [x] TypeScript clean
-- [x] Browser test both features
+- [ ] TypeScript clean
+- [ ] Browser test both features
 - [ ] Checkpoint + delivery

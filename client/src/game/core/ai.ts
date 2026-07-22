@@ -101,6 +101,13 @@ function aiUnitAction(store: StoreLike, u: Unit, tribeIdx: number) {
     const w = (c.tribe === null ? 100 : c.isCapital ? 90 : 70) - dist * 5;
     objectives.push({ x: c.x, y: c.y, w });
   }
+  // ancient ruins: strong pull when close (free reward for scouting)
+  for (const t of s.tiles) {
+    if (!t.ruin) continue;
+    const dist = Math.max(Math.abs(t.x - u.x), Math.abs(t.y - u.y));
+    if (dist > 6) continue;
+    objectives.push({ x: t.x, y: t.y, w: 85 - dist * 6 });
+  }
   for (const e of s.units) {
     if (e.tribe === tribeIdx) continue;
     const dist = Math.max(Math.abs(e.x - u.x), Math.abs(e.y - u.y));
