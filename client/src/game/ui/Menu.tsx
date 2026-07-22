@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useGame } from "../useGame";
 import { game, loadHall, HallEntry } from "../core/state";
 import { TRIBE_DEFS, Difficulty } from "../core/types";
+import { MAP_PRESETS, MapPreset } from "../core/mapgen";
 import { Button } from "@/components/ui/button";
 import { Swords, Star, Play, Trophy, ChevronDown } from "lucide-react";
 import {
@@ -41,6 +42,7 @@ export function MainMenu() {
   const [faction, setFaction] = useState(0);
   const [difficulty, setDifficulty] = useState<Difficulty>("normal");
   const [size, setSize] = useState(11);
+  const [preset, setPreset] = useState<MapPreset>("continents");
   const [hallOpen, setHallOpen] = useState(false);
   const [hallTab, setHallTab] = useState<Difficulty>("normal");
   const [hall] = useState(() => loadHall());
@@ -154,11 +156,31 @@ export function MainMenu() {
               </div>
             </div>
           </div>
+
+          {/* World type — map generation preset */}
+          <div className="mt-4 w-full">
+            <p className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
+              <span className="h-1 w-1 rotate-45 bg-sky-400" /> World type
+            </p>
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+              {MAP_PRESETS.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setPreset(p.id)}
+                  title={p.blurb}
+                  className={`rounded-md border px-2 py-1.5 text-center transition-colors ${preset === p.id ? "border-sky-400 bg-sky-400/20 shadow-[0_0_12px_rgba(56,189,248,0.25)]" : "border-white/10 bg-white/5 hover:bg-white/10"}`}
+                >
+                  <span className={`block font-display text-xs font-bold ${preset === p.id ? "text-sky-200" : "text-slate-300"}`}>{p.name}</span>
+                  <span className="block text-[9px] leading-tight text-slate-400">{p.blurb}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         <Button
           size="lg"
-          onClick={() => g.newGame({ size, humanTribe: faction, difficulty })}
+          onClick={() => g.newGame({ size, humanTribe: faction, difficulty, preset })}
           className="mt-5 w-full gap-2 rounded-lg bg-amber-400 py-6 font-display text-lg font-black tracking-widest text-[#1b1b3f] shadow-[0_0_40px_rgba(255,185,56,0.4)] transition-transform hover:bg-amber-300 active:scale-[0.98]"
         >
           <Swords className="h-5 w-5" /> BEGIN CONQUEST

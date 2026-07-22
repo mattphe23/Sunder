@@ -1,7 +1,36 @@
 // Polyforge map generation — seeded procedural island: radial falloff + value noise.
 // Terrain: ocean/water/grass/forest/mountain; resources; villages; fair capital ring.
+// Presets reshape the world: continents (default), archipelago (many small isles),
+// highlands (mountainous interior), pangaea (one dense landmass, little water).
 
 import { City, Tile, Terrain, VILLAGE_NAMES, idx, inBounds } from "./types";
+
+export type MapPreset = "continents" | "archipelago" | "highlands" | "pangaea";
+
+export const MAP_PRESETS: { id: MapPreset; name: string; blurb: string }[] = [
+  { id: "continents", name: "Continents", blurb: "Balanced isles and seas" },
+  { id: "archipelago", name: "Archipelago", blurb: "Scattered islands — navies rule" },
+  { id: "highlands", name: "Highlands", blurb: "Mountain chains carve the land" },
+  { id: "pangaea", name: "Pangaea", blurb: "One vast landmass, constant contact" },
+];
+
+interface PresetTuning {
+  noiseGrid: number;      // coarser = bigger blobs, finer = fragmented
+  noiseAmp: number;       // noise amplitude
+  base: number;           // base elevation lift
+  falloff: number;        // radial falloff strength
+  oceanCut: number;       // below → ocean
+  waterCut: number;       // below → shallow water
+  mountainCut: number;    // above → mountain
+  forestCut: number;      // forest noise threshold
+}
+
+const TUNING: Record<MapPreset, PresetTuning> = {
+  continents:  { noiseGrid: 4, noiseAmp: 0.75, base: 0.45, falloff: 0.72, oceanCut: 0.12, waterCut: 0.22, mountainCut: 0.62, forestCut: 0.58 },
+  archipelago: { noiseGrid: 6, noiseAmp: 0.95, base: 0.28, falloff: 0.55, oceanCut: 0.18, waterCut: 0.30, mountainCut: 0.78, forestCut: 0.60 },
+  highlands:   { noiseGrid: 5, noiseAmp: 0.85, base: 0.52, falloff: 0.70, oceanCut: 0.10, waterCut: 0.17, mountainCut: 0.52, forestCut: 0.55 },
+  pangaea:     { noiseGrid: 3, noiseAmp: 0.55, base: 0.58, falloff: 0.85, oceanCut: 0.10, waterCut: 0.16, mountainCut: 0.68, forestCut: 0.56 },
+};
 
 /** Mulberry32 seeded PRNG */
 export function rng(seed: number) {
@@ -37,9 +66,10 @@ export interface MapResult {
   capitals: { x: number; y: number }[]; // per tribe index order
 }
 
-export function generateMap(size: number, seed: number, tribeCount: number): MapResult {
+export function generateMap(size: number, seed: number, tribeCount: number, preset: MapPreset = "continents"): MapResult {
   const rand = rng(seed);
-  const elevNoise = makeNoise(rand, 4);
+  const tune = TUNING[preset] ?? TUNING.continents;
+  const elevNoise = makeNoise(rand, tune.noiseGrid);
   const forestNoise = makeNoise(rand, 5);
 
   const tiles: Tile[] = [];
@@ -50,12 +80,12 @@ export function generateMap(size: number, seed: number, tribeCount: number): Map
       // radial falloff from center
       const dx = fx - 0.5, dy = fy - 0.5;
       const dist = Math.sqrt(dx * dx + dy * dy) / 0.7071;
-      const elev = elevNoise(fx, fy) * 0.75 + 0.45 - dist * 0.72;
+      const elev = elevNoise(fx, fy) * tune.noiseAmp + tune.base - dist * tune.falloff;
       let terrain: Terrain;
-      if (elev < 0.12) terrain = "ocean";
-      else if (elev < 0.22) terrain = "water";
-      else if (elev > 0.62) terrain = "mountain";
-      else terrain = forestNoise(fx, fy) > 0.58 ? "forest" : "grass";
+      if (elev < tune.oceanCut) terrain = "ocean";
+      else if (elev < tune.waterCut) terrain = "water";
+      else if (elev > tune.mountainCut) terrain = "mountain";
+      else terrain = forestNoise(fx, fy) > tune.forestCut ? "forest" : "grass";
       tiles.push({
         x, y, terrain, resource: null, cityId: null, ownerCityId: null,
         explored: new Array(tribeCount).fill(false), port: null, ruin: false, greatRuin: false,

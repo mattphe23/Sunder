@@ -7,7 +7,7 @@ import {
   harvestCost, canBuildPort,
 } from "../core/rules";
 import { Button } from "@/components/ui/button";
-import { Star, Swords, FlaskConical, X, ChevronRight, Anchor, Ship, Skull, Shield, Flag, Landmark, ScrollText } from "lucide-react";
+import { Star, Swords, FlaskConical, X, ChevronRight, Anchor, Ship, Skull, Shield, Flag, Landmark, ScrollText, Undo2 } from "lucide-react";
 import { useState } from "react";
 
 const panel = "rounded-xl border border-white/10 bg-[#1b1b3f]/85 backdrop-blur-md shadow-xl shadow-black/40 text-slate-100";
@@ -158,6 +158,17 @@ export function BottomBar({ onOpenTech }: { onOpenTech: () => void }) {
         <Button variant="secondary" size="sm" className="gap-1.5 border border-white/10 bg-[#1b1b3f]/85 text-slate-100 backdrop-blur-md hover:bg-[#2a2a55]" onClick={onOpenTech}>
           <FlaskConical className="h-4 w-4 text-cyan-300" /> Research
         </Button>
+        {game.canUndo() && (
+          <Button
+            variant="secondary"
+            size="sm"
+            className="gap-1.5 border border-sky-400/40 bg-[#1b1b3f]/85 text-sky-200 backdrop-blur-md hover:bg-[#2a2a55]"
+            onClick={() => game.undoMove()}
+            title="Undo the last move (before attacking or ending the turn)"
+          >
+            <Undo2 className="h-4 w-4" /> Undo
+          </Button>
+        )}
       </div>
       <div className="pointer-events-auto">
         <Button

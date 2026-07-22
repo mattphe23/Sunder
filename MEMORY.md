@@ -150,7 +150,32 @@
   warrior vs same walled defender only 3 dmg + 6 retaliation; enemy warrior vs catapult in open = 10 dmg
   kill (def 0 fragility). Catapult mesh (frame/arm/boulder/wheels) renders; unit panel shows 4 ATK 0 DEF 3 RNG.
 - Note: catapult sits at (1,8) offscreen-left of camera in test; mesh existence confirmed via selection panel.
-- Remaining: clear test save/tutorial flag + hall, reload clean menu, TS check, checkpoint, deliver.
+- v8 DELIVERED (checkpoint 658d0ae5). User then requested v9: map presets + undo move.
+
+## v9 status
+- mapgen.ts DONE: MapPreset type ("continents"|"archipelago"|"highlands"|"pangaea"), MAP_PRESETS list
+  (name+blurb for menu), TUNING table, generateMap(size, seed, tribeCount, preset).
+- Next: state.ts newGame opts.preset + s.preset field (types.ts GameState) + persistence (JSON serialize
+  covers it automatically), undo snapshot (lastMove: unitId, fromX, fromY, movedBefore; cleared on
+  attack/capture/train/harvest/endTurn/ruin trigger), undoMove() action; Menu.tsx preset selector row
+  (uses MAP_PRESETS); Hud.tsx Undo button in BottomBar when game.canUndo().
+- Key facts: state store class GameStore, autoSave via SAVE_KEY "polyforge-save-v1" JSON of full state;
+  newGame(opts {size, humanTribe, difficulty, seed?}); moveUnit at ~line 448 handles ruin triggers via
+  exploreRuin/exploreGreatRuin (undo must be blocked if move landed on ruin/greatRuin or captured);
+  window.__polyforge dev hook exists. Tutorial flag "polyforge-tutorial-done", hall key "polyforge-hall".
+- DONE so far: mapgen presets + TUNING; types.ts GameState.preset: string; state.ts newGame accepts
+  opts.preset (MapPreset import), sets s.preset, emptyState preset:"continents"; undo implemented in
+  state.ts: private lastMove {unitId, fromX, fromY, boat, attacked} set in moveUnit (human only, dest
+  not ruin/greatRuin/city tile), cleared in endTurn/attack/captureCity; canUndo()/undoMove() public.
+  Menu.tsx: World type selector (MAP_PRESETS grid, sky-blue accent), preset passed to newGame.
+- v9 DONE + VERIFIED (browser): Hud.tsx Undo button added (Undo2 icon, sky accent, shows when
+  game.canUndo()). Menu World-type selector renders (4 presets, sky-blue accent). Preset terrain
+  distributions distinct on seed 777: continents w10/o15/m19, archipelago w17/o17/m5, highlands m59,
+  pangaea w7/f34. Highlands capitals all on grass (playable). Undo verified: move→undo restores
+  pos+moved=false, button disappears after use; attack & endTurn clear undo; TS clean.
+- REMAINING: clear test localStorage (polyforge-save-v1, polyforge-tutorial-done, polyforge-hall),
+  reload to menu, checkpoint, deliver.
+- Note: reachableTiles returns {x,y} coords — map to s.tiles[y*size+x] for tile fields.
 - Store on window.__polyforge (dev). Save key "polyforge-save", hall key "polyforge-hall".
 - HUD: Hud.tsx panels (unit/city/tech/BattlePreview/TurnRecap), Menu.tsx (MainMenu/GameOver), Home.tsx mounts all.
 - Test tip: reload page first, then `const mod = await import('/src/game/core/state.ts');

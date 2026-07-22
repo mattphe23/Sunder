@@ -1,20 +1,18 @@
-# Polyforge v8 — Siege units & Onboarding tutorial
+# Polyforge v9 — Map presets + Undo move
 
-## 1. Catapult siege unit
-- [ ] types.ts: add "catapult" UnitType with stats (high attack, low defense, range 2, move 1, cost ~8), Siegecraft tech unlock
-- [ ] rules.ts: wall bonus ignored when attacker is catapult; range-2 attack targeting
-- [ ] state.ts: no retaliation against ranged catapult attacks
-- [ ] scene.ts: catapult mesh (wooden frame + throwing arm + boulder)
-- [ ] ai.ts: AI researches Siegecraft and trains catapults vs walled cities
-- [ ] Hud.tsx: catapult appears in train list once tech is researched
+## 1. Map presets
+- [ ] Add MapPreset type ("continents" default | "archipelago" | "highlands" | "pangaea") to types.ts
+- [ ] mapgen.ts: preset-specific terrain tuning (water/mountain/forest thresholds, land mass shape)
+- [ ] newGame opts + persistence: carry preset through save/load
+- [ ] Menu.tsx: map type selector row with the four presets
+- [ ] Verify each preset generates and looks distinct (water %, mountains)
 
-## 2. Onboarding tutorial
-- [ ] Tutorial overlay component: step-based guide (welcome → select unit → move → capture village → research → end turn)
-- [ ] Trigger on first game ever (localStorage flag polyforge-tutorial-done), skippable
-- [ ] Steps advance on the matching player action; highlight relevant UI areas
+## 2. Undo move
+- [ ] state.ts: snapshot last move (unit id, from x/y, prior moved flag); block undo if the move triggered ruin/reward, capture, embark/disembark change is fine to restore
+- [ ] Invalidate undo on attack, capture, train, harvest, end turn, research (any irreversible action)
+- [ ] Hud.tsx: Undo button in bottom bar, visible only when undo is available
+- [ ] Verify in browser: move → undo restores position and move point; attack clears undo
 
-## 3. Verify & deliver
-- [ ] TS check clean
-- [ ] Browser test: catapult vs walled city (no wall bonus, no retaliation), open-field weakness
-- [ ] Browser test: tutorial flow on fresh profile, skip works, doesn't reappear
-- [ ] Clean save/hall state, checkpoint, deliver
+## 3. Test + deliver
+- [ ] TS check, browser verification of both features
+- [ ] Clean preview state, checkpoint, deliver

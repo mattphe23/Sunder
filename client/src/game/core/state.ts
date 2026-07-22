@@ -1,7 +1,7 @@
 // Polyforge central game state store — framework-agnostic, event-emitting.
 // React subscribes via getSnapshot/subscribe; Babylon render layer listens to events.
 
-import { generateMap, claimBorders, rng } from "./mapgen";
+import { generateMap, claimBorders, rng, MapPreset } from "./mapgen";
 import {
   GameState, Tribe, Unit, UnitType, UNIT_STATS, TRIBE_DEFS, TechId,
   Difficulty, idx, PORT_COST, WALL_COST, TECHS, RecapEntry, GUARDIAN_TRIBE,
@@ -124,9 +124,10 @@ class GameStore {
 
   // ---------- lifecycle ----------
 
-  newGame(opts: { size: number; humanTribe: number; difficulty: Difficulty; seed?: number }) {
+  newGame(opts: { size: number; humanTribe: number; difficulty: Difficulty; seed?: number; preset?: MapPreset }) {
     const seed = opts.seed ?? Math.floor(Math.random() * 2 ** 31);
-    const { tiles, cities } = generateMap(opts.size, seed, TRIBE_DEFS.length);
+    const preset: MapPreset = opts.preset ?? "continents";
+    const { tiles, cities } = generateMap(opts.size, seed, TRIBE_DEFS.length, preset);
     const tribes: Tribe[] = TRIBE_DEFS.map((d, i) => ({
       index: i,
       name: d.name,
@@ -160,6 +161,7 @@ class GameStore {
       phase: "playing",
       size: opts.size,
       seed,
+      preset,
       difficulty: opts.difficulty,
       tribes,
       tiles,
@@ -220,6 +222,7 @@ class GameStore {
     const s = this.state;
     if (s.phase !== "playing") return;
     s.selectedUnitId = null;
+    this.lastMove = null;
     s.selectedCityId = null;
     this.pendingAttack = null;
     this.nextTribe();
@@ -452,6 +455,8 @@ class GameStore {
     const legal = reachableTiles(s, u).some((t) => t.x === x && t.y === y);
     if (!legal) return;
     const fromX = u.x, fromY = u.y;
+    const wasBoat = u.boat;
+    const wasAttacked = u.attacked;
     u.x = x; u.y = y;
     u.moved = true;
     // naval: embark when entering water (port required by rules), disembark on land
@@ -466,9 +471,44 @@ class GameStore {
     const stats = UNIT_STATS[u.type];
     if (!stats.dash) u.attacked = true;
     if (u.boat) u.attacked = true; // boats cannot attack
+    // one-step undo: only for the human's own reversible moves (no ruin, no city tile)
+    const destTile = tileAt(s, x, y);
+    if (
+      u.tribe === s.humanTribe &&
+      s.currentTribe === s.humanTribe &&
+      !destTile.ruin && !destTile.greatRuin && destTile.cityId === null
+    ) {
+      this.lastMove = { unitId, fromX, fromY, boat: wasBoat, attacked: wasAttacked };
+    } else {
+      this.lastMove = null;
+    }
     this.exploreRuin(u);
     this.exploreAround();
     this.emit({ type: "unitMoved", unitId, fromX, fromY, toX: x, toY: y });
+    this.emit({ type: "changed" });
+  }
+
+  /** snapshot of the last human move for one-step undo */
+  private lastMove: { unitId: number; fromX: number; fromY: number; boat: boolean; attacked: boolean } | null = null;
+
+  canUndo(): boolean {
+    return this.lastMove !== null && this.state.phase === "playing" &&
+      this.state.currentTribe === this.state.humanTribe && !this.state.aiThinking;
+  }
+
+  undoMove() {
+    if (!this.canUndo()) return;
+    const s = this.state;
+    const m = this.lastMove!;
+    this.lastMove = null;
+    const u = s.units.find((q) => q.id === m.unitId);
+    if (!u) return;
+    u.x = m.fromX; u.y = m.fromY;
+    u.moved = false;
+    u.boat = m.boat;
+    u.attacked = m.attacked;
+    s.selectedUnitId = u.id;
+    s.log.unshift(`${UNIT_STATS[u.type].name}'s march was recalled.`);
     this.emit({ type: "changed" });
   }
 
@@ -476,6 +516,7 @@ class GameStore {
     const s = this.state;
     const a = s.units.find((q) => q.id === attackerId);
     const d = s.units.find((q) => q.id === defenderId);
+    this.lastMove = null;
     if (!a || !d) return;
     if (!attackableUnits(s, a).some((e) => e.id === defenderId)) return;
     const result = previewCombat(s, a, d);
@@ -560,6 +601,7 @@ class GameStore {
   captureCity(unitId: number) {
     const s = this.state;
     const u = s.units.find((q) => q.id === unitId);
+    this.lastMove = null;
     if (!u || u.moved || u.attacked) {
       // capture consumes the whole action; require fresh unit standing on city
     }
@@ -749,6 +791,7 @@ function emptyState(): GameState {
     phase: "menu",
     size: 11,
     seed: 0,
+    preset: "continents",
     turn: 0,
     maxTurns: 30,
     difficulty: "normal",

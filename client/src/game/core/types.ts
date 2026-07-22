@@ -200,6 +200,8 @@ export interface GameState {
   phase: Phase;
   size: number;
   seed: number;
+  /** map generation preset id: continents | archipelago | highlands | pangaea */
+  preset: string;
   turn: number;
   maxTurns: number;
   difficulty: Difficulty;
