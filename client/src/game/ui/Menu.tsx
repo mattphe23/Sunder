@@ -87,9 +87,16 @@ export function MainMenu() {
   const [hall] = useState(() => loadHall());
   const [achOpen, setAchOpen] = useState(false);
   const [achievements] = useState(() => loadAchievements());
+  const [slot, setSlot] = useState(() => game.activeSlot);
+  const slots = game.slotSummaries();
   const tribe = TRIBE_DEFS[faction];
   const saved = game.savedSummary();
   const hallCount = (["easy", "normal", "hard"] as Difficulty[]).reduce((n, d) => n + (hall[d]?.length ?? 0), 0);
+  const pickSlot = (n: 1 | 2 | 3) => {
+    sound.play("click");
+    setSlot(n);
+    game.setActiveSlot(n);
+  };
   const togglePlayer = (i: number) => {
     setPlayers((prev) => {
       if (prev.includes(i)) return prev.length > 2 ? prev.filter((p) => p !== i) : prev; // keep ≥2
@@ -258,6 +265,32 @@ export function MainMenu() {
         >
           <Swords className="h-5 w-5" /> {mode === "solo" ? "BEGIN CONQUEST" : `BEGIN — ${players.length} PLAYERS${players.length < 4 ? ` + ${4 - players.length} AI` : ""}`}
         </Button>
+        {/* Save slots — three named files so solo and hot-seat campaigns coexist */}
+        <div className="mt-2.5 grid w-full grid-cols-3 gap-1.5">
+          {([1, 2, 3] as const).map((n) => {
+            const info = slots[n - 1];
+            const active = slot === n;
+            return (
+              <button
+                key={n}
+                onClick={() => pickSlot(n)}
+                className={`min-h-[52px] rounded-lg border px-2 py-1.5 text-left transition-colors active:scale-[0.97] ${active ? "border-amber-400/70 bg-amber-400/10 shadow-[0_0_14px_rgba(255,185,56,0.2)]" : "border-white/10 bg-white/[0.04] hover:bg-white/10"}`}
+              >
+                <span className={`block font-display text-[10px] font-bold uppercase tracking-widest ${active ? "text-amber-300" : "text-slate-400"}`}>
+                  Slot {n}
+                </span>
+                {info ? (
+                  <span className="block truncate text-[10px] leading-tight text-slate-300">
+                    {info.hotseat ? `${info.players}P · ` : ""}{info.tribeName}
+                    <span className="text-slate-500"> · T{info.turn}</span>
+                  </span>
+                ) : (
+                  <span className="block text-[10px] italic leading-tight text-slate-500">Empty</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
         {saved && (
           <Button
             size="lg"

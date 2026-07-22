@@ -106,11 +106,23 @@ export function BattlePreview() {
           {p.defenderDies && <p className="flex items-center justify-center gap-1 text-[10px] text-red-400"><Skull className="h-3 w-3" /> falls</p>}
         </div>
       </div>
+      {p.modifiers.length > 0 && (
+        <div className="mb-2 flex flex-wrap justify-center gap-1">
+          {p.modifiers.map((m) => (
+            <span
+              key={m.text}
+              className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold leading-tight ${m.side === "atk" ? "border-amber-400/40 bg-amber-400/10 text-amber-200" : "border-sky-400/40 bg-sky-400/10 text-sky-200"}`}
+            >
+              {m.text}
+            </span>
+          ))}
+        </div>
+      )}
       <div className="flex gap-2">
-        <Button size="sm" variant="secondary" className="flex-1 border border-white/10 bg-white/10 text-slate-200 hover:bg-white/20" onClick={() => game.cancelAttack()}>
+        <Button size="sm" variant="secondary" className="min-h-[44px] flex-1 border border-white/10 bg-white/10 text-slate-200 hover:bg-white/20 sm:min-h-0" onClick={() => game.cancelAttack()}>
           Cancel
         </Button>
-        <Button size="sm" className="flex-1 gap-1 bg-red-500 font-bold text-white hover:bg-red-400" onClick={() => game.confirmAttack()}>
+        <Button size="sm" className="min-h-[44px] flex-1 gap-1 bg-red-500 font-bold text-white hover:bg-red-400 sm:min-h-0" onClick={() => game.confirmAttack()}>
           <Swords className="h-3.5 w-3.5" /> Attack
         </Button>
       </div>
@@ -158,16 +170,16 @@ export function BottomBar({ onOpenTech }: { onOpenTech: () => void }) {
   const s = g.state;
   const isMyTurn = s.currentTribe === s.humanTribe && !s.aiThinking;
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-end justify-between gap-2 p-3">
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-end justify-between gap-2 p-3" style={{ touchAction: "manipulation" }}>
       <div className="pointer-events-auto flex gap-2">
-        <Button variant="secondary" size="sm" className="gap-1.5 border border-white/10 bg-[#1b1b3f]/85 text-slate-100 backdrop-blur-md hover:bg-[#2a2a55]" onClick={onOpenTech}>
+        <Button variant="secondary" size="sm" className="min-h-[44px] gap-1.5 border border-white/10 bg-[#1b1b3f]/85 px-4 text-slate-100 backdrop-blur-md hover:bg-[#2a2a55] sm:min-h-0 sm:px-3" onClick={onOpenTech}>
           <FlaskConical className="h-4 w-4 text-cyan-300" /> Research
         </Button>
         {game.canUndo() && (
           <Button
             variant="secondary"
             size="sm"
-            className="gap-1.5 border border-sky-400/40 bg-[#1b1b3f]/85 text-sky-200 backdrop-blur-md hover:bg-[#2a2a55]"
+            className="min-h-[44px] gap-1.5 border border-sky-400/40 bg-[#1b1b3f]/85 px-4 text-sky-200 backdrop-blur-md hover:bg-[#2a2a55] sm:min-h-0 sm:px-3"
             onClick={() => game.undoMove()}
             title="Undo the last move (before attacking or ending the turn)"
           >
@@ -180,7 +192,7 @@ export function BottomBar({ onOpenTech }: { onOpenTech: () => void }) {
           size="lg"
           disabled={!isMyTurn}
           onClick={() => { sound.play("click"); g.endTurn(); }}
-          className="gap-2 bg-amber-400 font-display font-bold text-[#1b1b3f] shadow-lg shadow-amber-500/25 transition-transform hover:bg-amber-300 active:scale-[0.97]"
+          className="min-h-[48px] gap-2 bg-amber-400 font-display font-bold text-[#1b1b3f] shadow-lg shadow-amber-500/25 transition-transform hover:bg-amber-300 active:scale-[0.97]"
         >
           End Turn <ChevronRight className="h-4 w-4" />
         </Button>
@@ -276,7 +288,7 @@ export function SelectionPanel() {
                 disabled={!afford}
                 onClick={() => { sound.play("click"); g.train(city.id, ut); }}
                 title={st.perk}
-                className={`flex items-center justify-between rounded-md border px-2 py-1 text-xs transition-colors ${unique ? "border-violet-400/40" : "border-white/10"} ${afford ? (unique ? "bg-violet-400/10 hover:bg-violet-400/20" : "bg-white/5 hover:bg-white/15") : "opacity-40"}`}
+                className={`flex min-h-[40px] items-center justify-between rounded-md border px-2 py-1 text-xs transition-colors sm:min-h-0 ${unique ? "border-violet-400/40" : "border-white/10"} ${afford ? (unique ? "bg-violet-400/10 hover:bg-violet-400/20" : "bg-white/5 hover:bg-white/15") : "opacity-40"}`}
               >
                 <span className="flex items-center gap-1">
                   {unique && <span className="text-violet-300" title="Faction-unique unit">✦</span>}

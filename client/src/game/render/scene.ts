@@ -81,6 +81,14 @@ export class BoardRenderer {
     this.camera.panningSensibility = 200;
     this.camera.panningAxis = new Vector3(1, 0, 1);
     (this.camera.inputs.attached as any).pointers.buttons = [0, 1, 2];
+    // Mobile touch tuning: smooth, predictable pinch-to-zoom and lighter drift
+    const pointers = (this.camera.inputs.attached as any).pointers;
+    pointers.pinchPrecision = 60; // higher = slower, more controlled zoom
+    pointers.pinchDeltaPercentage = 0.008; // proportional zoom feels natural at any radius
+    pointers.multiTouchPanAndZoom = true; // two-finger drag pans while pinching zooms
+    pointers.multiTouchPanning = true;
+    this.camera.inertia = 0.75; // tighter stop, less drift after flicks
+    this.camera.pinchToPanMaxDistance = 20;
 
     const hemi = new HemisphericLight("hemi", new Vector3(0.2, 1, 0.1), this.scene);
     hemi.intensity = 0.75;

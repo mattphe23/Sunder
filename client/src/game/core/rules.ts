@@ -157,6 +157,35 @@ export function previewCombat(s: GameState, attacker: Unit, defender: Unit): Com
   };
 }
 
+/** Human-readable modifier lines for the battle forecast panel. */
+export function combatModifiers(s: GameState, attacker: Unit, defender: Unit): { text: string; side: "atk" | "def" }[] {
+  const out: { text: string; side: "atk" | "def" }[] = [];
+  // --- attacker modifiers ---
+  if (attacker.tribe >= 0 && s.tribes[attacker.tribe].passive === "forgeborn") out.push({ text: "Forgeborn +15% attack", side: "atk" });
+  if (attacker.type === "berserker" && defender.hp < defender.maxHp) out.push({ text: "Berserker +50% vs wounded", side: "atk" });
+  if (attacker.hp < attacker.maxHp) out.push({ text: "Wounded — attack force reduced", side: "atk" });
+  // --- defender modifiers (mirrors defenseBonus) ---
+  if (defender.boat) { out.push({ text: "Embarked −30% defense", side: "def" }); return out; }
+  const t = tileAt(s, defender.x, defender.y);
+  if (defender.guardian) { out.push({ text: "Sacred ground +40% defense", side: "def" }); return out; }
+  if (defender.tribe < 0) return out;
+  const city = cityAt(s, defender.x, defender.y);
+  if (city && city.tribe === defender.tribe) {
+    const siege = attacker.type === "catapult";
+    if (city.walls && !siege) out.push({ text: `Walls ×${WALL_DEFENSE_BONUS} defense`, side: "def" });
+    else if (city.walls && siege) out.push({ text: "Catapult ignores walls", side: "atk" });
+    else out.push({ text: hasTech(s, defender.tribe, "freeSpirit") ? "City + Free Spirit +60% defense" : "City +30% defense", side: "def" });
+  } else if (t.terrain === "forest" && hasTech(s, defender.tribe, "archery")) {
+    out.push({ text: "Forest + Archery +30% defense", side: "def" });
+  } else if (t.terrain === "mountain" && defender.type === "warden") {
+    out.push({ text: "Warden on mountain +70% defense", side: "def" });
+  } else if (t.terrain === "mountain") {
+    out.push({ text: "Mountain +30% defense", side: "def" });
+  }
+  if (defender.hp < defender.maxHp) out.push({ text: "Wounded — defense force reduced", side: "def" });
+  return out;
+}
+
 export function techCost(s: GameState, tribe: number, tech: TechId): number {
   const def = TECHS.find((t) => t.id === tech)!;
   const cityCount = s.cities.filter((c) => c.tribe === tribe).length;

@@ -55,3 +55,27 @@
 
 ## 4. Verify + deliver
 - [x] pnpm check clean; browser verified; test localStorage cleaned; ready for checkpoint v12
+
+# Polyforge v13 — Save slots + Battle forecast + Mobile touch (v12 = 19a30984)
+
+## 1. Save slots
+- [ ] state.ts: slot-aware save keys (polyforge-save-v1:slot{1,2,3}); activeSlot persisted
+      (polyforge-active-slot); migrate legacy polyforge-save-v1 into slot 1
+- [ ] Save metadata per slot (mode solo/hotseat, faction(s), turn, difficulty, timestamp) for the picker
+- [ ] Menu: slot picker UI — 3 slots showing summary or "Empty"; Continue/New Game act on selected slot;
+      starting a new game in an occupied slot overwrites it (confirm not needed — visible in UI)
+
+## 2. Battle forecast
+- [ ] Reuse combat calc to predict damage + retaliation (and kill markers) without mutating state
+- [ ] Show forecast UI when an enemy target is selected/hovered before confirming attack
+      (works with existing pendingAttack two-tap flow)
+- [ ] Include berserker wounded bonus / warden mountain defense / walls in the preview numbers
+
+## 3. Mobile touch polish
+- [ ] Larger tap targets: bottom HUD buttons, training grid, End Turn ≥44px on small screens
+- [ ] Pinch-to-zoom tuning in scene.ts camera (pinchPrecision/wheel), clamp zoom range sensibly
+- [ ] Verify no double-tap zoom hijack (touch-action manipulation on UI layer)
+
+## 4. Verify + deliver
+- [ ] pnpm check clean; browser verify slots (create/switch/persist), forecast numbers vs actual combat,
+      mobile viewport smoke test (375px); clean test localStorage; checkpoint v13 + deliver

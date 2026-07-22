@@ -8,7 +8,7 @@ import {
   emptyStats,
 } from "./types";
 import {
-  reachableTiles, attackableUnits, previewCombat, techCost, canResearch,
+  reachableTiles, attackableUnits, previewCombat, combatModifiers, techCost, canResearch,
   canHarvest, harvestCost, starIncome, tileAt, unitAt, cityAt, trainableUnits,
   POP_PER_LEVEL, canBuildPort,
 } from "./rules";
@@ -24,8 +24,18 @@ export type GameEvent =
   | { type: "sfx"; name: "plunder" | "heal" | "promote" | "ruin" | "victory" | "defeat" | "catapult" };
 
 type Listener = (e: GameEvent) => void;
-
 const SAVE_KEY = "polyforge-save-v1";
+const SLOT_KEY = "polyforge-active-slot";
+export type SaveSlot = 1 | 2 | 3;
+const slotKey = (slot: SaveSlot) => (slot === 1 ? SAVE_KEY : `${SAVE_KEY}:slot${slot}`);
+/** Metadata shown on the menu's slot picker. */
+export interface SlotSummary {
+  turn: number;
+  tribeName: string;
+  difficulty: string;
+  hotseat: boolean;
+  players: number;
+}
 
 /** Battle preview shown before committing an attack. */
 export interface PendingAttack {
@@ -37,12 +47,33 @@ export interface PendingAttack {
   attackerDies: boolean;
   dx: number;
   dy: number;
+  modifiers: { text: string; side: "atk" | "def" }[];
 }
 
 class GameStore {
   state: GameState = emptyState();
   /** Non-persisted UI state: attack awaiting confirmation. */
   pendingAttack: PendingAttack | null = null;
+  /** Which of the three save slots is active. Slot 1 maps to the legacy key. */
+  activeSlot: SaveSlot = ((): SaveSlot => {
+    try {
+      const v = Number(localStorage.getItem(SLOT_KEY));
+      return v === 2 || v === 3 ? (v as SaveSlot) : 1;
+    } catch { return 1; }
+  })();
+  setActiveSlot(slot: SaveSlot) {
+    if (slot === this.activeSlot) return;
+    // leaving a running game: it stays saved in its own slot; reset to menu so the
+    // in-memory state can never bleed into the newly selected slot via autoSave
+    if (this.state.phase === "playing") {
+      this.state = emptyState();
+      this.pendingAttack = null;
+    }
+    this.activeSlot = slot;
+    try { localStorage.setItem(SLOT_KEY, String(slot)); } catch { /* noop */ }
+    this.snapshotVersion++;
+    this.listeners.forEach((fn) => fn({ type: "changed" }));
+  }
   private listeners = new Set<Listener>();
   private snapshotVersion = 0;
 
@@ -65,9 +96,9 @@ class GameStore {
     const s = this.state;
     try {
       if (s.phase === "playing") {
-        localStorage.setItem(SAVE_KEY, JSON.stringify(s));
-      } else if (s.phase === "gameover" || s.phase === "menu") {
-        localStorage.removeItem(SAVE_KEY);
+        localStorage.setItem(slotKey(this.activeSlot), JSON.stringify(s));
+      } else if (s.phase === "gameover") {
+        localStorage.removeItem(slotKey(this.activeSlot));
       }
     } catch {
       // storage unavailable (private mode/quota) — play without persistence
@@ -76,7 +107,7 @@ class GameStore {
 
   hasSave(): boolean {
     try {
-      return localStorage.getItem(SAVE_KEY) !== null;
+      return localStorage.getItem(slotKey(this.activeSlot)) !== null;
     } catch {
       return false;
     }
@@ -85,7 +116,7 @@ class GameStore {
   /** Peek at saved metadata for the Continue button label. */
   savedSummary(): { turn: number; tribeName: string; difficulty: string } | null {
     try {
-      const raw = localStorage.getItem(SAVE_KEY);
+      const raw = localStorage.getItem(slotKey(this.activeSlot));
       if (!raw) return null;
       const s = JSON.parse(raw) as GameState;
       return { turn: s.turn + 1, tribeName: s.tribes[s.humanTribe]?.name ?? "?", difficulty: s.difficulty };
@@ -94,9 +125,33 @@ class GameStore {
     }
   }
 
+  /** Metadata for every slot, for the menu's slot picker. */
+  slotSummaries(): (SlotSummary | null)[] {
+    return ([1, 2, 3] as SaveSlot[]).map((slot) => {
+      try {
+        const raw = localStorage.getItem(slotKey(slot));
+        if (!raw) return null;
+        const s = JSON.parse(raw) as GameState;
+        if (!s || s.phase !== "playing") return null;
+        const humans = s.humanTribes ?? [s.humanTribe];
+        return {
+          turn: s.turn + 1,
+          tribeName: humans.length > 1
+            ? humans.map((h) => s.tribes[h]?.name ?? "?").join(" · ")
+            : s.tribes[s.humanTribe]?.name ?? "?",
+          difficulty: s.difficulty,
+          hotseat: humans.length > 1,
+          players: humans.length,
+        };
+      } catch {
+        return null;
+      }
+    });
+  }
+
   continueGame(): boolean {
     try {
-      const raw = localStorage.getItem(SAVE_KEY);
+      const raw = localStorage.getItem(slotKey(this.activeSlot));
       if (!raw) return false;
       const s = JSON.parse(raw) as GameState;
       if (!s || s.phase !== "playing" || !Array.isArray(s.tiles) || s.tiles.length === 0) return false;
@@ -186,7 +241,7 @@ class GameStore {
   toMenu() {
     this.state = emptyState();
     this.pendingAttack = null;
-    try { localStorage.removeItem(SAVE_KEY); } catch { /* noop */ }
+    try { localStorage.removeItem(slotKey(this.activeSlot)); } catch { /* noop */ }
     this.emit({ type: "changed" });
   }
 
@@ -334,6 +389,7 @@ class GameStore {
       defenderDies: d.hp - r.damageToDefender <= 0,
       attackerDies: a.hp - r.damageToAttacker <= 0,
       dx: d.x, dy: d.y,
+      modifiers: combatModifiers(s, a, d),
     };
     this.emit({ type: "changed" });
   }

@@ -230,10 +230,32 @@
   * Menu renders: mode toggle Solo|Pass&Play OK, mute button top-right OK, Achievements 0/8 panel OK.
   * Hot-seat: started 2P (Auren P1 + Kharzul P2 + 2 AI) — handoff screen "PASS THE DEVICE TO Auren"
     shows correctly with faction color + stars + confirm button.
-  * REMAINING VERIFY: confirm handoff → play Auren turn, End Turn → AI? No: tribe order 0..3, Kharzul=1
-    human → next handoff; check humanTribe repoints (TopBar shows Kharzul, fog changes); music/SFX check
-    (kick + menu music playing, attack sound); achievements: simulate win via console to check unlock
-    (or skip — logic simple); then clear polyforge-* localStorage, checkpoint v12, deliver.
+  * v12 SHIPPED as checkpoint 19a30984 (all verified: hotseat cycle, achievements console tests, sound).
+
+## v13 (save slots + battle forecast + mobile touch) — IN PROGRESS
+- SLOTS DONE (tsc clean): state.ts SLOT_KEY polyforge-active-slot, slotKey(1)=legacy polyforge-save-v1,
+  slots 2/3 = :slot{n} suffix. game.activeSlot + setActiveSlot() + slotSummaries() (null|{turn,tribeName,
+  difficulty,hotseat,players}). autoSave/hasSave/savedSummary/continueGame/toMenu all slot-aware.
+  Menu.tsx: 3-col slot picker between BEGIN and CONTINUE buttons; pickSlot() plays click + setActiveSlot;
+  Continue reflects selected slot (saved = game.savedSummary() re-read on re-render via useGame).
+- FORECAST: BattlePreview ALREADY EXISTS in Hud.tsx (pendingAttack via stageAttack→previewCombat, shows
+  dmg/retaliation/falls + confirm/cancel). Phase 2 = enrich: add modifier breakdown lines (berserker
+  wounded bonus, warden mountain defense, wall defense, terrain) so numbers are explainable. previewCombat
+  lives in core/rules.ts (check exact export name/args before editing).
+- FORECAST DONE: combatModifiers() in rules.ts (atk: forgeborn/berserker/wounded/catapult-vs-walls;
+  def: embarked/guardian/walls/city/freeSpirit/forest+archery/warden-mtn/mtn/wounded). PendingAttack.modifiers
+  threaded via stageAttack; BattlePreview renders amber(atk)/sky(def) chips. tsc clean.
+- MOBILE DONE: scene.ts pointers.pinchPrecision=60, pinchDeltaPercentage=0.008, multiTouchPanAndZoom,
+  inertia=0.75, pinchToPanMaxDistance=20. Hud.tsx: BottomBar buttons min-h-[44px] (End Turn 48px) sm:min-h-0,
+  train buttons min-h-[40px], BattlePreview buttons 44px, touchAction manipulation on BottomBar.
+- SLOT BLEED BUG FIXED: setActiveSlot resets in-memory game to emptyState() when playing (save stays in
+  its own slot) and bumps version WITHOUT autoSave; autoSave only removes key on "gameover" (not "menu").
+  First failing test was pre-HMR stale code; after page reload the full test passed:
+  slot1 solo Auren normal + slot2 hotseat Kharzul·Sunwei hard coexist, continue loads correct game per
+  slot, summaries correct, slot3 empty.
+- v13 VERIFIED (all): forecast chips fired correctly (berserker vs wounded on mountain → Forgeborn+15%,
+  Berserker+50%, Mountain+30%, Wounded-def chips; dmg 18, no retaliation). 375px full-page screenshot:
+  menu + slot picker + world type stack cleanly. Cleaned all polyforge-save* keys. → checkpoint v13.
 - Key API notes: game.subscribe((e) => ...) returns unsub; combat event has attackerId (look up
   s.units.find for type==="catapult" for catapult sound — may be dead, check defenderDied/attackerDied);
   Menu.tsx has MainMenu + GameOver; Hud.tsx has TopBar (top-left pill) + BottomBar.
