@@ -281,6 +281,41 @@ export class BoardRenderer {
         spire.parent = this.root;
         decor.push(spire);
       }
+      if (city.walls) {
+        // city walls: stone rampart ring with four corner towers
+        let wallMat = this.mats.get("city-wall");
+        if (!wallMat) {
+          wallMat = new StandardMaterial("city-wall", this.scene);
+          wallMat.diffuseColor = Color3.FromHexString("#a8a5b8");
+          wallMat.specularColor = Color3.Black();
+          this.mats.set("city-wall", wallMat);
+        }
+        const half = 0.44;
+        const segs: { w: number; d: number; px: number; pz: number }[] = [
+          { w: half * 2, d: 0.08, px: 0, pz: -half },
+          { w: half * 2, d: 0.08, px: 0, pz: half },
+          { w: 0.08, d: half * 2, px: -half, pz: 0 },
+          { w: 0.08, d: half * 2, px: half, pz: 0 },
+        ];
+        for (const seg of segs) {
+          const wall = MeshBuilder.CreateBox("wall", { width: seg.w, depth: seg.d, height: 0.22 }, this.scene);
+          wall.position = new Vector3(t.x - c + seg.px, top + 0.11, t.y - c + seg.pz);
+          wall.material = wallMat;
+          wall.metadata = { tile: true, x: t.x, y: t.y };
+          wall.parent = this.root;
+          decor.push(wall);
+        }
+        for (const sx of [-half, half]) {
+          for (const sz of [-half, half]) {
+            const tower = MeshBuilder.CreateCylinder("walltower", { diameter: 0.16, height: 0.34, tessellation: 6 }, this.scene);
+            tower.position = new Vector3(t.x - c + sx, top + 0.17, t.y - c + sz);
+            tower.material = wallMat;
+            tower.metadata = { tile: true, x: t.x, y: t.y };
+            tower.parent = this.root;
+            decor.push(tower);
+          }
+        }
+      }
     }
     if (!visible) decor.forEach((m) => (m.visibility = 0.45));
     this.decorMeshes.set(key, decor);

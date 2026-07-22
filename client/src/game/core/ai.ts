@@ -6,7 +6,7 @@ import {
   reachableTiles, attackableUnits, previewCombat, canResearch, canHarvest,
   trainableUnits, techCost, cityAt, unitAt, canBuildPort,
 } from "./rules";
-import { GameState, TECHS, UNIT_STATS, UnitType, Unit, TechId, PORT_COST } from "./types";
+import { GameState, TECHS, UNIT_STATS, UnitType, Unit, TechId, PORT_COST, WALL_COST } from "./types";
 
 // avoid circular type import; structural typing for the store
 interface StoreLike {
@@ -18,6 +18,7 @@ interface StoreLike {
   attack(a: number, d: number): void;
   captureCity(id: number): void;
   buildPort(x: number, y: number): void;
+  buildWalls(cityId: number): void;
 }
 
 export function runAiTurn(store: StoreLike, tribeIdx: number) {
@@ -40,6 +41,14 @@ export function runAiTurn(store: StoreLike, tribeIdx: number) {
   if (s.tribes[tribeIdx].stars > PORT_COST + 4) {
     const site = s.tiles.find((t) => canBuildPort(s, tribeIdx, t));
     if (site && Math.random() < 0.5) store.buildPort(site.x, site.y);
+  }
+
+  // 2c. fortify: wall up high-level cities when stars allow (capital first)
+  if (s.tribes[tribeIdx].stars > WALL_COST + 6) {
+    const wallable = s.cities
+      .filter((c) => c.tribe === tribeIdx && c.level >= 3 && !c.walls)
+      .sort((a, b) => Number(b.isCapital) - Number(a.isCapital));
+    if (wallable.length > 0 && Math.random() < 0.6) store.buildWalls(wallable[0].id);
   }
 
   // 3. train: keep army at ~3 units per city, use best affordable unit type

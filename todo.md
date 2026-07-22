@@ -1,20 +1,19 @@
-# Polyforge v6 — Hall of Conquest + Unit Veterancy
+# Polyforge v7 — City Walls + Match Statistics
 
-## Feature 1: Hall of Conquest (difficulty leaderboard)
-- [ ] state.ts: on human victory, record { difficulty, faction, turns, score, mapSize, date } to
-  localStorage "polyforge-hall" (keep best 5 per difficulty, sorted by fewest turns then highest score)
-- [ ] Menu.tsx: "Hall of Conquest" section/toggle on main menu with per-difficulty tabs showing
-  best victories; empty state when no victories yet
-- [ ] GameOver: badge when the finished match earns a Hall entry (e.g., "New record!")
+## 1. City walls
+- [ ] types.ts: City.walls?: boolean; WALL_COST constant
+- [ ] rules.ts: wall defense bonus for defenders garrisoned in a walled city
+- [ ] state.ts: buildWalls(cityId) action (level >= 3, cost stars)
+- [ ] scene.ts: rampart ring visual around walled cities
+- [ ] Hud.tsx: Build Walls button in city panel (level 3+, shows cost)
+- [ ] ai.ts: AI builds walls on high-level cities when affordable
 
-## Feature 2: Unit veterancy
-- [ ] types.ts: Unit.veteran flag (kills already tracked)
-- [ ] state.ts: after a kill, if kills >= 3 and not veteran → promote: veteran=true, maxHp+5, full heal;
-  log + recap-worthy message for human units
-- [ ] scene.ts: golden crest (small diamond/chevron) above veteran units
-- [ ] Hud.tsx: unit panel shows Veteran status and kill count
-- [ ] battle preview: uses live stats so no change needed (maxHp affects defense force)
+## 2. Match statistics
+- [ ] types.ts: GameState.stats per tribe { battlesWon, unitsLost, starsEarned, ruinsClaimed, citiesCaptured, techsResearched }
+- [ ] state.ts: increment stats in attack/income/ruins/capture/research; include in save
+- [ ] Menu.tsx: stats panel on GameOver next to score chart
 
-## Verify & deliver
-- [ ] TS check + browser verification of both features
+## 3. Verify & deliver
+- [ ] TS check clean
+- [ ] Browser test: walls (bonus applied in combat preview), stats accumulate & show on game over
 - [ ] Clear test saves, checkpoint, deliver

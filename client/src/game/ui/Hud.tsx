@@ -1,7 +1,7 @@
 // Polyforge HUD — Isoglow glass panels over the indigo void; amber star accent.
 import { useGame } from "../useGame";
 import { game } from "../core/state";
-import { UNIT_STATS, TECHS, PORT_COST } from "../core/types";
+import { UNIT_STATS, TECHS, PORT_COST, WALL_COST } from "../core/types";
 import {
   techCost, canResearch, trainableUnits, starIncome, cityAt, canHarvest,
   harvestCost, canBuildPort,
@@ -237,6 +237,11 @@ export function SelectionPanel() {
           <button onClick={() => g.selectCity(null)}><X className="h-4 w-4 text-slate-400" /></button>
         </div>
         <p className="mb-2 text-[11px] text-slate-300">Level {city.level} · Pop {city.population}/3</p>
+        {city.walls && (
+          <p className="mb-2 flex items-center gap-1 text-[11px] font-semibold text-slate-200">
+            <Shield className="h-3 w-3 text-slate-300" /> Walled — defenders gain a fortified bonus
+          </p>
+        )}
         <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Train unit</p>
         <div className="mb-2 grid grid-cols-2 gap-1">
           {trainableUnits(s, s.humanTribe).map((ut) => {
@@ -291,6 +296,19 @@ export function SelectionPanel() {
               ))}
             </div>
           </>
+        )}
+        {!city.walls && city.level >= 3 && (
+          <button
+            disabled={me.stars < WALL_COST}
+            onClick={() => g.buildWalls(city.id)}
+            className={`mt-2 flex w-full items-center justify-between rounded-md border border-white/10 px-2 py-1.5 text-xs transition-colors ${me.stars >= WALL_COST ? "bg-white/5 hover:bg-white/15" : "opacity-40"}`}
+          >
+            <span className="flex items-center gap-1"><Shield className="h-3 w-3 text-slate-300" /> Build city walls</span>
+            <span className="flex items-center gap-0.5 text-amber-300"><Star className="h-3 w-3 fill-amber-300" />{WALL_COST}</span>
+          </button>
+        )}
+        {!city.walls && city.level < 3 && (
+          <p className="mt-2 text-[10px] text-slate-500">Reach level 3 to build city walls.</p>
         )}
       </div>
     );

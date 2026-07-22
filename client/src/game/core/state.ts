@@ -4,7 +4,8 @@
 import { generateMap, claimBorders, rng } from "./mapgen";
 import {
   GameState, Tribe, Unit, UnitType, UNIT_STATS, TRIBE_DEFS, TechId,
-  Difficulty, idx, PORT_COST, TECHS, RecapEntry, GUARDIAN_TRIBE,
+  Difficulty, idx, PORT_COST, WALL_COST, TECHS, RecapEntry, GUARDIAN_TRIBE,
+  emptyStats,
 } from "./types";
 import {
   reachableTiles, attackableUnits, previewCombat, techCost, canResearch,
@@ -168,6 +169,7 @@ class GameStore {
       humanTribe: opts.humanTribe,
       currentTribe: 0,
     };
+    this.state.stats = tribes.map(() => emptyStats());
     this.exploreAround();
     this.beginTurn(0);
     this.emit({ type: "changed" });
@@ -196,7 +198,9 @@ class GameStore {
     if (tribe.isHuman && s.recap.length > 0) {
       s.showRecap = true;
     }
-    tribe.stars += starIncome(s, tribeIdx) + this.aiBonus(tribeIdx);
+    const income = starIncome(s, tribeIdx) + this.aiBonus(tribeIdx);
+    tribe.stars += income;
+    this.bumpStat(tribeIdx, "starsEarned", income);
     for (const u of s.units) {
       if (u.tribe === tribeIdx) { u.moved = false; u.attacked = false; }
     }
@@ -332,6 +336,15 @@ class GameStore {
     this.emit({ type: "changed" });
   }
 
+  /** increment a per-tribe match statistic (safe for guardians / legacy saves) */
+  private bumpStat(tribeIdx: number, key: keyof ReturnType<typeof emptyStats>, amount = 1) {
+    const s = this.state;
+    if (tribeIdx < 0) return;
+    if (!s.stats) s.stats = s.tribes.map(() => emptyStats());
+    if (!s.stats[tribeIdx]) s.stats[tribeIdx] = emptyStats();
+    s.stats[tribeIdx][key] += amount;
+  }
+
   /** roll and grant a ruin reward for the unit that stepped on a ruin */
   private exploreRuin(u: Unit) {
     const s = this.state;
@@ -345,6 +358,7 @@ class GameStore {
     if (roll < 0.5) {
       const stars = 5 + Math.floor(roll * 10); // 5–9 stars
       tribe.stars += stars;
+      this.bumpStat(u.tribe, "starsEarned", stars);
       msg = `${tribe.name} found ${stars} stars in ancient ruins!`;
     } else if (roll < 0.8) {
       const unknown = TECHS.filter((q) => !tribe.techs.includes(q.id) && (q.requires === null || tribe.techs.includes(q.requires)));
@@ -370,6 +384,7 @@ class GameStore {
     }
     s.log.unshift(msg);
     this.recordRecap({ kind: "ruin", text: msg, tribe: u.tribe });
+    this.bumpStat(u.tribe, "ruinsClaimed");
     this.exploreAround();
   }
 
@@ -383,6 +398,7 @@ class GameStore {
     if (roll < 0.45) {
       const stars = 12 + Math.floor(roll * 14); // 12–18 stars
       tribe.stars += stars;
+      this.bumpStat(u.tribe, "starsEarned", stars);
       msg = `${tribe.name} claimed the Great Ruin — a hoard of ${stars} stars!`;
     } else if (roll < 0.75) {
       const unknown = TECHS.filter((q) => !tribe.techs.includes(q.id) && (q.requires === null || tribe.techs.includes(q.requires)));
@@ -409,6 +425,7 @@ class GameStore {
     }
     s.log.unshift(msg);
     this.recordRecap({ kind: "greatRuin", text: msg, tribe: u.tribe });
+    this.bumpStat(u.tribe, "ruinsClaimed");
     this.exploreAround();
   }
 
@@ -472,6 +489,8 @@ class GameStore {
       s.units = s.units.filter((q) => q.id !== d.id);
       a.kills++;
       defenderDied = true;
+      this.bumpStat(a.tribe, "battlesWon");
+      this.bumpStat(d.tribe, "unitsLost");
       // Veterancy: 3 kills promotes the unit — +5 max HP and a full heal
       if (!a.veteran && !a.guardian && a.kills >= 3) {
         a.veteran = true;
@@ -493,6 +512,8 @@ class GameStore {
     if (a.hp <= 0) {
       s.units = s.units.filter((q) => q.id !== a.id);
       attackerDied = true;
+      this.bumpStat(d.tribe, "battlesWon");
+      this.bumpStat(a.tribe, "unitsLost");
     }
     this.emit({
       type: "combat", attackerId, defenderId,
@@ -522,6 +543,20 @@ class GameStore {
     this.emit({ type: "changed" });
   }
 
+  /** City walls: level-3+ cities may fortify for a stronger defense bonus */
+  buildWalls(cityId: number) {
+    const s = this.state;
+    const city = s.cities[cityId];
+    const tribeIdx = s.currentTribe;
+    if (!city || city.tribe !== tribeIdx) return;
+    if (city.walls || city.level < 3) return;
+    if (s.tribes[tribeIdx].stars < WALL_COST) return;
+    s.tribes[tribeIdx].stars -= WALL_COST;
+    city.walls = true;
+    s.log.unshift(`${city.name} raised city walls!`);
+    this.emit({ type: "changed" });
+  }
+
   captureCity(unitId: number) {
     const s = this.state;
     const u = s.units.find((q) => q.id === unitId);
@@ -538,6 +573,8 @@ class GameStore {
     claimBorders(s.tiles, s.size, city);
     u.moved = true; u.attacked = true;
     s.log.unshift(`${s.tribes[u.tribe].name} captured ${city.name}!`);
+    this.bumpStat(u.tribe, "citiesCaptured");
+    city.walls = false; // walls are torn down when a city falls
     this.emit({ type: "captured", cityId: city.id, tribe: u.tribe });
     if (u.tribe !== s.humanTribe) {
       const kind: RecapEntry["kind"] = prevOwner === s.humanTribe ? "cityLost" : "capture";
@@ -572,6 +609,7 @@ class GameStore {
     if (!canResearch(s, tribeIdx, tech)) return;
     s.tribes[tribeIdx].stars -= techCost(s, tribeIdx, tech);
     s.tribes[tribeIdx].techs.push(tech);
+    this.bumpStat(tribeIdx, "techsResearched");
     this.emit({ type: "changed" });
   }
 
@@ -729,6 +767,7 @@ function emptyState(): GameState {
     recap: [],
     showRecap: false,
     scoreHistory: [],
+    stats: [],
   };
 }
 

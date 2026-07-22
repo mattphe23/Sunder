@@ -320,8 +320,53 @@ export function GameOver() {
                     strokeOpacity={t.index === s.humanTribe ? 1 : 0.75}
                   />
                 ))}
-              </LineChart>
+            </LineChart>
             </ResponsiveContainer>
+          </div>
+        )}
+        {s.stats && s.stats.length > 0 && (
+          <div className="mt-4 rounded-md border border-white/10 bg-white/[0.03] p-2 pt-3">
+            <p className="mb-2 text-left font-display text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
+              Match statistics
+            </p>
+            <table className="w-full text-[11px]">
+              <thead>
+                <tr className="text-slate-500">
+                  <th className="pb-1 text-left font-normal"></th>
+                  {s.tribes.map((t) => (
+                    <th key={t.index} className="pb-1 text-right font-normal">
+                      <span
+                        className={`inline-block h-2 w-2 rotate-45 ${t.index === s.humanTribe ? "ring-1 ring-white/60" : ""}`}
+                        style={{ background: t.color }}
+                        title={t.name}
+                      />
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="text-slate-300">
+                {([
+                  ["Battles won", "battlesWon"],
+                  ["Units lost", "unitsLost"],
+                  ["Stars earned", "starsEarned"],
+                  ["Ruins claimed", "ruinsClaimed"],
+                  ["Cities captured", "citiesCaptured"],
+                  ["Techs researched", "techsResearched"],
+                ] as const).map(([label, key]) => (
+                  <tr key={key} className="border-t border-white/5">
+                    <td className="py-1 text-left text-slate-400">{label}</td>
+                    {s.tribes.map((t) => (
+                      <td
+                        key={t.index}
+                        className={`py-1 text-right font-mono ${t.index === s.humanTribe ? "font-bold text-slate-100" : ""}`}
+                      >
+                        {s.stats[t.index]?.[key] ?? 0}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
         <Button onClick={() => g.toMenu()} className="mt-5 w-full bg-amber-400 font-display font-black tracking-wider text-[#1b1b3f] shadow-[0_0_24px_rgba(255,185,56,0.35)] hover:bg-amber-300">

@@ -117,11 +117,23 @@
 - VERIFIED (browser, seed 777): warrior kills=2 → killed enemy → veteran=true, maxHp 10→15, full heal,
   log "promoted to Veteran"; unit panel shows Veteran; Hall of Conquest button on menu with per-difficulty
   tabs + empty state renders correctly.
-- VERIFIED hall: forced domination win → 1 entry (turns:1, score:650), badge "New Hall of Conquest
-  record!" shown, menu hall lists "#1 Auren 9×9 T1 650". Fixed: checkDominationWin re-entry guard
-  (phase!=="playing" return) prevented double recordVictory; turns clamped to >=1.
-- Crest visual confirmed in board screenshot (unit panel shows "◆ Veteran Warrior", kill pips).
-- localStorage cleared (hall + save). TS clean. v6 DONE — checkpoint + deliver.
+- v6 DONE + delivered (checkpoint 27878c52).
+
+# v7 IN PROGRESS: City walls + Match statistics
+- types.ts DONE: City.walls?, WALL_COST=5, WALL_DEFENSE_BONUS=2.0, TribeStats interface + emptyStats(),
+  GameState.stats: TribeStats[]
+- rules.ts DONE: defenseBonus returns WALL_DEFENSE_BONUS when city.walls (overrides freeSpirit 1.6/1.3)
+- state.ts DONE: buildWalls(cityId) (level>=3, WALL_COST stars, walls torn down on capture);
+  bumpStat() helper (guards legacy saves); stats tracked: starsEarned (income+ruins), battlesWon/unitsLost
+  (attack both directions), ruinsClaimed, citiesCaptured, techsResearched; stats init in newGame+emptyState
+- ai.ts DONE: walls high-level cities (capital first) when stars > WALL_COST+6, 60% chance
+- scene.ts DONE: rampart ring (4 wall segments + 4 hex towers, #a8a5b8) around walled city tiles
+- Hud.tsx DONE: Build Walls button (level>=3, WALL_COST★), "Walled" badge, level hint; imports WALL_COST
+- Menu.tsx DONE: Match statistics table on GameOver (6 rows × 4 tribe columns, human column bold+ringed)
+- VERIFIED in browser: buildWalls deducted 5★ + log "Fenwick raised city walls!"; wall rampart visible
+  around capital; previewCombat withWalls dmgToDef 4 vs noWalls 5, retaliation 6 vs 5 (bonus works);
+  stats tracked correctly (battlesWon/unitsLost/starsEarned/citiesCaptured/techsResearched); game-over
+  screen shows stats table + score chart + hall record. TS clean. v7 DONE — cleanup, checkpoint, deliver.
 - Test tip: reload page first, then `const mod = await import('/src/game/core/state.ts');
   window.__g = mod.game;` newGame({size:11,humanTribe:0,difficulty:'normal',seed:12345});
   human warrior id=1 at (9,7).

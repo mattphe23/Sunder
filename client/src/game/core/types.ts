@@ -31,6 +31,8 @@ export interface City {
   level: number;
   population: number; // progress toward next level
   isCapital: boolean;
+  /** city walls: defenders garrisoned here get a stronger defense bonus */
+  walls?: boolean;
   /** unit currently being trained none this scope — training is instant spawn */
 }
 
@@ -135,6 +137,11 @@ export const TECHS: TechDef[] = [
 /** cost in stars to build a port on a shallow water tile in your city borders */
 export const PORT_COST = 3;
 
+/** cost in stars to build walls in a level-3+ city */
+export const WALL_COST = 5;
+/** defense multiplier for a defender garrisoned in a walled city (vs 1.5 for unwalled city) */
+export const WALL_DEFENSE_BONUS = 2.0;
+
 export type FactionPassive = "scholars" | "forgeborn" | "harvesters" | "outriders";
 
 export interface Tribe {
@@ -170,6 +177,25 @@ export interface RecapEntry {
   tribe: number;
 }
 
+/** running per-tribe match statistics, shown on the game-over screen */
+export interface TribeStats {
+  battlesWon: number;
+  unitsLost: number;
+  starsEarned: number;
+  ruinsClaimed: number;
+  citiesCaptured: number;
+  techsResearched: number;
+}
+
+export const emptyStats = (): TribeStats => ({
+  battlesWon: 0,
+  unitsLost: 0,
+  starsEarned: 0,
+  ruinsClaimed: 0,
+  citiesCaptured: 0,
+  techsResearched: 0,
+});
+
 export interface GameState {
   phase: Phase;
   size: number;
@@ -196,6 +222,8 @@ export interface GameState {
   showRecap: boolean;
   /** per-tribe score at the END of each turn: scoreHistory[turn-1][tribeIdx] */
   scoreHistory: number[][];
+  /** per-tribe running match statistics (index = tribe index) */
+  stats: TribeStats[];
 }
 
 export const idx = (x: number, y: number, size: number) => y * size + x;

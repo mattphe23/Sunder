@@ -4,7 +4,7 @@
 
 import {
   GameState, Tile, Unit, UnitType, UNIT_STATS, City, TechId, TECHS,
-  TRIBE_DEFS, idx, inBounds,
+  TRIBE_DEFS, WALL_DEFENSE_BONUS, idx, inBounds,
 } from "./types";
 
 export function tileAt(s: GameState, x: number, y: number): Tile {
@@ -118,6 +118,7 @@ function defenseBonus(s: GameState, defender: Unit): number {
   if (defender.tribe < 0) return 1;
   const city = cityAt(s, defender.x, defender.y);
   if (city && city.tribe === defender.tribe) {
+    if (city.walls) return WALL_DEFENSE_BONUS; // fortified — strongest static bonus
     return hasTech(s, defender.tribe, "freeSpirit") ? 1.6 : 1.3;
   }
   if (t.terrain === "forest" && hasTech(s, defender.tribe, "archery")) return 1.3;
