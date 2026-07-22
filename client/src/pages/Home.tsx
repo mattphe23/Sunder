@@ -1,25 +1,27 @@
-import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
-import { Streamdown } from 'streamdown';
+// Polyforge — Isoglow. Full-viewport game: menu → board → game over.
+import { useState } from "react";
+import { useGame } from "@/game/useGame";
+import GameCanvas from "@/game/GameCanvas";
+import { MainMenu, GameOver } from "@/game/ui/Menu";
+import { TopBar, BottomBar, SelectionPanel, TechPanel, LogTicker } from "@/game/ui/Hud";
 
-/**
- * All content in this page are only for example, replace with your own feature implementation
- * When building pages, remember your instructions in Frontend Best Practices, Design Guide and Common Pitfalls
- */
 export default function Home() {
-  // If theme is switchable in App.tsx, we can implement theme toggling like this:
-  // const { theme, toggleTheme } = useTheme();
+  const g = useGame();
+  const s = g.state;
+  const [techOpen, setTechOpen] = useState(false);
+
+  if (s.phase === "menu") return <MainMenu />;
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <main>
-        {/* Example: lucide-react for icons */}
-        <Loader2 className="animate-spin" />
-        Example Page
-        {/* Example: Streamdown for markdown rendering */}
-        <Streamdown>Any **markdown** content</Streamdown>
-        <Button variant="default">Example Button</Button>
-      </main>
+    <div className="relative h-screen w-screen overflow-hidden bg-[#141433]">
+      <GameCanvas />
+      <TopBar />
+      <LogTicker />
+      <SelectionPanel />
+      <BottomBar onOpenTech={() => setTechOpen(true)} />
+      <TechPanel open={techOpen} onClose={() => setTechOpen(false)} />
+      {s.phase === "gameover" && <GameOver />}
     </div>
   );
 }
+
