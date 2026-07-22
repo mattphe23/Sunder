@@ -206,6 +206,15 @@ class GameStore {
     for (const u of s.units) {
       if (u.tribe === tribeIdx) { u.moved = false; u.attacked = false; }
     }
+    // Auren Arcanist: mends adjacent friendly units +2 HP at the start of the turn
+    for (const a of s.units) {
+      if (a.tribe !== tribeIdx || a.type !== "arcanist") continue;
+      for (const f of s.units) {
+        if (f.tribe !== tribeIdx || f.id === a.id || f.hp >= f.maxHp) continue;
+        const d = Math.max(Math.abs(f.x - a.x), Math.abs(f.y - a.y));
+        if (d === 1) f.hp = Math.min(f.maxHp, f.hp + 2);
+      }
+    }
     this.updateScore(tribeIdx);
     this.emit({ type: "turnStarted", tribe: tribeIdx });
     this.emit({ type: "changed" });
@@ -532,6 +541,17 @@ class GameStore {
       defenderDied = true;
       this.bumpStat(a.tribe, "battlesWon");
       this.bumpStat(d.tribe, "unitsLost");
+      // Vessari Raider: plunders 2 stars from the victim's coffers on every kill
+      if (a.type === "raider" && d.tribe >= 0) {
+        const victim = s.tribes[d.tribe];
+        const loot = Math.min(2, Math.max(0, victim.stars));
+        victim.stars -= loot;
+        s.tribes[a.tribe].stars += loot;
+        if (loot > 0) {
+          this.bumpStat(a.tribe, "starsEarned", loot);
+          s.log.unshift(`${s.tribes[a.tribe].name}'s Raider plundered ${loot}★ from ${victim.name}!`);
+        }
+      }
       // Veterancy: 3 kills promotes the unit — +5 max HP and a full heal
       if (!a.veteran && !a.guardian && a.kills >= 3) {
         a.veteran = true;

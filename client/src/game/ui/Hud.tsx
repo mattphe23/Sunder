@@ -205,6 +205,12 @@ export function SelectionPanel() {
           </span>
           <button onClick={() => g.selectUnit(null)}><X className="h-4 w-4 text-slate-400" /></button>
         </div>
+        {st.perk && (
+          <p className="mb-1 text-[11px] text-violet-300/90">
+            <span className="mr-1 rounded bg-violet-400/20 px-1 py-px text-[9px] font-bold uppercase tracking-wider text-violet-300">Unique</span>
+            {st.perk}
+          </p>
+        )}
         {!unit.veteran && !unit.guardian && (
           <p className="mb-1 flex items-center gap-1 text-[11px] text-slate-400">
             Kills:
@@ -258,14 +264,19 @@ export function SelectionPanel() {
           {trainableUnits(s, s.humanTribe).map((ut) => {
             const st = UNIT_STATS[ut];
             const afford = me.stars >= st.cost;
+            const unique = st.faction !== undefined;
             return (
               <button
                 key={ut}
                 disabled={!afford}
                 onClick={() => g.train(city.id, ut)}
-                className={`flex items-center justify-between rounded-md border border-white/10 px-2 py-1 text-xs transition-colors ${afford ? "bg-white/5 hover:bg-white/15" : "opacity-40"}`}
+                title={st.perk}
+                className={`flex items-center justify-between rounded-md border px-2 py-1 text-xs transition-colors ${unique ? "border-violet-400/40" : "border-white/10"} ${afford ? (unique ? "bg-violet-400/10 hover:bg-violet-400/20" : "bg-white/5 hover:bg-white/15") : "opacity-40"}`}
               >
-                <span>{st.name}</span>
+                <span className="flex items-center gap-1">
+                  {unique && <span className="text-violet-300" title="Faction-unique unit">✦</span>}
+                  {st.name}
+                </span>
                 <span className="flex items-center gap-0.5 text-amber-300"><Star className="h-3 w-3 fill-amber-300" />{st.cost}</span>
               </button>
             );

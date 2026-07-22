@@ -448,6 +448,60 @@ export class BoardRenderer {
         }
         return base;
       },
+      // Auren Arcanist — hooded mystic: tall robe cone with a floating rune orb
+      arcanist: () => {
+        const robe = MeshBuilder.CreateCylinder("b", { diameterTop: 0.1, diameterBottom: 0.32, height: 0.48, tessellation: 6 }, this.scene);
+        const orb = MeshBuilder.CreateIcoSphere("orb", { radius: 0.07, subdivisions: 1 }, this.scene);
+        orb.position = new Vector3(0.16, 0.42, 0);
+        let om = this.mats.get("arcanist-orb");
+        if (!om) {
+          om = new StandardMaterial("arcanist-orb", this.scene);
+          (om as StandardMaterial).diffuseColor = Color3.FromHexString("#7fd8ff");
+          (om as StandardMaterial).emissiveColor = Color3.FromHexString("#4fb6ec");
+          this.mats.set("arcanist-orb", om);
+        }
+        orb.material = om;
+        orb.isPickable = false;
+        orb.parent = robe;
+        const bob = new Animation("orbBob", "position.y", 30, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CYCLE);
+        bob.setKeys([{ frame: 0, value: 0.42 }, { frame: 45, value: 0.5 }, { frame: 90, value: 0.42 }]);
+        orb.animations = [bob];
+        this.scene.beginAnimation(orb, 0, 90, true);
+        return robe;
+      },
+      // Kharzul Berserker — hulking brute: wide slab body with two jutting axe blades
+      berserker: () => {
+        const body = MeshBuilder.CreateBox("b", { width: 0.4, depth: 0.26, height: 0.34 }, this.scene);
+        for (const sx of [-0.26, 0.26]) {
+          const blade = MeshBuilder.CreateCylinder("blade", { diameterTop: 0, diameterBottom: 0.14, height: 0.22, tessellation: 4 }, this.scene);
+          blade.position = new Vector3(sx, 0.2, 0);
+          blade.rotation.z = sx > 0 ? -Math.PI / 7 : Math.PI / 7;
+          blade.material = this.mat("#c9c4d4");
+          blade.isPickable = false;
+          blade.parent = body;
+        }
+        return body;
+      },
+      // Sunwei Warden — mountain sentinel: squat stone-flanked tower with a peak cap
+      warden: () => {
+        const body = MeshBuilder.CreateCylinder("b", { diameterTop: 0.26, diameterBottom: 0.36, height: 0.4, tessellation: 6 }, this.scene);
+        const cap = MeshBuilder.CreateCylinder("cap", { diameterTop: 0, diameterBottom: 0.3, height: 0.16, tessellation: 6 }, this.scene);
+        cap.position.y = 0.28;
+        cap.material = this.mat("#8f8fa3");
+        cap.isPickable = false;
+        cap.parent = body;
+        return body;
+      },
+      // Vessari Raider — sleek low rider: forward capsule with twin saddle pennants
+      raider: () => {
+        const body = MeshBuilder.CreateCapsule("b", { radius: 0.12, height: 0.56, orientation: Vector3.Forward() }, this.scene);
+        const pennant = MeshBuilder.CreateCylinder("pennant", { diameterTop: 0, diameterBottom: 0.09, height: 0.2, tessellation: 4 }, this.scene);
+        pennant.position = new Vector3(0, 0.24, -0.14);
+        pennant.material = this.mat("#ffb938");
+        pennant.isPickable = false;
+        pennant.parent = body;
+        return body;
+      },
     };
     const body = shapes[u.type]();
     if (u.type !== "catapult") body.material = this.mat(col);
@@ -455,7 +509,7 @@ export class BoardRenderer {
     body.parent = node;
     body.isPickable = false;
     // head dot for humanoid silhouette
-    if (u.type !== "catapult") {
+    if (u.type !== "catapult" && u.type !== "warden" && u.type !== "arcanist") {
       const head = MeshBuilder.CreateIcoSphere("h", { radius: 0.1, subdivisions: 1 }, this.scene);
       head.position.y = 0.3;
       head.material = this.mat("#f5e6cf");

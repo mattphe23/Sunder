@@ -43,7 +43,10 @@ function moveCost(s: GameState, unit: Unit, t: Tile): number {
     case "water":
       // land units can embark at a friendly port
       return t.port === tribe && hasTech(s, tribe, "sailing") ? 1 : Infinity;
-    case "mountain": return hasTech(s, tribe, "climbing") ? 2 : Infinity;
+    case "mountain":
+      // Sunwei Warden: born of the peaks — climbs at no penalty
+      if (unit.type === "warden") return 1;
+      return hasTech(s, tribe, "climbing") ? 2 : Infinity;
     case "forest": return hasTech(s, tribe, "forestry") ? 1 : 2;
     case "grass": {
       const passive = s.tribes[tribe]?.passive;
@@ -124,6 +127,8 @@ function defenseBonus(s: GameState, defender: Unit, attacker?: Unit): number {
     return hasTech(s, defender.tribe, "freeSpirit") ? 1.6 : 1.3;
   }
   if (t.terrain === "forest" && hasTech(s, defender.tribe, "archery")) return 1.3;
+  // Sunwei Warden: iron defense when holding a mountain
+  if (t.terrain === "mountain" && defender.type === "warden") return 1.7;
   if (t.terrain === "mountain") return 1.3;
   return 1;
 }
@@ -133,6 +138,8 @@ export function previewCombat(s: GameState, attacker: Unit, defender: Unit): Com
   const dStats = UNIT_STATS[defender.type];
   let atk = aStats.attack;
   if (attacker.tribe >= 0 && s.tribes[attacker.tribe].passive === "forgeborn") atk *= 1.15;
+  // Kharzul Berserker: smells blood — +50% damage against wounded targets
+  if (attacker.type === "berserker" && defender.hp < defender.maxHp) atk *= 1.5;
   const attackForce = atk * (attacker.hp / attacker.maxHp);
   const defenseForce = dStats.defense * (defender.hp / defender.maxHp) * defenseBonus(s, defender, attacker);
   const total = attackForce + defenseForce;
@@ -205,7 +212,8 @@ export function canHarvest(s: GameState, tribe: number, t: Tile): boolean {
 
 export function trainableUnits(s: GameState, tribe: number): UnitType[] {
   return (Object.keys(UNIT_STATS) as UnitType[]).filter((ut) =>
-    hasTech(s, tribe, UNIT_STATS[ut].tech)
+    hasTech(s, tribe, UNIT_STATS[ut].tech) &&
+    (UNIT_STATS[ut].faction === undefined || UNIT_STATS[ut].faction === tribe)
   );
 }
 

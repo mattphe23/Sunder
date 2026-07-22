@@ -72,6 +72,12 @@ export function runAiTurn(store: StoreLike, tribeIdx: number) {
       store.train(city.id, "catapult");
       continue;
     }
+    // faction pride: favor the tribe's unique unit when affordable
+    const unique = options.find((ut) => UNIT_STATS[ut].faction === tribeIdx);
+    if (unique && Math.random() < 0.45) {
+      store.train(city.id, unique);
+      continue;
+    }
     // mix: 60% best unit, 40% random cheaper for variety
     if (options.length > 0) {
       const pick = Math.random() < 0.6 ? options[0] : options[Math.floor(Math.random() * options.length)];
@@ -110,6 +116,9 @@ function aiUnitAction(store: StoreLike, u: Unit, tribeIdx: number) {
         const dc = cityAt(s, t.x, t.y);
         if (dc && dc.walls && dc.tribe === t.tribe) score += 10;
       }
+      // berserkers finish wounded prey; raiders chase kills for plunder
+      if (u.type === "berserker" && t.hp < t.maxHp) score += 6;
+      if (u.type === "raider" && r.defenderDies) score += 6;
       if (score > bestScore) { bestScore = score; best = t; }
     }
     if (bestScore > 0) {

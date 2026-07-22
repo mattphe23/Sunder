@@ -43,7 +43,12 @@ export type UnitType =
   | "rider"
   | "swordsman"
   | "knight"
-  | "catapult";
+  | "catapult"
+  // faction-unique units (v10)
+  | "arcanist" // Auren — ranged mystic; adjacent friendly units heal +2 HP at turn start
+  | "berserker" // Kharzul — brutal melee; +50% damage vs already-wounded targets, low defense
+  | "warden" // Sunwei — mountain sentinel; free mountain movement, strong defense on mountains
+  | "raider"; // Vessari — fast cavalry; steals 2 stars from the enemy on every kill
 
 export interface UnitStats {
   name: string;
@@ -57,6 +62,10 @@ export interface UnitStats {
   dash: boolean;
   /** melee units retaliate; ranged don't get retaliated at range */
   tech: TechId | null;
+  /** faction-unique: only this tribe index may train it */
+  faction?: number;
+  /** short flavor line describing the unique perk (shown in UI) */
+  perk?: string;
 }
 
 export const UNIT_STATS: Record<UnitType, UnitStats> = {
@@ -67,6 +76,26 @@ export const UNIT_STATS: Record<UnitType, UnitStats> = {
   swordsman: { name: "Swordsman", cost: 5, hp: 15, attack: 3, defense: 3, movement: 1, range: 1, dash: true, tech: "smithery" },
   knight: { name: "Knight", cost: 8, hp: 10, attack: 3.5, defense: 1, movement: 3, range: 1, dash: true, tech: "chivalry" },
   catapult: { name: "Catapult", cost: 8, hp: 10, attack: 4, defense: 0, movement: 1, range: 3, dash: false, tech: "mathematics" },
+  arcanist: {
+    name: "Arcanist", cost: 6, hp: 10, attack: 2, defense: 1, movement: 1, range: 2, dash: true,
+    tech: "organization", faction: 0,
+    perk: "Mends adjacent allies +2 HP at the start of your turn",
+  },
+  berserker: {
+    name: "Berserker", cost: 5, hp: 12, attack: 3, defense: 0.5, movement: 1, range: 1, dash: true,
+    tech: "hunting", faction: 1,
+    perk: "+50% damage against wounded enemies; reckless in defense",
+  },
+  warden: {
+    name: "Warden", cost: 5, hp: 15, attack: 2, defense: 3, movement: 1, range: 1, dash: false,
+    tech: "climbing", faction: 2,
+    perk: "Climbs mountains freely and holds them with iron defense",
+  },
+  raider: {
+    name: "Raider", cost: 6, hp: 10, attack: 2.5, defense: 1, movement: 3, range: 1, dash: true,
+    tech: "riding", faction: 3,
+    perk: "Plunders 2 stars from the enemy on every kill",
+  },
 };
 
 export interface Unit {
