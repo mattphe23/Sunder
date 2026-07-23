@@ -4,10 +4,11 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { TurnAlerts } from "./game/online/TurnAlerts";
 import Home from "./pages/Home";
 
-
 function Router() {
+  // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
       <Route path={"/"} component={Home} />
@@ -32,6 +33,7 @@ function App() {
       >
         <TooltipProvider>
           <Toaster />
+          <TurnAlerts />
           <Router />
         </TooltipProvider>
       </ThemeProvider>

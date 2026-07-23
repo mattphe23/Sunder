@@ -8,6 +8,9 @@ import {
 } from "./rules";
 import { GameState, TECHS, UNIT_STATS, UnitType, Unit, TechId, PORT_COST, WALL_COST } from "./types";
 import { atPeace, setPeace, aiWantsPeaceWith, markDiploUsed, diploUsed, strengthOf, PEACE_TREATY_TURNS } from "./diplomacy";
+import { victoryProgress } from "./victory";
+import { runProAiTurn } from "./aiPro";
+import { commonEnemy, inCoalition, claimCoalitionTarget, maybeBetray } from "./coalition";
 
 // avoid circular type import; structural typing for the store
 interface StoreLike {
@@ -25,7 +28,8 @@ interface StoreLike {
 export function runAiTurn(store: StoreLike, tribeIdx: number) {
   const s = store.state;
   if (s.phase !== "playing") return;
-
+  // v21: the Impossible tier runs a smarter brain — no resource cheats
+  if (s.difficulty === "impossible") { runProAiTurn(store, tribeIdx); return; }
   // 0. diplomacy — a clearly-losing AI sues for peace with a human (one pending offer at a time)
   for (const h of s.humanTribes ?? [s.humanTribe]) {
     if (!s.tribes[h]?.alive) continue;
@@ -52,9 +56,23 @@ export function runAiTurn(store: StoreLike, tribeIdx: number) {
       }
     }
   }
+  // 0c. coalition war council — claim a distinct leader city (staggered, no
+  // overlapping targets) and betray the pact once the common enemy is broken
+  let warTarget: { x: number; y: number; cityId: number } | null = null;
+  if (inCoalition(s, tribeIdx)) {
+    const enemy = commonEnemy(s);
+    if (enemy !== null && enemy !== tribeIdx) {
+      warTarget = claimCoalitionTarget(s, tribeIdx, enemy);
+    } else {
+      maybeBetray(s, tribeIdx);
+    }
+  }
 
   // 1. research: pick cheapest available tech, prefer unit-unlocking branches
   const available = TECHS.filter((t) => canResearch(s, tribeIdx, t.id));
+  // v20: loose victory-path pursuit — bounded weight nudges only, no hard rails
+  const path = victoryProgress(s, tribeIdx);
+  const pathId = path?.def.id;
   if (available.length > 0) {
     available.sort((a, b) => techCost(s, tribeIdx, a.id) - techCost(s, tribeIdx, b.id));
     // siege pressure: if rivals hold walled cities, beeline toward Mathematics (catapults)
@@ -62,18 +80,31 @@ export function runAiTurn(store: StoreLike, tribeIdx: number) {
     const siegePath = rivalsWalled
       ? available.find((t) => t.id === "mathematics" || t.id === "forestry" || t.id === "hunting")
       : undefined;
-    store.research(siegePath ? siegePath.id : available[0].id);
+    // enlightenment (Auren): research even at a worse price point — grab two if affordable
+    if (pathId === "enlightenment") {
+      store.research(available[0].id);
+      const again = TECHS.filter((t) => canResearch(s, tribeIdx, t.id))
+        .sort((a, b) => techCost(s, tribeIdx, a.id) - techCost(s, tribeIdx, b.id));
+      if (again.length > 0 && s.tribes[tribeIdx].stars >= techCost(s, tribeIdx, again[0].id) + 4) {
+        store.research(again[0].id);
+      }
+    } else {
+      store.research(siegePath ? siegePath.id : available[0].id);
+    }
   }
 
   // 2. harvest affordable resources in own borders
   for (const t of s.tiles) {
+    // plunderking (Vessari): hoard toward the 45★ target once past halfway
+    if (pathId === "plunderking" && path && path.current > path.target * 0.55) break;
     if (canHarvest(s, tribeIdx, t)) store.harvest(t.x, t.y);
   }
 
   // 2b. naval: occasionally build a port if it has Sailing and spare stars
   if (s.tribes[tribeIdx].stars > PORT_COST + 4) {
     const site = s.tiles.find((t) => canBuildPort(s, tribeIdx, t));
-    if (site && Math.random() < 0.5) store.buildPort(site.x, site.y);
+    // tidemastery (Nerivane): ports are the win condition — build eagerly
+    if (site && Math.random() < (pathId === "tidemastery" ? 0.9 : 0.5)) store.buildPort(site.x, site.y);
   }
 
   // 2c. fortify: wall up high-level cities when stars allow (capital first)
@@ -81,7 +112,8 @@ export function runAiTurn(store: StoreLike, tribeIdx: number) {
     const wallable = s.cities
       .filter((c) => c.tribe === tribeIdx && c.level >= 3 && !c.walls)
       .sort((a, b) => Number(b.isCapital) - Number(a.isCapital));
-    if (wallable.length > 0 && Math.random() < 0.6) store.buildWalls(wallable[0].id);
+    // unbrokenwall (Dravok): walls are the win condition — raise them eagerly
+    if (wallable.length > 0 && Math.random() < (pathId === "unbrokenwall" ? 0.95 : 0.6)) store.buildWalls(wallable[0].id);
   }
 
   // 3. train: keep army at ~3 units per city, use best affordable unit type
@@ -117,12 +149,39 @@ export function runAiTurn(store: StoreLike, tribeIdx: number) {
   // 4. unit actions
   for (const u of [...myUnits()]) {
     if (!s.units.includes(u)) continue; // may have died in retaliation
-    aiUnitAction(store, u, tribeIdx);
+    aiUnitAction(store, u, tribeIdx, warTarget);
   }
 }
 
-function aiUnitAction(store: StoreLike, u: Unit, tribeIdx: number) {
+function aiUnitAction(store: StoreLike, u: Unit, tribeIdx: number, warTarget: { x: number; y: number; cityId: number } | null = null) {
   const s = store.state;
+
+  // v20 hero care: a wounded commander is irreplaceable — pull it back toward a
+  // friendly city instead of trading; a leveled healthy hero fights up front.
+  const heroWounded = !!u.hero && u.hp <= u.maxHp * 0.6;
+  if (heroWounded && !u.moved) {
+    const havens = s.cities.filter((c) => c.tribe === tribeIdx);
+    if (havens.length > 0) {
+      const nearest = havens.sort((a, b) =>
+        (Math.max(Math.abs(a.x - u.x), Math.abs(a.y - u.y))) - (Math.max(Math.abs(b.x - u.x), Math.abs(b.y - u.y))))[0];
+      const already = u.x === nearest.x && u.y === nearest.y;
+      if (!already) {
+        const reach = reachableTiles(s, u);
+        if (reach.length > 0) {
+          reach.sort((a, b) => {
+            const da = Math.max(Math.abs(a.x - nearest.x), Math.abs(a.y - nearest.y));
+            const db = Math.max(Math.abs(b.x - nearest.x), Math.abs(b.y - nearest.y));
+            return da - db;
+          });
+          const dest = reach[0];
+          const curDist = Math.max(Math.abs(u.x - nearest.x), Math.abs(u.y - nearest.y));
+          const newDist = Math.max(Math.abs(dest.x - nearest.x), Math.abs(dest.y - nearest.y));
+          if (newDist < curDist) { store.moveUnit(u.id, dest.x, dest.y); return; }
+        }
+      }
+      return; // hold position in/near the haven; no risky attacks while wounded
+    }
+  }
 
   // capture if standing on capturable city
   const here = cityAt(s, u.x, u.y);
@@ -151,6 +210,12 @@ function aiUnitAction(store: StoreLike, u: Unit, tribeIdx: number) {
       // tidecallers press the advantage from water; bulwarks avoid trading
       if (u.type === "tidecaller" && tileAt(s, u.x, u.y).terrain === "water") score += 4;
       if (u.type === "bulwark") score -= 4;
+      // hero risk model: never suicide the commander; leveled heroes press harder
+      if (u.hero) {
+        if (r.attackerDies || r.damageToAttacker >= u.hp) score -= 100;
+        else if (u.hp - r.damageToAttacker <= u.maxHp * 0.35) score -= 30; // don't trade into execute range
+        else score += ((u.level ?? 1) - 1) * 4;
+      }
       if (score > bestScore) { bestScore = score; best = t; }
     }
     if (bestScore > 0) {
@@ -163,6 +228,12 @@ function aiUnitAction(store: StoreLike, u: Unit, tribeIdx: number) {
 
   // move toward best objective: capturable city > enemy capital > enemy unit
   const objectives: { x: number; y: number; w: number }[] = [];
+  // coalition claim outranks everything: converge on the assigned leader city.
+  // heroes are exempt — the commander doesn't lead the siege line.
+  if (warTarget && !u.hero) {
+    const dist = Math.max(Math.abs(warTarget.x - u.x), Math.abs(warTarget.y - u.y));
+    objectives.push({ x: warTarget.x, y: warTarget.y, w: 130 - dist * 4 });
+  }
   for (const c of s.cities) {
     if (c.tribe === tribeIdx) continue;
     if (c.tribe !== null && atPeace(s, tribeIdx, c.tribe)) continue; // honor treaties

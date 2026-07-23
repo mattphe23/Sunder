@@ -157,6 +157,7 @@ function defenseBonus(s: GameState, defender: Unit, attacker?: Unit): number {
   const city = cityAt(s, defender.x, defender.y);
   let heroMult = 1;
   if (heroHasPerk(defender, "ironskin")) heroMult = 1.3;
+  if (heroHasPerk(defender, "relic")) heroMult *= 1.15; // v18 Guardian's Relic
   if (city && city.tribe === defender.tribe) {
     // siege: catapults hurl boulders straight over ramparts — walls give no benefit
     const siege = attacker?.type === "catapult";
@@ -189,6 +190,7 @@ export function previewCombat(s: GameState, attacker: Unit, defender: Unit): Com
   if (attacker.tribe >= 0 && s.tribes[attacker.tribe].passive === "forgeborn") atk *= 1.15;
   // v16 hero perks
   if (heroHasPerk(attacker, "warlord")) atk *= 1.25;
+  if (heroHasPerk(attacker, "relic")) atk *= 1.15; // v18 Guardian's Relic
   if (inspiredBy(s, attacker)) atk *= 1.15;
   // Kharzul Berserker: smells blood — +50% damage against wounded targets
   if (attacker.type === "berserker" && defender.hp < defender.maxHp) atk *= 1.5;
@@ -221,6 +223,7 @@ export function combatModifiers(s: GameState, attacker: Unit, defender: Unit): {
   // --- attacker modifiers ---
   if (attacker.tribe >= 0 && s.tribes[attacker.tribe].passive === "forgeborn") out.push({ text: "Forgeborn +15% attack", side: "atk" });
   if (heroHasPerk(attacker, "warlord")) out.push({ text: "Warlord +25% attack", side: "atk" });
+  if (heroHasPerk(attacker, "relic")) out.push({ text: "Guardian's Relic +15% attack", side: "atk" });
   if (inspiredBy(s, attacker)) out.push({ text: "Inspired +15% attack", side: "atk" });
   if (attacker.type === "berserker" && defender.hp < defender.maxHp) out.push({ text: "Berserker +50% vs wounded", side: "atk" });
   if (attacker.type === "tidecaller" && tileAt(s, attacker.x, attacker.y).terrain === "water") out.push({ text: "Tidecaller +30% from water", side: "atk" });
@@ -229,6 +232,7 @@ export function combatModifiers(s: GameState, attacker: Unit, defender: Unit): {
   if (bulwarkShielded(s, defender)) out.push({ text: "Bulwark aura −20% damage taken", side: "def" });
   if (wardedBy(s, defender)) out.push({ text: "Warding aura −15% damage taken", side: "def" });
   if (heroHasPerk(defender, "ironskin")) out.push({ text: "Ironskin +30% defense", side: "def" });
+  if (heroHasPerk(defender, "relic")) out.push({ text: "Guardian's Relic +15% defense", side: "def" });
   if (defender.boat) { out.push({ text: "Embarked −30% defense", side: "def" }); return out; }
   const t = tileAt(s, defender.x, defender.y);
   if (defender.guardian) { out.push({ text: "Sacred ground +40% defense", side: "def" }); return out; }

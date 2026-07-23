@@ -23,6 +23,7 @@ import { ChallengeKind, recordChallengeScore } from "./challenges";
 import { CustomTribeConfig, customTribeDef, CUSTOM_DEF_INDEX } from "./customTribe";
 import { runWorldPhase, worldUnitIntents, campAt } from "./events";
 import { recordGameResult } from "./profile";
+import { checkPathVictory } from "./victory";
 export type GameEvent =
   | { type: "changed" }
   | { type: "unitMoved"; unitId: number; fromX: number; fromY: number; toX: number; toY: number }
@@ -103,6 +104,8 @@ class GameStore {
   private autoSave() {
     const s = this.state;
     try {
+      // online matches live on the server, never in local save slots
+      if (s.online) return;
       if (s.phase === "playing") {
         localStorage.setItem(slotKey(this.activeSlot), JSON.stringify(s));
       } else if (s.phase === "gameover") {
@@ -110,6 +113,37 @@ class GameStore {
       }
     } catch {
       // storage unavailable (private mode/quota) — play without persistence
+    }
+  }
+
+  // ---------- v18 online (async multiplayer) ----------
+
+  /** Full-state snapshot sent to the server after each online turn. */
+  serializeState(): string {
+    return JSON.stringify(this.state);
+  }
+
+  /**
+   * Load an opponent's submitted snapshot and repoint the local view at
+   * `myTribe`. Used when an async match advances to our turn.
+   */
+  loadOnlineSnapshot(json: string, myTribe: number): boolean {
+    try {
+      const s = JSON.parse(json) as GameState;
+      if (!s || !Array.isArray(s.tiles) || s.tiles.length === 0) return false;
+      for (const t of s.tribes) if (t.defIndex === undefined) t.defIndex = t.index;
+      s.selectedUnitId = null;
+      s.selectedCityId = null;
+      s.aiThinking = false;
+      s.humanTribe = myTribe;
+      // the remote player's pending hand-off is not ours to dismiss visually
+      if (s.handoff !== null && s.handoff !== undefined && s.handoff === myTribe) s.handoff = null;
+      this.state = s;
+      this.pendingAttack = null;
+      this.emit({ type: "changed" });
+      return true;
+    } catch {
+      return false;
     }
   }
 
@@ -191,12 +225,13 @@ class GameStore {
 
   // ---------- lifecycle ----------
 
-  newGame(opts: { size: number; humanTribe: number; difficulty: Difficulty; seed?: number; preset?: MapPreset; humanTribes?: number[]; challenge?: ChallengeKind; roster?: number[]; custom?: { slot: number; config: CustomTribeConfig }; friendChallenge?: { name: string; score: number } }) {
+  newGame(opts: { size: number; humanTribe: number; difficulty: Difficulty; seed?: number; preset?: MapPreset; humanTribes?: number[]; challenge?: ChallengeKind; roster?: number[]; custom?: { slot: number; config: CustomTribeConfig }; friendChallenge?: { name: string; score: number }; online?: { matchId: string; hostTribe: number; guestTribe: number; hostName: string; guestName: string } }) {
     const seed = opts.seed ?? Math.floor(Math.random() * 2 ** 31);
     const preset: MapPreset = opts.preset ?? "continents";
     const humans = opts.humanTribes && opts.humanTribes.length > 0 ? [...opts.humanTribes].sort((a, b) => a - b) : [opts.humanTribe];
-    // roster: which 4 of the 6 TRIBE_DEFS play this match (slot i is def roster[i])
-    const roster = opts.roster && opts.roster.length === 4 ? opts.roster : [0, 1, 2, 3];
+    // roster: which of the 6 TRIBE_DEFS play this match (slot i is def roster[i]).
+    // Local games use 4 tribes; online 1v1 uses exactly 2 (no AI in async matches).
+    const roster = opts.roster && (opts.roster.length === 4 || opts.roster.length === 2) ? opts.roster : [0, 1, 2, 3];
     const { tiles, cities } = generateMap(opts.size, seed, roster.length, preset);
     const tribes: Tribe[] = roster.map((di, i) => {
       const isCustom = !!opts.custom && opts.custom.slot === i;
@@ -247,6 +282,7 @@ class GameStore {
       preset,
       challenge: opts.challenge,
       friendChallenge: opts.friendChallenge ?? null,
+      online: opts.online ?? null,
       showIntro: humans.length === 1,
       difficulty: opts.difficulty,
       tribes,
@@ -272,6 +308,7 @@ class GameStore {
     this.state.worldEvents = [];
     this.state.heroFallen = null;
     this.state.campsRazedByHuman = 0;
+    this.state.winPath = null;
     this.exploreAround();
     this.beginTurn(0);
     this.emit({ type: "changed" });
@@ -306,6 +343,9 @@ class GameStore {
       this.recordReplay({ tribe: 0, kind: "turn", text: `Turn ${s.turn + 1} begins` });
       // v17 living map: the world takes its phase before the first tribe acts
       this.runWorldTurn();
+      // v20: asymmetric faction victory paths — checked once per game turn
+      this.checkVictoryPaths();
+      if (s.phase !== "playing") return;
     }
     // turn replay: show what rivals did while the human waited
     if (!hotseat && tribe.isHuman && s.recap.length > 0) {
@@ -345,7 +385,8 @@ class GameStore {
     const s = this.state;
     const t = s.tribes[tribeIdx];
     if (t.isHuman) return 0;
-    return s.difficulty === "easy" ? 0 : s.difficulty === "normal" ? 1 : 2;
+    // impossible plays with NO income cheat — it wins by playing better
+    return s.difficulty === "easy" ? 0 : s.difficulty === "normal" ? 1 : s.difficulty === "hard" ? 2 : 0;
   }
 
   /* ---------- v17 living map ---------- */
@@ -423,6 +464,25 @@ class GameStore {
     alive.sort((a, b) => b.score - a.score);
     s.winner = alive[0]?.index ?? null;
     s.phase = "gameover";
+    this.recordVictory();
+    this.onGameOver();
+    this.emit({ type: "sfx", name: s.winner === s.humanTribe ? "victory" : "defeat" });
+    this.emit({ type: "changed" });
+  }
+
+  /** v20: end the match when a tribe completes its asymmetric faction path */
+  private checkVictoryPaths() {
+    const s = this.state;
+    if (s.phase !== "playing") return;
+    for (const t of s.tribes) this.updateScore(t.index); // ascendance path reads score
+    const hit = checkPathVictory(s);
+    if (!hit) return;
+    const { def } = hit.progress;
+    s.winner = hit.tribe;
+    s.winPath = { pathId: def.id, pathName: def.name, flavor: def.flavor };
+    s.phase = "gameover";
+    s.log.unshift(`${s.tribes[hit.tribe].name} achieved ${def.name}!`);
+    this.recordReplay({ tribe: hit.tribe, kind: "turn", text: `${s.tribes[hit.tribe].name} achieved the ${def.name} victory` });
     this.recordVictory();
     this.onGameOver();
     this.emit({ type: "sfx", name: s.winner === s.humanTribe ? "victory" : "defeat" });
@@ -1004,6 +1064,16 @@ class GameStore {
         s.log.unshift(`${s.tribes[a.tribe].name} slew the Guardian of the Great Ruin!`);
         if (a.tribe !== s.humanTribe) {
           this.recordRecap({ kind: "greatRuin", text: `${s.tribes[a.tribe].name} slew a Great Ruin guardian`, tribe: a.tribe });
+        }
+        // v18: the AWAKENED Guardian carries a relic — a hero who lands the killing blow claims it
+        if (d.awake && a.hero && !(a.perks ?? []).includes("relic")) {
+          a.perks = [...(a.perks ?? []), "relic"];
+          a.maxHp += 4;
+          a.hp = Math.min(a.maxHp, a.hp + 4);
+          const hn = this.heroName(a);
+          s.log.unshift(`${hn} claims the Guardian's Relic! (+15% atk/def, +4 max HP)`);
+          this.recordRecap({ kind: "greatRuin", text: `${hn} of ${s.tribes[a.tribe].name} claimed the Guardian's Relic`, tribe: a.tribe });
+          if (a.tribe === s.humanTribe) this.emit({ type: "sfx", name: "levelup" });
         }
       }
     }

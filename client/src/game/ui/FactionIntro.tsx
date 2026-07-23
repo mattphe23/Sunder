@@ -76,6 +76,13 @@ const INTROS: IntroDef[] = [
   },
 ];
 
+// v19: compact lore teasers for menu faction-card hovers — title + the first
+// sentence of each tribe's lore, indexed by defIndex like INTROS.
+export const LORE_TEASERS: { title: string; teaser: string }[] = INTROS.map((d) => ({
+  title: d.title,
+  teaser: d.lore.split(/(?<=[.!?])\s/)[0],
+}));
+
 export function FactionIntro() {
   const g = useGame();
   const s = g.state;
