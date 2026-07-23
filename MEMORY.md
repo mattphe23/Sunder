@@ -2,6 +2,21 @@
 
 - React 19 StrictMode double-mount guarded via startedRef in GameCanvas.
 
+## v23 — publish-stall fix (2026-07-23 ~14:30-15:00 UTC) CURRENT
+- SYMPTOM: publishes stuck for hours (v22/v22.1/v22.2). Production manus.space URL guesses 404. `manus-webdev-logs` says platform-default logs unsupported → likely no deploy ever completed.
+- v22.1 had "Divergence resolved: force-pushed" that replaced working tree with stale ~v15; rolled back to c0f745f2, restored+checkpointed as 9a12e615 (v22.2), 31 tests green.
+- ROOT CAUSE (webdev_debug, med-high conf): 8.1MB monolithic JS chunk (Babylon barrel import) → CI build OOM/timeout. Secondary: stale server/index.ts confusing entrypoint detection.
+- FIXES APPLIED (uncommitted, pre-checkpoint):
+  1. vite.config.ts: manualChunks (babylon/react/radix/icons/vendor), sourcemap:false.
+  2. Home.tsx: GameCanvas lazy() + Suspense "FORGING THE WORLD…" fallback.
+  3. scene.ts: @babylonjs/core barrel → per-submodule imports + side-effect imports (animatable, ray, ALL pipeline shader .fragment/.vertex: imageProcessing, postprocess, kernelBlur, fxaa, extractHighlights, bloomMerge, depthOfFieldMerge, circleOfConfusion, chromaticAberration, grain, sharpen, particles, shadowMap, depthBoxBlur).
+  4. git rm server/index.ts (stale scaffold).
+- RESULT: build 3m31s → 42s; babylon chunk 8.1MB → 2.08MB; entry 0.31MB.
+- Shader compile errors after refactor (VERTEX SHADER ERROR, imageProcessing defines) FIXED by shader side-effect imports; console clean post-14:51 reload.
+- Board renders fine (screenshot verified). Synthetic/browser-tool canvas clicks not triggering BJS POINTERTAP selection — KNOWN pre-existing limitation (see "Verified in browser 2026-07-22" note: exact canvas picking needs real human clicks; POINTERTAP works for humans). NOT a regression.
+- Test save "Auren T1" in slot 1 — clear localStorage polyforge-save-v1 before delivery.
+- NEXT: pnpm check + vitest, clear test save, checkpoint (triggers fresh publish), verify publish lands, tell user.
+
 ## v15 graphics pass — progress (CURRENT)
 DONE in scene.ts:
 - DefaultRenderingPipeline: FXAA, bloom, ACES tone mapping, contrast/exposure lift, subtle vignette

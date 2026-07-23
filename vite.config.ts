@@ -167,6 +167,23 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    sourcemap: false,
+    // Split the heavyweight deps out of the entry chunk. A single ~8MB
+    // index.js made CI minification slow/memory-hungry enough to stall the
+    // publish pipeline; separate chunks minify in parallel and cache better.
+    rollupOptions: {
+      output: {
+        manualChunks(id: string) {
+          if (id.includes("node_modules")) {
+            if (id.includes("@babylonjs")) return "babylon";
+            if (id.includes("react-dom") || id.includes("/react/")) return "react";
+            if (id.includes("@radix-ui")) return "radix";
+            if (id.includes("lucide-react")) return "icons";
+            return "vendor";
+          }
+        },
+      },
+    },
   },
   server: {
     host: true,

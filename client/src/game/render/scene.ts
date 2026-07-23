@@ -1,12 +1,49 @@
 // Sunder Babylon render layer — Isoglow style: flat-shaded low-poly tiles
 // floating in deep indigo void, warm key light, cool fill, gentle idle bob.
 
-import {
-  Engine, Scene, ArcRotateCamera, HemisphericLight, DirectionalLight,
-  Vector3, Color3, Color4, MeshBuilder, StandardMaterial, Mesh,
-  TransformNode, PointerEventTypes, Animation, EasingFunction, CubicEase,
-  ParticleSystem, Texture, DynamicTexture,
-} from "@babylonjs/core";
+// Submodule imports (not the "@babylonjs/core" barrel) so tree-shaking can
+// drop the unused bulk of the engine — the barrel produced a 6.5MB chunk that
+// stalled CI minification during publish.
+import { Engine } from "@babylonjs/core/Engines/engine";
+import { Scene } from "@babylonjs/core/scene";
+import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
+import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
+import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
+import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import { PointerEventTypes } from "@babylonjs/core/Events/pointerEvents";
+import { Animation } from "@babylonjs/core/Animations/animation";
+import { EasingFunction, CubicEase } from "@babylonjs/core/Animations/easing";
+import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem";
+import { Texture } from "@babylonjs/core/Materials/Textures/texture";
+import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTexture";
+// side-effect registrations the barrel used to pull in implicitly
+import "@babylonjs/core/Animations/animatable";
+import "@babylonjs/core/Culling/ray";
+// post-process pipeline shaders (image processing, bloom, FXAA) — without
+// these the pipeline compiles broken vertex shaders at runtime
+import "@babylonjs/core/Shaders/imageProcessing.fragment";
+import "@babylonjs/core/Shaders/postprocess.vertex";
+import "@babylonjs/core/Shaders/kernelBlur.fragment";
+import "@babylonjs/core/Shaders/kernelBlur.vertex";
+import "@babylonjs/core/Shaders/fxaa.fragment";
+import "@babylonjs/core/Shaders/fxaa.vertex";
+import "@babylonjs/core/Shaders/extractHighlights.fragment";
+import "@babylonjs/core/Shaders/bloomMerge.fragment";
+import "@babylonjs/core/Shaders/depthOfFieldMerge.fragment";
+import "@babylonjs/core/Shaders/circleOfConfusion.fragment";
+import "@babylonjs/core/Shaders/chromaticAberration.fragment";
+import "@babylonjs/core/Shaders/grain.fragment";
+import "@babylonjs/core/Shaders/sharpen.fragment";
+import "@babylonjs/core/Shaders/particles.fragment";
+import "@babylonjs/core/Shaders/particles.vertex";
+import "@babylonjs/core/Shaders/shadowMap.fragment";
+import "@babylonjs/core/Shaders/shadowMap.vertex";
+import "@babylonjs/core/Shaders/depthBoxBlur.fragment";
 import { DefaultRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline";
 import { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator";
 import "@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent";

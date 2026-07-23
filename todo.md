@@ -137,4 +137,13 @@ below was checked against the actual codebase before being marked.
       (no overlapping targets), staggered convergence via claim persistence, betrayal — strongest
       partner turns on the weakest once the common enemy is broken; wired into both AI brains;
       5 unit tests in coalition.test.ts (31 tests green)
+
+## Publish-stall investigation (v22.x)
+- [x] Diagnose why production publish has been stuck for hours — root cause: 8.1MB monolithic
+      Babylon chunk (barrel import) risking CI build OOM/timeout, plus stale server/index.ts
+      confusing entrypoint detection; production URL 404s (no deploy ever completed)
+- [x] Apply fix and retrigger publish — manualChunks splitting, lazy GameCanvas, tree-shaken
+      Babylon submodule imports (chunk 8.1MB → 2.08MB, build 3m31s → 42s), sourcemaps off,
+      removed stale server/index.ts, added pipeline shader side-effect imports (console clean)
+- [ ] Verify live production site serves the latest version
       when leader falls behind

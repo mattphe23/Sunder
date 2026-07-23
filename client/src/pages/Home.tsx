@@ -1,7 +1,6 @@
 // Sunder — Isoglow. Full-viewport game: menu → board → game over.
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useGame } from "@/game/useGame";
-import GameCanvas from "@/game/GameCanvas";
 import { sound } from "@/game/sound";
 import { MainMenu, GameOver } from "@/game/ui/Menu";
 import { TopBar, BottomBar, SelectionPanel, TechPanel, LogTicker, BattlePreview, TurnRecap, PerkChoice } from "@/game/ui/Hud";
@@ -12,6 +11,10 @@ import { HandoffScreen } from "@/game/ui/Handoff";
 import { DiplomacyPanel, IncomingOfferModal } from "@/game/ui/Diplomacy";
 import { WorldEventCards, HeroFallenCard } from "@/game/ui/WorldEvents";
 import { OnlineGame } from "@/game/online/OnlineGame";
+
+// Babylon (~5MB minified) loads as its own async chunk only when a game
+// starts — keeps the menu snappy and the entry bundle small for deploys.
+const GameCanvas = lazy(() => import("@/game/GameCanvas"));
 
 export default function Home() {
   const g = useGame();
@@ -34,7 +37,9 @@ export default function Home() {
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-[#141433]">
-      <GameCanvas />
+      <Suspense fallback={<div className="absolute inset-0 grid place-items-center text-indigo-200/70 text-sm tracking-widest">FORGING THE WORLD…</div>}>
+        <GameCanvas />
+      </Suspense>
       <TopBar />
       <LogTicker />
       <Minimap />
