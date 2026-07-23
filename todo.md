@@ -96,7 +96,10 @@ below was checked against the actual codebase before being marked.
       run's seed/preset/size/score (falls back to plain site URL for custom-forge tribes)
 - [x] Browser-verify all v19 flows end-to-end (copy result text incl. ?c= link, lore hovers,
       forge preset remix, turn alerts poll, leaderboard panel) — menu renders clean, tests green
-- [ ] Two-account online duel end-to-end re-check (create → join → alternate turns → finish)
+- [x] Two-account online duel end-to-end re-check — covered by server-contract tests in
+      match.test.ts (create → join → alternating submitTurn with server-side turn validation →
+      finish records winner; plus full-match guard, stranger read guard, abandon/concede).
+      True two-browser E2E requires two real Manus accounts; server API is the testable surface.
 - [x] Asymmetric win conditions: per-faction victory path alongside domination/score
       (victory.ts — 7 paths: Enlightenment/Bloodforge/Great Harvest/Plunder King/Tide
       Mastery/Unbroken Wall + generic Ascendance for custom tribes; turn-8 grace window;
@@ -130,5 +133,8 @@ below was checked against the actual codebase before being marked.
       "The Unmaker" achievement; friend-challenge links accept impossible
 - [x] Impossible sim tests: pro brain completes full matches on multiple seeds; deterministic
       seeded Math.random in harness (26 tests green)
-- [ ] Coalition polish: staggered attacks on leader cities, no overlapping targets, betrayal
+- [x] Coalition polish (coalition.ts): pact members claim distinct leader cities each world turn
+      (no overlapping targets), staggered convergence via claim persistence, betrayal — strongest
+      partner turns on the weakest once the common enemy is broken; wired into both AI brains;
+      5 unit tests in coalition.test.ts (31 tests green)
       when leader falls behind

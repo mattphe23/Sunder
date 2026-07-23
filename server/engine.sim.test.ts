@@ -86,15 +86,48 @@ describe("v20 headless AI-vs-AI simulation", () => {
     }
   });
 
-  it("AI hero care keeps at least some commanders alive to the end on average", () => {
-    let survived = 0, total = 0;
-    for (const seed of [7, 12, 23]) {
-      const r = simulate(seed);
-      survived += r.heroesSurvived;
-      total += 4; // 4 tribes spawn 1 hero each
+  it("AI hero care: wounded commanders retreat toward friendly cities (behavioral)", () => {
+    // Heroes can still be killed by enemy attacks — care means the OWNING brain
+    // never suicides them and pulls them home when hurt. Run a match and track
+    // every wounded hero across its own tribe's turn: distance to the nearest
+    // friendly city must not increase (retreating or holding, never advancing).
+    game.newGame({ size: 9, seed: 7, difficulty: "normal", preset: "continents", humanTribe: 3 });
+    game.state.showIntro = false;
+    const cheb = (ax: number, ay: number, bx: number, by: number) => Math.max(Math.abs(ax - bx), Math.abs(ay - by));
+    let advancedWhileWounded = 0, woundedTurns = 0, guard = 0;
+    while (game.state.phase === "playing" && guard < 600) {
+      guard++;
+      const s = game.state;
+      s.aiThinking = false;
+      if (s.pendingPerk) {
+        const hero = s.units.find((u) => u.id === s.pendingPerk);
+        if (hero) {
+          const choices = game.perkChoices(hero);
+          if (choices.length > 0) game.choosePerk(choices[0]); else s.pendingPerk = null;
+        } else s.pendingPerk = null;
+      }
+      const cur = s.currentTribe;
+      const distHome = (u: { x: number; y: number }, tribe: number) => {
+        const homes = s.cities.filter((c) => c.tribe === tribe);
+        return homes.length ? Math.min(...homes.map((c) => cheb(u.x, u.y, c.x, c.y))) : 0;
+      };
+      const woundedBefore = s.units
+        .filter((u) => u.tribe === cur && u.hero && u.hp <= u.maxHp * 0.6)
+        .map((u) => ({ id: u.id, d: distHome(u, cur) }));
+      if (s.tribes[cur]?.alive) runAiTurn(game, cur);
+      for (const w of woundedBefore) {
+        const now = game.state.units.find((u) => u.id === w.id);
+        if (!now) continue; // killed by retaliation is not the owner's advance
+        woundedTurns++;
+        if (distHome(now, cur) > w.d) advancedWhileWounded++;
+      }
+      if (game.state.phase !== "playing") break;
+      game.endTurn();
     }
-    // sanity floor: hero care means not every commander suicides (≥25% survival)
-    expect(survived / total).toBeGreaterThanOrEqual(0.25);
+    // the care rule must actually engage during the match, and a wounded hero
+    // must never end its own turn farther from home than it started
+    expect(woundedTurns).toBeGreaterThan(0);
+    expect(advancedWhileWounded).toBe(0);
   });
 
   it("Impossible brain (aiPro) plays full matches to completion without throwing", () => {

@@ -16,6 +16,7 @@ import {
 import { GameState, TECHS, UNIT_STATS, UnitType, Unit, TechId, idx } from "./types";
 import { atPeace, setPeace, aiWantsPeaceWith, markDiploUsed, diploUsed, strengthOf, PEACE_TREATY_TURNS } from "./diplomacy";
 import { victoryProgress } from "./victory";
+import { commonEnemy, inCoalition, claimCoalitionTarget, maybeBetray } from "./coalition";
 
 interface StoreLike {
   state: GameState;
@@ -202,7 +203,18 @@ export function runProAiTurn(store: StoreLike, tribeIdx: number) {
   trainArmy(store, tribeIdx);
 
   // shared war target for the task force
-  const target = chooseWarTarget(s, tribeIdx);
+  let target = chooseWarTarget(s, tribeIdx);
+  // coalition war council: a claimed leader city (distinct per pact member)
+  // overrides the solo pick; betray once the common enemy is broken
+  if (inCoalition(s, tribeIdx)) {
+    const enemy = commonEnemy(s);
+    if (enemy !== null && enemy !== tribeIdx) {
+      const claimed = claimCoalitionTarget(s, tribeIdx, enemy);
+      if (claimed) target = claimed;
+    } else {
+      maybeBetray(s, tribeIdx);
+    }
+  }
 
   // unit actions with threat awareness (freshest threat per unit is fine at this scale)
   for (const u of [...s.units.filter((q) => q.tribe === tribeIdx)]) {
@@ -402,4 +414,3 @@ function retreatToward(store: StoreLike, u: Unit, tribeIdx: number) {
 
 // keep starIncome import referenced (used for future tuning hooks)
 void starIncome;
-

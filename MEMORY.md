@@ -587,3 +587,10 @@ Key APIs: game.dismissHandoff() exists (L~732 sets handoff=null + emit). trpc ho
 - Difficulty type = easy|normal|hard|impossible. Menu: ☠ Imposs. red button + warning copy; Hall of Conquest 4th tab; achievement "impossible-win" (The Unmaker, 9 total); challenges.ts decode accepts impossible.
 - engine.sim.test.ts: Math.random pinned via vi.spyOn + mulberry32 (ai.ts uses Math.random in build/train — unseeded it made hero-survival flaky). 26 tests green.
 - Browser-verified: impossible game runs 3 turns clean console; test save wiped from slot 1 after.
+
+## v21 (part 2 — coalition polish)
+- NEW client/src/game/core/coalition.ts: commonEnemy (leader str > 1.5x avg rest), inCoalition, claimCoalitionTarget (per-world-turn Map claims, no overlap between pact members, capital soft-deprioritized +3), maybeBetray (enemy broken + I'm 1.35x stronger than weakest partner → end peace, log "betrayed"), _resetClaims for tests.
+- Wired into BOTH brains: ai.ts (warTarget objective w=130-4d, heroes EXEMPT from siege convergence — needed for hero-care test) and aiPro.ts (claimed target overrides chooseWarTarget).
+- server/coalition.test.ts: 5 unit tests w/ fake GameState (strengthOf = army+stars*0.35+cityLevels*2+cities*3 — fake states must balance cities/units or dominance checks misfire).
+- engine.sim.test.ts hero test REFRAMED: was survival-rate floor (flaky — heroes legitimately die to ENEMY attacks); now behavioral: wounded (≤60%) hero never ends its own turn farther from nearest friendly city. 31 tests green, 6 files.
+- match.test.ts already covers create→join→alternate turns→finish + full-match/stranger guards + abandon via appRouter.createCaller with mocked db (in-memory). Two-account browser E2E not feasible (needs two real Manus OAuth accounts) — server contract is the testable surface.

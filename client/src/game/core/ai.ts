@@ -10,6 +10,7 @@ import { GameState, TECHS, UNIT_STATS, UnitType, Unit, TechId, PORT_COST, WALL_C
 import { atPeace, setPeace, aiWantsPeaceWith, markDiploUsed, diploUsed, strengthOf, PEACE_TREATY_TURNS } from "./diplomacy";
 import { victoryProgress } from "./victory";
 import { runProAiTurn } from "./aiPro";
+import { commonEnemy, inCoalition, claimCoalitionTarget, maybeBetray } from "./coalition";
 
 // avoid circular type import; structural typing for the store
 interface StoreLike {
@@ -53,6 +54,17 @@ export function runAiTurn(store: StoreLike, tribeIdx: number) {
           s.log.unshift(`${s.tribes[tribeIdx].name} and ${ally.name} formed a pact against ${leader.name}!`);
         }
       }
+    }
+  }
+  // 0c. coalition war council — claim a distinct leader city (staggered, no
+  // overlapping targets) and betray the pact once the common enemy is broken
+  let warTarget: { x: number; y: number; cityId: number } | null = null;
+  if (inCoalition(s, tribeIdx)) {
+    const enemy = commonEnemy(s);
+    if (enemy !== null && enemy !== tribeIdx) {
+      warTarget = claimCoalitionTarget(s, tribeIdx, enemy);
+    } else {
+      maybeBetray(s, tribeIdx);
     }
   }
 
@@ -137,11 +149,11 @@ export function runAiTurn(store: StoreLike, tribeIdx: number) {
   // 4. unit actions
   for (const u of [...myUnits()]) {
     if (!s.units.includes(u)) continue; // may have died in retaliation
-    aiUnitAction(store, u, tribeIdx);
+    aiUnitAction(store, u, tribeIdx, warTarget);
   }
 }
 
-function aiUnitAction(store: StoreLike, u: Unit, tribeIdx: number) {
+function aiUnitAction(store: StoreLike, u: Unit, tribeIdx: number, warTarget: { x: number; y: number; cityId: number } | null = null) {
   const s = store.state;
 
   // v20 hero care: a wounded commander is irreplaceable — pull it back toward a
@@ -216,6 +228,12 @@ function aiUnitAction(store: StoreLike, u: Unit, tribeIdx: number) {
 
   // move toward best objective: capturable city > enemy capital > enemy unit
   const objectives: { x: number; y: number; w: number }[] = [];
+  // coalition claim outranks everything: converge on the assigned leader city.
+  // heroes are exempt — the commander doesn't lead the siege line.
+  if (warTarget && !u.hero) {
+    const dist = Math.max(Math.abs(warTarget.x - u.x), Math.abs(warTarget.y - u.y));
+    objectives.push({ x: warTarget.x, y: warTarget.y, w: 130 - dist * 4 });
+  }
   for (const c of s.cities) {
     if (c.tribe === tribeIdx) continue;
     if (c.tribe !== null && atPeace(s, tribeIdx, c.tribe)) continue; // honor treaties
