@@ -1,4 +1,4 @@
-// Polyforge rules engine — movement, combat, economy, tech, capture.
+// Sunder rules engine — movement, combat, economy, tech, capture.
 // Design amendments: scaling tech costs (late-game fix), ranged units fragile
 // (no retaliation at range, low defense), faction passives (asymmetric-but-fair).
 

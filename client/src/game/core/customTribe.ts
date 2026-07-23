@@ -1,4 +1,4 @@
-// Polyforge — Tribe Forge. Players assemble a custom tribe from balanced,
+// Sunder — Tribe Forge. Players assemble a custom tribe from balanced,
 // battle-tested building blocks: one passive, one unique unit, one start tech,
 // a name and a banner color. Persisted locally; injected as a 7th TRIBE_DEF
 // at runtime so all existing systems (rules, AI, intros) work unchanged.

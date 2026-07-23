@@ -1,4 +1,4 @@
-// React binding for the Polyforge game store.
+// React binding for the Sunder game store.
 import { useSyncExternalStore, useCallback } from "react";
 import { game } from "./core/state";
 

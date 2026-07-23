@@ -1,4 +1,4 @@
-// Polyforge central game state store — framework-agnostic, event-emitting.
+// Sunder central game state store — framework-agnostic, event-emitting.
 // React subscribes via getSnapshot/subscribe; Babylon render layer listens to events.
 
 import { generateMap, claimBorders, rng, MapPreset } from "./mapgen";

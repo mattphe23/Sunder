@@ -1,4 +1,4 @@
-// Polyforge board canvas — hosts the Babylon renderer, routes picks to game logic.
+// Sunder board canvas — hosts the Babylon renderer, routes picks to game logic.
 // Isoglow: canvas is the hero; deep indigo void background.
 import { useEffect, useRef } from "react";
 import { BoardRenderer } from "./render/scene";

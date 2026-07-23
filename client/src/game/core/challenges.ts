@@ -1,4 +1,4 @@
-// Polyforge challenges — shared seeded runs. Daily: one map per UTC day, one
+// Sunder challenges — shared seeded runs. Daily: one map per UTC day, one
 // scored attempt spirit (best kept anyway); Weekly: one map per ISO week,
 // optimize your best score until it resets. Seeds derive deterministically
 // from the date so every player worldwide gets the identical map + setup.

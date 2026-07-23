@@ -1,4 +1,4 @@
-// Polyforge diplomacy — peace treaties & tribute demands with strength-based AI responses.
+// Sunder diplomacy — peace treaties & tribute demands with strength-based AI responses.
 // Scope: human ↔ AI only; AI-AI pairs stay at war (bounded complexity).
 // Relations are stored in GameState.peaceUntil: peaceUntil[a][b] = turn number until which
 // the pair is at peace (exclusive). Symmetric — always write both directions.

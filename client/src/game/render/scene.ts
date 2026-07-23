@@ -1,4 +1,4 @@
-// Polyforge Babylon render layer — Isoglow style: flat-shaded low-poly tiles
+// Sunder Babylon render layer — Isoglow style: flat-shaded low-poly tiles
 // floating in deep indigo void, warm key light, cool fill, gentle idle bob.
 
 import {

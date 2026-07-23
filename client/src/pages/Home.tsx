@@ -1,4 +1,4 @@
-// Polyforge — Isoglow. Full-viewport game: menu → board → game over.
+// Sunder — Isoglow. Full-viewport game: menu → board → game over.
 import { useEffect, useState } from "react";
 import { useGame } from "@/game/useGame";
 import GameCanvas from "@/game/GameCanvas";

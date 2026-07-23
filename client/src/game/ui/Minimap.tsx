@@ -1,4 +1,4 @@
-// Polyforge minimap — Isoglow: canvas overview of explored terrain, cities, units.
+// Sunder minimap — Isoglow: canvas overview of explored terrain, cities, units.
 // Toggleable; especially useful on 13×13 maps.
 import { useEffect, useRef, useState } from "react";
 import { useGame } from "../useGame";

@@ -1,4 +1,4 @@
-// Polyforge — Isoglow. Onboarding tutorial: a guided first-turn overlay for new
+// Sunder — Isoglow. Onboarding tutorial: a guided first-turn overlay for new
 // commanders. Field-HUD styling (indigo panels, amber accents), advances on the
 // player's real actions, skippable, and never shown again once completed.
 import { useEffect, useRef, useState } from "react";
@@ -21,7 +21,7 @@ const STEPS: Step[] = [
     id: "welcome",
     icon: <Sparkles size={18} />,
     title: "Welcome, Commander",
-    body: "Your capital and a lone warrior await on the shattered isles. Win by capturing every rival capital — or by leading in score when turn 30 ends. Let's take your first turn together.",
+    body: "Your capital and a lone warrior await in the Shatterlands. Win by capturing every rival capital — or by leading in score when turn 30 ends. Let's take your first turn together.",
     anchor: "center",
   },
   {

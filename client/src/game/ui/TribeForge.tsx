@@ -1,4 +1,4 @@
-// Polyforge — Isoglow. Tribe Forge: assemble a custom tribe from balanced
+// Sunder — Isoglow. Tribe Forge: assemble a custom tribe from balanced
 // building blocks (passive, unique unit, start tech, banner color, name).
 // Deep indigo modal, amber spark accents, faction-color reactive frame.
 import { useState } from "react";

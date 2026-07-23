@@ -1,4 +1,4 @@
-// Polyforge — achievements: feats earned across solo campaigns, persisted locally.
+// Sunder — achievements: feats earned across solo campaigns, persisted locally.
 // Evaluated once per game at gameover; unlocks are permanent.
 import type { GameState, TribeStats } from "./types";
 

@@ -424,3 +424,9 @@ Sandbox browser uses SwiftShader (software GL) → 4-5 FPS with full pipeline; N
 of real hardware GPUs. Mitigation added: adaptive quality in scene.ts — detects software renderer
 via WEBGL_debug_renderer_info and monitors sustained FPS; drops bloom+shadows+vignette when
 renderer is software OR fps stays under 24 for ~4s. Real-hardware verification advised to user.
+
+## Rebrand (post-v15, user decision)
+- Game is now **Sunder: The Living Forge**; world/setting is **the Shatterlands**. House line: "Forge your tribe. Sunder the Shatterlands."
+- New logo: /manus-storage/sunder-logo_2cc0d47d.png (sundered crystal with forge-fire crack, transparent). Old Polyforge logo retired.
+- localStorage keys deliberately KEPT as polyforge-* (save compat); window.__polyforge test handle kept too. Only user-facing copy + comments rebranded.
+- Rejected names: Pocket Empires (baggage/casual), Warforge (D&D collision), TinyReign (casual signal). Shatterlands repurposed as the world name.

@@ -1,4 +1,4 @@
-// Polyforge heuristic AI — addresses "AI too easy / never builds advanced units":
+// Sunder heuristic AI — addresses "AI too easy / never builds advanced units":
 // researches its faction path, harvests, trains the full roster, hunts villages
 // and enemy capitals, attacks when favorable. Difficulty adds economy bonuses.
 

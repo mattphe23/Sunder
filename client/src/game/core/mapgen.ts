@@ -1,4 +1,4 @@
-// Polyforge map generation — seeded procedural island: radial falloff + value noise.
+// Sunder map generation — seeded procedural island: radial falloff + value noise.
 // Terrain: ocean/water/grass/forest/mountain; resources; villages; fair capital ring.
 // Presets reshape the world: continents (default), archipelago (many small isles),
 // highlands (mountainous interior), pangaea (one dense landmass, little water).

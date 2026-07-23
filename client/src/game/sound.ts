@@ -1,4 +1,4 @@
-// Polyforge — Isoglow. Sound engine: synthesized WebAudio SFX + ambient menu music.
+// Sunder — Isoglow. Sound engine: synthesized WebAudio SFX + ambient menu music.
 // All SFX are procedurally synthesized (no asset downloads); music is a generated
 // ambient loop streamed from storage. Mute state persists in localStorage.
 

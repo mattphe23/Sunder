@@ -1,4 +1,4 @@
-// Polyforge main menu & game-over — Isoglow field-HUD: luminous board glow,
+// Sunder: The Living Forge — main menu & game-over. Isoglow field-HUD: luminous board glow,
 // edge-framed layout, tribe-color accents, four-point spark motifs, faceted separators.
 import { useState } from "react";
 import { useGame } from "../useGame";
@@ -24,9 +24,9 @@ import {
 } from "recharts";
 
 const MENU_BG = "/manus-storage/menu-bg_b1164e9a.png";
-const LOGO = "/manus-storage/logo_c79c0f53.png";
+const LOGO = "/manus-storage/sunder-logo_2cc0d47d.png";
 
-/** Four-point spark — Polyforge's signature motif */
+/** Four-point spark — Sunder's signature motif */
 function Spark({ className = "", style }: { className?: string; style?: React.CSSProperties }) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className} style={style} aria-hidden>
@@ -186,12 +186,15 @@ export function MainMenu() {
       <div className="absolute right-6 top-6 z-30"><MuteButton /></div>
 
       <div className="relative z-20 flex w-full max-w-lg flex-col items-center">
-        <img src={LOGO} alt="Polyforge" className="mb-3 h-20 w-20 drop-shadow-[0_0_32px_rgba(255,185,56,0.55)]" />
+        <img src={LOGO} alt="Sunder" className="mb-3 h-20 w-20 drop-shadow-[0_0_32px_rgba(255,185,56,0.55)]" />
         <h1 className="font-display text-5xl font-black tracking-tight text-white drop-shadow-[0_2px_18px_rgba(61,123,255,0.35)]">
-          POLY<span className="text-amber-400">FORGE</span>
+          SUN<span className="text-amber-400">DER</span>
         </h1>
+        <p className="mt-1 text-center text-[11px] font-bold uppercase tracking-[0.35em] text-amber-300/90">
+          The Living Forge
+        </p>
         <p className="mt-2 text-center text-sm font-medium text-slate-200">
-          Claim the shattered isles. Outthink three rival powers in a world forged anew.
+          Claim the Shatterlands. Outthink rival powers in a world split apart — and forge it anew.
         </p>
 
         <div className="my-5 w-full max-w-sm"><FacetRule /></div>
@@ -429,7 +432,7 @@ export function MainMenu() {
               </div>
               {(hall[hallTab]?.length ?? 0) === 0 ? (
                 <p className="py-3 text-center text-[11px] text-slate-400">
-                  No victories on {hallTab} yet — the isles await a conqueror.
+                  No victories on {hallTab} yet — the Shatterlands await a conqueror.
                 </p>
               ) : (
                 <div className="space-y-1">
@@ -520,7 +523,7 @@ export function GameOver() {
         </h2>
         {winner && (
           <p className="mt-2 text-sm text-slate-300">
-            <span style={{ color: winner.color }} className="font-bold">{winner.name}</span> rules the isles.
+            <span style={{ color: winner.color }} className="font-bold">{winner.name}</span> rules the Shatterlands.
           </p>
         )}
         {won && game.newHallEntry && (

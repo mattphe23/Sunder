@@ -1,4 +1,4 @@
-// Polyforge — Isoglow. Hot-seat hand-off: full-screen blocker so players
+// Sunder — Isoglow. Hot-seat hand-off: full-screen blocker so players
 // don't see each other's fog of war between turns. Faction-colored.
 import { useGame } from "../useGame";
 import { game } from "../core/state";

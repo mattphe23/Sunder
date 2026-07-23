@@ -1,4 +1,4 @@
-// Polyforge HUD — Isoglow glass panels over the indigo void; amber star accent.
+// Sunder HUD — Isoglow glass panels over the indigo void; amber star accent.
 import { useGame } from "../useGame";
 import { game } from "../core/state";
 import { UNIT_STATS, TECHS } from "../core/types";

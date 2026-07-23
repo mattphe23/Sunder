@@ -1,4 +1,4 @@
-// Polyforge — "Isoglow" design: low-poly flat-shaded minimalism, color as material,
+// Sunder — "Isoglow" design: low-poly flat-shaded minimalism, color as material,
 // deep indigo void, amber star accent. Core data types & constants (framework-agnostic).
 
 export type Terrain = "ocean" | "water" | "grass" | "forest" | "mountain";

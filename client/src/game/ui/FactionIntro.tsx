@@ -1,4 +1,4 @@
-// Polyforge — Isoglow. Faction intro card: a lore/strategy splash shown once at
+// Sunder: The Living Forge — Isoglow. Faction intro card: a lore/strategy splash shown once at
 // match start. Faction-colored frame, passive + unique unit + opening moves.
 // Deep indigo panel, amber star accents, display-font headers.
 import { useGame } from "@/game/useGame";

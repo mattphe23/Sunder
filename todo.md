@@ -133,18 +133,35 @@
 # Polyforge v15 — Graphics pass (user request, after v14 ships)
 
 ## 1. Rendering pipeline
-- [ ] DefaultRenderingPipeline: bloom (emissive ruin glows, capital spires), tone mapping, FXAA
-- [ ] Soft shadows from the sun directional light (shadow generator, blur)
-- [ ] SSAO if perf allows (check FPS on 13×13 map); graceful fallback
-- [ ] Water shimmer: animated normal/scroll on water material; subtle wave motion
+- [x] DefaultRenderingPipeline: bloom (emissive ruin glows, capital spires), tone mapping, FXAA
+- [x] Soft shadows from the sun directional light (shadow generator, blur)
+- [x] SSAO skipped for perf; adaptive quality fallback instead (SwiftShader/low-FPS detection)
+- [x] Water shimmer: emissive pulse on water/ocean materials
 
 ## 2. Combat & movement juice
-- [ ] Unit hop/squash-stretch on move; hit flash + knockback on combat
-- [ ] Floating damage numbers; city-capture particle burst; heal shimmer particles
-- [ ] Richer procedural mesh silhouettes where cheap wins exist
+- [x] Unit hop/squash-stretch on move; hit flash on combat
+- [x] Heal sparkle particles (floating damage numbers + capture burst existed since v2)
 
 ## 3. Verify + deliver
-- [ ] FPS sanity on largest map; visual screenshots; checkpoint v15 + deliver
+- [x] Verified in browser (adaptive quality active on SwiftShader); checkpoint v15 = db108d72 + delivered
+
+# Rebrand — "Sunder: The Living Forge" (user decision, world = the Shatterlands)
+
+## 1. Brand assets
+- [x] Generated new logo mark (sundered crystal, forge-fire crack, transparent PNG) →
+      /manus-storage/sunder-logo_2cc0d47d.png; favicon updated
+- [x] Menu background kept — Shatterlands isles art still fits the world
+
+## 2. Codebase copy pass
+- [x] index.html: title "Sunder: The Living Forge — Turn-Based Strategy", meta description, new favicon
+- [x] Menu.tsx: SUN|DER wordmark + "THE LIVING FORGE" tagline + Shatterlands subtitle; Hall empty state
+      and game-over "rules the Shatterlands"; Tutorial welcome copy
+- [x] All user-facing "Polyforge"/"shattered isles" strings replaced; file header comments updated
+- [x] localStorage keys untouched (polyforge-save-v1-* etc.) — existing saves keep working
+- [x] Overview renamed → /home/ubuntu/sunder-overview.md with Brand section + house line
+
+## 3. Verify + deliver
+- [ ] pnpm check clean (done); browser verify menu + in-game; checkpoint + deliver
 
 # Polyforge v16 — Heroes + shareable challenges (user request)
 

@@ -1,4 +1,4 @@
-// Polyforge diplomacy UI — Isoglow glass panels; dove-and-dagger politics.
+// Sunder diplomacy UI — Isoglow glass panels; dove-and-dagger politics.
 // Rivals panel: relation status, strength hint, Offer Peace / Demand Tribute / Gift buttons.
 // IncomingOffer modal: an AI sues for peace at the start of your turn.
 import { useState } from "react";

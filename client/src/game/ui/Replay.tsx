@@ -1,4 +1,4 @@
-// Polyforge replay viewer — Isoglow glass; step through the match's chronicle
+// Sunder replay viewer — Isoglow glass; step through the match's chronicle
 // from the game-over screen: prev/next/autoplay over the recorded event log.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useGame } from "../useGame";

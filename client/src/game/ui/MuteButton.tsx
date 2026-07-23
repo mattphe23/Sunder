@@ -1,4 +1,4 @@
-// Polyforge — Isoglow. Mute toggle: small glassy pill, persists via sound engine.
+// Sunder — Isoglow. Mute toggle: small glassy pill, persists via sound engine.
 import { useEffect, useState } from "react";
 import { Volume2, VolumeX } from "lucide-react";
 import { sound } from "../sound";
