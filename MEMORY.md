@@ -430,3 +430,10 @@ renderer is software OR fps stays under 24 for ~4s. Real-hardware verification a
 - New logo: /manus-storage/sunder-logo_2cc0d47d.png (sundered crystal with forge-fire crack, transparent). Old Polyforge logo retired.
 - localStorage keys deliberately KEPT as polyforge-* (save compat); window.__polyforge test handle kept too. Only user-facing copy + comments rebranded.
 - Rejected names: Pocket Empires (baggage/casual), Warforge (D&D collision), TinyReign (casual signal). Shatterlands repurposed as the world name.
+
+## Brand sheet adoption (user-approved v2 sheet at /home/ubuntu/upload/2D4B2717-A1D1-4DEF-8043-0C7C1F50B600.png)
+- Official mark: faceted stone mountain-peak silhouette enclosing an anvil, molten orange sun-core glowing above; cream/ivory facets, ember glow. Replaces sundered-crystal logo.
+- Official wordmark: chiseled "SUNDER" — heavy angular slab caps with notches cut into letterforms, cream stone; sub-line "— THE LIVING FORGE —" amber caps.
+- Tagline: "BUILD. CONQUER. REFORGE." (cream/orange/teal). Campaign line: "OUTTHINK. OUTFORGE. OUTLAST."
+- Values: Forge / Conquer / Reforge. Palette: cream, gold #e8a33d-ish, ember, teal, emerald, slate navy.
+- Sheet extras (Forge Core/Hall/Watchtower buildings, volcanic/coast biomes) = roadmap concepts, not shipped; volcanic biome earmarked as first paid map expansion.

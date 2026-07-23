@@ -161,7 +161,16 @@
 - [x] Overview renamed → /home/ubuntu/sunder-overview.md with Brand section + house line
 
 ## 3. Verify + deliver
-- [ ] pnpm check clean (done); browser verify menu + in-game; checkpoint + deliver
+- [x] pnpm check clean; browser verified; checkpoint fc260b73 + delivered
+
+# Brand adoption — approved brand sheet (mountain-anvil mark, chiseled wordmark, new tagline)
+
+- [ ] Generate mountain-anvil logo (faceted stone peak enclosing anvil, molten sun-core, transparent PNG)
+      matching the user's approved brand sheet; replace menu logo + favicon
+- [ ] Generate chiseled SUNDER wordmark image (notched/sundered letterforms, cream stone, transparent PNG);
+      replace the font-rendered H1 in Menu.tsx
+- [ ] Menu tagline → "BUILD. CONQUER. REFORGE." (keep "The Living Forge" as the sub-line under wordmark)
+- [ ] pnpm check clean; browser verify; checkpoint + deliver
 
 # Polyforge v16 — Heroes + shareable challenges (user request)
 

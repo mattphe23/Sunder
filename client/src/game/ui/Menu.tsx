@@ -24,7 +24,8 @@ import {
 } from "recharts";
 
 const MENU_BG = "/manus-storage/menu-bg_b1164e9a.png";
-const LOGO = "/manus-storage/sunder-logo_2cc0d47d.png";
+const LOGO = "/manus-storage/sunder-mark_d1dbf156.png";
+const WORDMARK = "/manus-storage/sunder-wordmark_36e4517b.png";
 
 /** Four-point spark — Sunder's signature motif */
 function Spark({ className = "", style }: { className?: string; style?: React.CSSProperties }) {
@@ -186,15 +187,24 @@ export function MainMenu() {
       <div className="absolute right-6 top-6 z-30"><MuteButton /></div>
 
       <div className="relative z-20 flex w-full max-w-lg flex-col items-center">
-        <img src={LOGO} alt="Sunder" className="mb-3 h-20 w-20 drop-shadow-[0_0_32px_rgba(255,185,56,0.55)]" />
-        <h1 className="font-display text-5xl font-black tracking-tight text-white drop-shadow-[0_2px_18px_rgba(61,123,255,0.35)]">
-          SUN<span className="text-amber-400">DER</span>
+        <img src={LOGO} alt="" className="mb-3 h-24 w-24 drop-shadow-[0_0_36px_rgba(255,150,40,0.5)]" />
+        <h1 className="m-0">
+          <img
+            src={WORDMARK}
+            alt="SUNDER"
+            className="h-14 w-auto max-w-[320px] object-contain drop-shadow-[0_2px_18px_rgba(226,98,43,0.35)] sm:h-16"
+          />
         </h1>
         <p className="mt-1 text-center text-[11px] font-bold uppercase tracking-[0.35em] text-amber-300/90">
-          The Living Forge
+          — The Living Forge —
         </p>
-        <p className="mt-2 text-center text-sm font-medium text-slate-200">
-          Claim the Shatterlands. Outthink rival powers in a world split apart — and forge it anew.
+        <p className="mt-3 text-center font-display text-sm font-black uppercase tracking-[0.14em]">
+          <span className="text-slate-100">Build.</span>{" "}
+          <span className="text-orange-400">Conquer.</span>{" "}
+          <span className="text-teal-300">Reforge.</span>
+        </p>
+        <p className="mt-1.5 text-center text-[13px] font-medium text-slate-300">
+          Outthink rival powers in the Shatterlands — a world split apart, waiting to be forged anew.
         </p>
 
         <div className="my-5 w-full max-w-sm"><FacetRule /></div>
