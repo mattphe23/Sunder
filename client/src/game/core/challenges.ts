@@ -173,7 +173,7 @@ export function decodeFriendChallenge(param: string): FriendChallenge | null {
     const sum = Number(parts.pop());
     if (hash(parts.join("|")) % 9973 !== sum) return null;
     const [name, score, seed, preset, size, difficulty, tribe, won, turns] = parts;
-    if (!["easy", "normal", "hard"].includes(difficulty)) return null;
+    if (!["easy", "normal", "hard", "impossible"].includes(difficulty)) return null;
     const c: FriendChallenge = {
       name: name || "A rival",
       score: Math.max(0, Number(score) | 0),

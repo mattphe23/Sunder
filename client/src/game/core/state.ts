@@ -385,7 +385,8 @@ class GameStore {
     const s = this.state;
     const t = s.tribes[tribeIdx];
     if (t.isHuman) return 0;
-    return s.difficulty === "easy" ? 0 : s.difficulty === "normal" ? 1 : 2;
+    // impossible plays with NO income cheat — it wins by playing better
+    return s.difficulty === "easy" ? 0 : s.difficulty === "normal" ? 1 : s.difficulty === "hard" ? 2 : 0;
   }
 
   /* ---------- v17 living map ---------- */

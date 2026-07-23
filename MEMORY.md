@@ -581,3 +581,9 @@ Key APIs: game.dismissHandoff() exists (L~732 sets handoff=null + emit). trpc ho
 - Hud.tsx TopBar: victory path chip (Crown icon, name + current/target, tooltip w/ goal). Menu.tsx GameOver: winPath badge + flavor line.
 - Tests: server/victory.sim.test.ts (8 unit tests on paths), server/engine.sim.test.ts (headless AI-vs-AI full matches; KEY TRICK: vi.stubGlobal setTimeout to ()=>0 and drive every tribe manually with runAiTurn + endTurn — the store's internal setTimeout AI scheduling doesn't run under fake timers reliably).
 - scripts/debug-sim.mjs: standalone headless sim debugger (pnpm tsx).
+
+## v21
+- NEW client/src/game/core/aiPro.ts — "Impossible" brain (difficulty === "impossible" routes here from ai.ts runAiTurn; aiBonus=0, NO cheats): buildThreatMap (Float32Array per-tile expected dmg), pickResearch value-per-star, chooseWarTarget + rally-ring task forces (strike at 3+), canHoldCity lookahead, counter-composition training, threat-aware walls/ports, hero care ≤65%, refuse trades scoring ≤2.
+- Difficulty type = easy|normal|hard|impossible. Menu: ☠ Imposs. red button + warning copy; Hall of Conquest 4th tab; achievement "impossible-win" (The Unmaker, 9 total); challenges.ts decode accepts impossible.
+- engine.sim.test.ts: Math.random pinned via vi.spyOn + mulberry32 (ai.ts uses Math.random in build/train — unseeded it made hero-survival flaky). 26 tests green.
+- Browser-verified: impossible game runs 3 turns clean console; test save wiped from slot 1 after.

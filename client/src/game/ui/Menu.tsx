@@ -118,7 +118,7 @@ export function MainMenu() {
     ? { name: custom.name, color: custom.color }
     : TRIBE_DEFS[Math.min(faction, TRIBE_DEFS.length - 1)];
   const saved = game.savedSummary();
-  const hallCount = (["easy", "normal", "hard"] as Difficulty[]).reduce((n, d) => n + (hall[d]?.length ?? 0), 0);
+  const hallCount = (["easy", "normal", "hard", "impossible"] as Difficulty[]).reduce((n, d) => n + (hall[d]?.length ?? 0), 0);
   const pickSlot = (n: 1 | 2 | 3) => {
     sound.play("click");
     setSlot(n);
@@ -345,13 +345,20 @@ export function MainMenu() {
                 <span className="h-1 w-1 rotate-45 bg-amber-400" /> Difficulty
               </p>
               <div className="flex gap-1">
-                {(["easy", "normal", "hard"] as Difficulty[]).map((d) => (
+                {(["easy", "normal", "hard", "impossible"] as Difficulty[]).map((d) => (
                   <button key={d} onClick={() => setDifficulty(d)}
-                    className={`flex-1 rounded-md border px-2 py-1.5 font-display text-xs font-bold capitalize transition-colors ${difficulty === d ? "border-amber-400 bg-amber-400/20 text-amber-200 shadow-[0_0_12px_rgba(255,185,56,0.25)]" : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"}`}>
-                    {d}
+                    title={d === "impossible" ? "A ruthless AI brain: threat maps, coordinated strikes, no mercy. It gets NO resource cheats — it simply plays better." : undefined}
+                    className={`flex-1 rounded-md border px-2 py-1.5 font-display text-xs font-bold capitalize transition-colors ${difficulty === d ? (d === "impossible" ? "border-red-400 bg-red-400/20 text-red-200 shadow-[0_0_12px_rgba(248,113,113,0.3)]" : "border-amber-400 bg-amber-400/20 text-amber-200 shadow-[0_0_12px_rgba(255,185,56,0.25)]") : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"}`}>
+                    {d === "impossible" ? "☠ Imposs." : d}
                   </button>
                 ))}
               </div>
+              {difficulty === "impossible" && (
+                <p className="mt-1.5 text-[10px] leading-snug text-red-300/90">
+                  ☠ The Impossible AI hunts with threat maps and strikes in coordinated war
+                  parties. No cheats — it just plays better. Few survive.
+                </p>
+              )}
             </div>
             <div>
               <p className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
@@ -499,10 +506,10 @@ export function MainMenu() {
           {hallOpen && (
             <div className="mt-2 rounded-lg border border-white/10 bg-[#10102c]/85 p-3 backdrop-blur-md">
               <div className="mb-2 flex gap-1">
-                {(["easy", "normal", "hard"] as Difficulty[]).map((d) => (
+                {(["easy", "normal", "hard", "impossible"] as Difficulty[]).map((d) => (
                   <button key={d} onClick={() => setHallTab(d)}
-                    className={`flex-1 rounded-md border px-2 py-1 font-display text-[11px] font-bold capitalize transition-colors ${hallTab === d ? "border-amber-400 bg-amber-400/20 text-amber-200" : "border-white/10 bg-white/5 text-slate-400 hover:bg-white/10"}`}>
-                    {d} {(hall[d]?.length ?? 0) > 0 && <span className="font-mono text-[9px] opacity-70">({hall[d]!.length})</span>}
+                    className={`flex-1 rounded-md border px-2 py-1 font-display text-[11px] font-bold capitalize transition-colors ${hallTab === d ? (d === "impossible" ? "border-red-400 bg-red-400/20 text-red-200" : "border-amber-400 bg-amber-400/20 text-amber-200") : "border-white/10 bg-white/5 text-slate-400 hover:bg-white/10"}`}>
+                    {d === "impossible" ? "☠" : d} {(hall[d]?.length ?? 0) > 0 && <span className="font-mono text-[9px] opacity-70">({hall[d]!.length})</span>}
                   </button>
                 ))}
               </div>

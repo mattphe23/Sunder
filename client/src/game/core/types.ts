@@ -278,7 +278,7 @@ export const TRIBE_DEFS = [
 
 export type Phase = "menu" | "playing" | "gameover";
 
-export type Difficulty = "easy" | "normal" | "hard";
+export type Difficulty = "easy" | "normal" | "hard" | "impossible";
 
 /** One entry in the start-of-turn recap of what rivals did. */
 export interface RecapEntry {

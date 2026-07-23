@@ -108,21 +108,27 @@ below was checked against the actual codebase before being marked.
       unit coverage of all 7 paths (24 tests green)
       (Auren: full tech tree; Kharzul: win N battles; Sunwei: total city levels; Vessari: plunder
       stars; Nerivane: control water/ports; Dravok: walled cities held; custom tribe: generic path)
-- [ ] Victory progress tracker UI (path + progress in HUD/panel); gameover fires with
+- [x] Victory progress tracker UI (path + progress in HUD/panel); gameover fires with
       faction-path flavor text
-- [ ] AI pursues its own path loosely (bounded weight adjustments)
-- [ ] AI hero care: protect low-HP hero (retreat toward friendly city), use aggressively when
+- [x] AI pursues its own path loosely (bounded weight adjustments)
+- [x] AI hero care: protect low-HP hero (retreat toward friendly city), use aggressively when
       leveled (v16 leftover)
-- [ ] Headless simulation test: AI-vs-AI game runs N turns without errors, wins fire (vitest)
-- [ ] pnpm check + pnpm test clean; browser verify; checkpoint + deliver
+- [x] Headless simulation test: AI-vs-AI game runs N turns without errors, wins fire (vitest)
+- [x] pnpm check + pnpm test clean; browser verify; checkpoint + deliver (v20 = 570aeedd)
 
 # v21 ROADMAP — Impossible AI tier (skill-ceiling differentiator)
-- [ ] 4th difficulty "Impossible" — smarter brain, no resource cheats
-- [ ] Threat map: enemy reach/damage per tile; refuse bad fights; retreat wounded; garrison capital
-- [ ] Task forces: rally point + simultaneous strikes instead of trickling
-- [ ] Bounded 2–3 turn lookahead for city assaults (take AND hold)
-- [ ] Economic optimizer: value-per-star build/research heuristic
-- [ ] Faction-aware play: uses own passive/unique, counters the player's faction
-- [ ] Menu Impossible tier with warning copy; Hall of Conquest tracks separately
+- [x] 4th difficulty "Impossible" — smarter brain (aiPro.ts), aiBonus=0: NO resource cheats
+- [x] Threat map: enemy reach/damage per tile; refuse bad fights (score bar >2, lethal-tile
+      penalty); retreat wounded (≤40% HP on lethal tiles); garrison capital when threatened
+- [x] Task forces: shared war target, rally ring at 2 tiles, strike when 3+ assembled
+- [x] Hold-the-prize lookahead: capture only when local force superiority (canHoldCity)
+- [x] Economic optimizer: value-per-star research/training; counter-composition vs ranged/
+      cavalry-heavy foes; water-aware ports; threat-aware walls
+- [x] Faction-aware play: unique-unit bias, victory-path pursuit (enlightenment research,
+      tidemastery ports, unbrokenwall walls)
+- [x] Menu Impossible tier (☠ red styling + warning copy + tooltip); Hall of Conquest 4th tab;
+      "The Unmaker" achievement; friend-challenge links accept impossible
+- [x] Impossible sim tests: pro brain completes full matches on multiple seeds; deterministic
+      seeded Math.random in harness (26 tests green)
 - [ ] Coalition polish: staggered attacks on leader cities, no overlapping targets, betrayal
       when leader falls behind

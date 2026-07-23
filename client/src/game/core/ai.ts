@@ -9,6 +9,7 @@ import {
 import { GameState, TECHS, UNIT_STATS, UnitType, Unit, TechId, PORT_COST, WALL_COST } from "./types";
 import { atPeace, setPeace, aiWantsPeaceWith, markDiploUsed, diploUsed, strengthOf, PEACE_TREATY_TURNS } from "./diplomacy";
 import { victoryProgress } from "./victory";
+import { runProAiTurn } from "./aiPro";
 
 // avoid circular type import; structural typing for the store
 interface StoreLike {
@@ -26,7 +27,8 @@ interface StoreLike {
 export function runAiTurn(store: StoreLike, tribeIdx: number) {
   const s = store.state;
   if (s.phase !== "playing") return;
-
+  // v21: the Impossible tier runs a smarter brain — no resource cheats
+  if (s.difficulty === "impossible") { runProAiTurn(store, tribeIdx); return; }
   // 0. diplomacy — a clearly-losing AI sues for peace with a human (one pending offer at a time)
   for (const h of s.humanTribes ?? [s.humanTribe]) {
     if (!s.tribes[h]?.alive) continue;
