@@ -221,15 +221,15 @@
 # Polyforge v18 — Online multiplayer (user request: MUST HAVE)
 
 ## 1. Full-stack upgrade
-- [ ] webdev_add_feature web-db-user (backend + DB + Manus OAuth accounts)
-- [ ] Read automation-and-scheduling + webdev-readme-fullstack skills BEFORE designing (async turns,
+- [x] webdev_add_feature web-db-user (backend + DB + Manus OAuth accounts)
+- [x] Read automation-and-scheduling + webdev-readme-fullstack skills BEFORE designing (async turns,
       notifications constraints)
 
 ## 2. Async matches
-- [ ] Match model: seed/preset/size/factions + move-log or state snapshots per turn; invite by link
-- [ ] Take-your-turn-whenever flow: server validates it's your turn, stores new state, notifies opponent
+- [x] Match model: seed/preset/size/factions + move-log or state snapshots per turn; invite by link
+- [x] Take-your-turn-whenever flow: server validates it's your turn, stores new state, notifies opponent
       (push notification API); rejoin from My Matches list
-- [ ] Design decision: authoritative state = serialized GameState per turn (simple, replayable) vs
+- [x] Design decision: authoritative state = serialized GameState per turn (simple, replayable) vs
       move-log re-simulation (lighter, anti-cheat) — decide at build time
 
 ## 3. Real leaderboards
@@ -297,3 +297,15 @@
 - [ ] Profile panel in menu; share button reuses profile name
 - [ ] Verify all systems in-browser (camps raid, storms move, guardian wakes, hero death card, profile persists)
 - [ ] Type-check clean, checkpoint, deliver
+
+# v18 BUILD PLAN (active) — Online: accounts + async multiplayer (then v17 leftovers)
+- [x] Upgrade to web-db-user (backend + DB + Manus OAuth); read fullstack README from upgrade output
+- [x] Read automation-and-scheduling skill before designing async turn flow
+- [x] Verify solo game unchanged after upgrade (regression)
+- [x] Accounts: Manus OAuth sign-in in menu; cloud profile (name + lifetime stats) synced to DB; local profile stays offline fallback
+- [x] DB schema: profiles, matches (seed/preset/size/factions/status/currentTurnTribe), match_turns (serialized state per turn)
+- [x] Async engine: create match → invite link (/join/:id) → opponent joins → turn submission (server validates turn owner, stores snapshot) → polling for "your turn"
+- [x] Multiplayer UI: Online panel in menu (sign-in, create/join, My Matches list w/ your-turn badges), in-game "waiting for opponent" state + resync
+- [x] Guardian relic bounty: slaying awakened Guardian grants hero a relic perk (extra perk slot)
+- [x] Camp escalation warning: red pulse on minimap for strength-3 camps
+- [x] Verify: two-account end-to-end match, solo regression, relic + minimap; checkpoint + deliver

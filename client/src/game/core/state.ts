@@ -103,6 +103,8 @@ class GameStore {
   private autoSave() {
     const s = this.state;
     try {
+      // online matches live on the server, never in local save slots
+      if (s.online) return;
       if (s.phase === "playing") {
         localStorage.setItem(slotKey(this.activeSlot), JSON.stringify(s));
       } else if (s.phase === "gameover") {
@@ -110,6 +112,37 @@ class GameStore {
       }
     } catch {
       // storage unavailable (private mode/quota) — play without persistence
+    }
+  }
+
+  // ---------- v18 online (async multiplayer) ----------
+
+  /** Full-state snapshot sent to the server after each online turn. */
+  serializeState(): string {
+    return JSON.stringify(this.state);
+  }
+
+  /**
+   * Load an opponent's submitted snapshot and repoint the local view at
+   * `myTribe`. Used when an async match advances to our turn.
+   */
+  loadOnlineSnapshot(json: string, myTribe: number): boolean {
+    try {
+      const s = JSON.parse(json) as GameState;
+      if (!s || !Array.isArray(s.tiles) || s.tiles.length === 0) return false;
+      for (const t of s.tribes) if (t.defIndex === undefined) t.defIndex = t.index;
+      s.selectedUnitId = null;
+      s.selectedCityId = null;
+      s.aiThinking = false;
+      s.humanTribe = myTribe;
+      // the remote player's pending hand-off is not ours to dismiss visually
+      if (s.handoff !== null && s.handoff !== undefined && s.handoff === myTribe) s.handoff = null;
+      this.state = s;
+      this.pendingAttack = null;
+      this.emit({ type: "changed" });
+      return true;
+    } catch {
+      return false;
     }
   }
 
@@ -191,12 +224,13 @@ class GameStore {
 
   // ---------- lifecycle ----------
 
-  newGame(opts: { size: number; humanTribe: number; difficulty: Difficulty; seed?: number; preset?: MapPreset; humanTribes?: number[]; challenge?: ChallengeKind; roster?: number[]; custom?: { slot: number; config: CustomTribeConfig }; friendChallenge?: { name: string; score: number } }) {
+  newGame(opts: { size: number; humanTribe: number; difficulty: Difficulty; seed?: number; preset?: MapPreset; humanTribes?: number[]; challenge?: ChallengeKind; roster?: number[]; custom?: { slot: number; config: CustomTribeConfig }; friendChallenge?: { name: string; score: number }; online?: { matchId: string; hostTribe: number; guestTribe: number; hostName: string; guestName: string } }) {
     const seed = opts.seed ?? Math.floor(Math.random() * 2 ** 31);
     const preset: MapPreset = opts.preset ?? "continents";
     const humans = opts.humanTribes && opts.humanTribes.length > 0 ? [...opts.humanTribes].sort((a, b) => a - b) : [opts.humanTribe];
-    // roster: which 4 of the 6 TRIBE_DEFS play this match (slot i is def roster[i])
-    const roster = opts.roster && opts.roster.length === 4 ? opts.roster : [0, 1, 2, 3];
+    // roster: which of the 6 TRIBE_DEFS play this match (slot i is def roster[i]).
+    // Local games use 4 tribes; online 1v1 uses exactly 2 (no AI in async matches).
+    const roster = opts.roster && (opts.roster.length === 4 || opts.roster.length === 2) ? opts.roster : [0, 1, 2, 3];
     const { tiles, cities } = generateMap(opts.size, seed, roster.length, preset);
     const tribes: Tribe[] = roster.map((di, i) => {
       const isCustom = !!opts.custom && opts.custom.slot === i;
@@ -247,6 +281,7 @@ class GameStore {
       preset,
       challenge: opts.challenge,
       friendChallenge: opts.friendChallenge ?? null,
+      online: opts.online ?? null,
       showIntro: humans.length === 1,
       difficulty: opts.difficulty,
       tribes,
@@ -1004,6 +1039,16 @@ class GameStore {
         s.log.unshift(`${s.tribes[a.tribe].name} slew the Guardian of the Great Ruin!`);
         if (a.tribe !== s.humanTribe) {
           this.recordRecap({ kind: "greatRuin", text: `${s.tribes[a.tribe].name} slew a Great Ruin guardian`, tribe: a.tribe });
+        }
+        // v18: the AWAKENED Guardian carries a relic — a hero who lands the killing blow claims it
+        if (d.awake && a.hero && !(a.perks ?? []).includes("relic")) {
+          a.perks = [...(a.perks ?? []), "relic"];
+          a.maxHp += 4;
+          a.hp = Math.min(a.maxHp, a.hp + 4);
+          const hn = this.heroName(a);
+          s.log.unshift(`${hn} claims the Guardian's Relic! (+15% atk/def, +4 max HP)`);
+          this.recordRecap({ kind: "greatRuin", text: `${hn} of ${s.tribes[a.tribe].name} claimed the Guardian's Relic`, tribe: a.tribe });
+          if (a.tribe === s.humanTribe) this.emit({ type: "sfx", name: "levelup" });
         }
       }
     }

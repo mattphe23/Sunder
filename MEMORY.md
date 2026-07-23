@@ -481,3 +481,74 @@ renderer is software OR fps stays under 24 for ~4s. Real-hardware verification a
 - Profile: polyforge-profile-v1 records games/bestScore; menu shows COMMANDER'S RECORD 0W/1G pill. Panel UI (name edit + 9-stat grid) coded, pill verified in menu.
 - Test state cleaned: back to menu, test save removed (slot key polyforge-save-v1).
 - REMAINS: screenshot pass + checkpoint + delivery. Note profile counts test game (games:1 bestScore:40) — acceptable/minor; could clear polyforge-profile-v1? DECISION: clear it to give user a clean slate.
+
+## v18 fullstack upgrade (web-db-user) — DONE via webdev_add_feature; CONFLICTS TO FIX
+Template facts (from upgrade README):
+- tRPC 11 + Drizzle (MySQL) + Manus OAuth baked in. Procedures in server/routers.ts, helpers in server/db.ts, schema in drizzle/schema.ts.
+- DB migrate flow: edit drizzle/schema.ts → pnpm db:push (generate+migrate). Or webdev_execute_sql for SQL.
+- Auth: client useAuth() from @/_core/hooks/useAuth; startLogin() from "@/const" (event handler only, NEVER render); server ctx.user via protectedProcedure; trpc.auth.me.useQuery(), logout mutation.
+- Client trpc hooks: trpc.*.useQuery/useMutation from client/src/lib/trpc.ts; superjson; /api/trpc.
+- Tests: vitest, server/*.test.ts pattern (see server/auth.logout.test.ts), pnpm test.
+- Envs auto-injected (DATABASE_URL, JWT_SECRET, VITE_APP_ID, OAUTH_SERVER_URL, VITE_OAUTH_PORTAL_URL, BUILT_IN_FORGE_API_*).
+- Notifications: server/_core/notification.ts (owner notifications only). Heartbeat SDK at server/_core/heartbeat.ts.
+CONFLICTS I MUST RESOLVE NOW:
+1. client/src/pages/Home.tsx — template OVERWROTE our game Home with example page. MUST restore game version (imports: useGame, GameCanvas, sound, MainMenu/GameOver, Hud components incl PerkChoice, Minimap, Tutorial, FactionIntro, Handoff, Diplomacy, WorldEvents WorldEventCards+HeroFallenCard, techOpen/diploOpen state, menu music effects) — full original JSX is in the upgrade diff above (project side of conflict).
+2. package.json — keep name polytopia-clone AND @babylonjs/core ^9.17.1 dependency (template removed it, added aws-sdk).
+Then: pnpm install, pnpm db:push, webdev_restart_server, regression test solo game.
+Plan after: schema (profiles/matches/match_turns), server routers (profile sync, match create/join/submitTurn/list/poll), client OnlinePanel in Menu + useAuth sign-in, in-game online turn flow, guardian relic bounty, camp minimap warning.
+
+## v18 progress (server layer DONE)
+- Schema: profiles (userId unique, commanderName + 8 stat counters), matches (varchar id nanoid10, host/guest user ids+names, seed/preset/size/hostTribe/guestTribe, status open|active|finished|abandoned, turnNumber, currentUserId, winnerUserId, resultText), match_turns (matchId, turnNumber, submittedByUserId, state longtext). Pushed OK.
+- server/db.ts: getProfile/upsertProfile (max-merge counters, name overwrite), createMatch/getMatch/updateMatch/listMatchesForUser(30)/saveTurnSnapshot/getLatestSnapshot.
+- server/routers.ts: profile.get/sync; match.create/join/get/status(light poll)/submitTurn(validates active+currentUserId+turnNumber=m.turnNumber+1, finished→winner)/myMatches(mapped view w/ yourTurn,youWon)/abandon(concede).
+- server/match.test.ts: 5 tests w/ vi.mock of ./db — all pass (6 total incl auth.logout).
+- Client TODO next: profile.ts cloud sync hook, Menu OnlinePanel (sign-in via useAuth/startLogin, create/join match, My Matches list), online game flow in state.ts (serialize state, submit turn), /join/:id handling via ?m= param maybe, in-game "waiting" banner + polling via trpc.match.status.useQuery refetchInterval, then relic bounty + minimap camp warning.
+
+## v18 online design facts (from state.ts reading)
+- Hotseat = humanTribes.length>1; beginTurn sets s.handoff=tribeIdx for human tribes and clears recap. dismissHandoff at L732 sets handoff=null.
+- endTurn→nextTribe: AI tribes run via setTimeout(runAiTurn,350). Human tribes just beginTurn and wait.
+- newGame opts: { size, humanTribe, difficulty, seed?, preset?, humanTribes?, challenge?, roster?, custom?, friendChallenge? }.
+- Save system: SAVE_KEY polyforge-save-v1 + slots; game.state serializes to JSON directly (whole GameState).
+- onGameOver: solo-only profile recording gated by humanTribes.length===1.
+- ONLINE DESIGN: online match = newGame with humanTribes=[hostTribe,guestTribe], both isHuman. Local player only controls their tribe; when the OTHER human tribe's turn begins (handoff fires), instead of showing HandoffScreen we: serialize state, submitTurn to server, show "waiting for opponent" overlay, poll match.status; when turnNumber advances, fetch match.get and load opponent's submitted state.
+- Actually simpler: each player plays their full turn locally (AI tribes too? No—) . DECISION: 1v1 online, NO AI tribes (2 tribes only), world events still run deterministically since they happen in beginTurn(0). Whole-state snapshot per turn avoids desync.
+- game store: OnlineController client-side module bridges game events ↔ trpc.
+
+## v18 client progress
+DONE:
+- types.ts: GameState.online? {matchId,hostTribe,guestTribe,hostName,guestName} | null.
+- state.ts newGame: accepts opts.online, roster may be length 2 (online 1v1, no AI) or 4; state.online set from opts.
+- client/src/game/online/useCloudProfile.ts: cloud profile sync hook (max-merge), call from menu w/ syncKey.
+- server layer + tests all done (see above).
+NEXT STEPS (in order):
+1. GameStore: add serializeState(): string (JSON.stringify(this.state)) and loadOnlineSnapshot(json, myTribe): sets state, ensures selected ids null, aiThinking false, humanTribe=myTribe so the local player views their own tribe; DO NOT autoSave online games into slots (autoSave should skip when s.online).
+2. When online game: beginTurn hotseat branch sets s.handoff — for online, handoff for the REMOTE tribe should instead trigger "submit turn + waiting overlay". Plan: in nextTribe/beginTurn keep handoff mechanism, but new client module online/controller.ts listens for game events; when s.online && s.handoff != myTribe → serialize + submitTurn + waiting. When s.handoff === myTribe → dismissHandoff automatically (it's our turn).
+   Simpler: OnlineGame React component (mounted in Home when s.online) uses useGame() and effects: if s.handoff !== null && s.online: if handoffTribe === myLocalTribe → game.dismissHandoff(); else → do submit flow, show WaitingOverlay, poll trpc.match.status (refetchInterval 5s); on turnNumber advance → trpc.match.get → game.loadOnlineSnapshot.
+3. My tribe determination: role host→hostTribe, guest→guestTribe. Store myRole in component prop / lookup via trpc.auth.me + match data (hostUserId). Add to OnlineGame props from Menu.
+4. Menu OnlinePanel: "Play Online" section — sign in (startLogin from "@/const"), Create Match (uses current faction/map settings; calls newGame locally w/ roster [myTribeDef, oppTribeDef]... ACTUALLY create flow: host configures, calls match.create with initialState = serialized newGame state (host plays turn 1 first? simpler: host creates, state snapshot turn 0 saved, host plays when guest joins? Polytopia async: host plays turn immediately). DECISION: host creates match + plays first turn immediately (submitTurn turnNumber1), then waits. Guest joins via ?m=MATCHID link banner (like friend challenge ?c=).
+   gameover in online → submitTurn finished:true winner resultText.
+5. URL param ?m= handled in MainMenu like ?c= friend challenges.
+6. Turn notifications: myMatches list in menu w/ yourTurn badge (poll 30s).
+7. Relic bounty: guardian slain by human → hero gains free perk choice (set pendingPerk w/ 3 relic options or grant random perk + toast). Simplest: on guardian kill, grant hero +1 level worth: stage pendingPerk for human. Find guardian kill site in attack() (bumpStat guardiansSlain).
+8. Minimap camp warning: Minimap.tsx — draw camps as red dots, pulse when strength>=3.
+Key APIs: game.dismissHandoff() exists (L~732 sets handoff=null + emit). trpc hooks via client/src/lib/trpc.ts. startLogin from "@/const". useAuth from "@/_core/hooks/useAuth".
+
+## v18 phase-4 progress (online UI)
+- OnlinePanel.tsx (client/src/game/online/): menu panel — sign-in CTA, CREATE DUEL (host picks faction, builds turn-0 locally, serializes as initialState), invite link /?m=<matchId>, invite banner (readMatchInviteFromUrl), My Matches list w/ YOUR TURN badges. Mounted in Menu.tsx after Commander's Record. Takes faction prop.
+- enterMatch(): always loads server snapshot (turn-0 snapshot guaranteed at create); sets game.state.online metadata.
+- OnlineGame.tsx (controller, mounted in Home.tsx): handoff arbitration — own handoff auto-confirms (confirmHandoff), remote handoff → submitTurn(serializeState) + waiting overlay + 5s status polling; pulls snapshot via loadOnlineSnapshot(state, myTribe) when it's our turn; reports finished game (winner me/opponent).
+- routers: match.create/join/get({match,state})/status/myMatches/abandon; submitTurn(turnNumber = matchInfo.turnNumber+1).
+- dotenv error in devserver.log is STALE (from before pnpm install; server now boots fine, HTTP 200).
+
+## v18 phase-5 progress (relic + minimap)
+- Guardian's Relic: new HeroPerkId "relic" (types.ts) — NOT in HERO_PERK_POOL; granted in state.ts attack() when d.guardian && d.awake && a.hero: +relic perk, +4 maxHp; rules.ts wires +15% atk (previewCombat), *1.15 defense (defenseBonus), forecast lines.
+- Minimap.tsx: camps drawn as orange diamonds when explored; strength>=3 → pulsing red ring (Date.now()-based alpha + 400ms interval repaint via setPulseTick); world units (tribe<0) drawn #c03030 (was crash risk: s.tribes[-1].color).
+- NOTE: main draw useEffect depends on [open, s, g.getVersion()] — pulse tick state change re-renders component, effect re-runs because s identity unchanged?? — VERIFY: effect deps don't include tick, but re-render alone doesn't re-run effect. Must add tick to deps if ring doesn't pulse.
+- Remaining: verify relic grant in browser, minimap visuals, full verification pass, update todo.md marks, checkpoint.
+
+## v18 COMPLETE (verified)
+- Relic grant verified in-browser: hero kills awake guardian → perks ["relic"], maxHp 14→18, log lines correct.
+- Minimap verified: camp diamond (232,132,58) + red ring pulsing (alpha changes between frames: 161→75 red channel).
+- Solo regression: 3 turns AI play, zero console errors.
+- Tests 6/6 pass, tsc clean. todo.md v18 items marked [x].
+- Online duels remain single-browser-verified (arbitration/round-trip logic tested via console); true two-account E2E needs two real Manus accounts — flagged honestly to user.

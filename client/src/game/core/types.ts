@@ -160,7 +160,8 @@ export type HeroPerkId =
   | "warding" // adjacent allies take 15% less damage
   | "mender" // heals self +3 HP at turn start
   | "plunderer" // +2 stars on every hero kill
-  | "titan"; // +6 max HP (and heal 6)
+  | "titan" // +6 max HP (and heal 6)
+  | "relic"; // v18: Guardian's Relic — slay the awakened Guardian: +15% attack & defense, +4 max HP
 
 export interface HeroPerkDef {
   id: HeroPerkId;
@@ -177,6 +178,7 @@ export const HERO_PERKS: Record<HeroPerkId, HeroPerkDef> = {
   mender: { id: "mender", name: "Mender", desc: "Recovers +3 HP at the start of your turn" },
   plunderer: { id: "plunderer", name: "Plunderer", desc: "Plunders 2 stars from the enemy on every kill" },
   titan: { id: "titan", name: "Titan", desc: "+6 max HP, healed immediately" },
+  relic: { id: "relic", name: "Guardian's Relic", desc: "Forged from the fallen Guardian's core — +15% attack, +15% defense, +4 max HP" },
 };
 
 /** XP needed to reach level N+1 from level N (level is 1-based; max level 4 = 3 perk picks) */
@@ -190,6 +192,7 @@ export const HERO_XP = { battleWon: 2, kill: 3, capture: 4, ruin: 2 } as const;
 export const HERO_PERK_POOL: HeroPerkId[] = [
   "warlord", "ironskin", "swift", "inspiring", "warding", "mender", "plunderer", "titan",
 ];
+// note: "relic" is never offered on level-up — it is earned only by slaying the awakened Guardian
 
 /** flavor hero names per TRIBE_DEFS index */
 export const HERO_NAMES = ["Maelis", "Drukhar", "Wu Jian", "Szara", "Nereth", "Borvak"] as const;
@@ -334,6 +337,16 @@ export interface GameState {
   humanTribes?: number[];
   /** hot-seat: tribe index awaiting the pass-the-device hand-off screen, or null */
   handoff?: number | null;
+  /** v18 online: match metadata (null/undefined = local game). Persisted inside snapshots. */
+  online?: {
+    matchId: string;
+    /** tribe index controlled by the host */
+    hostTribe: number;
+    /** tribe index controlled by the guest */
+    guestTribe: number;
+    hostName: string;
+    guestName: string;
+  } | null;
   aiThinking: boolean;
   /** events since the human's last turn, shown as a recap */
   recap: RecapEntry[];

@@ -22,6 +22,7 @@ import { loadCustomTribe, CustomTribeConfig, CUSTOM_DEF_INDEX } from "../core/cu
 import { Hammer } from "lucide-react";
 import { loadProfile, setProfileName, PlayerProfile } from "../core/profile";
 import { UserCircle, Pencil } from "lucide-react";
+import { OnlinePanel } from "../online/OnlinePanel";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip as RTooltip, ResponsiveContainer,
@@ -616,6 +617,10 @@ export function MainMenu() {
             </div>
           )}
         </div>
+
+        {/* v18: Online Duels — sign in, create/join async 1v1 matches */}
+        <OnlinePanel faction={faction} />
+
         <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-[11px] font-medium text-slate-300">
           <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
           Capture all rival capitals — or lead in score when turn 30 ends. Every faction is free and fair.
