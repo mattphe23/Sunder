@@ -1,13 +1,13 @@
 // Polyforge HUD — Isoglow glass panels over the indigo void; amber star accent.
 import { useGame } from "../useGame";
 import { game } from "../core/state";
-import { UNIT_STATS, TECHS, PORT_COST, WALL_COST } from "../core/types";
+import { UNIT_STATS, TECHS } from "../core/types";
 import {
   techCost, canResearch, trainableUnits, starIncome, cityAt, canHarvest,
-  harvestCost, canBuildPort,
+  harvestCost, canBuildPort, portCost, wallCost,
 } from "../core/rules";
 import { Button } from "@/components/ui/button";
-import { Star, Swords, FlaskConical, X, ChevronRight, Anchor, Ship, Skull, Shield, Flag, Landmark, ScrollText, Undo2 } from "lucide-react";
+import { Star, Swords, FlaskConical, X, ChevronRight, Anchor, Ship, Skull, Shield, Flag, Landmark, ScrollText, Undo2, Bird } from "lucide-react";
 import { useState } from "react";
 import { MuteButton } from "./MuteButton";
 import { sound } from "../sound";
@@ -165,7 +165,7 @@ export function TopBar() {
   );
 }
 
-export function BottomBar({ onOpenTech }: { onOpenTech: () => void }) {
+export function BottomBar({ onOpenTech, onOpenDiplo }: { onOpenTech: () => void; onOpenDiplo: () => void }) {
   const g = useGame();
   const s = g.state;
   const isMyTurn = s.currentTribe === s.humanTribe && !s.aiThinking;
@@ -174,6 +174,9 @@ export function BottomBar({ onOpenTech }: { onOpenTech: () => void }) {
       <div className="pointer-events-auto flex gap-2">
         <Button variant="secondary" size="sm" className="min-h-[44px] gap-1.5 border border-white/10 bg-[#1b1b3f]/85 px-4 text-slate-100 backdrop-blur-md hover:bg-[#2a2a55] sm:min-h-0 sm:px-3" onClick={onOpenTech}>
           <FlaskConical className="h-4 w-4 text-cyan-300" /> Research
+        </Button>
+        <Button variant="secondary" size="sm" className="min-h-[44px] gap-1.5 border border-white/10 bg-[#1b1b3f]/85 px-4 text-slate-100 backdrop-blur-md hover:bg-[#2a2a55] sm:min-h-0 sm:px-3" onClick={() => { sound.play("click"); onOpenDiplo(); }}>
+          <Bird className="h-4 w-4 text-sky-300" /> Diplomacy
         </Button>
         {game.canUndo() && (
           <Button
@@ -320,15 +323,15 @@ export function SelectionPanel() {
         {portSites.length > 0 && (
           <>
             <p className="mb-1 mt-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-              Build port ({PORT_COST}★)
+              Build port ({portCost(s, s.humanTribe)}★)
             </p>
             <div className="flex flex-wrap gap-1">
               {portSites.map((t) => (
                 <button
                   key={`p${t.x},${t.y}`}
-                  disabled={me.stars < PORT_COST}
+                  disabled={me.stars < portCost(s, s.humanTribe)}
                   onClick={() => g.buildPort(t.x, t.y)}
-                  className={`flex items-center gap-1 rounded-md border border-white/10 px-2 py-1 text-xs ${me.stars >= PORT_COST ? "bg-white/5 hover:bg-white/15" : "opacity-40"}`}
+                  className={`flex items-center gap-1 rounded-md border border-white/10 px-2 py-1 text-xs ${me.stars >= portCost(s, s.humanTribe) ? "bg-white/5 hover:bg-white/15" : "opacity-40"}`}
                 >
                   <Anchor className="h-3 w-3 text-cyan-300" /> ({t.x},{t.y})
                 </button>
@@ -338,12 +341,12 @@ export function SelectionPanel() {
         )}
         {!city.walls && city.level >= 3 && (
           <button
-            disabled={me.stars < WALL_COST}
+            disabled={me.stars < wallCost(s, s.humanTribe)}
             onClick={() => g.buildWalls(city.id)}
-            className={`mt-2 flex w-full items-center justify-between rounded-md border border-white/10 px-2 py-1.5 text-xs transition-colors ${me.stars >= WALL_COST ? "bg-white/5 hover:bg-white/15" : "opacity-40"}`}
+            className={`mt-2 flex w-full items-center justify-between rounded-md border border-white/10 px-2 py-1.5 text-xs transition-colors ${me.stars >= wallCost(s, s.humanTribe) ? "bg-white/5 hover:bg-white/15" : "opacity-40"}`}
           >
             <span className="flex items-center gap-1"><Shield className="h-3 w-3 text-slate-300" /> Build city walls</span>
-            <span className="flex items-center gap-0.5 text-amber-300"><Star className="h-3 w-3 fill-amber-300" />{WALL_COST}</span>
+            <span className="flex items-center gap-0.5 text-amber-300"><Star className="h-3 w-3 fill-amber-300" />{wallCost(s, s.humanTribe)}</span>
           </button>
         )}
         {!city.walls && city.level < 3 && (

@@ -41,6 +41,8 @@ function moveCost(s: GameState, unit: Unit, t: Tile): number {
   switch (t.terrain) {
     case "ocean": return Infinity;
     case "water":
+      // Nerivane Tidecaller: swims shallow water freely, no boat or port needed
+      if (unit.type === "tidecaller") return 1;
       // land units can embark at a friendly port
       return t.port === tribe && hasTech(s, tribe, "sailing") ? 1 : Infinity;
     case "mountain":
@@ -57,11 +59,21 @@ function moveCost(s: GameState, unit: Unit, t: Tile): number {
 
 export const BOAT_MOVEMENT = 3;
 
+/** economy costs with faction passives applied */
+export function portCost(s: GameState, tribe: number): number {
+  return s.tribes[tribe]?.passive === "tideborn" ? 1 : 3;
+}
+export function wallCost(s: GameState, tribe: number): number {
+  return s.tribes[tribe]?.passive === "stonebound" ? 3 : 5;
+}
+
 /** Dijkstra reachable tiles for a unit with its movement points */
 export function reachableTiles(s: GameState, unit: Unit): { x: number; y: number }[] {
   if (unit.moved || unit.tribe < 0) return [];
   const stats = UNIT_STATS[unit.type];
-  let mp = unit.boat ? BOAT_MOVEMENT : stats.movement;
+  // Nerivane Tideborn: boats ride the currents — +1 movement
+  const boatMp = BOAT_MOVEMENT + (s.tribes[unit.tribe]?.passive === "tideborn" ? 1 : 0);
+  let mp = unit.boat ? boatMp : stats.movement;
   if (s.tribes[unit.tribe]?.passive === "outriders") mp += 0; // handled via 0.5 grass cost
   const dist = new Map<number, number>();
   const start = idx(unit.x, unit.y, s.size);
@@ -101,6 +113,8 @@ export function attackableUnits(s: GameState, unit: Unit): Unit[] {
   if (unit.boat) return []; // boats cannot attack (transport only)
   return s.units.filter((e) => {
     if (e.tribe === unit.tribe) return false;
+    // diplomacy: tribes at peace cannot attack each other
+    if (e.tribe >= 0 && unit.tribe >= 0 && (s.peaceUntil?.[unit.tribe]?.[e.tribe] ?? 0) > s.turn) return false;
     const d = Math.max(Math.abs(e.x - unit.x), Math.abs(e.y - unit.y));
     return d <= stats.range;
   });
@@ -124,13 +138,25 @@ function defenseBonus(s: GameState, defender: Unit, attacker?: Unit): number {
     // siege: catapults hurl boulders straight over ramparts — walls give no benefit
     const siege = attacker?.type === "catapult";
     if (city.walls && !siege) return WALL_DEFENSE_BONUS; // fortified — strongest static bonus
-    return hasTech(s, defender.tribe, "freeSpirit") ? 1.6 : 1.3;
+    let base = hasTech(s, defender.tribe, "freeSpirit") ? 1.6 : 1.3;
+    // Dravok Stonebound: defenders in cities gain +10% defense
+    if (s.tribes[defender.tribe].passive === "stonebound") base *= 1.1;
+    return base;
   }
   if (t.terrain === "forest" && hasTech(s, defender.tribe, "archery")) return 1.3;
   // Sunwei Warden: iron defense when holding a mountain
   if (t.terrain === "mountain" && defender.type === "warden") return 1.7;
   if (t.terrain === "mountain") return 1.3;
   return 1;
+}
+
+/** Dravok Bulwark aura: 20% damage reduction for adjacent allies (not the bulwark itself) */
+export function bulwarkShielded(s: GameState, defender: Unit): boolean {
+  if (defender.tribe < 0 || defender.type === "bulwark") return false;
+  return s.units.some((b) =>
+    b.type === "bulwark" && b.tribe === defender.tribe && b.id !== defender.id &&
+    Math.max(Math.abs(b.x - defender.x), Math.abs(b.y - defender.y)) === 1
+  );
 }
 
 export function previewCombat(s: GameState, attacker: Unit, defender: Unit): CombatResult {
@@ -140,10 +166,14 @@ export function previewCombat(s: GameState, attacker: Unit, defender: Unit): Com
   if (attacker.tribe >= 0 && s.tribes[attacker.tribe].passive === "forgeborn") atk *= 1.15;
   // Kharzul Berserker: smells blood — +50% damage against wounded targets
   if (attacker.type === "berserker" && defender.hp < defender.maxHp) atk *= 1.5;
+  // Nerivane Tidecaller: the tide strikes hardest — +30% attack from a water tile
+  if (attacker.type === "tidecaller" && tileAt(s, attacker.x, attacker.y).terrain === "water") atk *= 1.3;
   const attackForce = atk * (attacker.hp / attacker.maxHp);
   const defenseForce = dStats.defense * (defender.hp / defender.maxHp) * defenseBonus(s, defender, attacker);
   const total = attackForce + defenseForce;
-  const damageToDefender = Math.round((attackForce / total) * atk * 4.5);
+  let damageToDefender = Math.round((attackForce / total) * atk * 4.5);
+  // Dravok Bulwark: adjacent allies take 20% less damage
+  if (bulwarkShielded(s, defender)) damageToDefender = Math.max(1, Math.round(damageToDefender * 0.8));
   const damageToAttacker = Math.round((defenseForce / total) * dStats.defense * 4.5);
   const defenderDies = defender.hp - damageToDefender <= 0;
   // retaliation only if defender survives, attacker within defender's range, and attacker adjacent (melee exposure)
@@ -163,8 +193,10 @@ export function combatModifiers(s: GameState, attacker: Unit, defender: Unit): {
   // --- attacker modifiers ---
   if (attacker.tribe >= 0 && s.tribes[attacker.tribe].passive === "forgeborn") out.push({ text: "Forgeborn +15% attack", side: "atk" });
   if (attacker.type === "berserker" && defender.hp < defender.maxHp) out.push({ text: "Berserker +50% vs wounded", side: "atk" });
+  if (attacker.type === "tidecaller" && tileAt(s, attacker.x, attacker.y).terrain === "water") out.push({ text: "Tidecaller +30% from water", side: "atk" });
   if (attacker.hp < attacker.maxHp) out.push({ text: "Wounded — attack force reduced", side: "atk" });
   // --- defender modifiers (mirrors defenseBonus) ---
+  if (bulwarkShielded(s, defender)) out.push({ text: "Bulwark aura −20% damage taken", side: "def" });
   if (defender.boat) { out.push({ text: "Embarked −30% defense", side: "def" }); return out; }
   const t = tileAt(s, defender.x, defender.y);
   if (defender.guardian) { out.push({ text: "Sacred ground +40% defense", side: "def" }); return out; }
@@ -239,10 +271,18 @@ export function canHarvest(s: GameState, tribe: number, t: Tile): boolean {
   return s.tribes[tribe].stars >= harvestCost(s, tribe);
 }
 
+/** the unique unit a tribe may train: forge override, else keyed by defIndex */
+export function uniqueUnitOf(s: GameState, tribe: number): UnitType | undefined {
+  const t = s.tribes[tribe];
+  if (!t) return undefined;
+  if (t.customUnique) return t.customUnique;
+  return (Object.keys(UNIT_STATS) as UnitType[]).find((ut) => UNIT_STATS[ut].faction === t.defIndex);
+}
 export function trainableUnits(s: GameState, tribe: number): UnitType[] {
+  const unique = uniqueUnitOf(s, tribe);
   return (Object.keys(UNIT_STATS) as UnitType[]).filter((ut) =>
     hasTech(s, tribe, UNIT_STATS[ut].tech) &&
-    (UNIT_STATS[ut].faction === undefined || UNIT_STATS[ut].faction === tribe)
+    (UNIT_STATS[ut].faction === undefined || ut === unique)
   );
 }
 

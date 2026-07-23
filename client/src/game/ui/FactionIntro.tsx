@@ -54,6 +54,26 @@ const INTROS: IntroDef[] = [
       "Strike wide, not deep: raid economies and retreat before slower armies answer.",
     ],
   },
+  {
+    title: "The Nerivane Tidecourts",
+    lore: "Beneath drowned bell-towers the Nerivane hold court, reading omens in the currents. The land-bound call the sea a border; the Tidecourts call it a road that runs everywhere.",
+    uniqueUnit: "tidecaller",
+    openings: [
+      "One-star ports and faster boats — get to sea by turn 3 and own the waves.",
+      "Tidecallers swim without boats and strike harder from water; raid coastal cities.",
+      "Island-hop for villages other tribes can't reach yet; the sea is your highway.",
+    ],
+  },
+  {
+    title: "The Dravok Holdfasts",
+    lore: "The Dravok do not build cities — they carve them, grinding halls out of living rock. Their proverb is short, like their patience: what stands behind stone, stands forever.",
+    uniqueUnit: "bulwark",
+    openings: [
+      "Cheap walls and stout garrisons — level a city to 3 fast and fortify it.",
+      "Bulwarks shield adjacent allies; anchor your battle line around one.",
+      "Let rivals bleed on your defenses, then counterattack with fresh units.",
+    ],
+  },
 ];
 
 export function FactionIntro() {
@@ -61,7 +81,19 @@ export function FactionIntro() {
   const s = g.state;
   if (s.phase !== "playing" || !s.showIntro) return null;
   const tribe = s.tribes[s.humanTribe];
-  const intro = INTROS[s.humanTribe];
+  const forged = tribe && tribe.defIndex >= INTROS.length; // Tribe Forge custom tribe
+  const intro: IntroDef | undefined = forged
+    ? {
+        title: `The ${tribe.name}`,
+        lore: "No chronicle yet tells of this people — you are writing its first page. Forged from chosen strengths, they march under a banner the old powers have never seen.",
+        uniqueUnit: (tribe.customUnique ?? "arcanist") as UnitType,
+        openings: [
+          "Lean on your chosen passive from turn 1 — it is your economy's engine.",
+          "Unlock and field your signature unit early; it defines your battle plan.",
+          "Scout ruins and villages fast — a young tribe grows on what it claims.",
+        ],
+      }
+    : INTROS[tribe?.defIndex ?? s.humanTribe];
   if (!tribe || !intro) return null;
   const uu = UNIT_STATS[intro.uniqueUnit];
 

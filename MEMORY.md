@@ -253,11 +253,150 @@
   First failing test was pre-HMR stale code; after page reload the full test passed:
   slot1 solo Auren normal + slot2 hotseat Kharzul·Sunwei hard coexist, continue loads correct game per
   slot, summaries correct, slot3 empty.
-- v13 VERIFIED (all): forecast chips fired correctly (berserker vs wounded on mountain → Forgeborn+15%,
-  Berserker+50%, Mountain+30%, Wounded-def chips; dmg 18, no retaliation). 375px full-page screenshot:
-  menu + slot picker + world type stack cleanly. Cleaned all polyforge-save* keys. → checkpoint v13.
+- v13 SHIPPED = a5b38ca1 (slots + forecast chips + mobile touch all verified).
+
+## v14 (diplomacy + replay + daily challenge) — IN PROGRESS
+- CODEBASE MAP (verified): GameState in types.ts L233 (humanTribes?, handoff?, stats: TribeStats[],
+  scoreHistory). GameEvent union state.ts L18 (sfx names union). newGame(opts{size,humanTribe,difficulty,
+  seed?,preset?,humanTribes?}) L184. beginTurn L250, endTurn L301, nextTribe L311. attack() L610 (raider
+  plunder inside), captureCity L711, checkDominationWin L828, recordVictory ~L862 (hall skips hotseat).
+  attackableUnits in rules.ts L97 (filters e.tribe===unit.tribe only — peace filter goes HERE).
+  AI: ai.ts targets via attackableUnits L106 scoring; objectives loop cities (c.tribe!==tribeIdx) +
+  enemy units (e.tribe!==tribeIdx) — needs isAtWar filter. GUARDIAN_TRIBE = -1 (tribe<0).
+- PLAN: core/diplomacy.ts — relations: peaceUntil[a][b] (turn number), strength(s,tribe) =
+  unit power + stars + cities. offerPeace(from,to) / demandTribute(from,to,amount). AI accept model:
+  ratio = strength(to)/strength(from); peace accepted if AI weaker (ratio<1.15) or losing units;
+  tribute paid if much weaker (ratio<0.6); one action per rival per turn (diploUsed set per turn).
+  Peace blocks attack+capture between pairs (rules attackableUnits + captureCity guard + AI filters).
+  AI may offer peace to human when weak → incoming offer dialog. AI-AI always war (scope bound).
+  UI: DiplomacyPanel (button in BottomBar or TopBar), incoming offer modal, sfx reuse.
+- Replay: record compact entries {turn,tribe,kind,text,x?,y?} appended in recordReplay() capped 2000,
+  persisted in state.replay. GameOver "Watch Replay" → ReplayViewer overlay: prev/next/autoplay,
+  event feed + tile highlight via scene (bounded scope — no full time travel).
+- Daily: seed = YYYYMMDD number; newGame accepts seed (already!). Daily = fixed faction (dateHash%4),
+  difficulty normal, size 11, preset by hash. Menu Daily Challenge card; result recorded once per day in
+  polyforge-daily-v1 {date,score,outcome,victory}; Hall shows daily entries; repeat = practice (not saved).
+- v14 PROGRESS:
+  * DONE: core/diplomacy.ts created (strengthOf, atPeace/setPeace/peaceTurnsLeft, diploUsed/markDiploUsed,
+    grudges, aiAcceptsPeace ratio>1.4 refuses, aiPaysTribute ratio<0.6 pays TRIBUTE_AMOUNT=5,
+    aiWantsPeaceWith ratio<0.55, PEACE_TREATY_TURNS=6). types.ts: GameState += peaceUntil?, diploUsed?,
+    grudges?, incomingOffer?, replay?: ReplayEntry[], dailyDate?; ReplayEntry type added.
+  * NEXT: state.ts store actions offerPeace(to)/demandTribute(to) + respondToOffer(accept); enforce peace
+    in rules.ts attackableUnits (skip atPeace pairs; import diplomacy) + captureCity guard + breaking =
+    addGrudge + clear peace; AI: filter ai.ts targets/objectives for atPeace; aiWantsPeaceWith check at
+    AI turn start → s.incomingOffer={from,to:human} pause? NO — simpler: set incomingOffer, human resolves
+    at their turn start (non-blocking for AI). recordReplay() in state helpers + hook attack/capture/train/
+    tech/move(skip move? too noisy — only combat/capture/train/tech/diplo/turn); ReplayViewer UI; Daily.
+  * UI todo: DiplomacyPanel (TopBar button opens rivals list w/ strength hint + Offer Peace / Demand
+    Tribute buttons, one action per rival per turn), incoming offer modal at human turn start,
+    GameOver Watch Replay button, Menu Daily Challenge card + Hall daily entries.
+  * SCOPE EXPANDED by user mid-task: + weekly challenge (week seed, BEST score across attempts kept,
+    attempts counter), + 2 new tribes (Nerivane teal tide / Ordovai slate ancient, passives + unique
+    units, update ALL tribe-count-4 assumptions: mapgen capitals spacing, menu grid, hotseat picker,
+    FactionIntro INTROS, scene colors, TRIBE_DEFS len), + custom tribe forge (name/color/passive/perk
+    from existing parts, persisted polyforge-custom-tribe-v1, excluded from daily/weekly).
+  * Custom tribe design decision: TRIBE_DEFS stays static for the 6 built-ins; custom tribe implemented
+    as OVERRIDE at newGame time — replace tribe slot 0's def fields (name/color/passive) via opts.custom;
+    unique unit faction check needs mapping custom→chosen perk unit (store chosen unit type on Tribe).
+  * ROADMAP LOCKED (user): v14 (diplo+replay+daily/weekly+2 tribes+forge) → v15 graphics pass
+    (DefaultRenderingPipeline bloom/tonemap/FXAA, soft shadows, SSAO if perf, water shimmer, unit hop/
+    hit flash/dmg numbers/capture burst) → v16 (hero units w/ XP+perk choice, link-shareable challenges
+    ?c=seed.preset.size.faction&score=NNN no backend) → v17 (living map: barb camps/storms/awakening
+    guardians seeded-deterministic; asymmetric per-faction win paths). All in todo.md.
+  * + v18 ONLINE MULTIPLAYER (user: "must have"): full-stack upgrade (web-db-user), async turn-based
+    matches, real daily/weekly leaderboards. User will get back on monetization + identity/name later.
+    Design v16 share-links so they can plug into v18 leaderboards.
+  * + IMPOSSIBLE AI added to v17 (user): 4th tier, smarter-not-richer (threat maps, task forces,
+    2-3 turn lookahead, econ optimizer, faction-aware play, ~no star cheats). Separate brain module
+    selected by difficulty; existing easy/normal/hard unchanged. Hall tracks Impossible separately.
+    Post-v18 idea: Impossible win-rate leaderboard.
+  * + COALITIONS (user brainstorm): v14 gets AI↔AI truces vs common enemy (score leader) + human
+    "gift stars" action (3★, clears grudge/biases acceptance). v17 Impossible gets full coalition
+    coordination (staggered attacks, target dedup, opportunistic betrayal). Balance: coalitions punish
+    leader — counterplay = tribute/gifts to peel members off.
+  * DIPLO CORE COMPLETE (tsc clean): rules.ts attackableUnits+captureCity peace guards; state.ts actions
+    canDiplo/offerPeace/demandTribute/respondToOffer/giftStars/relationWith + recordReplay hooks (turn/
+    combat-kill/capture/train/tech/diplo); ai.ts runAiTurn: losing AI sues peace (sets s.incomingOffer),
+    coalition truces vs leader (1.5x threshold), objective peace filters; sound.ts "treaty" sfx.
+  * NEXT: Diplomacy UI in Hud.tsx (TopBar Diplomacy button → rivals panel using relationWith/canDiplo,
+    Offer Peace / Demand Tribute / Gift 3★ buttons w/ response toasts via sonner or inline), incoming
+    offer modal (s.incomingOffer, respondToOffer) — render in Home.tsx like other overlays, must show
+    at human turn start; treaty badge (dove/peace icon + turns left) near rival scores if visible.
+    THEN phase 2 replay viewer UI (GameOver "Watch Replay" → step feed w/ prev/next/autoplay).
+  * DIPLO UI DONE (tsc clean): ui/Diplomacy.tsx = DiplomacyPanel (rivals, strength label, 3 actions,
+    inline toast) + IncomingOfferModal (gated to human's own turn). Home.tsx mounts both; BottomBar
+    has Bird "Diplomacy" button (onOpenDiplo). PHASE 1 COMPLETE pending browser verify (do in phase 6).
+  * NEXT: PHASE 2 replay viewer — s.replay entries exist (turn/combat/capture/train/tech/diplo kinds,
+    recordReplay caps 2000). Build ui/Replay.tsx: GameOver "Watch Replay" button → overlay stepping
+    through entries (prev/next/autoplay 1.5s, turn grouping, tribe colors), reuse panel style.
+  * DIPLO STATE.TS DONE: imports diplomacy.ts; GameEvent sfx += "treaty"; newGame inits peaceUntil/
+    diploUsed/grudges/incomingOffer/replay; recordReplay() capped 2000; canDiplo/offerPeace/demandTribute/
+    respondToOffer/relationWith actions. rules.ts attackableUnits has peace filter.
+  * STILL NEEDED for diplo: sound.ts add "treaty" SfxName synth; emptyState() add diplo fields (NOT yet);
+    captureCity peace guard (block capturing cities of at-peace tribes? DECISION: yes, guard in
+    captureCity); breaking-peace path (attack impossible while at peace, so breaking = N/A unless we add
+    "declare war" — grudges apply if we later allow break; keep addGrudge import used or remove);
+    AI: ai.ts filter targets (attackableUnits already filters) + objectives (cities/units of at-peace
+    tribes) + aiWantsPeaceWith check in runAiTurn start → sets s.incomingOffer for human; beginTurn
+    replay "turn" entries + attack/capture/train/research recordReplay hooks; Hud diplomacy panel UI +
+    incoming offer modal; GameOver Watch Replay.
 - Key API notes: game.subscribe((e) => ...) returns unsub; combat event has attackerId (look up
   s.units.find for type==="catapult" for catapult sound — may be dead, check defenderDied/attackerDied);
   Menu.tsx has MainMenu + GameOver; Hud.tsx has TopBar (top-left pill) + BottomBar.
 - humanTribe currently single number s.humanTribe; hot-seat needs humanTribes: number[] approach —
   keep s.humanTribe as "current human" pointer to minimize refactor; isHuman flag on Tribe exists.
+  * PHASE 2 REPLAY DONE (tsc clean): ui/Replay.tsx = ReplayViewer (prev/next/autoplay 900ms, progress
+    bar, turn dividers, tribe-color entries, auto-scroll). GameOver (Menu.tsx) has "Watch Replay" btn
+    (shown when s.replay non-empty) + mounts <ReplayViewer>. recordReplay hooks verified: turn markers,
+    combat kills, captures, tech, train, all diplo actions. Browser-verify in phase 6.
+  * NEXT: PHASE 3 daily+weekly challenges. Plan: mapgen needs seeded RNG (check mapgen.ts for rng use);
+    challenge modes = fixed seed from date (UTC day / ISO week), fixed faction+preset+size+difficulty
+    derived from seed; menu "Challenges" section w/ Daily & Weekly cards; scores saved to
+    localStorage polyforge-challenge-v1 {daily:{seedKey,score,date},weekly:{...best-of-week}};
+    Hall of Conquest gets challenge tab or separate list; weekly = best score across attempts.
+  * PHASE 3 CHALLENGES DONE (pending tsc + browser verify): core/challenges.ts = dailyChallenge()/
+    weeklyChallenge() (FNV-1a hash of period key → seed; daily=11px/normal/UTC-day, weekly=13px/hard/
+    ISO-week; preset+faction rolled from seed; resetsIn countdown), recordChallengeScore keeps period
+    BEST + attempts in localStorage polyforge-challenges-v1. state.ts: newGame accepts challenge?:
+    ChallengeKind, onGameOver records score (base + (maxTurns-turn)*25 win speed bonus) →
+    game.newChallengeBest; recordVictory skips Hall for challenge runs. types.ts: GameState.challenge
+    (replaced stale dailyDate). Menu.tsx: 2-card Challenges grid above Hall (label/faction/preset/
+    size/difficulty/best/attempts/resets-in), startChallenge() passes fixed seed; GameOver shows
+    cyan "New best" / muted "below best" banner via currentScore().
+  * NEXT: PHASE 4 two new tribes (roster → 6): pick names/colors/passives/unique units; touch
+    types.ts TRIBE_DEFS + FactionPassive + UnitType (2 new uniques + UNIT_STATS w/ faction: 4,5),
+    rules.ts (passive hooks + unique rules), state.ts (unique behaviors like arcanist/raider),
+    ai.ts (unique usage), scene.ts (2 new unit meshes + tribe colors OK), FactionIntro.tsx lore,
+    Menu grid (grid-cols-2 → handles 6 fine), challenges faction roll 4→6. NOTE: TRIBE_DEFS is
+    `as const` — check newGame maps over TRIBE_DEFS.length everywhere; mapgen capitals use
+    tribeCount=TRIBE_DEFS.length → 6 capitals need map space; consider keeping 4 tribes per match
+    (pick 4 of 6) to avoid crowding — YES: matches stay 4 tribes; the roster is 6 choices.
+    Plan: newGame gains `roster?: number[]` (4 tribe-def indices, default [0,1,2,3]); tribes built
+    from roster; humanTribe = position in roster. Solo menu: pick any of 6 → roster = chosen + 3
+    others (random or fixed). Hot-seat: players pick from 6, fill AI from rest. Keep tribe.index =
+    slot position (existing logic safe), add tribe.defIndex for lore/uniques mapping.
+  * PHASE 4 NEW TRIBES — progress: types.ts DONE (TRIBE_DEFS now 6: +Nerivane #2dd4bf teal
+    passive tideborn "ports cost 1★, boats move +1" startTech sailing; +Dravok #a8763e ochre
+    passive stonebound "walls cost 2 less, city defenders +10% def" startTech shields;
+    UnitType +tidecaller (6★ hp10 atk2.5 def1.5 mv2 dash, faction:4, swims shallow water,
+    +30% atk from water) +bulwark (6★ hp18 atk1.5 def3 mv1 no-dash, faction:5, adjacent
+    allies −20% dmg); FactionPassive +tideborn+stonebound). rules.ts DONE (tidecaller water
+    moveCost 1, bulwarkShielded() exported helper, previewCombat dmg reduction + water atk
+    bonus, combatModifiers chips, stonebound city def ×1.1). scene.ts DONE (tidecaller mesh:
+    capsule+glow fin+trident; bulwark mesh: box+slab shield+merlons).
+  * PHASE 4 REMAINING: (a) state.ts: tideborn PORT_COST→1 & boat move +1 (BOAT_MOVEMENT in
+    rules.ts reachableTiles: `unit.boat ? BOAT_MOVEMENT + (tideborn?1:0)`), stonebound
+    WALL_COST→3 in buildWalls + Hud wall button cost display; check Hud shows PORT_COST/
+    WALL_COST constants directly (grep in Hud.tsx). (b) DECISION MADE: matches stay 4 tribes,
+    roster of 6 choices. newGame gains roster?: number[] (4 def-indices, default [0,1,2,3]);
+    tribes built from roster def; humanTribe = roster position. generateMap(tribeCount=4)
+    unchanged. Tribe gains defIndex field (types.ts) for uniques/lore. UNIT_STATS faction:
+    4/5 = DEF index → trainableUnits must compare vs tribes[tribe].defIndex (rules.ts:247)
+    and ai.ts:104 same. arcanist/berserker etc faction 0-3 also become def-indices — OK since
+    default roster keeps positions equal. challenges.ts faction roll stays 0-3 core (fine) or
+    extend to 6 w/ roster incl. picked. (c) Menu.tsx: solo grid maps over 6 TRIBE_DEFS,
+    faction=defIndex; roster = [picked, ...3 random others]; hotseat: players pick defIndices,
+    map to roster. FactionIntro.tsx INTROS indexed by defIndex (add 2 entries: Nerivane lore
+    tide-folk of drowned coast cities; Dravok stone-forged caravan folk of the ochre canyons).
+    (d) ai.ts unique check uses defIndex; AI trains tidecaller near water, bulwark for defense.
+    (e) sound: no new sfx needed. (f) tsc + verify in phase 6.

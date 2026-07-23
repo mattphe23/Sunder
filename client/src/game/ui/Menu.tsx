@@ -10,8 +10,14 @@ import { Swords, Star, Play, Trophy, ChevronDown } from "lucide-react";
 import { Users, User } from "lucide-react";
 import { Award, Shield, Flag, Zap, Landmark, Skull, Coins, Flame, Lock } from "lucide-react";
 import { ACHIEVEMENTS, loadAchievements, AchievementDef } from "../core/achievements";
+import { dailyChallenge, weeklyChallenge, currentScore, ChallengeSetup } from "../core/challenges";
+import { CalendarDays, Repeat } from "lucide-react";
 import { MuteButton } from "./MuteButton";
 import { sound } from "../sound";
+import { ReplayViewer } from "./Replay";
+import { TribeForge } from "./TribeForge";
+import { loadCustomTribe, CustomTribeConfig, CUSTOM_DEF_INDEX } from "../core/customTribe";
+import { Hammer } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip as RTooltip, ResponsiveContainer,
@@ -87,9 +93,17 @@ export function MainMenu() {
   const [hall] = useState(() => loadHall());
   const [achOpen, setAchOpen] = useState(false);
   const [achievements] = useState(() => loadAchievements());
+  const [daily] = useState(() => dailyChallenge());
+  const [weekly] = useState(() => weeklyChallenge());
+  const dailyBest = currentScore("daily");
+  const weeklyBest = currentScore("weekly");
   const [slot, setSlot] = useState(() => game.activeSlot);
   const slots = game.slotSummaries();
-  const tribe = TRIBE_DEFS[faction];
+  const [forgeOpen, setForgeOpen] = useState(false);
+  const [custom, setCustom] = useState<CustomTribeConfig | null>(() => loadCustomTribe());
+  const tribe = faction === CUSTOM_DEF_INDEX && custom
+    ? { name: custom.name, color: custom.color }
+    : TRIBE_DEFS[Math.min(faction, TRIBE_DEFS.length - 1)];
   const saved = game.savedSummary();
   const hallCount = (["easy", "normal", "hard"] as Difficulty[]).reduce((n, d) => n + (hall[d]?.length ?? 0), 0);
   const pickSlot = (n: 1 | 2 | 3) => {
@@ -105,11 +119,31 @@ export function MainMenu() {
   };
   const startGame = () => {
     sound.play("click");
-    if (mode === "hotseat") {
-      g.newGame({ size, humanTribe: Math.min(...players), difficulty, preset, humanTribes: players });
-    } else {
-      g.newGame({ size, humanTribe: faction, difficulty, preset });
+    // Roster: 4 of the 6 tribes play a match. Humans keep their picked defs;
+    // AI slots are filled from remaining defs at random for match variety.
+    const humanDefs = mode === "hotseat" ? [...players] : [faction];
+    const rest = TRIBE_DEFS.map((_, i) => i).filter((i) => !humanDefs.includes(i) && i !== CUSTOM_DEF_INDEX);
+    for (let i = rest.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [rest[i], rest[j]] = [rest[j], rest[i]];
     }
+    // custom tribe (defIndex CUSTOM_DEF_INDEX) occupies a roster slot; its def is injected in newGame
+    const roster = [...humanDefs, ...rest].slice(0, 4).map((d) => (d === CUSTOM_DEF_INDEX ? 0 : d));
+    const customSlot = [...humanDefs, ...rest].slice(0, 4).indexOf(CUSTOM_DEF_INDEX);
+    const humanSlots = humanDefs.map((d) => [...humanDefs, ...rest].slice(0, 4).indexOf(d)).sort((a, b) => a - b);
+    const customOpt = customSlot >= 0 && custom ? { slot: customSlot, config: custom } : undefined;
+    if (mode === "hotseat") {
+      g.newGame({ size, humanTribe: humanSlots[0], difficulty, preset, humanTribes: humanSlots, roster, custom: customOpt });
+    } else {
+      g.newGame({ size, humanTribe: humanSlots[0], difficulty, preset, roster, custom: customOpt });
+    }
+  };
+  const startChallenge = (c: ChallengeSetup) => {
+    sound.play("click");
+    g.newGame({
+      size: c.size, humanTribe: c.faction, difficulty: c.difficulty,
+      seed: c.seed, preset: c.preset, challenge: c.kind,
+    });
   };
 
   return (
@@ -206,6 +240,50 @@ export function MainMenu() {
                 <p className="text-[11px] leading-snug text-slate-300">{t.passiveDesc}</p>
               </button>
             ))}
+            {/* Tribe Forge — custom tribe card */}
+            {custom ? (
+              <button
+                onClick={() => (mode === "solo" ? setFaction(CUSTOM_DEF_INDEX) : togglePlayer(CUSTOM_DEF_INDEX))}
+                className={`relative overflow-hidden rounded-md border-l-4 p-3 text-left transition-all duration-150 active:scale-[0.97] ${(mode === "solo" ? faction === CUSTOM_DEF_INDEX : players.includes(CUSTOM_DEF_INDEX)) ? "bg-white/10" : "bg-white/[0.04] hover:bg-white/10"}`}
+                style={{
+                  borderLeftColor: custom.color,
+                  boxShadow: (mode === "solo" ? faction === CUSTOM_DEF_INDEX : players.includes(CUSTOM_DEF_INDEX)) ? `0 0 18px ${custom.color}44, inset 0 0 0 1px ${custom.color}66` : "inset 0 0 0 1px rgba(255,255,255,0.08)",
+                }}
+              >
+                {(mode === "solo" ? faction === CUSTOM_DEF_INDEX : players.includes(CUSTOM_DEF_INDEX)) && (
+                  <Spark className="absolute right-2 top-2 h-3 w-3" style={{ color: custom.color }} />
+                )}
+                {mode === "hotseat" && players.includes(CUSTOM_DEF_INDEX) && (
+                  <span className="absolute bottom-2 right-2 rounded bg-white/15 px-1.5 py-0.5 font-mono text-[9px] font-bold text-white">P{players.indexOf(CUSTOM_DEF_INDEX) + 1}</span>
+                )}
+                <div className="mb-1 flex items-center gap-2">
+                  <span className="h-3 w-3 rotate-45" style={{ background: custom.color, boxShadow: `0 0 8px ${custom.color}` }} />
+                  <span className="font-display text-sm font-extrabold tracking-wide text-white">{custom.name}</span>
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => { e.stopPropagation(); sound.play("click"); setForgeOpen(true); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); setForgeOpen(true); } }}
+                    className="ml-auto rounded p-0.5 text-slate-400 hover:bg-white/10 hover:text-white"
+                    aria-label="Edit custom tribe"
+                  >
+                    <Hammer className="h-3 w-3" />
+                  </span>
+                </div>
+                <p className="text-[11px] leading-snug text-slate-300">Forged — your custom tribe</p>
+              </button>
+            ) : (
+              <button
+                onClick={() => { sound.play("click"); setForgeOpen(true); }}
+                className="relative flex flex-col items-start justify-center gap-1 rounded-md border border-dashed border-amber-400/40 bg-amber-400/[0.06] p-3 text-left transition-all duration-150 hover:bg-amber-400/10 active:scale-[0.97]"
+              >
+                <div className="flex items-center gap-2">
+                  <Hammer className="h-3.5 w-3.5 text-amber-300" />
+                  <span className="font-display text-sm font-extrabold tracking-wide text-amber-200">Tribe Forge</span>
+                </div>
+                <p className="text-[11px] leading-snug text-slate-400">Create your own tribe — pick a passive, signature unit & banner</p>
+              </button>
+            )}
           </div>
 
           <div className="mt-4 grid w-full grid-cols-2 gap-4">
@@ -304,6 +382,32 @@ export function MainMenu() {
 
         {/* Hall of Conquest — best victories per difficulty */}
         <div className="mt-3 w-full">
+          {/* Challenges — shared seeded maps: daily sprint & weekly optimization */}
+          <div className="mb-1 grid w-full grid-cols-2 gap-1.5">
+            {([
+              [daily, dailyBest, CalendarDays, "text-cyan-300", "border-cyan-400/30", "Daily Challenge"],
+              [weekly, weeklyBest, Repeat, "text-violet-300", "border-violet-400/30", "Weekly Challenge"],
+            ] as const).map(([c, best, Icon, iconCls, borderCls, title]) => (
+              <button
+                key={c.kind}
+                onClick={() => startChallenge(c)}
+                className={`rounded-lg border ${borderCls} bg-white/[0.04] p-2.5 text-left transition-colors hover:bg-white/10 active:scale-[0.97]`}
+              >
+                <span className="flex items-center gap-1.5 font-display text-[11px] font-bold uppercase tracking-wider text-slate-200">
+                  <Icon className={`h-3.5 w-3.5 ${iconCls}`} /> {title}
+                </span>
+                <span className="mt-1 block text-[10px] leading-tight text-slate-400">
+                  {c.label} · {TRIBE_DEFS[c.faction].name} · {c.preset} {c.size}×{c.size} · {c.difficulty}
+                </span>
+                <span className="mt-1 flex items-center justify-between text-[10px]">
+                  <span className={best ? "font-mono font-bold text-amber-300" : "text-slate-500"}>
+                    {best ? `Best ${best.score}${c.kind === "weekly" ? ` · ${best.attempts} tries` : ""}` : "Not attempted"}
+                  </span>
+                  <span className="text-slate-500">resets {c.resetsIn}</span>
+                </span>
+              </button>
+            ))}
+          </div>
           <button
             onClick={() => setHallOpen(!hallOpen)}
             className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 font-display text-xs font-bold uppercase tracking-[0.2em] text-slate-300 transition-colors hover:bg-white/10 active:scale-[0.98]"
@@ -371,6 +475,12 @@ export function MainMenu() {
           Capture all rival capitals — or lead in score when turn 30 ends. Every faction is free and fair.
         </p>
       </div>
+      {forgeOpen && (
+        <TribeForge
+          onClose={() => { setForgeOpen(false); setCustom(loadCustomTribe()); if (!loadCustomTribe()) { if (faction === CUSTOM_DEF_INDEX) setFaction(0); setPlayers((p) => p.filter((x) => x !== CUSTOM_DEF_INDEX).length >= 2 ? p.filter((x) => x !== CUSTOM_DEF_INDEX) : [0, 1]); } }}
+          onSaved={(c) => { setCustom(c); setForgeOpen(false); if (mode === "solo") setFaction(CUSTOM_DEF_INDEX); }}
+        />
+      )}
     </div>
   );
 }
@@ -378,6 +488,7 @@ export function MainMenu() {
 export function GameOver() {
   const g = useGame();
   const s = g.state;
+  const [replayOpen, setReplayOpen] = useState(false);
   const winner = s.winner !== null ? s.tribes[s.winner] : null;
   const hotseat = (s.humanTribes?.length ?? 1) > 1;
   const won = hotseat
@@ -415,6 +526,14 @@ export function GameOver() {
         {won && game.newHallEntry && (
           <p className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-amber-400/50 bg-amber-400/15 px-3 py-1 text-[11px] font-bold text-amber-300">
             <Trophy className="h-3 w-3" /> New Hall of Conquest record!
+          </p>
+        )}
+        {s.challenge && (
+          <p className={`mt-2 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold ${game.newChallengeBest ? "border-cyan-400/50 bg-cyan-400/15 text-cyan-300" : "border-white/15 bg-white/5 text-slate-300"}`}>
+            {s.challenge === "daily" ? <CalendarDays className="h-3 w-3" /> : <Repeat className="h-3 w-3" />}
+            {game.newChallengeBest
+              ? `New ${s.challenge} challenge best: ${currentScore(s.challenge)?.score ?? "—"}!`
+              : `${s.challenge === "daily" ? "Daily" : "Weekly"} score: below your best (${currentScore(s.challenge)?.score ?? "—"})`}
           </p>
         )}
         {game.newAchievements.length > 0 && (
@@ -531,10 +650,22 @@ export function GameOver() {
             </table>
           </div>
         )}
-        <Button onClick={() => g.toMenu()} className="mt-5 w-full bg-amber-400 font-display font-black tracking-wider text-[#1b1b3f] shadow-[0_0_24px_rgba(255,185,56,0.35)] hover:bg-amber-300">
-          Play Again
-        </Button>
+        <div className="mt-5 flex gap-2">
+          {(s.replay?.length ?? 0) > 0 && (
+            <Button
+              variant="secondary"
+              onClick={() => { sound.play("click"); setReplayOpen(true); }}
+              className="flex-1 border border-cyan-400/40 bg-cyan-400/10 font-display font-bold tracking-wide text-cyan-200 hover:bg-cyan-400/20"
+            >
+              Watch Replay
+            </Button>
+          )}
+          <Button onClick={() => g.toMenu()} className="flex-1 bg-amber-400 font-display font-black tracking-wider text-[#1b1b3f] shadow-[0_0_24px_rgba(255,185,56,0.35)] hover:bg-amber-300">
+            Play Again
+          </Button>
+        </div>
       </div>
+      <ReplayViewer open={replayOpen} onClose={() => setReplayOpen(false)} />
     </div>
   );
 }

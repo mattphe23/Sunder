@@ -5,23 +5,28 @@ import { generateMap, claimBorders, rng, MapPreset } from "./mapgen";
 import {
   GameState, Tribe, Unit, UnitType, UNIT_STATS, TRIBE_DEFS, TechId,
   Difficulty, idx, PORT_COST, WALL_COST, TECHS, RecapEntry, GUARDIAN_TRIBE,
-  emptyStats,
+  emptyStats, ReplayEntry,
 } from "./types";
 import {
   reachableTiles, attackableUnits, previewCombat, combatModifiers, techCost, canResearch,
   canHarvest, harvestCost, starIncome, tileAt, unitAt, cityAt, trainableUnits,
-  POP_PER_LEVEL, canBuildPort,
+  POP_PER_LEVEL, canBuildPort, portCost, wallCost,
 } from "./rules";
 import { runAiTurn } from "./ai";
 import { evaluateAchievements, AchievementDef } from "./achievements";
-
+import {
+  atPeace, setPeace, peaceTurnsLeft, diploUsed, markDiploUsed, addGrudge,
+  strengthOf, aiAcceptsPeace, aiPaysTribute, aiWantsPeaceWith, PEACE_TREATY_TURNS, TRIBUTE_AMOUNT,
+} from "./diplomacy";
+import { ChallengeKind, recordChallengeScore } from "./challenges";
+import { CustomTribeConfig, customTribeDef, CUSTOM_DEF_INDEX } from "./customTribe";
 export type GameEvent =
   | { type: "changed" }
   | { type: "unitMoved"; unitId: number; fromX: number; fromY: number; toX: number; toY: number }
   | { type: "combat"; attackerId: number; defenderId: number; dmg: number; retaliation: number; defenderDied: boolean; attackerDied: boolean; ax: number; ay: number; dx: number; dy: number }
   | { type: "captured"; cityId: number; tribe: number }
   | { type: "turnStarted"; tribe: number }
-  | { type: "sfx"; name: "plunder" | "heal" | "promote" | "ruin" | "victory" | "defeat" | "catapult" };
+  | { type: "sfx"; name: "plunder" | "heal" | "promote" | "ruin" | "victory" | "defeat" | "catapult" | "treaty" };
 
 type Listener = (e: GameEvent) => void;
 const SAVE_KEY = "polyforge-save-v1";
@@ -155,6 +160,8 @@ class GameStore {
       if (!raw) return false;
       const s = JSON.parse(raw) as GameState;
       if (!s || s.phase !== "playing" || !Array.isArray(s.tiles) || s.tiles.length === 0) return false;
+      // legacy saves predate the 6-tribe roster: defIndex mirrors slot index
+      for (const t of s.tribes) if (t.defIndex === undefined) t.defIndex = t.index;
       s.selectedUnitId = null;
       s.selectedCityId = null;
       s.aiThinking = false;
@@ -181,24 +188,32 @@ class GameStore {
 
   // ---------- lifecycle ----------
 
-  newGame(opts: { size: number; humanTribe: number; difficulty: Difficulty; seed?: number; preset?: MapPreset; humanTribes?: number[] }) {
+  newGame(opts: { size: number; humanTribe: number; difficulty: Difficulty; seed?: number; preset?: MapPreset; humanTribes?: number[]; challenge?: ChallengeKind; roster?: number[]; custom?: { slot: number; config: CustomTribeConfig } }) {
     const seed = opts.seed ?? Math.floor(Math.random() * 2 ** 31);
     const preset: MapPreset = opts.preset ?? "continents";
     const humans = opts.humanTribes && opts.humanTribes.length > 0 ? [...opts.humanTribes].sort((a, b) => a - b) : [opts.humanTribe];
-    const { tiles, cities } = generateMap(opts.size, seed, TRIBE_DEFS.length, preset);
-    const tribes: Tribe[] = TRIBE_DEFS.map((d, i) => ({
-      index: i,
-      name: d.name,
-      color: d.color,
-      colorName: d.colorName,
-      passive: d.passive,
-      passiveDesc: d.passiveDesc,
-      isHuman: humans.includes(i),
-      stars: 5,
-      techs: [d.startTech],
-      alive: true,
-      score: 0,
-    }));
+    // roster: which 4 of the 6 TRIBE_DEFS play this match (slot i is def roster[i])
+    const roster = opts.roster && opts.roster.length === 4 ? opts.roster : [0, 1, 2, 3];
+    const { tiles, cities } = generateMap(opts.size, seed, roster.length, preset);
+    const tribes: Tribe[] = roster.map((di, i) => {
+      const isCustom = !!opts.custom && opts.custom.slot === i;
+      const d = isCustom ? customTribeDef(opts.custom!.config) : TRIBE_DEFS[di];
+      return {
+        index: i,
+        defIndex: isCustom ? CUSTOM_DEF_INDEX : di,
+        customUnique: isCustom ? opts.custom!.config.uniqueUnit : undefined,
+        name: d.name,
+        color: d.color,
+        colorName: d.colorName,
+        passive: d.passive,
+        passiveDesc: d.passiveDesc,
+        isHuman: humans.includes(i),
+        stars: 5,
+        techs: [d.startTech as TechId],
+        alive: true,
+        score: 0,
+      };
+    });
     const units: Unit[] = [];
     let nextUnitId = 1;
     for (const c of cities) {
@@ -220,6 +235,7 @@ class GameStore {
       size: opts.size,
       seed,
       preset,
+      challenge: opts.challenge,
       showIntro: humans.length === 1,
       difficulty: opts.difficulty,
       tribes,
@@ -233,6 +249,11 @@ class GameStore {
       currentTribe: 0,
     };
     this.state.stats = tribes.map(() => emptyStats());
+    this.state.peaceUntil = {};
+    this.state.diploUsed = [];
+    this.state.grudges = [];
+    this.state.incomingOffer = null;
+    this.state.replay = [];
     this.exploreAround();
     this.beginTurn(0);
     this.emit({ type: "changed" });
@@ -264,6 +285,7 @@ class GameStore {
     if (tribeIdx === 0) {
       for (const t of s.tribes) this.updateScore(t.index);
       s.scoreHistory[s.turn] = s.tribes.map((t) => (t.alive ? t.score : 0));
+      this.recordReplay({ tribe: 0, kind: "turn", text: `Turn ${s.turn + 1} begins` });
     }
     // turn replay: show what rivals did while the human waited
     if (!hotseat && tribe.isHuman && s.recap.length > 0) {
@@ -425,6 +447,112 @@ class GameStore {
   dismissIntro() {
     this.state.showIntro = false;
     this.emit({ type: "changed" });
+  }
+
+  // ---------- replay recording ----------
+
+  /** append a compact entry to the match replay log (capped to protect save size) */
+  recordReplay(e: Omit<ReplayEntry, "turn">) {
+    const s = this.state;
+    if (!s.replay) s.replay = [];
+    s.replay.push({ turn: s.turn + 1, ...e });
+    if (s.replay.length > 2000) s.replay.splice(0, s.replay.length - 2000);
+  }
+
+  // ---------- diplomacy ----------
+
+  /** can the current human take a diplomatic action toward `other` this turn? */
+  canDiplo(other: number): boolean {
+    const s = this.state;
+    if (s.phase !== "playing" || s.currentTribe !== s.humanTribe) return false;
+    if (other === s.humanTribe || !s.tribes[other]?.alive) return false;
+    if (s.tribes[other].isHuman) return false; // human↔human diplomacy not in scope
+    return !diploUsed(s, s.humanTribe, other);
+  }
+
+  /** human offers a peace treaty to an AI rival */
+  offerPeace(other: number): { accepted: boolean; reason: string } | null {
+    const s = this.state;
+    if (!this.canDiplo(other)) return null;
+    if (atPeace(s, s.humanTribe, other)) return null;
+    markDiploUsed(s, s.humanTribe, other);
+    const res = aiAcceptsPeace(s, other, s.humanTribe);
+    if (res.accept) {
+      setPeace(s, s.humanTribe, other, s.turn + PEACE_TREATY_TURNS);
+      s.log.unshift(`Peace treaty signed with ${s.tribes[other].name} (${PEACE_TREATY_TURNS} turns).`);
+      this.recordReplay({ tribe: s.humanTribe, kind: "diplo", text: `Peace signed: ${s.tribes[s.humanTribe].name} & ${s.tribes[other].name}` });
+      this.emit({ type: "sfx", name: "treaty" });
+    } else {
+      s.log.unshift(`${s.tribes[other].name} rejected the peace offer.`);
+      this.recordReplay({ tribe: s.humanTribe, kind: "diplo", text: `${s.tribes[other].name} rejected ${s.tribes[s.humanTribe].name}'s peace offer` });
+    }
+    this.emit({ type: "changed" });
+    return { accepted: res.accept, reason: res.reason };
+  }
+
+  /** human demands tribute (stars) from an AI rival */
+  demandTribute(other: number): { paid: boolean; amount: number; reason: string } | null {
+    const s = this.state;
+    if (!this.canDiplo(other)) return null;
+    markDiploUsed(s, s.humanTribe, other);
+    const res = aiPaysTribute(s, other, s.humanTribe);
+    if (res.pay) {
+      s.tribes[other].stars -= res.amount;
+      s.tribes[s.humanTribe].stars += res.amount;
+      this.bumpStat(s.humanTribe, "starsEarned", res.amount);
+      s.log.unshift(`${s.tribes[other].name} paid ${res.amount}★ in tribute!`);
+      this.recordReplay({ tribe: s.humanTribe, kind: "diplo", text: `${s.tribes[other].name} paid ${res.amount}★ tribute to ${s.tribes[s.humanTribe].name}` });
+      this.emit({ type: "sfx", name: "plunder" });
+    } else {
+      s.log.unshift(`${s.tribes[other].name} refused to pay tribute.`);
+      this.recordReplay({ tribe: s.humanTribe, kind: "diplo", text: `${s.tribes[other].name} refused ${s.tribes[s.humanTribe].name}'s tribute demand` });
+    }
+    this.emit({ type: "changed" });
+    return { paid: res.pay, amount: res.amount, reason: res.reason };
+  }
+
+  /** human answers an incoming AI peace offer */
+  respondToOffer(accept: boolean) {
+    const s = this.state;
+    const offer = s.incomingOffer;
+    if (!offer) return;
+    s.incomingOffer = null;
+    if (accept) {
+      setPeace(s, offer.to, offer.from, s.turn + PEACE_TREATY_TURNS);
+      s.log.unshift(`Peace treaty signed with ${s.tribes[offer.from].name} (${PEACE_TREATY_TURNS} turns).`);
+      this.recordReplay({ tribe: offer.from, kind: "diplo", text: `Peace signed: ${s.tribes[offer.from].name} & ${s.tribes[offer.to].name}` });
+      this.emit({ type: "sfx", name: "treaty" });
+    } else {
+      s.log.unshift(`You rejected ${s.tribes[offer.from].name}'s peace offer.`);
+      this.recordReplay({ tribe: offer.to, kind: "diplo", text: `${s.tribes[offer.to].name} rejected ${s.tribes[offer.from].name}'s peace offer` });
+    }
+    this.emit({ type: "changed" });
+  }
+
+  /** human gifts stars to an AI rival — clears a grudge and warms relations */
+  giftStars(other: number, amount = 3): boolean {
+    const s = this.state;
+    if (!this.canDiplo(other)) return false;
+    if (s.tribes[s.humanTribe].stars < amount) return false;
+    markDiploUsed(s, s.humanTribe, other);
+    s.tribes[s.humanTribe].stars -= amount;
+    s.tribes[other].stars += amount;
+    // clear any grudge the recipient holds against the giver
+    s.grudges = (s.grudges ?? []).filter((g) => !(g.holder === other && g.against === s.humanTribe));
+    s.log.unshift(`You gifted ${amount}★ to ${s.tribes[other].name}. Relations warm.`);
+    this.recordReplay({ tribe: s.humanTribe, kind: "diplo", text: `${s.tribes[s.humanTribe].name} gifted ${amount}★ to ${s.tribes[other].name}` });
+    this.emit({ type: "changed" });
+    return true;
+  }
+
+  /** UI helpers for the diplomacy panel */
+  relationWith(other: number): { atPeace: boolean; turnsLeft: number; strengthRatio: number } {
+    const s = this.state;
+    return {
+      atPeace: atPeace(s, s.humanTribe, other),
+      turnsLeft: peaceTurnsLeft(s, s.humanTribe, other),
+      strengthRatio: strengthOf(s, other) / Math.max(1, strengthOf(s, s.humanTribe)),
+    };
   }
 
   /** hot-seat: the next player has taken the device and reveals their board */
@@ -627,6 +755,7 @@ class GameStore {
       defenderDied = true;
       this.bumpStat(a.tribe, "battlesWon");
       this.bumpStat(d.tribe, "unitsLost");
+      this.recordReplay({ tribe: a.tribe, kind: "combat", text: `${s.tribes[a.tribe]?.name ?? "Guardian"} ${UNIT_STATS[a.type].name} destroyed ${s.tribes[d.tribe]?.name ?? "Guardian"} ${UNIT_STATS[d.type].name}` });
       // Vessari Raider: plunders 2 stars from the victim's coffers on every kill
       if (a.type === "raider" && d.tribe >= 0) {
         const victim = s.tribes[d.tribe];
@@ -687,8 +816,9 @@ class GameStore {
     const tribeIdx = s.currentTribe;
     const t = tileAt(s, x, y);
     if (!canBuildPort(s, tribeIdx, t)) return;
-    if (s.tribes[tribeIdx].stars < PORT_COST) return;
-    s.tribes[tribeIdx].stars -= PORT_COST;
+    const cost = portCost(s, tribeIdx);
+    if (s.tribes[tribeIdx].stars < cost) return;
+    s.tribes[tribeIdx].stars -= cost;
     t.port = tribeIdx;
     s.log.unshift(`${s.tribes[tribeIdx].name} built a port.`);
     this.emit({ type: "changed" });
@@ -701,8 +831,9 @@ class GameStore {
     const tribeIdx = s.currentTribe;
     if (!city || city.tribe !== tribeIdx) return;
     if (city.walls || city.level < 3) return;
-    if (s.tribes[tribeIdx].stars < WALL_COST) return;
-    s.tribes[tribeIdx].stars -= WALL_COST;
+    const wcost = wallCost(s, tribeIdx);
+    if (s.tribes[tribeIdx].stars < wcost) return;
+    s.tribes[tribeIdx].stars -= wcost;
     city.walls = true;
     s.log.unshift(`${city.name} raised city walls!`);
     this.emit({ type: "changed" });
@@ -718,6 +849,8 @@ class GameStore {
     if (!u) return;
     const city = cityAt(s, u.x, u.y);
     if (!city || city.tribe === u.tribe) return;
+    // diplomacy: cannot seize cities of a tribe you are at peace with
+    if (city.tribe !== null && u.tribe >= 0 && atPeace(s, u.tribe, city.tribe)) return;
     const wasCapital = city.isCapital;
     const prevOwner = city.tribe;
     city.tribe = u.tribe;
@@ -728,6 +861,7 @@ class GameStore {
     this.bumpStat(u.tribe, "citiesCaptured");
     if (wasCapital) this.bumpStat(u.tribe, "capitalsCaptured");
     city.walls = false; // walls are torn down when a city falls
+    this.recordReplay({ tribe: u.tribe, kind: "capture", text: `${s.tribes[u.tribe].name} captured ${city.name}` });
     this.emit({ type: "captured", cityId: city.id, tribe: u.tribe });
     if (u.tribe !== s.humanTribe) {
       const kind: RecapEntry["kind"] = prevOwner === s.humanTribe ? "cityLost" : "capture";
@@ -763,6 +897,7 @@ class GameStore {
     s.tribes[tribeIdx].stars -= techCost(s, tribeIdx, tech);
     s.tribes[tribeIdx].techs.push(tech);
     this.bumpStat(tribeIdx, "techsResearched");
+    this.recordReplay({ tribe: tribeIdx, kind: "tech", text: `${s.tribes[tribeIdx].name} researched ${TECHS.find((t) => t.id === tech)?.name ?? tech}` });
     this.emit({ type: "changed" });
   }
 
@@ -779,6 +914,7 @@ class GameStore {
     const u = makeUnit(s.nextUnitId++, type, tribeIdx, city.x, city.y);
     u.moved = true; u.attacked = true; // freshly trained units act next turn
     s.units.push(u);
+    this.recordReplay({ tribe: tribeIdx, kind: "train", text: `${s.tribes[tribeIdx].name} trained a ${stats.name} in ${city.name}` });
     this.exploreAround();
     this.emit({ type: "changed" });
   }
@@ -850,8 +986,20 @@ class GameStore {
 
   /** feats unlocked by the game that just ended (shown on the game-over screen) */
   newAchievements: AchievementDef[] = [];
+  /** whether the challenge run that just ended set a new period best */
+  newChallengeBest = false;
   private onGameOver() {
     this.newAchievements = evaluateAchievements(this.state);
+    this.newChallengeBest = false;
+    const s = this.state;
+    if (s.challenge && (s.humanTribes?.length ?? 1) === 1) {
+      this.updateScore(s.humanTribe);
+      const won = s.winner === s.humanTribe;
+      // challenge scoring: end-of-match score plus a speed bonus for winning early
+      const base = s.tribes[s.humanTribe]?.score ?? 0;
+      const speedBonus = won ? Math.max(0, (s.maxTurns - s.turn) * 25) : 0;
+      this.newChallengeBest = recordChallengeScore(s.challenge, base + speedBonus, won, Math.max(1, s.turn));
+    }
   }
 
   /** Hall of Conquest: persist the human's victory; keep best 5 per difficulty */
@@ -860,6 +1008,8 @@ class GameStore {
     const s = this.state;
     this.newHallEntry = false;
     if (s.winner === null || !(s.humanTribes ?? [s.humanTribe]).includes(s.winner)) return;
+    // challenge runs live on their own best-score board, not the Hall ladder
+    if (s.challenge) return;
     // hot-seat wins don't enter the solo Hall of Conquest ladder
     if ((s.humanTribes?.length ?? 1) > 1) return;
     s.humanTribe = s.winner;

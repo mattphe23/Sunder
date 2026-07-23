@@ -48,7 +48,10 @@ export type UnitType =
   | "arcanist" // Auren — ranged mystic; adjacent friendly units heal +2 HP at turn start
   | "berserker" // Kharzul — brutal melee; +50% damage vs already-wounded targets, low defense
   | "warden" // Sunwei — mountain sentinel; free mountain movement, strong defense on mountains
-  | "raider"; // Vessari — fast cavalry; steals 2 stars from the enemy on every kill
+  | "raider" // Vessari — fast cavalry; steals 2 stars from the enemy on every kill
+  // v14 tribes
+  | "tidecaller" // Nerivane — amphibious skirmisher; moves on water without boats, +attack from water
+  | "bulwark"; // Dravok — living rampart; adjacent friendly units take 20% less damage
 
 export interface UnitStats {
   name: string;
@@ -95,6 +98,16 @@ export const UNIT_STATS: Record<UnitType, UnitStats> = {
     name: "Raider", cost: 6, hp: 10, attack: 2.5, defense: 1, movement: 3, range: 1, dash: true,
     tech: "riding", faction: 3,
     perk: "Plunders 2 stars from the enemy on every kill",
+  },
+  tidecaller: {
+    name: "Tidecaller", cost: 6, hp: 10, attack: 2.5, defense: 1.5, movement: 2, range: 1, dash: true,
+    tech: "sailing", faction: 4,
+    perk: "Swims shallow water without boats; +30% attack when striking from water",
+  },
+  bulwark: {
+    name: "Bulwark", cost: 6, hp: 18, attack: 1.5, defense: 3, movement: 1, range: 1, dash: false,
+    tech: "shields", faction: 5,
+    perk: "Adjacent allies take 20% less damage while it stands",
   },
 };
 
@@ -171,10 +184,12 @@ export const WALL_COST = 5;
 /** defense multiplier for a defender garrisoned in a walled city (vs 1.5 for unwalled city) */
 export const WALL_DEFENSE_BONUS = 2.0;
 
-export type FactionPassive = "scholars" | "forgeborn" | "harvesters" | "outriders";
+export type FactionPassive = "scholars" | "forgeborn" | "harvesters" | "outriders" | "tideborn" | "stonebound";
 
 export interface Tribe {
   index: number;
+  defIndex: number; // index into TRIBE_DEFS (roster identity — matches use 4 of the 6 defs)
+  customUnique?: UnitType; // Tribe Forge: overrides the def-keyed unique unit
   name: string;
   color: string; // hex
   colorName: string;
@@ -192,6 +207,8 @@ export const TRIBE_DEFS = [
   { name: "Kharzul", color: "#e04747", colorName: "Crimson", passive: "forgeborn" as FactionPassive, passiveDesc: "Forgeborn — units deal +15% attack damage", startTech: "hunting" as TechId },
   { name: "Sunwei", color: "#ffb938", colorName: "Amber", passive: "harvesters" as FactionPassive, passiveDesc: "Harvesters — harvesting resources costs 1 less star", startTech: "climbing" as TechId },
   { name: "Vessari", color: "#9d5ce8", colorName: "Violet", passive: "outriders" as FactionPassive, passiveDesc: "Outriders — all units gain +1 movement on grass", startTech: "riding" as TechId },
+  { name: "Nerivane", color: "#2dd4bf", colorName: "Tidal Teal", passive: "tideborn" as FactionPassive, passiveDesc: "Tideborn — ports cost 1 star and boats move +1", startTech: "sailing" as TechId },
+  { name: "Dravok", color: "#a8763e", colorName: "Ochre", passive: "stonebound" as FactionPassive, passiveDesc: "Stonebound — city walls cost 2 less and defenders in cities gain +10% defense", startTech: "shields" as TechId },
 ] as const;
 
 export type Phase = "menu" | "playing" | "gameover";
@@ -266,6 +283,28 @@ export interface GameState {
   scoreHistory: number[][];
   /** per-tribe running match statistics (index = tribe index) */
   stats: TribeStats[];
+  /** diplomacy: peaceUntil[a][b] = turn until which the pair is at peace (symmetric) */
+  peaceUntil?: Record<number, Record<number, number>>;
+  /** diplomacy: one diplomatic action per rival per turn */
+  diploUsed?: { turn: number; from: number; to: number }[];
+  /** diplomacy: broken-treaty grudges — holder refuses all future offers from `against` */
+  grudges?: { holder: number; against: number }[];
+  /** diplomacy: pending AI→human peace offer awaiting a response, or null */
+  incomingOffer?: { from: number; to: number } | null;
+  /** replay: compact chronological event log for the replay viewer */
+  replay?: ReplayEntry[];
+  /** challenge mode: set when this run is a daily/weekly challenge (best-score tracking, no Hall entry) */
+  challenge?: "daily" | "weekly";
+}
+
+/** one entry in the match replay log */
+export interface ReplayEntry {
+  turn: number;
+  tribe: number;
+  kind: "move" | "combat" | "capture" | "train" | "tech" | "ruin" | "diplo" | "turn";
+  text: string;
+  x?: number;
+  y?: number;
 }
 
 export const idx = (x: number, y: number, size: number) => y * size + x;

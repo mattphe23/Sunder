@@ -510,6 +510,46 @@ export class BoardRenderer {
         pennant.parent = body;
         return body;
       },
+      // Nerivane Tidecaller — sleek swimmer: slim body with a cresting glowing fin
+      tidecaller: () => {
+        const body = MeshBuilder.CreateCapsule("b", { radius: 0.12, height: 0.46 }, this.scene);
+        const fin = MeshBuilder.CreateCylinder("fin", { diameterTop: 0, diameterBottom: 0.18, height: 0.24, tessellation: 3 }, this.scene);
+        fin.position = new Vector3(0, 0.32, 0.1);
+        fin.rotation.x = -0.55;
+        let fm = this.mats.get("tide-fin");
+        if (!fm) {
+          fm = new StandardMaterial("tide-fin", this.scene);
+          (fm as StandardMaterial).diffuseColor = Color3.FromHexString("#7ff0e3");
+          (fm as StandardMaterial).emissiveColor = Color3.FromHexString("#1a9e8f");
+          this.mats.set("tide-fin", fm);
+        }
+        fin.material = fm;
+        fin.isPickable = false;
+        fin.parent = body;
+        const trident = MeshBuilder.CreateCylinder("trident", { diameter: 0.035, height: 0.44, tessellation: 5 }, this.scene);
+        trident.position = new Vector3(0.15, 0.12, 0);
+        trident.material = this.mat("#e8fffb");
+        trident.isPickable = false;
+        trident.parent = body;
+        return body;
+      },
+      // Dravok Bulwark — living rampart: wide squat body behind a broad stone slab shield
+      bulwark: () => {
+        const body = MeshBuilder.CreateBox("b", { width: 0.34, depth: 0.24, height: 0.38 }, this.scene);
+        const slab = MeshBuilder.CreateBox("slab", { width: 0.46, height: 0.36, depth: 0.07 }, this.scene);
+        slab.position = new Vector3(0, 0.04, 0.17);
+        slab.material = this.mat("#8a8177");
+        slab.isPickable = false;
+        slab.parent = body;
+        for (const sx of [-0.2, 0.2]) {
+          const merlon = MeshBuilder.CreateBox("merlon", { width: 0.08, height: 0.1, depth: 0.07 }, this.scene);
+          merlon.position = new Vector3(sx, 0.26, 0.17);
+          merlon.material = this.mat("#8a8177");
+          merlon.isPickable = false;
+          merlon.parent = body;
+        }
+        return body;
+      },
     };
     const body = shapes[u.type]();
     if (u.type !== "catapult") body.material = this.mat(col);

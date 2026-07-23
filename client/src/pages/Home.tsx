@@ -9,11 +9,13 @@ import { Minimap } from "@/game/ui/Minimap";
 import { Tutorial } from "@/game/ui/Tutorial";
 import { FactionIntro } from "@/game/ui/FactionIntro";
 import { HandoffScreen } from "@/game/ui/Handoff";
+import { DiplomacyPanel, IncomingOfferModal } from "@/game/ui/Diplomacy";
 
 export default function Home() {
   const g = useGame();
   const s = g.state;
   const [techOpen, setTechOpen] = useState(false);
+  const [diploOpen, setDiploOpen] = useState(false);
 
   // ambient music: plays on the menu, fades out in-game; kick() satisfies autoplay policies
   useEffect(() => {
@@ -37,11 +39,13 @@ export default function Home() {
       <SelectionPanel />
       <BattlePreview />
       <TurnRecap />
-      <BottomBar onOpenTech={() => setTechOpen(true)} />
+      <BottomBar onOpenTech={() => setTechOpen(true)} onOpenDiplo={() => setDiploOpen(true)} />
       <TechPanel open={techOpen} onClose={() => setTechOpen(false)} />
+      <DiplomacyPanel open={diploOpen} onClose={() => setDiploOpen(false)} />
       <Tutorial />
       <FactionIntro />
       <HandoffScreen />
+      <IncomingOfferModal />
       {s.phase === "gameover" && <GameOver />}
     </div>
   );

@@ -16,7 +16,8 @@ type SfxName =
   | "turn"
   | "promote"
   | "victory"
-  | "defeat";
+  | "defeat"
+  | "treaty";
 
 class SoundEngine {
   private ctx: AudioContext | null = null;
@@ -191,6 +192,12 @@ class SoundEngine {
         break;
       case "defeat":
         [392, 330, 262, 196].forEach((f, i) => this.tone(f, 0.4, { type: "sine", vol: 0.15, at: i * 0.18 }));
+        break;
+      case "treaty": // warm resolving accord — two voices meeting
+        this.tone(392, 0.3, { type: "triangle", vol: 0.12 });
+        this.tone(494, 0.3, { type: "triangle", vol: 0.12, at: 0.12 });
+        this.tone(587, 0.45, { type: "sine", vol: 0.14, at: 0.24 });
+        this.tone(784, 0.4, { type: "sine", vol: 0.08, at: 0.3 });
         break;
     }
   }

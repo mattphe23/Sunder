@@ -4,9 +4,10 @@
 
 import {
   reachableTiles, attackableUnits, previewCombat, canResearch, canHarvest,
-  trainableUnits, techCost, cityAt, unitAt, canBuildPort,
+  trainableUnits, techCost, cityAt, unitAt, canBuildPort, tileAt, uniqueUnitOf,
 } from "./rules";
 import { GameState, TECHS, UNIT_STATS, UnitType, Unit, TechId, PORT_COST, WALL_COST } from "./types";
+import { atPeace, setPeace, aiWantsPeaceWith, markDiploUsed, diploUsed, strengthOf, PEACE_TREATY_TURNS } from "./diplomacy";
 
 // avoid circular type import; structural typing for the store
 interface StoreLike {
@@ -24,6 +25,33 @@ interface StoreLike {
 export function runAiTurn(store: StoreLike, tribeIdx: number) {
   const s = store.state;
   if (s.phase !== "playing") return;
+
+  // 0. diplomacy — a clearly-losing AI sues for peace with a human (one pending offer at a time)
+  for (const h of s.humanTribes ?? [s.humanTribe]) {
+    if (!s.tribes[h]?.alive) continue;
+    if (!s.incomingOffer && aiWantsPeaceWith(s, tribeIdx, h)) {
+      markDiploUsed(s, tribeIdx, h);
+      s.incomingOffer = { from: tribeIdx, to: h };
+      break;
+    }
+  }
+  // 0b. coalition seed — AIs facing a dominant common enemy truce with each other and gang up
+  const leader = s.tribes.filter((t) => t.alive).sort((a, b) => b.score - a.score)[0];
+  if (leader && leader.index !== tribeIdx && !s.tribes[tribeIdx].isHuman) {
+    const myStr = strengthOf(s, tribeIdx);
+    const leadStr = strengthOf(s, leader.index);
+    if (leadStr > myStr * 1.5) {
+      for (const ally of s.tribes) {
+        if (!ally.alive || ally.isHuman || ally.index === tribeIdx || ally.index === leader.index) continue;
+        if (atPeace(s, tribeIdx, ally.index) || diploUsed(s, tribeIdx, ally.index)) continue;
+        if (leadStr > strengthOf(s, ally.index) * 1.5) {
+          markDiploUsed(s, tribeIdx, ally.index);
+          setPeace(s, tribeIdx, ally.index, s.turn + PEACE_TREATY_TURNS);
+          s.log.unshift(`${s.tribes[tribeIdx].name} and ${ally.name} formed a pact against ${leader.name}!`);
+        }
+      }
+    }
+  }
 
   // 1. research: pick cheapest available tech, prefer unit-unlocking branches
   const available = TECHS.filter((t) => canResearch(s, tribeIdx, t.id));
@@ -73,7 +101,8 @@ export function runAiTurn(store: StoreLike, tribeIdx: number) {
       continue;
     }
     // faction pride: favor the tribe's unique unit when affordable
-    const unique = options.find((ut) => UNIT_STATS[ut].faction === tribeIdx);
+    const uniqueType = uniqueUnitOf(s, tribeIdx);
+    const unique = options.find((ut) => ut === uniqueType);
     if (unique && Math.random() < 0.45) {
       store.train(city.id, unique);
       continue;
@@ -119,6 +148,9 @@ function aiUnitAction(store: StoreLike, u: Unit, tribeIdx: number) {
       // berserkers finish wounded prey; raiders chase kills for plunder
       if (u.type === "berserker" && t.hp < t.maxHp) score += 6;
       if (u.type === "raider" && r.defenderDies) score += 6;
+      // tidecallers press the advantage from water; bulwarks avoid trading
+      if (u.type === "tidecaller" && tileAt(s, u.x, u.y).terrain === "water") score += 4;
+      if (u.type === "bulwark") score -= 4;
       if (score > bestScore) { bestScore = score; best = t; }
     }
     if (bestScore > 0) {
@@ -133,6 +165,7 @@ function aiUnitAction(store: StoreLike, u: Unit, tribeIdx: number) {
   const objectives: { x: number; y: number; w: number }[] = [];
   for (const c of s.cities) {
     if (c.tribe === tribeIdx) continue;
+    if (c.tribe !== null && atPeace(s, tribeIdx, c.tribe)) continue; // honor treaties
     const dist = Math.max(Math.abs(c.x - u.x), Math.abs(c.y - u.y));
     const w = (c.tribe === null ? 100 : c.isCapital ? 90 : 70) - dist * 5;
     objectives.push({ x: c.x, y: c.y, w });
@@ -149,6 +182,7 @@ function aiUnitAction(store: StoreLike, u: Unit, tribeIdx: number) {
   }
   for (const e of s.units) {
     if (e.tribe === tribeIdx) continue;
+    if (e.tribe >= 0 && atPeace(s, tribeIdx, e.tribe)) continue; // honor treaties
     const dist = Math.max(Math.abs(e.x - u.x), Math.abs(e.y - u.y));
     objectives.push({ x: e.x, y: e.y, w: 40 - dist * 5 });
   }
