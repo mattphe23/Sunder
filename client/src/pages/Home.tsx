@@ -10,6 +10,7 @@ import { Tutorial } from "@/game/ui/Tutorial";
 import { FactionIntro } from "@/game/ui/FactionIntro";
 import { HandoffScreen } from "@/game/ui/Handoff";
 import { DiplomacyPanel, IncomingOfferModal } from "@/game/ui/Diplomacy";
+import { WorldEventCards, HeroFallenCard } from "@/game/ui/WorldEvents";
 
 export default function Home() {
   const g = useGame();
@@ -40,6 +41,8 @@ export default function Home() {
       <BattlePreview />
       <TurnRecap />
       <PerkChoice />
+      <WorldEventCards />
+      <HeroFallenCard />
       <BottomBar onOpenTech={() => setTechOpen(true)} onOpenDiplo={() => setDiploOpen(true)} />
       <TechPanel open={techOpen} onClose={() => setTechOpen(false)} />
       <DiplomacyPanel open={diploOpen} onClose={() => setDiploOpen(false)} />

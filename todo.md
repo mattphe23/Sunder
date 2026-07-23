@@ -285,3 +285,15 @@
 
 ## 5. Verify + deliver
 - [ ] pnpm check clean; headless sim passes; browser verify full loop; checkpoint + deliver
+
+## v17 — The Living Map + Hero Drama + Player Profile
+- [ ] Living map engine: barbarian camps spawn on wild tiles, grow over turns, launch raider parties
+- [ ] Living map engine: storms sweep across water tiles, blocking movement/attacks temporarily
+- [ ] Living map engine: dormant guardians awaken mid-game and roam near great ruins
+- [ ] World-event notification system (turn-start event cards / ticker entries)
+- [ ] Render camps, storm overlays, awakened guardian visuals in the Babylon scene
+- [ ] Hero death drama: fallen-commander event card, score stakes, rival taunt line
+- [ ] Player profile: persistent name + lifetime stats (games, wins, kills, heroes lost, best scores)
+- [ ] Profile panel in menu; share button reuses profile name
+- [ ] Verify all systems in-browser (camps raid, storms move, guardian wakes, hero death card, profile persists)
+- [ ] Type-check clean, checkpoint, deliver

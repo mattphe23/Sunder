@@ -21,6 +21,8 @@ import {
 } from "./diplomacy";
 import { ChallengeKind, recordChallengeScore } from "./challenges";
 import { CustomTribeConfig, customTribeDef, CUSTOM_DEF_INDEX } from "./customTribe";
+import { runWorldPhase, worldUnitIntents, campAt } from "./events";
+import { recordGameResult } from "./profile";
 export type GameEvent =
   | { type: "changed" }
   | { type: "unitMoved"; unitId: number; fromX: number; fromY: number; toX: number; toY: number }
@@ -263,6 +265,13 @@ class GameStore {
     this.state.grudges = [];
     this.state.incomingOffer = null;
     this.state.replay = [];
+    // v17 living map + drama + profile counters
+    this.state.camps = [];
+    this.state.storms = [];
+    this.state.nextEventId = 1;
+    this.state.worldEvents = [];
+    this.state.heroFallen = null;
+    this.state.campsRazedByHuman = 0;
     this.exploreAround();
     this.beginTurn(0);
     this.emit({ type: "changed" });
@@ -295,6 +304,8 @@ class GameStore {
       for (const t of s.tribes) this.updateScore(t.index);
       s.scoreHistory[s.turn] = s.tribes.map((t) => (t.alive ? t.score : 0));
       this.recordReplay({ tribe: 0, kind: "turn", text: `Turn ${s.turn + 1} begins` });
+      // v17 living map: the world takes its phase before the first tribe acts
+      this.runWorldTurn();
     }
     // turn replay: show what rivals did while the human waited
     if (!hotseat && tribe.isHuman && s.recap.length > 0) {
@@ -335,6 +346,42 @@ class GameStore {
     const t = s.tribes[tribeIdx];
     if (t.isHuman) return 0;
     return s.difficulty === "easy" ? 0 : s.difficulty === "normal" ? 1 : 2;
+  }
+
+  /* ---------- v17 living map ---------- */
+
+  /** advance the living world: camps grow/raid, storms drift, guardians wake, hostiles act */
+  private runWorldTurn() {
+    const s = this.state;
+    const events = runWorldPhase(s, (type, tribe, x, y) => makeUnit(s.nextUnitId++, type, tribe, x, y));
+    for (const ev of events) {
+      s.log.unshift(ev.text);
+      s.worldEvents = [...(s.worldEvents ?? []), ev].slice(-8);
+      this.recordReplay({ tribe: -1, kind: "turn", text: ev.text });
+    }
+    // hostile world units act: raiders + awakened guardians step/strike
+    for (const u of s.units) {
+      if (u.tribe < 0 && (u.raider || u.awake)) { u.moved = false; u.attacked = false; }
+    }
+    for (const intent of worldUnitIntents(s)) {
+      const u = s.units.find((q) => q.id === intent.unit.id);
+      if (!u) continue;
+      if (intent.targetUnitId !== undefined) {
+        const target = s.units.find((q) => q.id === intent.targetUnitId);
+        if (target) this.attack(u.id, target.id);
+      } else if (intent.move) {
+        u.x = intent.move.x;
+        u.y = intent.move.y;
+      }
+    }
+  }
+
+  /** world events queued for display; drained by the HUD event cards */
+  drainWorldEvents(): NonNullable<GameState["worldEvents"]> {
+    const s = this.state;
+    const evs = s.worldEvents ?? [];
+    s.worldEvents = [];
+    return evs;
   }
 
   endTurn() {
@@ -392,7 +439,10 @@ class GameStore {
       cities.length * 100 +
       cities.reduce((a, c) => a + c.level * 50, 0) +
       units.length * 10 +
-      t.techs.length * 40;
+      t.techs.length * 40 +
+      // v17 hero stakes: a living commander earns their keep; a fallen one is a lasting wound
+      units.filter((u) => u.hero).reduce((a, u) => a + 15 + ((u.level ?? 1) - 1) * 15, 0) -
+      (t.heroFell ? 40 : 0);
   }
 
   // ---------- selection ----------
@@ -513,6 +563,43 @@ class GameStore {
   }
   /** validated option list for the pending pick (same seeded derivation) */
   private perkChoicesCache(u: Unit): HeroPerkId[] { return this.perkChoices(u); }
+
+  /* ---------- v17 hero death drama ---------- */
+
+  /** stage the fallen-commander event card when the human is involved (their hero died, or they slew a rival's) */
+  private stageHeroFallen(fallen: Unit, killer: Unit) {
+    const s = this.state;
+    const wasHuman = fallen.tribe === s.humanTribe;
+    const humanKilled = killer.tribe === s.humanTribe;
+    if (!wasHuman && !humanKilled) return; // AI-vs-AI drama goes through recap only
+    const killerName = killer.tribe >= 0 ? s.tribes[killer.tribe].name : "the wilds";
+    const taunts = wasHuman
+      ? [
+          `"Your commander bleeds like any other." — ${killerName}`,
+          `"The Shatterlands remember only the victors." — ${killerName}`,
+          `"Send another. We will break them too." — ${killerName}`,
+        ]
+      : [
+          `Their banner falls. The ${s.tribes[fallen.tribe].name} host wavers without its commander.`,
+          `A rival legend ends at your hand. The Shatterlands take note.`,
+          `The forge claims all — even commanders.`,
+        ];
+    const roll = rng(s.seed + s.turn * 61 + fallen.id * 13)();
+    s.heroFallen = {
+      heroName: this.heroName(fallen),
+      tribeName: s.tribes[fallen.tribe].name,
+      tribeColor: s.tribes[fallen.tribe].color,
+      killerTribe: killerName,
+      wasHuman,
+      taunt: taunts[Math.floor(roll * taunts.length)],
+    };
+    this.emit({ type: "sfx", name: wasHuman ? "defeat" : "victory" });
+  }
+
+  dismissHeroFallen() {
+    this.state.heroFallen = null;
+    this.emit({ type: "changed" });
+  }
 
   /** record a recap entry when the acting tribe is not the human player */
   private recordRecap(entry: RecapEntry) {
@@ -793,9 +880,30 @@ class GameStore {
       this.lastMove = null;
     }
     this.exploreRuin(u);
+    // v17: stepping onto a barbarian camp razes it for loot
+    this.razeCampAt(u);
     this.exploreAround();
     this.emit({ type: "unitMoved", unitId, fromX, fromY, toX: x, toY: y });
     this.emit({ type: "changed" });
+  }
+
+  /** v17: razing a camp — loot 5★, clear the camp, celebrate */
+  private razeCampAt(u: Unit) {
+    const s = this.state;
+    const camp = campAt(s, u.x, u.y);
+    if (!camp || u.tribe < 0) return;
+    s.camps = (s.camps ?? []).filter((c) => c.id !== camp.id);
+    const tribe = s.tribes[u.tribe];
+    tribe.stars += 5;
+    this.bumpStat(u.tribe, "starsEarned", 5);
+    const msg = `${tribe.name} razed the barbarian camp — 5★ plundered!`;
+    s.log.unshift(msg);
+    s.worldEvents = [...(s.worldEvents ?? []), { kind: "campRazed", text: msg, turn: s.turn, x: u.x, y: u.y }].slice(-8);
+    if (u.tribe === s.humanTribe) s.campsRazedByHuman = (s.campsRazedByHuman ?? 0) + 1;
+    if (u.hero) this.grantXp(u, HERO_XP.ruin);
+    if (u.tribe === s.humanTribe) this.emit({ type: "sfx", name: "plunder" });
+    else this.recordRecap({ kind: "ruin", text: msg, tribe: u.tribe });
+    this.recordReplay({ tribe: u.tribe, kind: "capture", text: msg });
   }
 
   /** snapshot of the last human move for one-step undo */
@@ -859,9 +967,11 @@ class GameStore {
       // a fallen commander is gone forever — mark the moment
       if (d.hero && d.tribe >= 0) {
         const dn = this.heroName(d);
+        s.tribes[d.tribe].heroFell = true;
         s.log.unshift(`${dn}, commander of ${s.tribes[d.tribe].name}, has fallen in battle!`);
         this.recordRecap({ kind: "fallen", text: `${s.tribes[d.tribe].name}'s commander ${dn} has fallen`, tribe: a.tribe >= 0 ? a.tribe : d.tribe });
         this.recordReplay({ tribe: d.tribe, kind: "combat", text: `Commander ${dn} of ${s.tribes[d.tribe].name} fell in battle` });
+        this.stageHeroFallen(d, a);
       }
       this.recordReplay({ tribe: a.tribe, kind: "combat", text: `${s.tribes[a.tribe]?.name ?? "Guardian"} ${UNIT_STATS[a.type].name} destroyed ${s.tribes[d.tribe]?.name ?? "Guardian"} ${UNIT_STATS[d.type].name}` });
       // Vessari Raider: plunders 2 stars from the victim's coffers on every kill
@@ -889,7 +999,7 @@ class GameStore {
           this.recordRecap({ kind: "combat", text: `A ${tn} ${a.type} became a Veteran`, tribe: a.tribe });
         }
       }
-      if (d.guardian) {
+      if (d.guardian && a.tribe >= 0) {
         this.bumpStat(a.tribe, "guardiansSlain");
         s.log.unshift(`${s.tribes[a.tribe].name} slew the Guardian of the Great Ruin!`);
         if (a.tribe !== s.humanTribe) {
@@ -905,8 +1015,10 @@ class GameStore {
       if (d.hero) this.grantXp(d, HERO_XP.battleWon);
       if (a.hero && a.tribe >= 0) {
         const an = this.heroName(a);
+        s.tribes[a.tribe].heroFell = true;
         s.log.unshift(`${an}, commander of ${s.tribes[a.tribe].name}, has fallen in battle!`);
         this.recordRecap({ kind: "fallen", text: `${s.tribes[a.tribe].name}'s commander ${an} has fallen`, tribe: d.tribe >= 0 ? d.tribe : a.tribe });
+        this.stageHeroFallen(a, d);
       }
     }
     this.emit({
@@ -917,9 +1029,10 @@ class GameStore {
     // recap: rival combat involving the player or visible to them
     if (a.tribe !== s.humanTribe && d.tribe !== GUARDIAN_TRIBE) {
       const aName = UNIT_STATS[a.type].name, dName = UNIT_STATS[d.type].name;
+      const aTribeName = a.tribe >= 0 ? s.tribes[a.tribe].name : (a.raider ? "Barbarian" : "Guardian");
       const target = d.tribe === s.humanTribe ? `your ${dName}` : `${s.tribes[d.tribe].name}'s ${dName}`;
       const outcome = defenderDied ? "destroyed" : `hit (−${result.damageToDefender})`;
-      this.recordRecap({ kind: "combat", text: `${s.tribes[a.tribe].name} ${aName} ${outcome} ${target}`, tribe: a.tribe });
+      this.recordRecap({ kind: "combat", text: `${aTribeName} ${aName} ${outcome} ${target}`, tribe: a.tribe >= 0 ? a.tribe : d.tribe });
     }
     this.checkElimination();
     this.emit({ type: "changed" });
@@ -1130,6 +1243,22 @@ class GameStore {
         myScore,
         beaten: myScore > s.friendChallenge.score,
       };
+    }
+    // v17 player profile: lifetime record (solo games only — hot-seat has no single owner)
+    if ((s.humanTribes?.length ?? 1) === 1) {
+      this.updateScore(s.humanTribe);
+      const won = s.winner === s.humanTribe;
+      const st = s.stats?.[s.humanTribe];
+      recordGameResult({
+        won,
+        score: s.tribes[s.humanTribe]?.score ?? 0,
+        turns: Math.max(1, s.turn),
+        kills: st?.battlesWon ?? 0,
+        heroLost: !!s.tribes[s.humanTribe]?.heroFell,
+        campsRazed: s.campsRazedByHuman ?? 0,
+        guardiansSlain: st?.guardiansSlain ?? 0,
+        duelWon: this.friendResult?.beaten ?? false,
+      });
     }
   }
 

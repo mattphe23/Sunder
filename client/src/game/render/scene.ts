@@ -40,6 +40,8 @@ export class BoardRenderer {
   private tileMeshes = new Map<number, Mesh>();
   private decorMeshes = new Map<number, Mesh[]>();
   private unitMeshes = new Map<number, TransformNode>();
+  private campMeshes = new Map<number, TransformNode>();
+  private stormMeshes = new Map<number, TransformNode>();
   private highlightMeshes: Mesh[] = [];
   private mats = new Map<string, StandardMaterial>();
   private fxMeshes: Mesh[] = [];
@@ -492,6 +494,12 @@ export class BoardRenderer {
         node = this.buildUnitMesh(s, u);
         this.unitMeshes.set(u.id, node);
       }
+      // v17: guardian awakening — rebuild with the burning red eye the first time we see it awake
+      if (u.guardian && u.awake && !node.metadata?.awake) {
+        node.dispose();
+        node = this.buildUnitMesh(s, u);
+        this.unitMeshes.set(u.id, node);
+      }
       // naval: show/hide boat hull under the unit
       const hull = node.getChildMeshes().find((m) => m.name === "hull");
       if (u.boat && !hull) {
@@ -517,6 +525,136 @@ export class BoardRenderer {
       if (!seen.has(id)) { node.dispose(); toRemove.push(id); }
     });
     toRemove.forEach((id) => this.unitMeshes.delete(id));
+    this.syncWorld(s);
+  }
+
+  /* ---------- v17 living map visuals ---------- */
+
+  private syncWorld(s: GameState) {
+    const c = this.center(s.size);
+    // barbarian camps: tents + fire glow (visible once tile explored)
+    const seenCamps = new Set<number>();
+    for (const camp of s.camps ?? []) {
+      if (!s.tiles[idx(camp.x, camp.y, s.size)].explored[s.humanTribe]) continue;
+      seenCamps.add(camp.id);
+      let node = this.campMeshes.get(camp.id);
+      if (node && node.metadata?.strength !== camp.strength) { node.dispose(); node = undefined as unknown as TransformNode; this.campMeshes.delete(camp.id); }
+      if (!node) {
+        node = this.buildCampMesh(camp.strength);
+        node.metadata = { strength: camp.strength };
+        this.campMeshes.set(camp.id, node);
+      }
+      const h = TERRAIN_H[s.tiles[idx(camp.x, camp.y, s.size)].terrain];
+      node.position = new Vector3(camp.x - c, h - 0.4, camp.y - c);
+    }
+    this.campMeshes.forEach((node, id) => {
+      if (!seenCamps.has(id)) { node.dispose(); this.campMeshes.delete(id); }
+    });
+    // storms: brooding disc + lightning shard over water
+    const seenStorms = new Set<number>();
+    for (const st of s.storms ?? []) {
+      seenStorms.add(st.id);
+      let node = this.stormMeshes.get(st.id);
+      if (!node) {
+        node = this.buildStormMesh(st.radius);
+        this.stormMeshes.set(st.id, node);
+      }
+      node.position = new Vector3(st.x - c, 0.35, st.y - c);
+    }
+    this.stormMeshes.forEach((node, id) => {
+      if (!seenStorms.has(id)) { node.dispose(); this.stormMeshes.delete(id); }
+    });
+  }
+
+  private buildCampMesh(strength: number): TransformNode {
+    const node = new TransformNode("camp", this.scene);
+    node.parent = this.root;
+    const tentMat = this.mat("#6b4a32");
+    const tents = Math.min(3, strength + 1);
+    const offs = [[-0.18, -0.1], [0.2, -0.14], [0.02, 0.2]];
+    for (let i = 0; i < tents; i++) {
+      const tent = MeshBuilder.CreateCylinder("tent", { diameterTop: 0, diameterBottom: 0.3, height: 0.3, tessellation: 4 }, this.scene);
+      tent.position.set(offs[i][0], 0.15, offs[i][1]);
+      tent.rotation.y = i * 0.7;
+      tent.material = tentMat;
+      tent.parent = node;
+      tent.isPickable = false;
+      this.addShadows(tent);
+    }
+    // fire: glowing ember sphere
+    let fireMat = this.mats.get("camp-fire");
+    if (!fireMat) {
+      fireMat = new StandardMaterial("camp-fire", this.scene);
+      fireMat.diffuseColor = Color3.FromHexString("#ff7b2d");
+      fireMat.emissiveColor = Color3.FromHexString("#e85d1a");
+      this.mats.set("camp-fire", fireMat);
+    }
+    const fire = MeshBuilder.CreateIcoSphere("fire", { radius: 0.07, subdivisions: 1 }, this.scene);
+    fire.position.set(-0.02, 0.08, 0.02);
+    fire.material = fireMat;
+    fire.parent = node;
+    fire.isPickable = false;
+    // skull totem at strength 3 (raid-ready warning)
+    if (strength >= 3) {
+      const totem = MeshBuilder.CreateCylinder("totem", { diameter: 0.06, height: 0.5 }, this.scene);
+      totem.position.set(0.12, 0.25, 0.12);
+      totem.material = this.mat("#3a3148");
+      totem.parent = node;
+      totem.isPickable = false;
+      const skull = MeshBuilder.CreateIcoSphere("skull", { radius: 0.07, subdivisions: 1 }, this.scene);
+      skull.position.set(0.12, 0.54, 0.12);
+      skull.material = this.mat("#d8d3c8");
+      skull.parent = node;
+      skull.isPickable = false;
+    }
+    return node;
+  }
+
+  private buildStormMesh(radius: number): TransformNode {
+    const node = new TransformNode("storm", this.scene);
+    node.parent = this.root;
+    let cloudMat = this.mats.get("storm-cloud");
+    if (!cloudMat) {
+      cloudMat = new StandardMaterial("storm-cloud", this.scene);
+      cloudMat.diffuseColor = Color3.FromHexString("#2a2d45");
+      cloudMat.emissiveColor = Color3.FromHexString("#141628");
+      cloudMat.alpha = 0.82;
+      this.mats.set("storm-cloud", cloudMat);
+    }
+    let boltMat = this.mats.get("storm-bolt");
+    if (!boltMat) {
+      boltMat = new StandardMaterial("storm-bolt", this.scene);
+      boltMat.diffuseColor = Color3.FromHexString("#9db8ff");
+      boltMat.emissiveColor = Color3.FromHexString("#7d9dff");
+      this.mats.set("storm-bolt", boltMat);
+    }
+    // layered cloud discs
+    const span = radius * 2 + 0.8;
+    for (let i = 0; i < 3; i++) {
+      const puff = MeshBuilder.CreateIcoSphere("puff", { radius: span * (0.28 - i * 0.05), subdivisions: 1 }, this.scene);
+      puff.position.set((i - 1) * span * 0.22, 0.1 + i * 0.08, ((i % 2) - 0.5) * span * 0.16);
+      puff.scaling.y = 0.45;
+      puff.material = cloudMat;
+      puff.parent = node;
+      puff.isPickable = false;
+    }
+    // lightning shard
+    const bolt = MeshBuilder.CreateCylinder("bolt", { diameterTop: 0.02, diameterBottom: 0.07, height: 0.42, tessellation: 3 }, this.scene);
+    bolt.position.set(0.08, -0.18, 0);
+    bolt.rotation.z = 0.25;
+    bolt.material = boltMat;
+    bolt.parent = node;
+    bolt.isPickable = false;
+    // slow brooding rotation
+    const start = performance.now();
+    const obs = this.scene.onBeforeRenderObservable.add(() => {
+      if (node.isDisposed()) { this.scene.onBeforeRenderObservable.remove(obs); return; }
+      const t = (performance.now() - start) / 1000;
+      node.rotation.y = t * 0.25;
+      const b = node.getChildMeshes().find((m) => m.name === "bolt");
+      if (b) b.visibility = (Math.sin(t * 5.5) > 0.82 ? 1 : 0.15);
+    });
+    return node;
   }
 
   private buildUnitMesh(s: GameState, u: Unit): TransformNode {
@@ -530,12 +668,14 @@ export class BoardRenderer {
       gbody.isPickable = false;
       const eye = MeshBuilder.CreateIcoSphere("h", { radius: 0.09, subdivisions: 1 }, this.scene);
       eye.position.y = 0.34;
-      let eyeMat = this.mats.get("guardian-eye");
+      // v17: an awakened guardian's eye burns red — dormant ones glow amber
+      const eyeKey = u.awake ? "guardian-eye-awake" : "guardian-eye";
+      let eyeMat = this.mats.get(eyeKey);
       if (!eyeMat) {
-        eyeMat = new StandardMaterial("guardian-eye", this.scene);
-        eyeMat.diffuseColor = Color3.FromHexString("#ffb938");
-        eyeMat.emissiveColor = Color3.FromHexString("#d98f1f");
-        this.mats.set("guardian-eye", eyeMat);
+        eyeMat = new StandardMaterial(eyeKey, this.scene);
+        eyeMat.diffuseColor = Color3.FromHexString(u.awake ? "#ff4d3d" : "#ffb938");
+        eyeMat.emissiveColor = Color3.FromHexString(u.awake ? "#e8291a" : "#d98f1f");
+        this.mats.set(eyeKey, eyeMat);
       }
       eye.material = eyeMat;
       eye.parent = node;
@@ -547,10 +687,12 @@ export class BoardRenderer {
         p.parent = node;
         p.isPickable = false;
       }
+      node.metadata = { awake: !!u.awake };
       node.getChildMeshes().forEach((m) => this.addShadows(m as Mesh));
       return node;
     }
-    const col = s.tribes[u.tribe].color;
+    // v17: camp raiders are tribeless — dark iron & bone palette
+    const col = u.tribe < 0 ? "#5a4a52" : s.tribes[u.tribe].color;
     const shapes: Record<UnitType, () => Mesh> = {
       warrior: () => MeshBuilder.CreateBox("b", { size: 0.3 }, this.scene),
       archer: () => MeshBuilder.CreateCylinder("b", { diameterTop: 0, diameterBottom: 0.3, height: 0.42, tessellation: 6 }, this.scene),

@@ -20,6 +20,8 @@ import { ReplayViewer } from "./Replay";
 import { TribeForge } from "./TribeForge";
 import { loadCustomTribe, CustomTribeConfig, CUSTOM_DEF_INDEX } from "../core/customTribe";
 import { Hammer } from "lucide-react";
+import { loadProfile, setProfileName, PlayerProfile } from "../core/profile";
+import { UserCircle, Pencil } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip as RTooltip, ResponsiveContainer,
@@ -96,6 +98,10 @@ export function MainMenu() {
   const [hall] = useState(() => loadHall());
   const [achOpen, setAchOpen] = useState(false);
   const [achievements] = useState(() => loadAchievements());
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profile, setProfile] = useState<PlayerProfile>(() => loadProfile());
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
   const [daily] = useState(() => dailyChallenge());
   const [weekly] = useState(() => weeklyChallenge());
   const [friend, setFriend] = useState<FriendChallenge | null>(() => readFriendChallengeFromUrl());
@@ -526,6 +532,87 @@ export function MainMenu() {
           {achOpen && (
             <div className="mt-2 rounded-lg border border-white/10 bg-[#10102c]/85 p-3 backdrop-blur-md">
               <AchievementGrid unlocked={achievements} />
+            </div>
+          )}
+        </div>
+
+        {/* v17: Commander's Record — persistent local profile with lifetime stats */}
+        <div className="mt-2 w-full">
+          <button
+            onClick={() => setProfileOpen(!profileOpen)}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 font-display text-xs font-bold uppercase tracking-[0.2em] text-slate-300 transition-colors hover:bg-white/10 active:scale-[0.98]"
+          >
+            <UserCircle className="h-3.5 w-3.5 text-amber-400" />
+            Commander&apos;s Record
+            {profile.games > 0 && (
+              <span className="rounded bg-amber-400/20 px-1.5 py-0.5 font-mono text-[10px] text-amber-300">
+                {profile.wins}W / {profile.games}G
+              </span>
+            )}
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${profileOpen ? "rotate-180" : ""}`} />
+          </button>
+          {profileOpen && (
+            <div className="mt-2 rounded-lg border border-white/10 bg-[#10102c]/85 p-3 backdrop-blur-md">
+              {/* name row */}
+              <div className="mb-2.5 flex items-center justify-between gap-2">
+                {editingName ? (
+                  <form
+                    className="flex flex-1 items-center gap-1.5"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      setProfile(setProfileName(nameDraft || "Commander"));
+                      setEditingName(false);
+                    }}
+                  >
+                    <input
+                      autoFocus
+                      value={nameDraft}
+                      onChange={(e) => setNameDraft(e.target.value)}
+                      maxLength={20}
+                      placeholder="Your commander name"
+                      className="w-full flex-1 rounded-md border border-amber-400/40 bg-white/5 px-2 py-1 font-display text-sm font-bold text-slate-100 outline-none placeholder:text-slate-500"
+                    />
+                    <button type="submit" className="rounded bg-amber-400 px-2 py-1 font-display text-[10px] font-black tracking-widest text-[#1b1b3f] active:scale-95">SAVE</button>
+                  </form>
+                ) : (
+                  <>
+                    <span className="font-display text-sm font-black tracking-wide text-amber-200">
+                      {profile.name || "Unnamed Commander"}
+                      <span className="ml-2 font-sans text-[9px] font-medium uppercase tracking-[0.18em] text-slate-500">since {profile.createdAt}</span>
+                    </span>
+                    <button
+                      onClick={() => { setNameDraft(profile.name); setEditingName(true); }}
+                      className="flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-300 transition-colors hover:bg-white/10 active:scale-95"
+                    >
+                      <Pencil className="h-3 w-3" /> {profile.name ? "Rename" : "Set name"}
+                    </button>
+                  </>
+                )}
+              </div>
+              {profile.games === 0 ? (
+                <p className="py-2 text-center text-[11px] text-slate-400">
+                  No campaigns on record yet — your legend begins with the first march.
+                </p>
+              ) : (
+                <div className="grid grid-cols-3 gap-1.5">
+                  {([
+                    ["Games", String(profile.games)],
+                    ["Victories", String(profile.wins)],
+                    ["Win rate", `${Math.round((profile.wins / profile.games) * 100)}%`],
+                    ["Best score", String(profile.bestScore)],
+                    ["Fastest win", profile.fastestWin ? `T${profile.fastestWin}` : "—"],
+                    ["Duels won", String(profile.duelsWon)],
+                    ["Battles won", String(profile.kills)],
+                    ["Camps razed", String(profile.campsRazed)],
+                    ["Heroes lost", String(profile.heroesLost)],
+                  ] as const).map(([label, value]) => (
+                    <div key={label} className="rounded-md bg-white/[0.05] px-2 py-1.5 text-center" style={{ boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.06)" }}>
+                      <span className="block font-mono text-sm font-bold text-slate-100">{value}</span>
+                      <span className="block text-[9px] uppercase tracking-wider text-slate-500">{label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

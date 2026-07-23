@@ -134,6 +134,10 @@ export interface Unit {
   boat: boolean;
   /** neutral guardian: never moves, guards a great ruin */
   guardian?: boolean;
+  /** v17: awakened guardian — roams and attacks once the late game begins */
+  awake?: boolean;
+  /** v17: barbarian raider spawned by a camp (hostile to all tribes) */
+  raider?: boolean;
   /** veterancy: promoted after 3 kills (+5 max HP) */
   veteran?: boolean;
   /** v16 hero fields (only on type === "hero") */
@@ -256,6 +260,8 @@ export interface Tribe {
   techs: TechId[];
   alive: boolean;
   score: number;
+  /** v17: the tribe's commander has fallen (permanent score stake −40) */
+  heroFell?: boolean;
 }
 
 export const TRIBE_DEFS = [
@@ -356,6 +362,18 @@ export interface GameState {
   /** v16: friend challenge — decoded from a shared link (?c=): beat `score` set by `name` */
   /** v16: a friend's shared "beat my score" target — name + score (map setup applied at newGame) */
   friendChallenge?: { name: string; score: number } | null;
+  /** v17 living map: active barbarian camps */
+  camps?: { id: number; x: number; y: number; strength: number; nextActionTurn: number }[];
+  /** v17 living map: active sea storms */
+  storms?: { id: number; x: number; y: number; radius: number; expiresTurn: number }[];
+  /** v17: id counter for world entities */
+  nextEventId?: number;
+  /** v17: world events since the human's last turn (shown as event cards) */
+  worldEvents?: { kind: string; text: string; turn: number; x?: number; y?: number }[];
+  /** v17: fallen-commander drama card awaiting display, or null */
+  heroFallen?: { heroName: string; tribeName: string; tribeColor: string; killerTribe: string; wasHuman: boolean; taunt: string } | null;
+  /** v17: camps razed by the human this match (profile stat) */
+  campsRazedByHuman?: number;
 }
 
 /** one entry in the match replay log */

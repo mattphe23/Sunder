@@ -6,6 +6,7 @@ import {
   GameState, Tile, Unit, UnitType, UNIT_STATS, City, TechId, TECHS,
   TRIBE_DEFS, WALL_DEFENSE_BONUS, HeroPerkId, idx, inBounds,
 } from "./types";
+import { inStorm, campAt } from "./events";
 
 export function tileAt(s: GameState, x: number, y: number): Tile {
   return s.tiles[idx(x, y, s.size)];
@@ -86,7 +87,7 @@ export const wardedBy = (s: GameState, u: Unit) => adjacentHeroWith(s, u, "wardi
 
 /** Dijkstra reachable tiles for a unit with its movement points */
 export function reachableTiles(s: GameState, unit: Unit): { x: number; y: number }[] {
-  if (unit.moved || unit.tribe < 0) return [];
+  if (unit.moved || (unit.tribe < 0 && !unit.awake && !unit.raider)) return [];
   const stats = UNIT_STATS[unit.type];
   // Nerivane Tideborn: boats ride the currents — +1 movement
   const boatMp = BOAT_MOVEMENT + (s.tribes[unit.tribe]?.passive === "tideborn" ? 1 : 0);
@@ -114,8 +115,10 @@ export function reachableTiles(s: GameState, unit: Unit): { x: number; y: number
         if (dist.has(key) && dist.get(key)! <= nd) continue;
         // cannot pass through or land on any unit
         if (unitAt(s, nx, ny)) continue;
+        // v17 living map: storms make water impassable; camps can be entered (razed) but not passed through
+        if ((t.terrain === "water" || t.terrain === "ocean") && inStorm(s, nx, ny)) continue;
         dist.set(key, nd);
-        frontier.push([nx, ny, nd]);
+        if (!campAt(s, nx, ny)) frontier.push([nx, ny, nd]);
         out.push({ x: nx, y: ny });
       }
     }
