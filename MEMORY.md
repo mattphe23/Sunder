@@ -1,6 +1,25 @@
 # Memory
 
 - React 19 StrictMode double-mount guarded via startedRef in GameCanvas.
+
+## v15 graphics pass — progress (CURRENT)
+DONE in scene.ts:
+- DefaultRenderingPipeline: FXAA, bloom, ACES tone mapping, contrast/exposure lift, subtle vignette
+- ShadowGenerator on sun light (blur exp shadows); addShadows(m, receiveOnly?) helper;
+  tiles receive-only, decor + unit meshes cast+receive (wired at both buildUnitMesh return sites)
+- waterMat(deep) for water/ocean tiles + emissive shimmer pulse loop
+- animateMove upgraded: arc hop (dist-proportional lift, 16f) + squash&stretch (22f)
+- hitFlash(unitId): clones mats, white emissive 130ms, restores (no shared-cache leak)
+GameCanvas.tsx: hitFlash wired in combat event (defender + attacker-on-retaliation, 120ms delay)
+pnpm check clean; menu screenshot renders fine.
+TODO v15 remaining:
+1. Heal shimmer visual: sfx event has no position; add optional x,y to sfx payload at heal site
+   (state.ts line ~310 `{type:"sfx",name:"heal"}`) and spawn a rising green sparkle at (x,y)
+2. In-game visual verify (start game, move unit, attack) via browser; FPS sanity on 13x13
+3. Screenshots + checkpoint v15 + deliver
+NOTE: killed tsc/pnpm watch processes to relieve OOM pressure; dev server unaffected.
+Roadmap after v15: v16 heroes+share links, v17 living map+asym wins+Impossible AI,
+v18 fullstack online MP, v19 share cards+forge presets+lore hovers.
 - Deep Babylon imports to keep bundle small; side-effect import for StandardMaterial usage where needed.
 - Use thin instances or merged meshes if tile count perf becomes an issue (11×11 fine with plain instances).
 
@@ -400,3 +419,8 @@
     tide-folk of drowned coast cities; Dravok stone-forged caravan folk of the ochre canyons).
     (d) ai.ts unique check uses defIndex; AI trains tidecaller near water, bulwark for defense.
     (e) sound: no new sfx needed. (f) tsc + verify in phase 6.
+## v15 note — perf verification
+Sandbox browser uses SwiftShader (software GL) → 4-5 FPS with full pipeline; NOT representative
+of real hardware GPUs. Mitigation added: adaptive quality in scene.ts — detects software renderer
+via WEBGL_debug_renderer_info and monitors sustained FPS; drops bloom+shadows+vignette when
+renderer is software OR fps stays under 24 for ~4s. Real-hardware verification advised to user.

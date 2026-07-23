@@ -26,7 +26,7 @@ export type GameEvent =
   | { type: "combat"; attackerId: number; defenderId: number; dmg: number; retaliation: number; defenderDied: boolean; attackerDied: boolean; ax: number; ay: number; dx: number; dy: number }
   | { type: "captured"; cityId: number; tribe: number }
   | { type: "turnStarted"; tribe: number }
-  | { type: "sfx"; name: "plunder" | "heal" | "promote" | "ruin" | "victory" | "defeat" | "catapult" | "treaty" };
+  | { type: "sfx"; name: "plunder" | "heal" | "promote" | "ruin" | "victory" | "defeat" | "catapult" | "treaty"; x?: number; y?: number };
 
 type Listener = (e: GameEvent) => void;
 const SAVE_KEY = "polyforge-save-v1";
@@ -299,15 +299,18 @@ class GameStore {
     }
     // Auren Arcanist: mends adjacent friendly units +2 HP at the start of the turn
     let healed = false;
+    const healedAt: { x: number; y: number }[] = [];
     for (const a of s.units) {
       if (a.tribe !== tribeIdx || a.type !== "arcanist") continue;
       for (const f of s.units) {
         if (f.tribe !== tribeIdx || f.id === a.id || f.hp >= f.maxHp) continue;
         const d = Math.max(Math.abs(f.x - a.x), Math.abs(f.y - a.y));
-        if (d === 1) { f.hp = Math.min(f.maxHp, f.hp + 2); healed = true; }
+        if (d === 1) { f.hp = Math.min(f.maxHp, f.hp + 2); healed = true; healedAt.push({ x: f.x, y: f.y }); }
       }
     }
-    if (healed && tribeIdx === s.humanTribe) this.emit({ type: "sfx", name: "heal" });
+    if (healed && tribeIdx === s.humanTribe) {
+      for (const p of healedAt) this.emit({ type: "sfx", name: "heal", x: p.x, y: p.y });
+    }
     this.updateScore(tribeIdx);
     this.emit({ type: "turnStarted", tribe: tribeIdx });
     this.emit({ type: "changed" });

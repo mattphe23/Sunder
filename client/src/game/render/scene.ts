@@ -7,6 +7,9 @@ import {
   TransformNode, PointerEventTypes, Animation, EasingFunction, CubicEase,
   ParticleSystem, Texture, DynamicTexture,
 } from "@babylonjs/core";
+import { DefaultRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline";
+import { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator";
+import "@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent";
 import { GameState, Tile, Unit, UnitType, idx } from "../core/types";
 import { game } from "../core/state";
 import { reachableTiles, attackableUnits, cityAt, isVisibleTo } from "../core/rules";
@@ -42,6 +45,11 @@ export class BoardRenderer {
   private fxMeshes: Mesh[] = [];
   private disposed = false;
   private cameraInitialized = false;
+  private shadowGen: ShadowGenerator | null = null;
+  private pipeline: DefaultRenderingPipeline | null = null;
+  private lowQuality = false;
+  private waterMats: StandardMaterial[] = [];
+  private shimmerT = 0;
   onPick: ((p: PickInfo) => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -49,7 +57,22 @@ export class BoardRenderer {
     this.scene = new Scene(this.engine);
     this.scene.clearColor = Color4.FromHexString("#141433ff");
     this.setupCameraLights(canvas);
+    this.setupPipeline();
     this.root = new TransformNode("root", this.scene);
+
+    // water shimmer: gentle emissive pulse + hue drift on shared water materials
+    this.scene.onBeforeRenderObservable.add(() => {
+      this.shimmerT += this.engine.getDeltaTime() / 1000;
+      const p = (Math.sin(this.shimmerT * 1.6) + 1) / 2; // 0..1 slow swell
+      const q = (Math.sin(this.shimmerT * 2.7 + 1.3) + 1) / 2; // offset ripple
+      for (const wm of this.waterMats) {
+        const deep = wm.name.includes("ocean");
+        const base = deep ? 0.045 : 0.085;
+        const amp = deep ? 0.03 : 0.05;
+        const e = base + amp * (0.6 * p + 0.4 * q);
+        wm.emissiveColor.set(e * 0.55, e * 0.85, e * 1.35);
+      }
+    });
 
     this.scene.onPointerObservable.add((pi) => {
       if (pi.type !== PointerEventTypes.POINTERTAP) return;
@@ -97,6 +120,74 @@ export class BoardRenderer {
     const sun = new DirectionalLight("sun", new Vector3(-0.5, -1, 0.35), this.scene);
     sun.intensity = 0.9;
     sun.diffuse = Color3.FromHexString("#ffe9c4");
+    // soft blurred shadows from the warm key light
+    sun.position = new Vector3(8, 14, -6);
+    const sg = new ShadowGenerator(1024, sun);
+    sg.useBlurExponentialShadowMap = true;
+    sg.blurKernel = 16;
+    sg.darkness = 0.55; // keep shadows soft and readable, not harsh black
+    this.shadowGen = sg;
+  }
+
+  /** post-processing: bloom for glows, FXAA, filmic tone mapping, slight contrast */
+  private setupPipeline() {
+    const pipe = new DefaultRenderingPipeline("polyfx", true, this.scene, [this.camera]);
+    this.pipeline = pipe;
+    pipe.fxaaEnabled = true;
+    pipe.bloomEnabled = true;
+    pipe.bloomThreshold = 0.62;
+    pipe.bloomWeight = 0.35;
+    pipe.bloomKernel = 48;
+    pipe.bloomScale = 0.5;
+    pipe.imageProcessingEnabled = true;
+    if (pipe.imageProcessing) {
+      pipe.imageProcessing.toneMappingEnabled = true;
+      pipe.imageProcessing.toneMappingType = 1; // ACES filmic
+      pipe.imageProcessing.contrast = 1.12;
+      pipe.imageProcessing.exposure = 1.06;
+      pipe.imageProcessing.vignetteEnabled = true;
+      pipe.imageProcessing.vignetteWeight = 1.6;
+      pipe.imageProcessing.vignetteColor = new Color4(0.05, 0.05, 0.16, 0);
+    }
+    this.setupAdaptiveQuality();
+  }
+
+  /** drop expensive effects on software renderers or sustained low FPS */
+  private setupAdaptiveQuality() {
+    // 1) immediate: software GL (SwiftShader/llvmpipe) can never afford the full pipeline
+    try {
+      const gl = this.engine._gl as WebGLRenderingContext | undefined;
+      const dbg = gl?.getExtension("WEBGL_debug_renderer_info");
+      const renderer = dbg ? String(gl!.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) : "";
+      if (/swiftshader|llvmpipe|software/i.test(renderer)) { this.applyLowQuality(); return; }
+    } catch { /* detection unavailable — fall through to FPS monitor */ }
+    // 2) reactive: if FPS stays under 24 for ~4 seconds, degrade gracefully
+    let slowMs = 0;
+    let last = performance.now();
+    const obs = this.scene.onBeforeRenderObservable.add(() => {
+      const now = performance.now();
+      const dt = now - last;
+      last = now;
+      if (dt > 42) slowMs += dt; else slowMs = Math.max(0, slowMs - dt * 0.5);
+      if (slowMs > 4000) {
+        this.applyLowQuality();
+        this.scene.onBeforeRenderObservable.remove(obs);
+      }
+    });
+  }
+
+  private applyLowQuality() {
+    if (this.lowQuality) return;
+    this.lowQuality = true;
+    if (this.pipeline) {
+      this.pipeline.bloomEnabled = false;
+      if (this.pipeline.imageProcessing) this.pipeline.imageProcessing.vignetteEnabled = false;
+    }
+    if (this.shadowGen) {
+      this.shadowGen.dispose();
+      this.shadowGen = null;
+    }
+    this.engine.setHardwareScalingLevel(Math.max(1, window.devicePixelRatio > 1 ? 1.25 : 1));
   }
 
   mat(hex: string): StandardMaterial {
@@ -108,6 +199,29 @@ export class BoardRenderer {
       this.mats.set(hex, m);
     }
     return m;
+  }
+
+  /** dedicated animated material for water tiles (kept out of the shared cache) */
+  private waterMat(deep: boolean): StandardMaterial {
+    const name = deep ? "water-ocean" : "water-shallow";
+    let m = this.mats.get(name);
+    if (!m) {
+      m = new StandardMaterial(name, this.scene);
+      m.diffuseColor = Color3.FromHexString(deep ? TERRAIN_COLORS.ocean : TERRAIN_COLORS.water);
+      m.specularColor = new Color3(0.25, 0.3, 0.45);
+      m.specularPower = 32;
+      m.alpha = deep ? 0.92 : 0.9;
+      this.mats.set(name, m);
+      this.waterMats.push(m);
+    }
+    return m;
+  }
+
+  /** register a mesh as a shadow caster (and receiver for tiles) */
+  private addShadows(m: Mesh, receiveOnly = false) {
+    if (!this.shadowGen) return;
+    if (!receiveOnly) this.shadowGen.addShadowCaster(m);
+    m.receiveShadows = true;
   }
 
   center(size: number) {
@@ -140,9 +254,14 @@ export class BoardRenderer {
     const h = TERRAIN_H[t.terrain];
     const box = MeshBuilder.CreateBox("t" + key, { width: TILE * 0.96, depth: TILE * 0.96, height: h }, this.scene);
     box.position = new Vector3(t.x - c, h / 2 - 0.4, t.y - c);
-    box.material = this.mat(this.tileColor(s, t));
+    if (t.terrain === "water" || t.terrain === "ocean") {
+      box.material = this.waterMat(t.terrain === "ocean");
+    } else {
+      box.material = this.mat(this.tileColor(s, t));
+    }
     box.metadata = { tile: true, x: t.x, y: t.y };
     box.parent = this.root;
+    this.addShadows(box, true); // tiles receive shadows
     // fog of war depth: explored but not currently visible → dimmed
     const visible = isVisibleTo(s, s.humanTribe, t.x, t.y);
     if (!visible) box.visibility = 0.45;
@@ -326,6 +445,7 @@ export class BoardRenderer {
       }
     }
     if (!visible) decor.forEach((m) => (m.visibility = 0.45));
+    decor.forEach((m) => this.addShadows(m));
     this.decorMeshes.set(key, decor);
   }
 
@@ -421,6 +541,7 @@ export class BoardRenderer {
         p.parent = node;
         p.isPickable = false;
       }
+      node.getChildMeshes().forEach((m) => this.addShadows(m as Mesh));
       return node;
     }
     const col = s.tribes[u.tribe].color;
@@ -583,20 +704,55 @@ export class BoardRenderer {
       crest.animations = [spin];
       this.scene.beginAnimation(crest, 0, 90, true);
     }
+    node.getChildMeshes().forEach((m) => this.addShadows(m as Mesh));
     return node;
   }
 
+  /** white emissive flash on a struck unit (hit feedback) */
+  hitFlash(unitId: number) {
+    const node = this.unitMeshes.get(unitId);
+    if (!node) return;
+    node.getChildMeshes().forEach((m) => {
+      const mat = m.material as StandardMaterial | null;
+      if (!mat) return;
+      // clone so the flash never leaks into the shared material cache
+      const flashMat = mat.clone(mat.name + "-flash");
+      flashMat.emissiveColor = new Color3(0.95, 0.95, 1);
+      m.material = flashMat;
+      setTimeout(() => {
+        if (!m.isDisposed()) m.material = mat;
+        flashMat.dispose();
+      }, 130);
+    });
+  }
+
   private animateMove(node: TransformNode, target: Vector3) {
+    const from = node.position.clone();
+    // arc hop: lift at midpoint proportional to distance (capped)
+    const dist = Vector3.Distance(from, target);
+    const lift = Math.min(0.5, 0.22 + dist * 0.08);
+    const mid = Vector3.Lerp(from, target, 0.5);
+    mid.y = Math.max(from.y, target.y) + lift;
     const anim = new Animation("mv", "position", 60, Animation.ANIMATIONTYPE_VECTOR3, Animation.ANIMATIONLOOPMODE_CONSTANT);
     anim.setKeys([
-      { frame: 0, value: node.position.clone() },
-      { frame: 14, value: target },
+      { frame: 0, value: from },
+      { frame: 8, value: mid },
+      { frame: 16, value: target },
     ]);
     const ease = new CubicEase();
-    ease.setEasingMode(EasingFunction.EASINGMODE_EASEOUT);
+    ease.setEasingMode(EasingFunction.EASINGMODE_EASEINOUT);
     anim.setEasingFunction(ease);
-    node.animations = [anim];
-    this.scene.beginAnimation(node, 0, 14, false);
+    // squash & stretch: stretch tall mid-hop, squash on landing, settle back
+    const sq = new Animation("sq", "scaling", 60, Animation.ANIMATIONTYPE_VECTOR3, Animation.ANIMATIONLOOPMODE_CONSTANT);
+    sq.setKeys([
+      { frame: 0, value: new Vector3(1, 1, 1) },
+      { frame: 4, value: new Vector3(0.92, 1.12, 0.92) },
+      { frame: 8, value: new Vector3(0.95, 1.08, 0.95) },
+      { frame: 16, value: new Vector3(1.1, 0.85, 1.1) },
+      { frame: 22, value: new Vector3(1, 1, 1) },
+    ]);
+    node.animations = [anim, sq];
+    this.scene.beginAnimation(node, 0, 22, false);
   }
 
   /** highlight reachable tiles / attackable enemies for the selected unit */
@@ -749,6 +905,44 @@ export class BoardRenderer {
     ps.colorDead = new Color4(1, 0.72, 0.22, 0);
     ps.blendMode = ParticleSystem.BLENDMODE_ADD;
     ps.targetStopDuration = 0.25;
+    ps.disposeOnStop = true;
+    ps.start();
+  }
+
+  /** gentle green rising sparkles when a unit is mended (arcanist heal) */
+  healSparkle(s: GameState, x: number, y: number) {
+    const c = this.center(s.size);
+    const h = TERRAIN_H[s.tiles[idx(x, y, s.size)].terrain];
+    const emitter = new Vector3(x - c, h - 0.4 + 0.25, y - c);
+    const ps = new ParticleSystem("heal", 30, this.scene);
+    const size = 64;
+    const dt = new DynamicTexture("healspark", { width: size, height: size }, this.scene, false);
+    dt.hasAlpha = true;
+    const ctx = dt.getContext() as CanvasRenderingContext2D;
+    ctx.clearRect(0, 0, size, size);
+    const grad = ctx.createRadialGradient(32, 32, 2, 32, 32, 30);
+    grad.addColorStop(0, "rgba(255,255,255,1)");
+    grad.addColorStop(0.4, "rgba(126,231,168,0.9)");
+    grad.addColorStop(1, "rgba(62,196,130,0)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, size, size);
+    dt.update();
+    ps.particleTexture = dt as unknown as Texture;
+    ps.emitter = emitter;
+    ps.minEmitBox = new Vector3(-0.22, 0, -0.22);
+    ps.maxEmitBox = new Vector3(0.22, 0.1, 0.22);
+    ps.minSize = 0.08; ps.maxSize = 0.2;
+    ps.minLifeTime = 0.5; ps.maxLifeTime = 0.9;
+    ps.emitRate = 60;
+    ps.direction1 = new Vector3(-0.15, 1, -0.15);
+    ps.direction2 = new Vector3(0.15, 1.6, 0.15);
+    ps.minEmitPower = 0.5; ps.maxEmitPower = 1.0;
+    ps.gravity = new Vector3(0, 0.4, 0); // drift upward
+    ps.color1 = new Color4(0.55, 0.95, 0.7, 1);
+    ps.color2 = new Color4(0.35, 0.85, 0.55, 1);
+    ps.colorDead = new Color4(0.5, 0.9, 0.65, 0);
+    ps.blendMode = ParticleSystem.BLENDMODE_ADD;
+    ps.targetStopDuration = 0.5;
     ps.disposeOnStop = true;
     ps.start();
   }

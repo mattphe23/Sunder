@@ -43,6 +43,8 @@ export default function GameCanvas() {
         sound.play(atk?.type === "catapult" ? "catapult" : "attack");
         // slight delay so numbers appear at impact
         setTimeout(() => {
+          r.hitFlash(e.defenderId);
+          if (e.retaliation > 0) r.hitFlash(e.attackerId);
           r.showDamageNumber(s, e.dx, e.dy, e.dmg, "#ff6b6b");
           if (e.retaliation > 0) r.showDamageNumber(s, e.ax, e.ay, e.retaliation, "#ffd76a");
         }, 120);
@@ -53,7 +55,10 @@ export default function GameCanvas() {
         if (e.tribe === s.humanTribe) sound.play("capture");
       }
       if (e.type === "turnStarted" && e.tribe === s.humanTribe && s.turn > 0) sound.play("turn");
-      if (e.type === "sfx") sound.play(e.name);
+      if (e.type === "sfx") {
+        sound.play(e.name);
+        if (e.name === "heal" && e.x !== undefined && e.y !== undefined) r.healSparkle(s, e.x, e.y);
+      }
     });
 
     r.onPick = ({ x, y }) => {

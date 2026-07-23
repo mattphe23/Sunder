@@ -212,3 +212,21 @@
 
 ## 4. Verify + deliver
 - [ ] Two-account end-to-end match; leaderboard writes/reads; checkpoint v18 + deliver
+
+# Polyforge v19 — Polish batch (user request)
+
+## 1. Challenge share cards
+- [ ] "Copy result" button on daily/weekly game-over: Wordle-style emoji summary (game name, date/week,
+      score, win/loss, attempts) copied to clipboard for pasting anywhere
+- [ ] Pairs with v16 share links (include the challenge URL in the copied text)
+
+## 2. Forge presets gallery
+- [ ] 3-4 pre-rolled custom tribes in the Tribe Forge as starting templates (themed name/color/passive/
+      unique combos); "remix" loads one into the forge for editing
+
+## 3. Tribe-picker lore hovers
+- [ ] Two-line lore teaser on each faction card (hover/long-press), previewing the intro card's flavor
+- [ ] Works for all 6 tribes + custom tribe (generic forge lore)
+
+## 4. Verify + deliver
+- [ ] Browser verify all three; checkpoint v19 + deliver
