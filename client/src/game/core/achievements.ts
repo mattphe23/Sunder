@@ -56,12 +56,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: "hard-win", name: "Against All Odds", icon: "flame",
     desc: "Win a game on Hard difficulty.",
-    check: (s) => s.difficulty === "hard" || s.difficulty === "impossible",
-  },
-  {
-    id: "impossible-win", name: "The Unmaker", icon: "skull",
-    desc: "Win a game on Impossible difficulty — no cheats, no mercy.",
-    check: (s) => s.difficulty === "impossible",
+    check: (s) => s.difficulty === "hard",
   },
 ];
 

@@ -19,16 +19,6 @@ export function Minimap() {
   const s = g.state;
   const [open, setOpen] = useState(s.size >= 13);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [pulseTick, setPulseTick] = useState(0);
-
-  // repaint every 400ms while a raid-ready camp is visible so its red ring pulses
-  useEffect(() => {
-    if (!open || s.phase === "menu") return;
-    const hot = (s.camps ?? []).some(c => c.strength >= 3 && s.tiles[idx(c.x, c.y, s.size)]?.explored[s.humanTribe]);
-    if (!hot) return;
-    const iv = setInterval(() => setPulseTick(t => t + 1), 400);
-    return () => clearInterval(iv);
-  }, [open, s, s.phase]);
 
   useEffect(() => {
     if (!open) return;
@@ -53,29 +43,6 @@ export function Minimap() {
       }
     }
     ctx.globalAlpha = 1;
-    // v18: barbarian camps — orange diamonds; strength 3+ pulses a red threat ring
-    for (const camp of s.camps ?? []) {
-      const t = s.tiles[idx(camp.x, camp.y, s.size)];
-      if (!t?.explored[s.humanTribe]) continue;
-      const cx = camp.x * px + px / 2, cy = camp.y * px + px / 2;
-      ctx.fillStyle = "#e8843a";
-      ctx.beginPath();
-      ctx.moveTo(cx, cy - px * 0.4);
-      ctx.lineTo(cx + px * 0.4, cy);
-      ctx.lineTo(cx, cy + px * 0.4);
-      ctx.lineTo(cx - px * 0.4, cy);
-      ctx.closePath();
-      ctx.fill();
-      if (camp.strength >= 3) {
-        // raid imminent — pulsing red ring (pulse phase from wall-clock so it animates on redraws)
-        const pulse = 0.55 + 0.45 * Math.sin(Date.now() / 300);
-        ctx.strokeStyle = `rgba(255,64,64,${pulse.toFixed(2)})`;
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.arc(cx, cy, Math.max(3, px * 0.6), 0, Math.PI * 2);
-        ctx.stroke();
-      }
-    }
     for (const c of s.cities) {
       const t = s.tiles[idx(c.x, c.y, s.size)];
       if (!t.explored[s.humanTribe]) continue;
@@ -93,14 +60,13 @@ export function Minimap() {
       const t = s.tiles[idx(u.x, u.y, s.size)];
       if (!t.explored[s.humanTribe]) continue;
       if (u.tribe !== s.humanTribe && !isVisibleTo(s, s.humanTribe, u.x, u.y)) continue;
-      // world units (raiders/guardians) have no tribe — draw them hostile red
-      ctx.fillStyle = u.tribe >= 0 ? s.tribes[u.tribe].color : "#c03030";
+      ctx.fillStyle = s.tribes[u.tribe].color;
       ctx.fillRect(u.x * px + px / 3, u.y * px + px / 3, px / 3, px / 3);
       ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 0.75;
       ctx.strokeRect(u.x * px + px / 3, u.y * px + px / 3, px / 3, px / 3);
     }
-  }, [open, s, g.getVersion(), pulseTick]);
+  }, [open, s, g.getVersion()]);
 
   if (s.phase === "menu") return null;
 

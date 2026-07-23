@@ -11,7 +11,6 @@ import { Star, Swords, FlaskConical, X, ChevronRight, Anchor, Ship, Skull, Shiel
 import { useState } from "react";
 import { MuteButton } from "./MuteButton";
 import { sound } from "../sound";
-import { victoryProgress, VICTORY_PATH_START_TURN } from "../core/victory";
 
 const panel = "rounded-xl border border-white/10 bg-[#1b1b3f]/85 backdrop-blur-md shadow-xl shadow-black/40 text-slate-100";
 
@@ -180,9 +179,6 @@ export function TopBar() {
   const me = s.tribes[s.humanTribe];
   if (!me) return null;
   const isMyTurn = s.currentTribe === s.humanTribe && !s.aiThinking;
-  // v20: asymmetric faction victory path progress
-  const vp = victoryProgress(s, s.humanTribe);
-  const pathLocked = s.turn < VICTORY_PATH_START_TURN;
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-2 p-3">
       <div className={`${panel} pointer-events-auto flex items-center gap-3 px-4 py-2`}>
@@ -194,16 +190,6 @@ export function TopBar() {
           <span className="text-xs text-amber-200/70">+{starIncome(s, s.humanTribe)}</span>
         </span>
         <span className="text-xs text-slate-300/80">Turn {s.turn + 1}/{s.maxTurns}</span>
-        {vp && (
-          <span
-            className={`hidden items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold sm:flex ${vp.done ? "border-amber-400/60 bg-amber-400/15 text-amber-300" : "border-white/15 bg-white/5 text-slate-300"}`}
-            title={`${vp.def.name} — ${vp.def.goal}${pathLocked ? ` (path victories unlock on turn ${VICTORY_PATH_START_TURN + 1})` : ""}. Complete your faction's path to win instantly.`}
-          >
-            <Crown className={`h-3 w-3 ${vp.done ? "text-amber-300" : "text-slate-400"}`} />
-            <span className="font-display tracking-wide">{vp.def.name}</span>
-            <span className="font-mono text-slate-400">{vp.current}/{vp.target}</span>
-          </span>
-        )}
       </div>
       <div className="flex items-center gap-2">
         <div className={`${panel} pointer-events-auto px-4 py-2 text-xs`}>

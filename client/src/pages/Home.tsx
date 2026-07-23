@@ -11,7 +11,6 @@ import { FactionIntro } from "@/game/ui/FactionIntro";
 import { HandoffScreen } from "@/game/ui/Handoff";
 import { DiplomacyPanel, IncomingOfferModal } from "@/game/ui/Diplomacy";
 import { WorldEventCards, HeroFallenCard } from "@/game/ui/WorldEvents";
-import { OnlineGame } from "@/game/online/OnlineGame";
 
 export default function Home() {
   const g = useGame();
@@ -44,7 +43,6 @@ export default function Home() {
       <PerkChoice />
       <WorldEventCards />
       <HeroFallenCard />
-      <OnlineGame />
       <BottomBar onOpenTech={() => setTechOpen(true)} onOpenDiplo={() => setDiploOpen(true)} />
       <TechPanel open={techOpen} onClose={() => setTechOpen(false)} />
       <DiplomacyPanel open={diploOpen} onClose={() => setDiploOpen(false)} />
