@@ -6,7 +6,7 @@ import { game, loadHall, HallEntry } from "../core/state";
 import { TRIBE_DEFS, Difficulty } from "../core/types";
 import { MAP_PRESETS, MapPreset } from "../core/mapgen";
 import { Button } from "@/components/ui/button";
-import { Swords, Star, Play, Trophy, ChevronDown } from "lucide-react";
+import { Swords, Star, Play, Trophy, ChevronDown, Crown } from "lucide-react";
 import { Users, User } from "lucide-react";
 import { Award, Shield, Flag, Zap, Landmark, Skull, Coins, Flame, Lock } from "lucide-react";
 import { ACHIEVEMENTS, loadAchievements, AchievementDef } from "../core/achievements";
@@ -694,24 +694,42 @@ export function GameOver() {
       window.prompt("Copy your challenge link:", url);
     }
   };
-  // v19: Wordle-style result card for daily/weekly challenge runs
-  const copyResult = async () => {
-    sound.play("click");
-    if (!s.challenge) return;
-    const setup = s.challenge === "daily" ? dailyChallenge() : weeklyChallenge();
-    const best = currentScore(s.challenge);
-    const myScore = game.shareScore();
-    const text = buildResultCard({
-      kind: s.challenge,
-      label: setup.label,
-      factionName: s.tribes[s.humanTribe]?.name ?? "Unknown",
-      score: myScore,
-      won,
-      turns: Math.max(1, s.turn),
-      attempts: best?.attempts ?? 1,
-      isBest: game.newChallengeBest,
-      url: typeof window !== "undefined" ? window.location.origin + window.location.pathname : undefined,
-    });
+ // v19: Wordle-style result card for daily/weekly challenge runs
+ const copyResult = async () => {
+   sound.play("click");
+   if (!s.challenge) return;
+   const setup = s.challenge === "daily" ? dailyChallenge() : weeklyChallenge();
+   const best = currentScore(s.challenge);
+   const myScore = game.shareScore();
+    // pair with the v16 friend-challenge link: same seed/preset/size, your score to beat.
+    // Custom-forge tribes can't be encoded, so fall back to the plain site URL.
+    let shareUrl = typeof window !== "undefined" ? window.location.origin + window.location.pathname : undefined;
+    if (canShare) {
+      let name = "";
+      try { name = localStorage.getItem("polyforge-player-name") ?? ""; } catch { /* noop */ }
+      shareUrl = friendChallengeUrl({
+        name: name || "A rival",
+        score: myScore,
+        seed: s.seed,
+        preset: s.preset,
+        size: s.size,
+        difficulty: s.difficulty,
+        tribe: s.tribes[s.humanTribe].defIndex,
+        won,
+        turns: Math.max(1, s.turn),
+      });
+    }
+   const text = buildResultCard({
+     kind: s.challenge,
+     label: setup.label,
+     factionName: s.tribes[s.humanTribe]?.name ?? "Unknown",
+     score: myScore,
+     won,
+     turns: Math.max(1, s.turn),
+     attempts: best?.attempts ?? 1,
+     isBest: game.newChallengeBest,
+      url: shareUrl,
+   });
     try {
       await navigator.clipboard.writeText(text);
       setResultCopied(true);
@@ -747,6 +765,14 @@ export function GameOver() {
           <p className="mt-2 text-sm text-slate-300">
             <span style={{ color: winner.color }} className="font-bold">{winner.name}</span> rules the Shatterlands.
           </p>
+        )}
+        {s.winPath && (
+          <p className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1 text-[11px] font-bold text-amber-200">
+            <Crown className="h-3 w-3" /> {s.winPath.pathName} victory
+          </p>
+        )}
+        {s.winPath && (
+          <p className="mt-1.5 text-xs italic text-slate-400">{s.winPath.flavor}</p>
         )}
         {won && game.newHallEntry && (
           <p className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-amber-400/50 bg-amber-400/15 px-3 py-1 text-[11px] font-bold text-amber-300">

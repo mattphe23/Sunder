@@ -387,6 +387,8 @@ export interface GameState {
   heroFallen?: { heroName: string; tribeName: string; tribeColor: string; killerTribe: string; wasHuman: boolean; taunt: string } | null;
   /** v17: camps razed by the human this match (profile stat) */
   campsRazedByHuman?: number;
+  /** v20: set when the game ended via an asymmetric faction victory path */
+  winPath?: { pathId: string; pathName: string; flavor: string } | null;
 }
 
 /** one entry in the match replay log */

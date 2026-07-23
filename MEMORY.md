@@ -571,3 +571,13 @@ Key APIs: game.dismissHandoff() exists (L~732 sets handoff=null + emit). trpc ho
 - Still to verify: TribeForge preset gallery visual, result-card copy button on challenge gameover (needs a finished challenge run), TurnAlerts (needs sign-in; logic-only OK).
 - Remaining before checkpoint: mark todo.md v19 items [x], smoke test, checkpoint + deliver.
 - v19 final smoke: game plays turns fine post-v19; LORE_TEASERS error in log was stale (10:41, pre-import-fix); no errors after 10:50. Result card verified in Node (correct output). Preset gallery verified in browser (Emberguard remix loads name/passive/unit/tech). Leaderboard panel + tabs verified. todo.md v19 marked [x].
+
+## v20 (in progress)
+- todo.md fully audited & rewritten: v10-v19 marked complete against codebase evidence; v20 plan (asymmetric victories, AI hero care, headless sim) + v21 roadmap (Impossible AI).
+- Gap fix: GameOver copyResult now embeds real ?c= friend-challenge URL (canShare guard; custom tribes fall back to plain URL).
+- NEW client/src/game/core/victory.ts: VICTORY_PATHS (7 paths: enlightenment/bloodforge/greatharvest/plunderking/tidemastery/unbrokenwall/ascendance generic), victoryProgress(), checkPathVictory(), VICTORY_PATH_START_TURN=8 grace window.
+- state.ts: winPath field on GameState; checkVictoryPaths() called at start of each game turn (tribe 0 beginTurn, after runWorldTurn).
+- ai.ts: hero care (retreat wounded hero <=45% HP toward nearest friendly city, -100 attack score if hero would die, leveled heroes +4/level bolder); loose path pursuit (Auren double research, Vessari hoards stars past 55%, Nerivane port chance 0.9, Dravok walls chance 0.95).
+- Hud.tsx TopBar: victory path chip (Crown icon, name + current/target, tooltip w/ goal). Menu.tsx GameOver: winPath badge + flavor line.
+- Tests: server/victory.sim.test.ts (8 unit tests on paths), server/engine.sim.test.ts (headless AI-vs-AI full matches; KEY TRICK: vi.stubGlobal setTimeout to ()=>0 and drive every tribe manually with runAiTurn + endTurn — the store's internal setTimeout AI scheduling doesn't run under fake timers reliably).
+- scripts/debug-sim.mjs: standalone headless sim debugger (pnpm tsx).

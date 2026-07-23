@@ -23,6 +23,7 @@ import { ChallengeKind, recordChallengeScore } from "./challenges";
 import { CustomTribeConfig, customTribeDef, CUSTOM_DEF_INDEX } from "./customTribe";
 import { runWorldPhase, worldUnitIntents, campAt } from "./events";
 import { recordGameResult } from "./profile";
+import { checkPathVictory } from "./victory";
 export type GameEvent =
   | { type: "changed" }
   | { type: "unitMoved"; unitId: number; fromX: number; fromY: number; toX: number; toY: number }
@@ -307,6 +308,7 @@ class GameStore {
     this.state.worldEvents = [];
     this.state.heroFallen = null;
     this.state.campsRazedByHuman = 0;
+    this.state.winPath = null;
     this.exploreAround();
     this.beginTurn(0);
     this.emit({ type: "changed" });
@@ -341,6 +343,9 @@ class GameStore {
       this.recordReplay({ tribe: 0, kind: "turn", text: `Turn ${s.turn + 1} begins` });
       // v17 living map: the world takes its phase before the first tribe acts
       this.runWorldTurn();
+      // v20: asymmetric faction victory paths — checked once per game turn
+      this.checkVictoryPaths();
+      if (s.phase !== "playing") return;
     }
     // turn replay: show what rivals did while the human waited
     if (!hotseat && tribe.isHuman && s.recap.length > 0) {
@@ -458,6 +463,25 @@ class GameStore {
     alive.sort((a, b) => b.score - a.score);
     s.winner = alive[0]?.index ?? null;
     s.phase = "gameover";
+    this.recordVictory();
+    this.onGameOver();
+    this.emit({ type: "sfx", name: s.winner === s.humanTribe ? "victory" : "defeat" });
+    this.emit({ type: "changed" });
+  }
+
+  /** v20: end the match when a tribe completes its asymmetric faction path */
+  private checkVictoryPaths() {
+    const s = this.state;
+    if (s.phase !== "playing") return;
+    for (const t of s.tribes) this.updateScore(t.index); // ascendance path reads score
+    const hit = checkPathVictory(s);
+    if (!hit) return;
+    const { def } = hit.progress;
+    s.winner = hit.tribe;
+    s.winPath = { pathId: def.id, pathName: def.name, flavor: def.flavor };
+    s.phase = "gameover";
+    s.log.unshift(`${s.tribes[hit.tribe].name} achieved ${def.name}!`);
+    this.recordReplay({ tribe: hit.tribe, kind: "turn", text: `${s.tribes[hit.tribe].name} achieved the ${def.name} victory` });
     this.recordVictory();
     this.onGameOver();
     this.emit({ type: "sfx", name: s.winner === s.humanTribe ? "victory" : "defeat" });
