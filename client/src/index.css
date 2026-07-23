@@ -179,3 +179,9 @@
     }
   }
 }
+
+/* v16 loading splash sweep */
+@keyframes splash-sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}

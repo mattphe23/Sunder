@@ -11,7 +11,9 @@ import { Users, User } from "lucide-react";
 import { Award, Shield, Flag, Zap, Landmark, Skull, Coins, Flame, Lock } from "lucide-react";
 import { ACHIEVEMENTS, loadAchievements, AchievementDef } from "../core/achievements";
 import { dailyChallenge, weeklyChallenge, currentScore, ChallengeSetup } from "../core/challenges";
+import { readFriendChallengeFromUrl, friendChallengeUrl, FriendChallenge } from "../core/challenges";
 import { CalendarDays, Repeat } from "lucide-react";
+import { Link2, Check, Swords as SwordsIcon } from "lucide-react";
 import { MuteButton } from "./MuteButton";
 import { sound } from "../sound";
 import { ReplayViewer } from "./Replay";
@@ -96,6 +98,7 @@ export function MainMenu() {
   const [achievements] = useState(() => loadAchievements());
   const [daily] = useState(() => dailyChallenge());
   const [weekly] = useState(() => weeklyChallenge());
+  const [friend, setFriend] = useState<FriendChallenge | null>(() => readFriendChallengeFromUrl());
   const dailyBest = currentScore("daily");
   const weeklyBest = currentScore("weekly");
   const [slot, setSlot] = useState(() => game.activeSlot);
@@ -145,6 +148,23 @@ export function MainMenu() {
       size: c.size, humanTribe: c.faction, difficulty: c.difficulty,
       seed: c.seed, preset: c.preset, challenge: c.kind,
     });
+  };
+  const startFriendChallenge = () => {
+    if (!friend) return;
+    sound.play("click");
+    // rebuild the exact same match: same seed/preset/size/difficulty, and the
+    // challenger's tribe def leads the roster so you play the identical seat
+    const rest = TRIBE_DEFS.map((_, i) => i).filter((i) => i !== friend.tribe && i !== CUSTOM_DEF_INDEX);
+    const roster = [friend.tribe, ...rest].slice(0, 4);
+    g.newGame({
+      size: friend.size, humanTribe: 0, difficulty: friend.difficulty,
+      seed: friend.seed, preset: friend.preset as MapPreset, roster,
+      friendChallenge: { name: friend.name, score: friend.score },
+    });
+  };
+  const dismissFriend = () => {
+    setFriend(null);
+    try { window.history.replaceState({}, "", window.location.pathname); } catch { /* noop */ }
   };
 
   return (
@@ -395,6 +415,32 @@ export function MainMenu() {
 
         {/* Hall of Conquest — best victories per difficulty */}
         <div className="mt-3 w-full">
+          {/* v16: friend challenge — arrived via a shared ?c= link */}
+          {friend && (
+            <button
+              onClick={startFriendChallenge}
+              className="relative mb-1.5 block w-full overflow-hidden rounded-lg border-2 border-amber-400/60 bg-amber-400/10 p-3 text-left shadow-[0_0_24px_rgba(255,185,56,0.2)] transition-colors hover:bg-amber-400/20 active:scale-[0.98]"
+            >
+              <span
+                onClick={(e) => { e.stopPropagation(); dismissFriend(); }}
+                className="absolute right-2 top-2 cursor-pointer text-slate-400 hover:text-slate-200"
+                aria-label="Dismiss challenge"
+              >
+                ✕
+              </span>
+              <span className="flex items-center gap-1.5 font-display text-xs font-black uppercase tracking-wider text-amber-300">
+                <SwordsIcon className="h-4 w-4" /> {friend.name} challenges you!
+              </span>
+              <span className="mt-1 block text-[11px] leading-tight text-slate-200">
+                Beat their score of <span className="font-mono font-bold text-amber-300">{friend.score}</span
+                > on the same map — {TRIBE_DEFS[friend.tribe]?.name ?? "?"} · {friend.preset} {friend.size}×{friend.size} · {friend.difficulty}
+                {friend.won ? ` · they won in ${friend.turns} turns` : " · they fell short of victory"}
+              </span>
+              <span className="mt-1.5 inline-block rounded bg-amber-400 px-2 py-0.5 font-display text-[10px] font-black tracking-widest text-[#1b1b3f]">
+                ACCEPT THE DUEL
+              </span>
+            </button>
+          )}
           {/* Challenges — shared seeded maps: daily sprint & weekly optimization */}
           <div className="mb-1 grid w-full grid-cols-2 gap-1.5">
             {([
@@ -502,12 +548,43 @@ export function GameOver() {
   const g = useGame();
   const s = g.state;
   const [replayOpen, setReplayOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   const winner = s.winner !== null ? s.tribes[s.winner] : null;
   const hotseat = (s.humanTribes?.length ?? 1) > 1;
   const won = hotseat
     ? s.winner !== null && (s.humanTribes ?? []).includes(s.winner)
     : s.winner === s.humanTribe;
   const ranked = [...s.tribes].sort((a, b) => b.score - a.score);
+  const friendRes = game.friendResult;
+  const canShare = !hotseat && s.tribes[s.humanTribe]?.defIndex !== undefined && s.tribes[s.humanTribe].defIndex !== CUSTOM_DEF_INDEX;
+  const shareRun = async () => {
+    sound.play("click");
+    let name = "";
+    try { name = localStorage.getItem("polyforge-player-name") ?? ""; } catch { /* noop */ }
+    if (!name) {
+      name = window.prompt("Your name (shown to your rival):", "")?.trim() ?? "";
+      if (name) try { localStorage.setItem("polyforge-player-name", name); } catch { /* noop */ }
+    }
+    const url = friendChallengeUrl({
+      name: name || "A rival",
+      score: game.shareScore(),
+      seed: s.seed,
+      preset: s.preset,
+      size: s.size,
+      difficulty: s.difficulty,
+      tribe: s.tribes[s.humanTribe].defIndex,
+      won,
+      turns: Math.max(1, s.turn),
+    });
+    const text = `I scored ${game.shareScore()} in Sunder: The Living Forge — beat me on the same map: ${url}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      window.prompt("Copy your challenge link:", url);
+    }
+  };
   // score trajectory data: one row per recorded turn
   const history = s.scoreHistory ?? [];
   const chartData = history.map((row, turn) => {
@@ -547,6 +624,14 @@ export function GameOver() {
             {game.newChallengeBest
               ? `New ${s.challenge} challenge best: ${currentScore(s.challenge)?.score ?? "—"}!`
               : `${s.challenge === "daily" ? "Daily" : "Weekly"} score: below your best (${currentScore(s.challenge)?.score ?? "—"})`}
+          </p>
+        )}
+        {friendRes && (
+          <p className={`mt-2 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold ${friendRes.beaten ? "border-amber-400/60 bg-amber-400/15 text-amber-300" : "border-white/15 bg-white/5 text-slate-300"}`}>
+            <SwordsIcon className="h-3 w-3" />
+            {friendRes.beaten
+              ? `You beat ${friendRes.name}! ${friendRes.myScore} vs ${friendRes.theirScore}`
+              : `${friendRes.name} still leads — ${friendRes.myScore} vs ${friendRes.theirScore}`}
           </p>
         )}
         {game.newAchievements.length > 0 && (
@@ -677,6 +762,15 @@ export function GameOver() {
             Play Again
           </Button>
         </div>
+        {canShare && (
+          <Button
+            variant="secondary"
+            onClick={shareRun}
+            className="mt-2 w-full gap-1.5 border border-amber-400/40 bg-amber-400/10 font-display text-xs font-bold tracking-wide text-amber-200 hover:bg-amber-400/20"
+          >
+            {copied ? <><Check className="h-3.5 w-3.5" /> Link copied — send it to a rival!</> : <><Link2 className="h-3.5 w-3.5" /> Challenge a friend — share this run</>}
+          </Button>
+        )}
       </div>
       <ReplayViewer open={replayOpen} onClose={() => setReplayOpen(false)} />
     </div>

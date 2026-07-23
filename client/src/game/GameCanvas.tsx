@@ -1,14 +1,17 @@
 // Sunder board canvas — hosts the Babylon renderer, routes picks to game logic.
 // Isoglow: canvas is the hero; deep indigo void background.
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BoardRenderer } from "./render/scene";
 import { game } from "./core/state";
 import { sound } from "./sound";
 import { unitAt, cityAt, reachableTiles, attackableUnits } from "./core/rules";
 
+const LOGO = "/manus-storage/sunder-mark_d1dbf156.png";
+
 export default function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<BoardRenderer | null>(null);
+  const [booting, setBooting] = useState(true);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -24,6 +27,8 @@ export default function GameCanvas() {
       r.showHighlights(s);
     };
     refresh();
+    // brand splash: hold one beat after the first build so the reveal feels intentional
+    const bootTimer = setTimeout(() => setBooting(false), 700);
 
     const unsub = game.subscribe(() => {
       const s = game.state;
@@ -106,10 +111,28 @@ export default function GameCanvas() {
     return () => {
       unsub();
       unsubFx();
+      clearTimeout(bootTimer);
       r.dispose();
       rendererRef.current = null;
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="h-full w-full outline-none" style={{ touchAction: "none" }} />;
+  return (
+    <>
+      <canvas ref={canvasRef} className="h-full w-full outline-none" style={{ touchAction: "none" }} />
+      {/* v16 brand splash — covers Babylon's first-frame flash, fades out via CSS */}
+      <div
+        className={`pointer-events-none absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-[#141433] transition-opacity duration-500 ${booting ? "opacity-100" : "opacity-0"}`}
+        aria-hidden={!booting}
+      >
+        <img src={LOGO} alt="" className="h-24 w-24 animate-pulse drop-shadow-[0_0_30px_rgba(255,140,31,0.45)]" />
+        <p className="font-display text-xs font-black uppercase tracking-[0.35em] text-amber-300/90">
+          Outthink. Outforge. Outlast.
+        </p>
+        <div className="mt-1 h-0.5 w-24 overflow-hidden rounded bg-white/10">
+          <div className="h-full w-1/2 animate-[splash-sweep_0.9s_ease-in-out_infinite] rounded bg-amber-400" />
+        </div>
+      </div>
+    </>
+  );
 }

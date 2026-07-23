@@ -17,7 +17,8 @@ type SfxName =
   | "promote"
   | "victory"
   | "defeat"
-  | "treaty";
+  | "treaty"
+  | "levelup";
 
 class SoundEngine {
   private ctx: AudioContext | null = null;
@@ -198,6 +199,11 @@ class SoundEngine {
         this.tone(494, 0.3, { type: "triangle", vol: 0.12, at: 0.12 });
         this.tone(587, 0.45, { type: "sine", vol: 0.14, at: 0.24 });
         this.tone(784, 0.4, { type: "sine", vol: 0.08, at: 0.3 });
+        break;
+      case "levelup": // ascending heroic flourish + shimmer
+        [440, 554, 659, 880].forEach((f, i) => this.tone(f, 0.18, { type: "triangle", vol: 0.15, at: i * 0.08 }));
+        this.tone(1319, 0.35, { type: "sine", vol: 0.1, at: 0.34 });
+        this.tone(1760, 0.3, { type: "sine", vol: 0.06, at: 0.42 });
         break;
     }
   }

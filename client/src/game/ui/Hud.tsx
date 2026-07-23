@@ -1,18 +1,60 @@
 // Sunder HUD — Isoglow glass panels over the indigo void; amber star accent.
 import { useGame } from "../useGame";
 import { game } from "../core/state";
-import { UNIT_STATS, TECHS } from "../core/types";
+import { UNIT_STATS, TECHS, HERO_PERKS, HERO_XP_THRESHOLDS, HERO_MAX_LEVEL } from "../core/types";
 import {
   techCost, canResearch, trainableUnits, starIncome, cityAt, canHarvest,
   harvestCost, canBuildPort, portCost, wallCost,
 } from "../core/rules";
 import { Button } from "@/components/ui/button";
-import { Star, Swords, FlaskConical, X, ChevronRight, Anchor, Ship, Skull, Shield, Flag, Landmark, ScrollText, Undo2, Bird } from "lucide-react";
+import { Star, Swords, FlaskConical, X, ChevronRight, Anchor, Ship, Skull, Shield, Flag, Landmark, ScrollText, Undo2, Bird, Crown, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { MuteButton } from "./MuteButton";
 import { sound } from "../sound";
 
 const panel = "rounded-xl border border-white/10 bg-[#1b1b3f]/85 backdrop-blur-md shadow-xl shadow-black/40 text-slate-100";
+
+/** v16 — Hero level-up: choose one of three perks. Blocks input until resolved. */
+export function PerkChoice() {
+  const g = useGame();
+  const s = g.state;
+  if (!s.pendingPerk || s.phase !== "playing") return null;
+  const hero = s.units.find((u) => u.id === s.pendingPerk);
+  if (!hero || !hero.hero) return null;
+  const options = game.perkChoices(hero);
+  const name = game.heroName(hero);
+  return (
+    <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/55 p-4">
+      <div className={`${panel} w-full max-w-md border-amber-400/40 p-5`}>
+        <div className="mb-1 flex items-center justify-center gap-2">
+          <Crown className="h-5 w-5 text-amber-300" />
+          <span className="font-display text-lg font-bold text-amber-300">{name} — Level {hero.level}</span>
+        </div>
+        <p className="mb-4 text-center text-xs text-slate-300">
+          Your commander grows in legend. Choose a perk — it is forged forever.
+        </p>
+        <div className="space-y-2">
+          {options.map((p) => {
+            const def = HERO_PERKS[p];
+            return (
+              <button
+                key={p}
+                onClick={() => { sound.play("click"); game.choosePerk(p); }}
+                className="flex w-full items-center gap-3 rounded-lg border border-amber-400/25 bg-amber-400/5 px-4 py-3 text-left transition-all hover:border-amber-400/60 hover:bg-amber-400/15 active:scale-[0.98]"
+              >
+                <Sparkles className="h-4 w-4 shrink-0 text-amber-300" />
+                <span>
+                  <span className="block font-display text-sm font-bold text-slate-100">{def.name}</span>
+                  <span className="block text-[11px] text-slate-300">{def.desc}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /** Turn replay — recap of what rivals did while the player waited. */
 export function TurnRecap() {
@@ -215,16 +257,42 @@ export function SelectionPanel() {
     const st = UNIT_STATS[unit.type];
     const here = cityAt(s, unit.x, unit.y);
     const canCapture = here && here.tribe !== unit.tribe && !unit.moved;
+    const isHero = !!unit.hero;
+    const xpNeed = isHero && (unit.level ?? 1) < HERO_MAX_LEVEL ? HERO_XP_THRESHOLDS[(unit.level ?? 1) - 1] : null;
     return (
       <div className={`${panel} absolute bottom-16 left-3 z-20 w-60 p-3`}>
         <div className="mb-1 flex items-center justify-between">
           <span className="flex items-center gap-1.5 font-display text-sm font-bold">
             {unit.boat && <Ship className="h-4 w-4 text-cyan-300" />}
+            {isHero && <Crown className="h-4 w-4 text-amber-300" />}
             {unit.veteran && <span className="text-amber-400" title="Veteran">◆</span>}
-            {unit.veteran ? "Veteran " : ""}{st.name}{unit.boat && " (at sea)"}
+            {unit.veteran ? "Veteran " : ""}{isHero ? game.heroName(unit) : st.name}{unit.boat && " (at sea)"}
           </span>
           <button onClick={() => g.selectUnit(null)}><X className="h-4 w-4 text-slate-400" /></button>
         </div>
+        {isHero && (
+          <div className="mb-2">
+            <p className="mb-1 flex items-center justify-between text-[11px] text-amber-200/90">
+              <span className="font-semibold">Level {unit.level ?? 1} Commander</span>
+              {xpNeed !== null ? <span className="font-mono text-slate-300">{unit.xp ?? 0}/{xpNeed} XP</span> : <span className="text-amber-300">Max level</span>}
+            </p>
+            {xpNeed !== null && (
+              <div className="h-1 overflow-hidden rounded bg-white/10">
+                <div className="h-full rounded bg-amber-400" style={{ width: `${Math.min(100, ((unit.xp ?? 0) / xpNeed) * 100)}%` }} />
+              </div>
+            )}
+            {(unit.perks?.length ?? 0) > 0 && (
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {unit.perks!.map((p) => (
+                  <span key={p} className="rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[9px] font-semibold text-amber-200" title={HERO_PERKS[p].desc}>
+                    {HERO_PERKS[p].name}
+                  </span>
+                ))}
+              </div>
+            )}
+            <p className="mt-1 text-[10px] text-slate-400">XP: kills +3 · captures +4 · ruins +2 · won defenses +2. If they fall, they are gone forever.</p>
+          </div>
+        )}
         {st.perk && (
           <p className="mb-1 text-[11px] text-violet-300/90">
             <span className="mr-1 rounded bg-violet-400/20 px-1 py-px text-[9px] font-bold uppercase tracking-wider text-violet-300">Unique</span>

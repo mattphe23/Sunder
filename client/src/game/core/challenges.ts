@@ -138,3 +138,69 @@ export function recordChallengeScore(kind: ChallengeKind, score: number, won: bo
   try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch { /* full */ }
   return isBest;
 }
+
+// ---------- v16: friend challenges (shareable "beat my score" links) ----------
+
+/** everything needed to replay a friend's exact match setup + the score to beat */
+export interface FriendChallenge {
+  name: string;        // challenger display name (max 24 chars)
+  score: number;       // score to beat
+  seed: number;
+  preset: string;
+  size: number;
+  difficulty: Difficulty;
+  tribe: number;       // defIndex of the faction the challenger played
+  won: boolean;        // whether the challenger won their run
+  turns: number;       // how many turns their match lasted
+}
+
+/** compact pipe-joined payload → URL-safe base64 (with a checksum to catch mangled links) */
+export function encodeFriendChallenge(c: FriendChallenge): string {
+  const name = c.name.slice(0, 24).replace(/\|/g, "/");
+  const body = [name, c.score, c.seed, c.preset, c.size, c.difficulty, c.tribe, c.won ? 1 : 0, c.turns].join("|");
+  const sum = hash(body) % 9973;
+  const raw = `${body}|${sum}`;
+  // URL-safe base64 (unicode-safe via encodeURIComponent)
+  return btoa(unescape(encodeURIComponent(raw))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+export function decodeFriendChallenge(param: string): FriendChallenge | null {
+  try {
+    const b64 = param.replace(/-/g, "+").replace(/_/g, "/");
+    const raw = decodeURIComponent(escape(atob(b64)));
+    const parts = raw.split("|");
+    if (parts.length !== 10) return null;
+    const sum = Number(parts.pop());
+    if (hash(parts.join("|")) % 9973 !== sum) return null;
+    const [name, score, seed, preset, size, difficulty, tribe, won, turns] = parts;
+    if (!["easy", "normal", "hard"].includes(difficulty)) return null;
+    const c: FriendChallenge = {
+      name: name || "A rival",
+      score: Math.max(0, Number(score) | 0),
+      seed: Number(seed) >>> 0,
+      preset,
+      size: [9, 11, 13].includes(Number(size)) ? Number(size) : 11,
+      difficulty: difficulty as Difficulty,
+      tribe: Math.min(5, Math.max(0, Number(tribe) | 0)),
+      won: won === "1",
+      turns: Math.max(1, Number(turns) | 0),
+    };
+    if (!Number.isFinite(c.score) || !Number.isFinite(c.seed)) return null;
+    return c;
+  } catch {
+    return null;
+  }
+}
+
+/** build the full share URL for the current origin */
+export function friendChallengeUrl(c: FriendChallenge): string {
+  const base = typeof window !== "undefined" ? window.location.origin + window.location.pathname : "";
+  return `${base}?c=${encodeFriendChallenge(c)}`;
+}
+
+/** read ?c= from the address bar (once, on menu load) */
+export function readFriendChallengeFromUrl(): FriendChallenge | null {
+  if (typeof window === "undefined") return null;
+  const param = new URLSearchParams(window.location.search).get("c");
+  return param ? decodeFriendChallenge(param) : null;
+}

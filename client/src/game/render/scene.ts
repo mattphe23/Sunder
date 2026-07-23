@@ -486,6 +486,12 @@ export class BoardRenderer {
         node = this.buildUnitMesh(s, u);
         this.unitMeshes.set(u.id, node);
       }
+      // hero: rebuild when level changes so the crown pips stay accurate
+      if (u.hero && node.metadata?.heroLevel !== undefined && node.metadata.heroLevel !== (u.level ?? 1)) {
+        node.dispose();
+        node = this.buildUnitMesh(s, u);
+        this.unitMeshes.set(u.id, node);
+      }
       // naval: show/hide boat hull under the unit
       const hull = node.getChildMeshes().find((m) => m.name === "hull");
       if (u.boat && !hull) {
@@ -671,6 +677,49 @@ export class BoardRenderer {
         }
         return body;
       },
+      // v16 Hero Commander — regal figure: caped body, banner spear, floating molten crown
+      hero: () => {
+        const body = MeshBuilder.CreateCylinder("b", { diameterTop: 0.2, diameterBottom: 0.34, height: 0.46, tessellation: 6 }, this.scene);
+        // banner spear with tribe-color pennant
+        const pole = MeshBuilder.CreateCylinder("pole", { diameter: 0.03, height: 0.6, tessellation: 5 }, this.scene);
+        pole.position = new Vector3(0.18, 0.2, 0);
+        pole.material = this.mat("#d9cfc0");
+        pole.isPickable = false;
+        pole.parent = body;
+        const flag = MeshBuilder.CreateBox("flag", { width: 0.02, height: 0.12, depth: 0.18 }, this.scene);
+        flag.position = new Vector3(0.18, 0.42, 0.1);
+        flag.material = this.mat(col);
+        flag.isPickable = false;
+        flag.parent = body;
+        // floating molten crown — the commander's mark
+        const crown = MeshBuilder.CreateTorus("crown", { diameter: 0.2, thickness: 0.04, tessellation: 6 }, this.scene);
+        crown.position.y = 0.52;
+        let hm = this.mats.get("hero-crown");
+        if (!hm) {
+          hm = new StandardMaterial("hero-crown", this.scene);
+          (hm as StandardMaterial).diffuseColor = Color3.FromHexString("#ffb938");
+          (hm as StandardMaterial).emissiveColor = Color3.FromHexString("#ff8c1f");
+          this.mats.set("hero-crown", hm);
+        }
+        crown.material = hm;
+        crown.isPickable = false;
+        crown.parent = body;
+        const spin = new Animation("crownSpin", "rotation.y", 30, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CYCLE);
+        spin.setKeys([{ frame: 0, value: 0 }, { frame: 120, value: Math.PI * 2 }]);
+        crown.animations = [spin];
+        this.scene.beginAnimation(crown, 0, 120, true);
+        // level pips: tiny gems orbiting the crown (level - 1 of them)
+        const lvl = Math.min(4, u.level ?? 1);
+        for (let i = 1; i < lvl; i++) {
+          const pip = MeshBuilder.CreatePolyhedron("pip", { type: 1, size: 0.035 }, this.scene);
+          const ang = (i / 3) * Math.PI * 2;
+          pip.position = new Vector3(Math.cos(ang) * 0.14, 0.52, Math.sin(ang) * 0.14);
+          pip.material = hm;
+          pip.isPickable = false;
+          pip.parent = body;
+        }
+        return body;
+      },
     };
     const body = shapes[u.type]();
     if (u.type !== "catapult") body.material = this.mat(col);
@@ -678,13 +727,14 @@ export class BoardRenderer {
     body.parent = node;
     body.isPickable = false;
     // head dot for humanoid silhouette
-    if (u.type !== "catapult" && u.type !== "warden" && u.type !== "arcanist") {
+    if (u.type !== "catapult" && u.type !== "warden" && u.type !== "arcanist" && u.type !== "hero") {
       const head = MeshBuilder.CreateIcoSphere("h", { radius: 0.1, subdivisions: 1 }, this.scene);
       head.position.y = 0.3;
       head.material = this.mat("#f5e6cf");
       head.parent = node;
       head.isPickable = false;
     }
+    if (u.hero) node.metadata = { ...(node.metadata ?? {}), heroLevel: u.level ?? 1 };
     // veteran crest: golden rotating diamond floating above the unit
     if (u.veteran) {
       const crest = MeshBuilder.CreatePolyhedron("crest", { type: 1, size: 0.07 }, this.scene);

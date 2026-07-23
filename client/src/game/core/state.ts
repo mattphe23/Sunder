@@ -5,7 +5,8 @@ import { generateMap, claimBorders, rng, MapPreset } from "./mapgen";
 import {
   GameState, Tribe, Unit, UnitType, UNIT_STATS, TRIBE_DEFS, TechId,
   Difficulty, idx, PORT_COST, WALL_COST, TECHS, RecapEntry, GUARDIAN_TRIBE,
-  emptyStats, ReplayEntry,
+  emptyStats, ReplayEntry, HeroPerkId, HERO_PERKS, HERO_PERK_POOL,
+  HERO_XP_THRESHOLDS, HERO_MAX_LEVEL, HERO_XP, HERO_NAMES,
 } from "./types";
 import {
   reachableTiles, attackableUnits, previewCombat, combatModifiers, techCost, canResearch,
@@ -26,7 +27,7 @@ export type GameEvent =
   | { type: "combat"; attackerId: number; defenderId: number; dmg: number; retaliation: number; defenderDied: boolean; attackerDied: boolean; ax: number; ay: number; dx: number; dy: number }
   | { type: "captured"; cityId: number; tribe: number }
   | { type: "turnStarted"; tribe: number }
-  | { type: "sfx"; name: "plunder" | "heal" | "promote" | "ruin" | "victory" | "defeat" | "catapult" | "treaty"; x?: number; y?: number };
+  | { type: "sfx"; name: "plunder" | "heal" | "promote" | "ruin" | "victory" | "defeat" | "catapult" | "treaty" | "levelup"; x?: number; y?: number };
 
 type Listener = (e: GameEvent) => void;
 const SAVE_KEY = "polyforge-save-v1";
@@ -188,7 +189,7 @@ class GameStore {
 
   // ---------- lifecycle ----------
 
-  newGame(opts: { size: number; humanTribe: number; difficulty: Difficulty; seed?: number; preset?: MapPreset; humanTribes?: number[]; challenge?: ChallengeKind; roster?: number[]; custom?: { slot: number; config: CustomTribeConfig } }) {
+  newGame(opts: { size: number; humanTribe: number; difficulty: Difficulty; seed?: number; preset?: MapPreset; humanTribes?: number[]; challenge?: ChallengeKind; roster?: number[]; custom?: { slot: number; config: CustomTribeConfig }; friendChallenge?: { name: string; score: number } }) {
     const seed = opts.seed ?? Math.floor(Math.random() * 2 ** 31);
     const preset: MapPreset = opts.preset ?? "continents";
     const humans = opts.humanTribes && opts.humanTribes.length > 0 ? [...opts.humanTribes].sort((a, b) => a - b) : [opts.humanTribe];
@@ -219,6 +220,13 @@ class GameStore {
     for (const c of cities) {
       if (c.tribe === null) continue;
       units.push(makeUnit(nextUnitId++, "warrior", c.tribe, c.x, c.y));
+      // v16: each tribe's levelling Commander marches beside the capital
+      const spot = nearestFreeLand(tiles, opts.size, units, c.x, c.y);
+      if (spot) {
+        const h = makeUnit(nextUnitId++, "hero", c.tribe, spot.x, spot.y);
+        h.hero = true; h.xp = 0; h.level = 1; h.perks = [];
+        units.push(h);
+      }
     }
     // neutral guardians on great ruins: tough stationary defenders
     for (const t of tiles) {
@@ -236,6 +244,7 @@ class GameStore {
       seed,
       preset,
       challenge: opts.challenge,
+      friendChallenge: opts.friendChallenge ?? null,
       showIntro: humans.length === 1,
       difficulty: opts.difficulty,
       tribes,
@@ -307,6 +316,11 @@ class GameStore {
         const d = Math.max(Math.abs(f.x - a.x), Math.abs(f.y - a.y));
         if (d === 1) { f.hp = Math.min(f.maxHp, f.hp + 2); healed = true; healedAt.push({ x: f.x, y: f.y }); }
       }
+    }
+    // v16 hero Mender perk: the commander recovers +3 HP at turn start
+    for (const h of s.units) {
+      if (h.tribe !== tribeIdx || !h.hero || !(h.perks?.includes("mender"))) continue;
+      if (h.hp < h.maxHp) { h.hp = Math.min(h.maxHp, h.hp + 3); healed = true; healedAt.push({ x: h.x, y: h.y }); }
     }
     if (healed && tribeIdx === s.humanTribe) {
       for (const p of healedAt) this.emit({ type: "sfx", name: "heal", x: p.x, y: p.y });
@@ -431,6 +445,74 @@ class GameStore {
     this.pendingAttack = null;
     this.emit({ type: "changed" });
   }
+
+  /* ---------- v16 heroes: XP, level-ups, perk picks ---------- */
+
+  /** hero display name (flavor by roster def, falls back to Commander) */
+  heroName(u: Unit): string {
+    const s = this.state;
+    const di = s.tribes[u.tribe]?.defIndex ?? -1;
+    return (di >= 0 && di < HERO_NAMES.length ? HERO_NAMES[di] : "The Commander");
+  }
+
+  /** award XP to a hero; queue perk choices on level-up */
+  private grantXp(u: Unit, amount: number) {
+    const s = this.state;
+    if (!u.hero || s.phase !== "playing") return;
+    u.xp = (u.xp ?? 0) + amount;
+    let level = u.level ?? 1;
+    while (level < HERO_MAX_LEVEL && (u.xp ?? 0) >= HERO_XP_THRESHOLDS[level - 1]) {
+      u.xp = (u.xp ?? 0) - HERO_XP_THRESHOLDS[level - 1];
+      level++;
+      u.level = level;
+      const name = this.heroName(u);
+      s.log.unshift(`${name} reached level ${level}!`);
+      this.emit({ type: "sfx", name: "levelup", x: u.x, y: u.y });
+      if (s.tribes[u.tribe]?.isHuman && u.tribe === s.humanTribe) {
+        s.pendingPerk = u.id; // human picks from the modal; queue persists across saves
+      } else {
+        // AI (or off-seat human in hot-seat AI turns) auto-picks a seeded perk
+        const opts = this.perkChoices(u);
+        if (opts.length > 0) {
+          const roll = rng(s.seed + s.turn * 53 + u.id * 19 + level * 7)();
+          const pick = opts[Math.floor(roll * opts.length)];
+          u.perks = [...(u.perks ?? []), pick];
+          if (pick === "titan") { u.maxHp += 6; u.hp = Math.min(u.maxHp, u.hp + 6); }
+          if (u.tribe !== s.humanTribe) {
+            this.recordRecap({ kind: "combat", text: `${s.tribes[u.tribe]?.name}'s commander grew stronger (${HERO_PERKS[pick].name})`, tribe: u.tribe });
+          }
+        }
+      }
+    }
+  }
+
+  /** the 3 perk options offered for a hero's pending level-up (seeded, from unpicked pool) */
+  perkChoices(u: Unit): HeroPerkId[] {
+    const s = this.state;
+    const taken = new Set(u.perks ?? []);
+    const pool = HERO_PERK_POOL.filter((p) => !taken.has(p));
+    // seeded shuffle for determinism (same save → same offer)
+    const r = rng(s.seed + (u.level ?? 1) * 101 + u.id * 37);
+    const shuffled = [...pool].sort(() => r() - 0.5);
+    return shuffled.slice(0, Math.min(3, shuffled.length));
+  }
+
+  /** human resolves the pending perk choice */
+  choosePerk(perk: HeroPerkId) {
+    const s = this.state;
+    if (!s.pendingPerk) return;
+    const u = s.units.find((q) => q.id === s.pendingPerk);
+    s.pendingPerk = null;
+    if (u && u.hero && !(u.perks ?? []).includes(perk) && this.perkChoicesCache(u).includes(perk)) {
+      u.perks = [...(u.perks ?? []), perk];
+      if (perk === "titan") { u.maxHp += 6; u.hp = Math.min(u.maxHp, u.hp + 6); }
+      s.log.unshift(`${this.heroName(u)} learned ${HERO_PERKS[perk].name}!`);
+      this.emit({ type: "sfx", name: "promote", x: u.x, y: u.y });
+    }
+    this.emit({ type: "changed" });
+  }
+  /** validated option list for the pending pick (same seeded derivation) */
+  private perkChoicesCache(u: Unit): HeroPerkId[] { return this.perkChoices(u); }
 
   /** record a recap entry when the acting tribe is not the human player */
   private recordRecap(entry: RecapEntry) {
@@ -614,6 +696,7 @@ class GameStore {
     s.log.unshift(msg);
     this.recordRecap({ kind: "ruin", text: msg, tribe: u.tribe });
     this.bumpStat(u.tribe, "ruinsClaimed");
+    if (u.hero) this.grantXp(u, HERO_XP.ruin);
     this.exploreAround();
   }
 
@@ -655,6 +738,7 @@ class GameStore {
     s.log.unshift(msg);
     this.recordRecap({ kind: "greatRuin", text: msg, tribe: u.tribe });
     this.bumpStat(u.tribe, "ruinsClaimed");
+    if (u.hero) this.grantXp(u, HERO_XP.ruin);
     this.exploreAround();
   }
 
@@ -758,6 +842,27 @@ class GameStore {
       defenderDied = true;
       this.bumpStat(a.tribe, "battlesWon");
       this.bumpStat(d.tribe, "unitsLost");
+      if (a.hero) this.grantXp(a, HERO_XP.kill);
+      // hero Plunderer perk: loot 2 stars on every kill
+      if (a.hero && (a.perks?.includes("plunderer")) && d.tribe >= 0) {
+        const victim = s.tribes[d.tribe];
+        const loot = Math.min(2, Math.max(0, victim.stars));
+        if (loot > 0) {
+          victim.stars -= loot;
+          s.tribes[a.tribe].stars += loot;
+          this.bumpStat(a.tribe, "starsEarned", loot);
+          this.bumpStat(a.tribe, "starsPlundered", loot);
+          s.log.unshift(`${this.heroName(a)} plundered ${loot}★ from ${victim.name}!`);
+          this.emit({ type: "sfx", name: "plunder" });
+        }
+      }
+      // a fallen commander is gone forever — mark the moment
+      if (d.hero && d.tribe >= 0) {
+        const dn = this.heroName(d);
+        s.log.unshift(`${dn}, commander of ${s.tribes[d.tribe].name}, has fallen in battle!`);
+        this.recordRecap({ kind: "fallen", text: `${s.tribes[d.tribe].name}'s commander ${dn} has fallen`, tribe: a.tribe >= 0 ? a.tribe : d.tribe });
+        this.recordReplay({ tribe: d.tribe, kind: "combat", text: `Commander ${dn} of ${s.tribes[d.tribe].name} fell in battle` });
+      }
       this.recordReplay({ tribe: a.tribe, kind: "combat", text: `${s.tribes[a.tribe]?.name ?? "Guardian"} ${UNIT_STATS[a.type].name} destroyed ${s.tribes[d.tribe]?.name ?? "Guardian"} ${UNIT_STATS[d.type].name}` });
       // Vessari Raider: plunders 2 stars from the victim's coffers on every kill
       if (a.type === "raider" && d.tribe >= 0) {
@@ -797,6 +902,12 @@ class GameStore {
       attackerDied = true;
       this.bumpStat(d.tribe, "battlesWon");
       this.bumpStat(a.tribe, "unitsLost");
+      if (d.hero) this.grantXp(d, HERO_XP.battleWon);
+      if (a.hero && a.tribe >= 0) {
+        const an = this.heroName(a);
+        s.log.unshift(`${an}, commander of ${s.tribes[a.tribe].name}, has fallen in battle!`);
+        this.recordRecap({ kind: "fallen", text: `${s.tribes[a.tribe].name}'s commander ${an} has fallen`, tribe: d.tribe >= 0 ? d.tribe : a.tribe });
+      }
     }
     this.emit({
       type: "combat", attackerId, defenderId,
@@ -863,6 +974,7 @@ class GameStore {
     s.log.unshift(`${s.tribes[u.tribe].name} captured ${city.name}!`);
     this.bumpStat(u.tribe, "citiesCaptured");
     if (wasCapital) this.bumpStat(u.tribe, "capitalsCaptured");
+    if (u.hero) this.grantXp(u, HERO_XP.capture);
     city.walls = false; // walls are torn down when a city falls
     this.recordReplay({ tribe: u.tribe, kind: "capture", text: `${s.tribes[u.tribe].name} captured ${city.name}` });
     this.emit({ type: "captured", cityId: city.id, tribe: u.tribe });
@@ -991,9 +1103,12 @@ class GameStore {
   newAchievements: AchievementDef[] = [];
   /** whether the challenge run that just ended set a new period best */
   newChallengeBest = false;
+  /** v16: outcome vs a friend's shared score (null = not a friend-challenge run) */
+  friendResult: { name: string; theirScore: number; myScore: number; beaten: boolean } | null = null;
   private onGameOver() {
     this.newAchievements = evaluateAchievements(this.state);
     this.newChallengeBest = false;
+    this.friendResult = null;
     const s = this.state;
     if (s.challenge && (s.humanTribes?.length ?? 1) === 1) {
       this.updateScore(s.humanTribe);
@@ -1003,6 +1118,27 @@ class GameStore {
       const speedBonus = won ? Math.max(0, (s.maxTurns - s.turn) * 25) : 0;
       this.newChallengeBest = recordChallengeScore(s.challenge, base + speedBonus, won, Math.max(1, s.turn));
     }
+    if (s.friendChallenge && (s.humanTribes?.length ?? 1) === 1) {
+      this.updateScore(s.humanTribe);
+      const won = s.winner === s.humanTribe;
+      const base = s.tribes[s.humanTribe]?.score ?? 0;
+      const speedBonus = won ? Math.max(0, (s.maxTurns - s.turn) * 25) : 0;
+      const myScore = base + speedBonus;
+      this.friendResult = {
+        name: s.friendChallenge.name,
+        theirScore: s.friendChallenge.score,
+        myScore,
+        beaten: myScore > s.friendChallenge.score,
+      };
+    }
+  }
+
+  /** v16: the score this run would post as a shareable challenge (same formula as challenge boards) */
+  shareScore(): number {
+    const s = this.state;
+    const won = s.winner === s.humanTribe;
+    const base = s.tribes[s.humanTribe]?.score ?? 0;
+    return base + (won ? Math.max(0, (s.maxTurns - s.turn) * 25) : 0);
   }
 
   /** Hall of Conquest: persist the human's victory; keep best 5 per difficulty */
@@ -1064,6 +1200,30 @@ function makeUnit(id: number, type: UnitType, tribe: number, x: number, y: numbe
   return { id, type, tribe, x, y, hp: stats.hp, maxHp: stats.hp, moved: false, attacked: false, kills: 0, boat: false };
 }
 
+/** nearest free land tile adjacent to (x,y) for the hero spawn (never on the capital itself) */
+function nearestFreeLand(
+  tiles: { terrain: string; x: number; y: number }[],
+  size: number,
+  units: Unit[],
+  x: number,
+  y: number,
+): { x: number; y: number } | null {
+  for (let r = 1; r <= 2; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= size || ny >= size) continue;
+        const t = tiles[ny * size + nx];
+        if (t.terrain !== "grass" && t.terrain !== "forest") continue;
+        if (units.some((u) => u.x === nx && u.y === ny)) continue;
+        return { x: nx, y: ny };
+      }
+    }
+  }
+  return null;
+}
+
 function emptyState(): GameState {
   return {
     phase: "menu",
@@ -1089,6 +1249,8 @@ function emptyState(): GameState {
     showRecap: false,
     scoreHistory: [],
     stats: [],
+    pendingPerk: null,
+    friendChallenge: null,
   };
 }
 

@@ -256,3 +256,32 @@
 
 ## 4. Verify + deliver
 - [ ] Browser verify all three; checkpoint v19 + deliver
+# v16 — Heroes + shareable challenges (+ brand extras)
+
+## 1. Hero units (engine)
+- [ ] types.ts: Unit.hero?, Unit.xp, Unit.level, Unit.perks: string[]; HeroPerk defs (per-level choices);
+      GameState.pendingPerk (unitId) for human choice modal
+- [ ] state.ts: hero spawns with capital at game start (1 per tribe, "Commander" flavor name per faction);
+      XP gain on battle win / capture / ruin; level thresholds; on level-up human → pendingPerk, AI → auto-pick;
+      perk effects wired into rules (atk/def/move/heal aura etc.); hero death = permanent (no respawn), log+recap
+- [ ] rules.ts: perk modifiers in previewCombat/defenseBonus/reachableTiles as needed
+- [ ] ai.ts: AI values hero (protect low-HP hero, use aggressively when leveled)
+
+## 2. Hero render + UI
+- [ ] scene.ts: hero mesh distinct (banner/cape/crown accent in tribe color), level-up gold burst FX
+- [ ] Hud.tsx: hero panel shows level/XP bar/perks; PerkChoice modal (3 options, faction-colored)
+- [ ] Browser verify: XP gain, level-up modal, perk effect applies, AI hero behaves
+
+## 3. Shareable challenges
+- [ ] challenges.ts: encode/decode challenge links (seed, preset, size, difficulty, tribe, score) via
+      URL params (base64url); validate on load
+- [ ] Menu.tsx: after game over — "Challenge a friend" button copies link with your score;
+      landing with ?c= param shows challenge banner (opponent score to beat) and preconfigures match
+- [ ] Score comparison at game end when playing a challenge (beat/lost vs challenger)
+
+## 4. Brand extras
+- [ ] OG share image (key-art card 1200×630) + meta tags (og:image, twitter:card)
+- [ ] Loading splash: mark + "OUTTHINK. OUTFORGE. OUTLAST." while Babylon initializes
+
+## 5. Verify + deliver
+- [ ] pnpm check clean; headless sim passes; browser verify full loop; checkpoint + deliver

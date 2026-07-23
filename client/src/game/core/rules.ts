@@ -4,7 +4,7 @@
 
 import {
   GameState, Tile, Unit, UnitType, UNIT_STATS, City, TechId, TECHS,
-  TRIBE_DEFS, WALL_DEFENSE_BONUS, idx, inBounds,
+  TRIBE_DEFS, WALL_DEFENSE_BONUS, HeroPerkId, idx, inBounds,
 } from "./types";
 
 export function tileAt(s: GameState, x: number, y: number): Tile {
@@ -67,6 +67,23 @@ export function wallCost(s: GameState, tribe: number): number {
   return s.tribes[tribe]?.passive === "stonebound" ? 3 : 5;
 }
 
+/* ------------------------------- v16 hero helpers ------------------------------- */
+
+export function heroHasPerk(u: Unit, perk: HeroPerkId): boolean {
+  return !!u.hero && (u.perks?.includes(perk) ?? false);
+}
+
+/** an adjacent allied hero with the given aura perk (not the unit itself) */
+function adjacentHeroWith(s: GameState, u: Unit, perk: HeroPerkId): boolean {
+  if (u.tribe < 0) return false;
+  return s.units.some((h) =>
+    h.hero && h.tribe === u.tribe && h.id !== u.id && (h.perks?.includes(perk) ?? false) &&
+    Math.max(Math.abs(h.x - u.x), Math.abs(h.y - u.y)) === 1
+  );
+}
+export const inspiredBy = (s: GameState, u: Unit) => adjacentHeroWith(s, u, "inspiring");
+export const wardedBy = (s: GameState, u: Unit) => adjacentHeroWith(s, u, "warding");
+
 /** Dijkstra reachable tiles for a unit with its movement points */
 export function reachableTiles(s: GameState, unit: Unit): { x: number; y: number }[] {
   if (unit.moved || unit.tribe < 0) return [];
@@ -74,6 +91,7 @@ export function reachableTiles(s: GameState, unit: Unit): { x: number; y: number
   // Nerivane Tideborn: boats ride the currents — +1 movement
   const boatMp = BOAT_MOVEMENT + (s.tribes[unit.tribe]?.passive === "tideborn" ? 1 : 0);
   let mp = unit.boat ? boatMp : stats.movement;
+  if (!unit.boat && heroHasPerk(unit, "swift")) mp += 1;
   if (s.tribes[unit.tribe]?.passive === "outriders") mp += 0; // handled via 0.5 grass cost
   const dist = new Map<number, number>();
   const start = idx(unit.x, unit.y, s.size);
@@ -134,20 +152,22 @@ function defenseBonus(s: GameState, defender: Unit, attacker?: Unit): number {
   if (defender.guardian) return 1.4; // guardians hold sacred ground
   if (defender.tribe < 0) return 1;
   const city = cityAt(s, defender.x, defender.y);
+  let heroMult = 1;
+  if (heroHasPerk(defender, "ironskin")) heroMult = 1.3;
   if (city && city.tribe === defender.tribe) {
     // siege: catapults hurl boulders straight over ramparts — walls give no benefit
     const siege = attacker?.type === "catapult";
-    if (city.walls && !siege) return WALL_DEFENSE_BONUS; // fortified — strongest static bonus
+    if (city.walls && !siege) return WALL_DEFENSE_BONUS * heroMult; // fortified — strongest static bonus
     let base = hasTech(s, defender.tribe, "freeSpirit") ? 1.6 : 1.3;
     // Dravok Stonebound: defenders in cities gain +10% defense
     if (s.tribes[defender.tribe].passive === "stonebound") base *= 1.1;
-    return base;
+    return base * heroMult;
   }
-  if (t.terrain === "forest" && hasTech(s, defender.tribe, "archery")) return 1.3;
+  if (t.terrain === "forest" && hasTech(s, defender.tribe, "archery")) return 1.3 * heroMult;
   // Sunwei Warden: iron defense when holding a mountain
   if (t.terrain === "mountain" && defender.type === "warden") return 1.7;
-  if (t.terrain === "mountain") return 1.3;
-  return 1;
+  if (t.terrain === "mountain") return 1.3 * heroMult;
+  return heroMult;
 }
 
 /** Dravok Bulwark aura: 20% damage reduction for adjacent allies (not the bulwark itself) */
@@ -164,6 +184,9 @@ export function previewCombat(s: GameState, attacker: Unit, defender: Unit): Com
   const dStats = UNIT_STATS[defender.type];
   let atk = aStats.attack;
   if (attacker.tribe >= 0 && s.tribes[attacker.tribe].passive === "forgeborn") atk *= 1.15;
+  // v16 hero perks
+  if (heroHasPerk(attacker, "warlord")) atk *= 1.25;
+  if (inspiredBy(s, attacker)) atk *= 1.15;
   // Kharzul Berserker: smells blood — +50% damage against wounded targets
   if (attacker.type === "berserker" && defender.hp < defender.maxHp) atk *= 1.5;
   // Nerivane Tidecaller: the tide strikes hardest — +30% attack from a water tile
@@ -174,6 +197,8 @@ export function previewCombat(s: GameState, attacker: Unit, defender: Unit): Com
   let damageToDefender = Math.round((attackForce / total) * atk * 4.5);
   // Dravok Bulwark: adjacent allies take 20% less damage
   if (bulwarkShielded(s, defender)) damageToDefender = Math.max(1, Math.round(damageToDefender * 0.8));
+  // v16 hero Warding aura: adjacent allies take 15% less damage
+  if (wardedBy(s, defender)) damageToDefender = Math.max(1, Math.round(damageToDefender * 0.85));
   const damageToAttacker = Math.round((defenseForce / total) * dStats.defense * 4.5);
   const defenderDies = defender.hp - damageToDefender <= 0;
   // retaliation only if defender survives, attacker within defender's range, and attacker adjacent (melee exposure)
@@ -192,11 +217,15 @@ export function combatModifiers(s: GameState, attacker: Unit, defender: Unit): {
   const out: { text: string; side: "atk" | "def" }[] = [];
   // --- attacker modifiers ---
   if (attacker.tribe >= 0 && s.tribes[attacker.tribe].passive === "forgeborn") out.push({ text: "Forgeborn +15% attack", side: "atk" });
+  if (heroHasPerk(attacker, "warlord")) out.push({ text: "Warlord +25% attack", side: "atk" });
+  if (inspiredBy(s, attacker)) out.push({ text: "Inspired +15% attack", side: "atk" });
   if (attacker.type === "berserker" && defender.hp < defender.maxHp) out.push({ text: "Berserker +50% vs wounded", side: "atk" });
   if (attacker.type === "tidecaller" && tileAt(s, attacker.x, attacker.y).terrain === "water") out.push({ text: "Tidecaller +30% from water", side: "atk" });
   if (attacker.hp < attacker.maxHp) out.push({ text: "Wounded — attack force reduced", side: "atk" });
   // --- defender modifiers (mirrors defenseBonus) ---
   if (bulwarkShielded(s, defender)) out.push({ text: "Bulwark aura −20% damage taken", side: "def" });
+  if (wardedBy(s, defender)) out.push({ text: "Warding aura −15% damage taken", side: "def" });
+  if (heroHasPerk(defender, "ironskin")) out.push({ text: "Ironskin +30% defense", side: "def" });
   if (defender.boat) { out.push({ text: "Embarked −30% defense", side: "def" }); return out; }
   const t = tileAt(s, defender.x, defender.y);
   if (defender.guardian) { out.push({ text: "Sacred ground +40% defense", side: "def" }); return out; }
@@ -281,6 +310,7 @@ export function uniqueUnitOf(s: GameState, tribe: number): UnitType | undefined 
 export function trainableUnits(s: GameState, tribe: number): UnitType[] {
   const unique = uniqueUnitOf(s, tribe);
   return (Object.keys(UNIT_STATS) as UnitType[]).filter((ut) =>
+    ut !== "hero" &&
     hasTech(s, tribe, UNIT_STATS[ut].tech) &&
     (UNIT_STATS[ut].faction === undefined || ut === unique)
   );

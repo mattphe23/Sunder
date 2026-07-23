@@ -51,7 +51,9 @@ export type UnitType =
   | "raider" // Vessari — fast cavalry; steals 2 stars from the enemy on every kill
   // v14 tribes
   | "tidecaller" // Nerivane — amphibious skirmisher; moves on water without boats, +attack from water
-  | "bulwark"; // Dravok — living rampart; adjacent friendly units take 20% less damage
+  | "bulwark" // Dravok — living rampart; adjacent friendly units take 20% less damage
+  // v16 hero: one levelling commander per tribe, spawns with the capital
+  | "hero";
 
 export interface UnitStats {
   name: string;
@@ -79,6 +81,11 @@ export const UNIT_STATS: Record<UnitType, UnitStats> = {
   swordsman: { name: "Swordsman", cost: 5, hp: 15, attack: 3, defense: 3, movement: 1, range: 1, dash: true, tech: "smithery" },
   knight: { name: "Knight", cost: 8, hp: 10, attack: 3.5, defense: 1, movement: 3, range: 1, dash: true, tech: "chivalry" },
   catapult: { name: "Catapult", cost: 8, hp: 10, attack: 4, defense: 0, movement: 1, range: 3, dash: false, tech: "mathematics" },
+  hero: {
+    name: "Commander", cost: 10, hp: 14, attack: 2.5, defense: 2, movement: 1, range: 1, dash: true,
+    tech: null,
+    perk: "Your levelling hero — earns XP from battles and conquest, choosing a new perk at each level. Falls forever if slain.",
+  },
   arcanist: {
     name: "Arcanist", cost: 6, hp: 10, attack: 2, defense: 1, movement: 1, range: 2, dash: true,
     tech: "organization", faction: 0,
@@ -129,10 +136,59 @@ export interface Unit {
   guardian?: boolean;
   /** veterancy: promoted after 3 kills (+5 max HP) */
   veteran?: boolean;
+  /** v16 hero fields (only on type === "hero") */
+  hero?: boolean;
+  xp?: number;
+  level?: number;
+  perks?: HeroPerkId[];
 }
 
 /** pseudo-tribe index for neutral guardian units (not a real tribe) */
 export const GUARDIAN_TRIBE = -1;
+
+/* ---------------------------------- v16 heroes ---------------------------------- */
+
+export type HeroPerkId =
+  | "warlord" // +25% attack
+  | "ironskin" // +30% defense
+  | "swift" // +1 movement
+  | "inspiring" // adjacent allies +15% attack
+  | "warding" // adjacent allies take 15% less damage
+  | "mender" // heals self +3 HP at turn start
+  | "plunderer" // +2 stars on every hero kill
+  | "titan"; // +6 max HP (and heal 6)
+
+export interface HeroPerkDef {
+  id: HeroPerkId;
+  name: string;
+  desc: string;
+}
+
+export const HERO_PERKS: Record<HeroPerkId, HeroPerkDef> = {
+  warlord: { id: "warlord", name: "Warlord", desc: "+25% attack damage" },
+  ironskin: { id: "ironskin", name: "Ironskin", desc: "+30% defense" },
+  swift: { id: "swift", name: "Swift", desc: "+1 movement" },
+  inspiring: { id: "inspiring", name: "Inspiring", desc: "Adjacent allies deal +15% attack damage" },
+  warding: { id: "warding", name: "Warding", desc: "Adjacent allies take 15% less damage" },
+  mender: { id: "mender", name: "Mender", desc: "Recovers +3 HP at the start of your turn" },
+  plunderer: { id: "plunderer", name: "Plunderer", desc: "Plunders 2 stars from the enemy on every kill" },
+  titan: { id: "titan", name: "Titan", desc: "+6 max HP, healed immediately" },
+};
+
+/** XP needed to reach level N+1 from level N (level is 1-based; max level 4 = 3 perk picks) */
+export const HERO_XP_THRESHOLDS = [6, 10, 14];
+export const HERO_MAX_LEVEL = HERO_XP_THRESHOLDS.length + 1;
+
+/** XP awards */
+export const HERO_XP = { battleWon: 2, kill: 3, capture: 4, ruin: 2 } as const;
+
+/** per-level perk choice pools (3 offered per level-up, drawn seeded from remaining) */
+export const HERO_PERK_POOL: HeroPerkId[] = [
+  "warlord", "ironskin", "swift", "inspiring", "warding", "mender", "plunderer", "titan",
+];
+
+/** flavor hero names per TRIBE_DEFS index */
+export const HERO_NAMES = ["Maelis", "Drukhar", "Wu Jian", "Szara", "Nereth", "Borvak"] as const;
 
 export type TechId =
   | "hunting"
@@ -295,6 +351,11 @@ export interface GameState {
   replay?: ReplayEntry[];
   /** challenge mode: set when this run is a daily/weekly challenge (best-score tracking, no Hall entry) */
   challenge?: "daily" | "weekly";
+  /** v16: human hero levelled up — unit id awaiting a perk choice (blocks end turn UI-side) */
+  pendingPerk?: number | null;
+  /** v16: friend challenge — decoded from a shared link (?c=): beat `score` set by `name` */
+  /** v16: a friend's shared "beat my score" target — name + score (map setup applied at newGame) */
+  friendChallenge?: { name: string; score: number } | null;
 }
 
 /** one entry in the match replay log */

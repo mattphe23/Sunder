@@ -4,7 +4,7 @@ import { useGame } from "@/game/useGame";
 import GameCanvas from "@/game/GameCanvas";
 import { sound } from "@/game/sound";
 import { MainMenu, GameOver } from "@/game/ui/Menu";
-import { TopBar, BottomBar, SelectionPanel, TechPanel, LogTicker, BattlePreview, TurnRecap } from "@/game/ui/Hud";
+import { TopBar, BottomBar, SelectionPanel, TechPanel, LogTicker, BattlePreview, TurnRecap, PerkChoice } from "@/game/ui/Hud";
 import { Minimap } from "@/game/ui/Minimap";
 import { Tutorial } from "@/game/ui/Tutorial";
 import { FactionIntro } from "@/game/ui/FactionIntro";
@@ -39,6 +39,7 @@ export default function Home() {
       <SelectionPanel />
       <BattlePreview />
       <TurnRecap />
+      <PerkChoice />
       <BottomBar onOpenTech={() => setTechOpen(true)} onOpenDiplo={() => setDiploOpen(true)} />
       <TechPanel open={techOpen} onClose={() => setTechOpen(false)} />
       <DiplomacyPanel open={diploOpen} onClose={() => setDiploOpen(false)} />
