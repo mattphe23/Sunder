@@ -1,6 +1,6 @@
-import { desc, eq, or } from "drizzle-orm";
+import { and, desc, eq, gt, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, profiles, matches, matchTurns, InsertMatch } from "../drizzle/schema";
+import { InsertUser, users, profiles, matches, matchTurns, InsertMatch, leaderboardEntries } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -182,4 +182,70 @@ export async function getLatestSnapshot(matchId: string) {
     .orderBy(desc(matchTurns.turnNumber), desc(matchTurns.id))
     .limit(1);
   return rows[0];
+}
+
+// ── Sunder v19: challenge leaderboard ───────────────────────────────────────
+export async function getLeaderboardEntry(userId: number, challengeKey: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(leaderboardEntries)
+    .where(and(eq(leaderboardEntries.userId, userId), eq(leaderboardEntries.challengeKey, challengeKey)))
+    .limit(1);
+  return rows[0];
+}
+
+/** Keep-best upsert: only overwrites when the new score beats the stored one. */
+export async function submitLeaderboardScore(
+  userId: number,
+  challengeKey: string,
+  commanderName: string,
+  score: number,
+  won: boolean,
+  turns: number,
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const existing = await getLeaderboardEntry(userId, challengeKey);
+  if (!existing) {
+    await db.insert(leaderboardEntries).values({ userId, challengeKey, commanderName, score, won: won ? 1 : 0, turns });
+    return { improved: true };
+  }
+  if (score > existing.score) {
+    await db
+      .update(leaderboardEntries)
+      .set({ commanderName, score, won: won ? 1 : 0, turns })
+      .where(eq(leaderboardEntries.id, existing.id));
+    return { improved: true };
+  }
+  // still refresh the display name so renames propagate
+  if (commanderName !== existing.commanderName) {
+    await db.update(leaderboardEntries).set({ commanderName }).where(eq(leaderboardEntries.id, existing.id));
+  }
+  return { improved: false };
+}
+
+export async function getLeaderboardTop(challengeKey: string, limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(leaderboardEntries)
+    .where(eq(leaderboardEntries.challengeKey, challengeKey))
+    .orderBy(desc(leaderboardEntries.score), leaderboardEntries.updatedAt)
+    .limit(limit);
+}
+
+/** 1-based rank of a user within a challenge period, or null if unranked. */
+export async function getLeaderboardRank(userId: number, challengeKey: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const mine = await getLeaderboardEntry(userId, challengeKey);
+  if (!mine) return null;
+  const rows = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(leaderboardEntries)
+    .where(and(eq(leaderboardEntries.challengeKey, challengeKey), gt(leaderboardEntries.score, mine.score)));
+  return { rank: Number(rows[0]?.n ?? 0) + 1, entry: mine };
 }

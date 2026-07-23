@@ -84,3 +84,21 @@ export const matchTurns = mysqlTable("match_turns", {
 });
 
 export type MatchTurn = typeof matchTurns.$inferSelect;
+
+// ── Sunder v19: global challenge leaderboard ────────────────────────────────
+// One row per (user, challenge period), upserted with the user's BEST score.
+// challengeKey examples: "daily:2026-07-23", "weekly:2026-W30".
+export const leaderboardEntries = mysqlTable("leaderboard_entries", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  challengeKey: varchar("challengeKey", { length: 32 }).notNull(),
+  commanderName: varchar("commanderName", { length: 40 }).notNull(),
+  score: int("score").notNull(),
+  won: int("won").notNull().default(0), // 0/1 — did the run end in victory
+  turns: int("turns").notNull().default(0),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type LeaderboardEntry = typeof leaderboardEntries.$inferSelect;
+export type InsertLeaderboardEntry = typeof leaderboardEntries.$inferInsert;

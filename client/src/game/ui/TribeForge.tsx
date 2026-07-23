@@ -4,10 +4,10 @@
 import { useState } from "react";
 import {
   CustomTribeConfig, FORGE_PASSIVES, FORGE_UNITS, FORGE_TECHS, FORGE_COLORS,
-  loadCustomTribe, saveCustomTribe, deleteCustomTribe,
+  loadCustomTribe, saveCustomTribe, deleteCustomTribe, FORGE_PRESETS,
 } from "../core/customTribe";
 import { UNIT_STATS, UnitType, FactionPassive, TechId } from "../core/types";
-import { Hammer, X, Star, Trash2 } from "lucide-react";
+import { Hammer, X, Star, Trash2, Sparkles } from "lucide-react";
 import { sound } from "../sound";
 
 export function TribeForge({ onClose, onSaved }: { onClose: () => void; onSaved: (c: CustomTribeConfig) => void }) {
@@ -18,6 +18,16 @@ export function TribeForge({ onClose, onSaved }: { onClose: () => void; onSaved:
   const [unit, setUnit] = useState<UnitType>(existing?.uniqueUnit ?? "arcanist");
   const [tech, setTech] = useState<TechId>(existing?.startTech ?? "organization");
   const valid = name.trim().length >= 2 && name.trim().length <= 14;
+
+  // v19: remix a preset — load its full config into the forge for editing
+  const remix = (cfg: CustomTribeConfig) => {
+    sound.play("click");
+    setName(cfg.name);
+    setColor(cfg.color);
+    setPassive(cfg.passive);
+    setUnit(cfg.uniqueUnit);
+    setTech(cfg.startTech);
+  };
 
   const save = () => {
     if (!valid) return;
@@ -40,6 +50,27 @@ export function TribeForge({ onClose, onSaved }: { onClose: () => void; onSaved:
           <button onClick={onClose} className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white" aria-label="Close">
             <X className="h-4 w-4" />
           </button>
+        </div>
+
+        {/* v19: preset gallery — pre-rolled tribes to remix */}
+        <p className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
+          <Sparkles className="h-3 w-3 text-amber-300" /> Preset gallery — tap to remix
+        </p>
+        <div className="mb-4 grid grid-cols-2 gap-1.5">
+          {FORGE_PRESETS.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => remix(p.config)}
+              className="rounded-md border border-white/10 bg-white/[0.04] p-2 text-left transition-colors hover:bg-white/10"
+              style={{ borderLeftWidth: 3, borderLeftColor: p.config.color }}
+            >
+              <span className="flex items-center gap-1.5 font-display text-xs font-bold text-slate-100">
+                <span className="h-2 w-2 rotate-45" style={{ background: p.config.color, boxShadow: `0 0 6px ${p.config.color}` }} />
+                {p.title}
+              </span>
+              <span className="block text-[10px] leading-tight text-slate-400">{p.blurb}</span>
+            </button>
+          ))}
         </div>
 
         {/* name + banner color */}

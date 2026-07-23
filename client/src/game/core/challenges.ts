@@ -204,3 +204,40 @@ export function readFriendChallengeFromUrl(): FriendChallenge | null {
   const param = new URLSearchParams(window.location.search).get("c");
   return param ? decodeFriendChallenge(param) : null;
 }
+
+// ---------- v19: Wordle-style shareable result card ----------
+
+export interface ResultCardInput {
+  kind: ChallengeKind;
+  label: string;        // "Jul 23, 2026" / "Week 30, 2026"
+  factionName: string;
+  score: number;
+  won: boolean;
+  turns: number;
+  attempts: number;
+  isBest: boolean;      // this run set a new personal best
+  url?: string;         // optional challenge link to append
+}
+
+/**
+ * Emoji strength bar: score mapped onto 10 slots (about 60 pts per slot).
+ * Forge palette 🟧 with ⬛ empties — instantly readable pasted into any chat.
+ */
+export function scoreBar(score: number): string {
+  const slots = Math.max(0, Math.min(10, Math.round(score / 60)));
+  return "🟧".repeat(slots) + "⬛".repeat(10 - slots);
+}
+
+/** Build the copy-paste result text, Wordle-style. */
+export function buildResultCard(r: ResultCardInput): string {
+  const title = r.kind === "daily" ? "Daily" : "Weekly";
+  const verdict = r.won ? "👑 Victory" : "💀 Defeat";
+  const lines = [
+    `⚒️ SUNDER ${title} — ${r.label}`,
+    `${verdict} · ${r.factionName} · ${r.turns} turns`,
+    `${scoreBar(r.score)} ${r.score}`,
+    `${r.attempts} attempt${r.attempts === 1 ? "" : "s"}${r.isBest ? " · new best!" : ""}`,
+  ];
+  if (r.url) lines.push(r.url);
+  return lines.join("\n");
+}

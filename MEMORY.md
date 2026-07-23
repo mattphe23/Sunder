@@ -552,3 +552,22 @@ Key APIs: game.dismissHandoff() exists (L~732 sets handoff=null + emit). trpc ho
 - Solo regression: 3 turns AI play, zero console errors.
 - Tests 6/6 pass, tsc clean. todo.md v18 items marked [x].
 - Online duels remain single-browser-verified (arbitration/round-trip logic tested via console); true two-account E2E needs two real Manus accounts — flagged honestly to user.
+
+## v19 progress (active)
+- Phase 1 DONE: buildResultCard()/scoreBar() in core/challenges.ts (ResultCardInput; 🟧x(score/60 capped 10)+⬛; "⚒️ SUNDER Daily — <label>" format). GameOver (Menu.tsx ~L640): copyResult() handler + cyan "Copy result" button shown when s.challenge; uses dailyChallenge()/weeklyChallenge() label, currentScore attempts, game.newChallengeBest, ClipboardCopy icon imported L16.
+- Phase 2 TODO: TribeForge.tsx (ui/), customTribe.ts (core/): CustomTribeConfig L10, FORGE_PASSIVES L19, loadCustomTribe L52, saveCustomTribe L62, customTribeDef L71. Preset gallery: 3-4 pre-rolled CustomTribeConfig templates + "remix" loads into forge state. Lore hovers: faction cards in Menu.tsx MainMenu (~L300-420?); lore text lives in FactionIntro.tsx presumably (per-tribe lore paragraphs).
+- Phase 3 TODO: turn notifications — read /home/ubuntu/skills/webdev-owner-notifications/SKILL.md first (owner-only likely; scope honestly: notify OWNER; for opponents use in-app badge already built).
+- Phase 4 TODO: leaderboard — DB table challenge_scores (userId,name,kind,periodKey,score,won,turns,attempts,updatedAt unique(userId,kind,periodKey)), routers leaderboard.submit/top/myRank, submit from GameOver when signed in + challenge run; Leaderboard panel in menu (OnlinePanel pattern); vitest.
+- v18 facts: routers.ts has profile router (profile.get/sync) + match router; db.ts helpers; server tests server/match.test.ts createCaller pattern with mock ctx; trpc client client/src/lib/trpc.ts; useAuth @/_core/hooks/useAuth; startLogin @/const.
+- Phase 2 DONE: FORGE_PRESETS (4 presets, customTribe.ts end) + gallery strip in TribeForge.tsx (remix() loads config); LORE_TEASERS exported from FactionIntro.tsx (title+first lore sentence); hover overlay on TRIBE_DEFS.map faction cards in Menu.tsx (group-hover opacity overlay). Menu renders OK (screenshot verified).
+- v19 phase 3 DONE: TurnAlerts.tsx (client/src/game/online/) polls match.myMatches every 30s when signed in; toasts+levelup sfx+tab title flash when a duel becomes your turn; mounted in App.tsx.
+- v19 phase 4 IN PROGRESS: leaderboard_entries table added to schema (userId, challengeKey "daily:2026-07-23"/"weekly:2026-W30", commanderName, score, won, turns). TODO: db helpers (upsertLeaderboardEntry keep-best, getLeaderboard top50+myRank), lb router (submit: protected, list: public w/ optional auth for rank), client submit hook on challenge gameover (Menu.tsx GameOver uses recordChallengeScore in core/challenges.ts), Leaderboard panel in OnlinePanel or challenge cards area of Menu.tsx.
+- challenges.ts facts: ChallengeSetup.key e.g. "2026-07-23" (daily) / "2026-W30" (weekly); currentScore(kind), recordChallengeScore(kind,score,won,turns) returns isBest; buildResultCard exists (v19 phase 1).
+
+## v19 verification status (Jul 23)
+- All v19 features implemented + tests pass (13 vitest: match 5, auth 1, leaderboard 7). tsc clean.
+- Verified in browser: Global Leaderboard panel opens (daily/weekly tabs, empty state, sign-in prompt, "resets in" countdown). Lore hovers render on faction cards (lore text in DOM via group-hover overlay). Leaderboard toggle styled like other panels.
+- LeaderboardSubmit mounts on GameOver for challenge runs; submits once when signed in; server keeps best per period; weekly key zero-padded (W30) both sides.
+- Still to verify: TribeForge preset gallery visual, result-card copy button on challenge gameover (needs a finished challenge run), TurnAlerts (needs sign-in; logic-only OK).
+- Remaining before checkpoint: mark todo.md v19 items [x], smoke test, checkpoint + deliver.
+- v19 final smoke: game plays turns fine post-v19; LORE_TEASERS error in log was stale (10:41, pre-import-fix); no errors after 10:50. Result card verified in Node (correct output). Preset gallery verified in browser (Emberguard remix loads name/passive/unit/tech). Leaderboard panel + tabs verified. todo.md v19 marked [x].

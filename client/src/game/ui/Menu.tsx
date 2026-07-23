@@ -10,10 +10,11 @@ import { Swords, Star, Play, Trophy, ChevronDown } from "lucide-react";
 import { Users, User } from "lucide-react";
 import { Award, Shield, Flag, Zap, Landmark, Skull, Coins, Flame, Lock } from "lucide-react";
 import { ACHIEVEMENTS, loadAchievements, AchievementDef } from "../core/achievements";
-import { dailyChallenge, weeklyChallenge, currentScore, ChallengeSetup } from "../core/challenges";
+import { dailyChallenge, weeklyChallenge, currentScore, ChallengeSetup, buildResultCard } from "../core/challenges";
 import { readFriendChallengeFromUrl, friendChallengeUrl, FriendChallenge } from "../core/challenges";
 import { CalendarDays, Repeat } from "lucide-react";
-import { Link2, Check, Swords as SwordsIcon } from "lucide-react";
+import { Link2, Check, Swords as SwordsIcon, ClipboardCopy } from "lucide-react";
+import { LORE_TEASERS } from "./FactionIntro";
 import { MuteButton } from "./MuteButton";
 import { sound } from "../sound";
 import { ReplayViewer } from "./Replay";
@@ -23,6 +24,7 @@ import { Hammer } from "lucide-react";
 import { loadProfile, setProfileName, PlayerProfile } from "../core/profile";
 import { UserCircle, Pencil } from "lucide-react";
 import { OnlinePanel } from "../online/OnlinePanel";
+import { LeaderboardPanel, LeaderboardSubmit } from "../online/Leaderboard";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip as RTooltip, ResponsiveContainer,
@@ -261,7 +263,7 @@ export function MainMenu() {
               <button
                 key={t.name}
                 onClick={() => (mode === "solo" ? setFaction(i) : togglePlayer(i))}
-                className={`relative overflow-hidden rounded-md border-l-4 p-3 text-left transition-all duration-150 active:scale-[0.97] ${(mode === "solo" ? faction === i : players.includes(i)) ? "bg-white/10" : "bg-white/[0.04] hover:bg-white/10"}`}
+                className={`group relative overflow-hidden rounded-md border-l-4 p-3 text-left transition-all duration-150 active:scale-[0.97] ${(mode === "solo" ? faction === i : players.includes(i)) ? "bg-white/10" : "bg-white/[0.04] hover:bg-white/10"}`}
                 style={{
                   borderLeftColor: t.color,
                   boxShadow: (mode === "solo" ? faction === i : players.includes(i)) ? `0 0 18px ${t.color}44, inset 0 0 0 1px ${t.color}66` : "inset 0 0 0 1px rgba(255,255,255,0.08)",
@@ -278,6 +280,17 @@ export function MainMenu() {
                   <span className="font-display text-sm font-extrabold tracking-wide text-white">{t.name}</span>
                 </div>
                 <p className="text-[11px] leading-snug text-slate-300">{t.passiveDesc}</p>
+                {/* v19: lore teaser — slides in on hover/focus (desktop); harmless on touch */}
+                <span
+                  className="pointer-events-none absolute inset-0 flex flex-col justify-center bg-[#0d0d24]/95 px-3 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100"
+                >
+                  <span className="font-display text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: t.color }}>
+                    {LORE_TEASERS[i]?.title}
+                  </span>
+                  <span className="mt-0.5 text-[10.5px] italic leading-snug text-indigo-100/85">
+                    {LORE_TEASERS[i]?.teaser}
+                  </span>
+                </span>
               </button>
             ))}
             {/* Tribe Forge — custom tribe card */}
@@ -621,6 +634,9 @@ export function MainMenu() {
         {/* v18: Online Duels — sign in, create/join async 1v1 matches */}
         <OnlinePanel faction={faction} />
 
+        {/* v19: global daily/weekly challenge leaderboard */}
+        <LeaderboardPanel />
+
         <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-[11px] font-medium text-slate-300">
           <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
           Capture all rival capitals — or lead in score when turn 30 ends. Every faction is free and fair.
@@ -641,6 +657,7 @@ export function GameOver() {
   const s = g.state;
   const [replayOpen, setReplayOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [resultCopied, setResultCopied] = useState(false);
   const winner = s.winner !== null ? s.tribes[s.winner] : null;
   const hotseat = (s.humanTribes?.length ?? 1) > 1;
   const won = hotseat
@@ -675,6 +692,32 @@ export function GameOver() {
       setTimeout(() => setCopied(false), 2500);
     } catch {
       window.prompt("Copy your challenge link:", url);
+    }
+  };
+  // v19: Wordle-style result card for daily/weekly challenge runs
+  const copyResult = async () => {
+    sound.play("click");
+    if (!s.challenge) return;
+    const setup = s.challenge === "daily" ? dailyChallenge() : weeklyChallenge();
+    const best = currentScore(s.challenge);
+    const myScore = game.shareScore();
+    const text = buildResultCard({
+      kind: s.challenge,
+      label: setup.label,
+      factionName: s.tribes[s.humanTribe]?.name ?? "Unknown",
+      score: myScore,
+      won,
+      turns: Math.max(1, s.turn),
+      attempts: best?.attempts ?? 1,
+      isBest: game.newChallengeBest,
+      url: typeof window !== "undefined" ? window.location.origin + window.location.pathname : undefined,
+    });
+    try {
+      await navigator.clipboard.writeText(text);
+      setResultCopied(true);
+      setTimeout(() => setResultCopied(false), 2500);
+    } catch {
+      window.prompt("Copy your result:", text);
     }
   };
   // score trajectory data: one row per recorded turn
@@ -717,6 +760,10 @@ export function GameOver() {
               ? `New ${s.challenge} challenge best: ${currentScore(s.challenge)?.score ?? "—"}!`
               : `${s.challenge === "daily" ? "Daily" : "Weekly"} score: below your best (${currentScore(s.challenge)?.score ?? "—"})`}
           </p>
+        )}
+        {/* v19: post this run to the global board (no-op unless signed in) */}
+        {s.challenge && (
+          <LeaderboardSubmit kind={s.challenge} score={game.shareScore()} won={won} turns={Math.max(1, s.turn)} />
         )}
         {friendRes && (
           <p className={`mt-2 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold ${friendRes.beaten ? "border-amber-400/60 bg-amber-400/15 text-amber-300" : "border-white/15 bg-white/5 text-slate-300"}`}>
@@ -861,6 +908,15 @@ export function GameOver() {
             className="mt-2 w-full gap-1.5 border border-amber-400/40 bg-amber-400/10 font-display text-xs font-bold tracking-wide text-amber-200 hover:bg-amber-400/20"
           >
             {copied ? <><Check className="h-3.5 w-3.5" /> Link copied — send it to a rival!</> : <><Link2 className="h-3.5 w-3.5" /> Challenge a friend — share this run</>}
+          </Button>
+        )}
+        {s.challenge && (
+          <Button
+            variant="secondary"
+            onClick={copyResult}
+            className="mt-2 w-full gap-1.5 border border-cyan-400/40 bg-cyan-400/10 font-display text-xs font-bold tracking-wide text-cyan-200 hover:bg-cyan-400/20"
+          >
+            {resultCopied ? <><Check className="h-3.5 w-3.5" /> Result copied — paste it anywhere!</> : <><ClipboardCopy className="h-3.5 w-3.5" /> Copy result — share your score</>}
           </Button>
         )}
       </div>

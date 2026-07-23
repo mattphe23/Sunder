@@ -309,3 +309,11 @@
 - [x] Guardian relic bounty: slaying awakened Guardian grants hero a relic perk (extra perk slot)
 - [x] Camp escalation warning: red pulse on minimap for strength-3 camps
 - [x] Verify: two-account end-to-end match, solo regression, relic + minimap; checkpoint + deliver
+
+# v19 BUILD PLAN (active) — Polish batch + turn notifications + online leaderboard
+- [x] Challenge result share card: "Copy result" on daily/weekly game-over — emoji summary (name, date/week, faction, score, W/L) + challenge URL
+- [x] Tribe Forge preset gallery: 3-4 pre-rolled themed tribes as templates; "remix" loads into forge for editing
+- [x] Faction lore hovers: two-line lore teaser on each faction card (hover/long-press), all 6 tribes + forge card
+- [x] Turn notifications: notify opponent via owner-notification/webpush path when a turn is submitted (read webdev-owner-notifications skill first; scope honestly to what the API supports)
+- [x] Online leaderboard: DB table + tRPC routes for daily/weekly challenge scores (signed-in submits), Leaderboard panel in menu with top scores + your rank; local Hall stays offline fallback
+- [x] Vitest coverage for leaderboard routes; verify all in-browser; checkpoint + deliver

@@ -7,6 +7,25 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 
+// challengeKey format: "daily:2026-07-23" | "weekly:2026-W30" (server-checked)
+const challengeKeyShape = z
+  .string()
+  .regex(/^(daily:\d{4}-\d{2}-\d{2}|weekly:\d{4}-W\d{1,2})$/, "Bad challenge key");
+
+/** The server derives its own current period keys so clients can't post into past/future boards. */
+function currentChallengeKeys(): string[] {
+  const now = new Date();
+  const day = now.toISOString().slice(0, 10);
+  // ISO week (UTC): Thursday-based algorithm
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const week = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  // week number is zero-padded (W07, W30) to match the client's ISO week key
+  return [`daily:${day}`, `weekly:${d.getUTCFullYear()}-W${String(week).padStart(2, "0")}`];
+}
+
 const statsShape = {
   commanderName: z.string().trim().min(1).max(40).optional(),
   games: z.number().int().min(0).optional(),
@@ -39,6 +58,54 @@ export const appRouter = router({
     sync: protectedProcedure
       .input(z.object(statsShape))
       .mutation(({ ctx, input }) => db.upsertProfile(ctx.user.id, input)),
+  }),
+
+  // ── Global challenge leaderboard (v19) ────────────────────────────────────
+  leaderboard: router({
+    submit: protectedProcedure
+      .input(
+        z.object({
+          challengeKey: challengeKeyShape,
+          commanderName: z.string().trim().min(1).max(40),
+          score: z.number().int().min(0).max(1_000_000),
+          won: z.boolean(),
+          turns: z.number().int().min(0).max(500),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        if (!currentChallengeKeys().includes(input.challengeKey)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Challenge period has ended" });
+        }
+        return db.submitLeaderboardScore(
+          ctx.user.id,
+          input.challengeKey,
+          input.commanderName,
+          input.score,
+          input.won,
+          input.turns,
+        );
+      }),
+
+    // Public — anyone can view the board; rank included when signed in.
+    top: publicProcedure
+      .input(z.object({ challengeKey: challengeKeyShape }))
+      .query(async ({ ctx, input }) => {
+        const rows = await db.getLeaderboardTop(input.challengeKey, 50);
+        const top = rows.map((r, i) => ({
+          rank: i + 1,
+          commanderName: r.commanderName,
+          score: r.score,
+          won: r.won === 1,
+          turns: r.turns,
+          you: ctx.user != null && r.userId === ctx.user.id,
+        }));
+        let me: { rank: number; score: number } | null = null;
+        if (ctx.user) {
+          const mine = await db.getLeaderboardRank(ctx.user.id, input.challengeKey);
+          if (mine) me = { rank: mine.rank, score: mine.entry.score };
+        }
+        return { top, me };
+      }),
   }),
 
   // ── Async online matches ──────────────────────────────────────────────────
