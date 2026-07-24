@@ -24,6 +24,7 @@ import { CustomTribeConfig, customTribeDef, CUSTOM_DEF_INDEX } from "./customTri
 import { runWorldPhase, worldUnitIntents, campAt } from "./events";
 import { recordGameResult } from "./profile";
 import { checkPathVictory } from "./victory";
+import { evaluateMission, markMissionDone } from "./story";
 export type GameEvent =
   | { type: "changed" }
   | { type: "unitMoved"; unitId: number; fromX: number; fromY: number; toX: number; toY: number }
@@ -225,13 +226,14 @@ class GameStore {
 
   // ---------- lifecycle ----------
 
-  newGame(opts: { size: number; humanTribe: number; difficulty: Difficulty; seed?: number; preset?: MapPreset; humanTribes?: number[]; challenge?: ChallengeKind; roster?: number[]; custom?: { slot: number; config: CustomTribeConfig }; friendChallenge?: { name: string; score: number }; online?: { matchId: string; hostTribe: number; guestTribe: number; hostName: string; guestName: string } }) {
+  newGame(opts: { size: number; humanTribe: number; difficulty: Difficulty; seed?: number; preset?: MapPreset; humanTribes?: number[]; challenge?: ChallengeKind; roster?: number[]; custom?: { slot: number; config: CustomTribeConfig }; friendChallenge?: { name: string; score: number }; online?: { matchId: string; hostTribe: number; guestTribe: number; hostName: string; guestName: string }; storyMission?: string }) {
     const seed = opts.seed ?? Math.floor(Math.random() * 2 ** 31);
     const preset: MapPreset = opts.preset ?? "continents";
     const humans = opts.humanTribes && opts.humanTribes.length > 0 ? [...opts.humanTribes].sort((a, b) => a - b) : [opts.humanTribe];
     // roster: which of the 6 TRIBE_DEFS play this match (slot i is def roster[i]).
-    // Local games use 4 tribes; online 1v1 uses exactly 2 (no AI in async matches).
-    const roster = opts.roster && (opts.roster.length === 4 || opts.roster.length === 2) ? opts.roster : [0, 1, 2, 3];
+    // Local games use 4 tribes; online 1v1 uses exactly 2 (no AI in async matches);
+    // story missions script 2-4 tribes per battle.
+    const roster = opts.roster && opts.roster.length >= 2 && opts.roster.length <= 4 ? opts.roster : [0, 1, 2, 3];
     const { tiles, cities } = generateMap(opts.size, seed, roster.length, preset);
     const tribes: Tribe[] = roster.map((di, i) => {
       const isCustom = !!opts.custom && opts.custom.slot === i;
@@ -283,6 +285,7 @@ class GameStore {
       challenge: opts.challenge,
       friendChallenge: opts.friendChallenge ?? null,
       online: opts.online ?? null,
+      storyMission: opts.storyMission,
       showIntro: humans.length === 1,
       difficulty: opts.difficulty,
       tribes,
@@ -1301,11 +1304,19 @@ class GameStore {
   newChallengeBest = false;
   /** v16: outcome vs a friend's shared score (null = not a friend-challenge run) */
   friendResult: { name: string; theirScore: number; myScore: number; beaten: boolean } | null = null;
+  /** story mode: set when the run that just ended completed its mission objective */
+  storyMissionResult: { missionId: string; accomplished: boolean } | null = null;
   private onGameOver() {
     this.newAchievements = evaluateAchievements(this.state);
     this.newChallengeBest = false;
     this.friendResult = null;
+    this.storyMissionResult = null;
     const s = this.state;
+    if (s.storyMission && (s.humanTribes?.length ?? 1) === 1) {
+      const accomplished = evaluateMission(s);
+      if (accomplished) markMissionDone(s.storyMission);
+      this.storyMissionResult = { missionId: s.storyMission, accomplished };
+    }
     if (s.challenge && (s.humanTribes?.length ?? 1) === 1) {
       this.updateScore(s.humanTribe);
       const won = s.winner === s.humanTribe;

@@ -8,6 +8,7 @@ import { TurnAlerts } from "./game/online/TurnAlerts";
 import Home from "./pages/Home";
 import PlaytestLab from "./pages/PlaytestLab";
 import Store from "./pages/Store";
+import Story from "./pages/Story";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -15,6 +16,7 @@ function Router() {
     <Switch>
       <Route path={"/"} component={Home} />
       <Route path={"/store"} component={Store} />
+      <Route path={"/story"} component={Story} />
       <Route path={"/playtest-lab"} component={PlaytestLab} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}

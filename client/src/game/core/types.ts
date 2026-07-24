@@ -379,6 +379,8 @@ export interface GameState {
   replay?: ReplayEntry[];
   /** challenge mode: set when this run is a daily/weekly challenge (best-score tracking, no Hall entry) */
   challenge?: "daily" | "weekly";
+  /** story mode: mission id when this run is a campaign mission (e.g. "ch1-m3") */
+  storyMission?: string;
   /** v16: human hero levelled up — unit id awaiting a perk choice (blocks end turn UI-side) */
   pendingPerk?: number | null;
   /** v16: friend challenge — decoded from a shared link (?c=): beat `score` set by `name` */

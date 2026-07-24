@@ -29,9 +29,10 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { useEntitlements } from "@/hooks/useEntitlements";
 import { SkinsPanel, initActiveSkins } from "./SkinsPanel";
 import { useEffect } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { FlaskConical } from "lucide-react";
-import { Sparkles, Paintbrush } from "lucide-react";
+import { Sparkles, Paintbrush, BookOpen } from "lucide-react";
+import { missionById } from "@shared/story";
 import { MAP_PACKS, CuratedMap } from "@shared/mapPacks";
 import { Map as MapIcon } from "lucide-react";
 
@@ -777,6 +778,12 @@ export function MainMenu() {
 
         {/* v27: store + skins entries */}
         <div className="mt-3 flex w-full gap-2">
+          <Link href="/story" className="flex-1">
+            <span className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.06] px-3 py-2 text-[12px] font-semibold text-slate-200 transition-colors hover:bg-white/[0.12]">
+              <BookOpen className="h-3.5 w-3.5 text-rose-300" />
+              Story
+            </span>
+          </Link>
           <Link href="/store" className="flex-1">
             <span className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.06] px-3 py-2 text-[12px] font-semibold text-slate-200 transition-colors hover:bg-white/[0.12]">
               <Sparkles className="h-3.5 w-3.5 text-amber-300" />
@@ -821,6 +828,9 @@ export function GameOver() {
     : s.winner === s.humanTribe;
   const ranked = [...s.tribes].sort((a, b) => b.score - a.score);
   const friendRes = game.friendResult;
+  const storyRes = game.storyMissionResult;
+  const storyMissionDef = storyRes ? missionById(storyRes.missionId) : null;
+  const [, navigate] = useLocation();
   const canShare = !hotseat && s.tribes[s.humanTribe]?.defIndex !== undefined && s.tribes[s.humanTribe].defIndex !== CUSTOM_DEF_INDEX;
   const shareRun = async () => {
     sound.play("click");
@@ -917,6 +927,14 @@ export function GameOver() {
         <h2 className={`font-display text-4xl font-black tracking-wide ${won ? "text-amber-400 drop-shadow-[0_0_20px_rgba(255,185,56,0.5)]" : "text-slate-300"}`}>
           {hotseat && won && winner ? `${winner.name.toUpperCase()} WINS` : won ? "VICTORY" : "DEFEAT"}
         </h2>
+        {storyRes && storyMissionDef && (
+          <div className={`mx-auto mt-3 max-w-md rounded-lg border p-3 text-left text-xs leading-relaxed ${storyRes.accomplished ? "border-emerald-400/30 bg-emerald-950/30 text-emerald-100" : "border-rose-400/30 bg-rose-950/30 text-rose-100"}`}>
+            <p className="mb-1 font-display text-[10px] font-bold uppercase tracking-[0.2em] opacity-80">
+              {storyRes.accomplished ? `Mission complete — ${storyMissionDef.title}` : `Mission failed — ${storyMissionDef.title}`}
+            </p>
+            {storyRes.accomplished ? storyMissionDef.victoryText : "The Shatterlands do not forgive — but they do forget. Regroup and try again."}
+          </div>
+        )}
         {winner && (
           <p className="mt-2 text-sm text-slate-300">
             <span style={{ color: winner.color }} className="font-bold">{winner.name}</span> rules the Shatterlands.
@@ -1077,6 +1095,14 @@ export function GameOver() {
               className="flex-1 border border-cyan-400/40 bg-cyan-400/10 font-display font-bold tracking-wide text-cyan-200 hover:bg-cyan-400/20"
             >
               Watch Replay
+            </Button>
+          )}
+          {storyRes && (
+            <Button
+              onClick={() => { sound.play("click"); g.toMenu(); navigate("/story"); }}
+              className="flex-1 bg-rose-400 font-display font-black tracking-wider text-[#1b1b3f] hover:bg-rose-300"
+            >
+              {storyRes.accomplished ? "Continue Campaign" : "Back to Campaign"}
             </Button>
           )}
           <Button onClick={() => g.toMenu()} className="flex-1 bg-amber-400 font-display font-black tracking-wider text-[#1b1b3f] shadow-[0_0_24px_rgba(255,185,56,0.35)] hover:bg-amber-300">

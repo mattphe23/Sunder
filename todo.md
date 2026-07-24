@@ -240,9 +240,13 @@ below was checked against the actual codebase before being marked.
 - [x] Premium map packs purchasable + selectable in game setup
 
 ### Story Mode
-- [ ] Campaign: conquer territory-by-territory with your forged tribe + mini-games
-- [ ] Chapter/pack release format with separate purchases
-- [ ] Story Mode entry gated by purchase; included in ultimate pack
+- [x] Campaign: conquer territory-by-territory with your forged tribe (Chapter I: The
+      Sundering — 5 scripted seed-locked missions with narrative briefings, objective types
+      domination/survive/capital, forged-tribe support; mini-games deferred to a future chapter)
+- [x] Chapter/pack release format with separate purchases (STORY_CHAPTERS registry in
+      shared/story.ts; per-chapter SKU story_ch1; progress tracked per mission)
+- [x] Story Mode entry gated by purchase; included in ultimate pack (/story lock screen +
+      menu Story button; GameOver mission banner + Continue Campaign)
 
 ### Stage 2: procedural character units
 - [x] Shared character rig from primitives (torso, head, limbs) in a new units module
