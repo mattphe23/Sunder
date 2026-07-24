@@ -65,4 +65,25 @@ describe("playtest engine", () => {
     expect(out.turnsPlayed).toBeGreaterThanOrEqual(3);
     expect(out.fallbackActions).toBeGreaterThanOrEqual(1);
   }, 30000);
+
+  it('drops literal "null"/blank turn notes but keeps real ones (v29 data fix)', async () => {
+    // Feed a rotating set of notes: literal "null", blank, and one real note.
+    const junk = ["null", "  ", "NULL"];
+    let call = 0;
+    vi.mocked(invokeLLM).mockImplementation(async (req: { messages: { role: string; content: string }[]; response_format?: { json_schema?: { name?: string } } }) => {
+      const isReport = req.response_format?.json_schema?.name === "playtest_report";
+      if (isReport) return { choices: [{ message: { content: "null" } }] } as never;
+      const userMsg = req.messages.find((m) => m.role === "user")?.content ?? "";
+      const ids = [...userMsg.matchAll(/^- ([^:]+:[^:\s]+(?::[^\s:]+)?): /gm)].map((m) => m[1]);
+      const note = call < junk.length ? junk[call] : "Economy feels readable this turn.";
+      call++;
+      return { choices: [{ message: { content: JSON.stringify({ actionIds: ids.slice(0, 1), note }) } }] } as never;
+    });
+    const out = await runPlaytest({ seed: 11, size: 9, preset: "continents", llmTribe: 0, maxTurns: 5 });
+    const notes = out.matchSummary.turnNotes.filter((n) => !n.includes("[system]"));
+    // no junk notes survive
+    expect(notes.every((n) => !/:\s*(null|NULL)\s*$/.test(n) && n.trim().length > 3)).toBe(true);
+    // the real note was kept with its turn prefix
+    expect(notes.some((n) => n.includes("Economy feels readable"))).toBe(true);
+  }, 30000);
 });

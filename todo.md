@@ -309,5 +309,7 @@ below was checked against the actual codebase before being marked.
       misplay via deterministic all-scripted sim on same seed: scripts/simcheck-v29.ts)
 
 ## Backlog (found during v29 validation, not yet scheduled)
-- [ ] playtest.ts: turnNotes empty when a match ends before the notes flush (early gameover) — run1
-- [ ] playtest.ts: occasional null turn note recorded (run3 T9)
+- [x] playtest.ts: turnNotes empty when a match ends before the notes flush (early gameover) — run1
+      (fixed: synthetic terminal note recorded when the LLM tribe is eliminated / match ends early)
+- [x] playtest.ts: occasional null turn note recorded (run3 T9)
+      (fixed: literal "null"/blank note strings filtered before recording; test added, 78 green)

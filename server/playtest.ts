@@ -244,7 +244,10 @@ async function llmPlanTurn(
         /* illegal mid-plan (e.g. unit died) — skip */
       }
     }
-    if (parsed.note) notes.push(`T${g.state.turn}: ${parsed.note}`);
+    // Guard against schema-evading outputs: the model occasionally returns the
+    // literal string "null" (or whitespace) instead of JSON null (run3 T9 bug).
+    const note = typeof parsed.note === "string" ? parsed.note.trim() : "";
+    if (note && note.toLowerCase() !== "null") notes.push(`T${g.state.turn}: ${note}`);
     // let the scripted AI mop up remaining unit moves/economy for the turn
     runAiTurn(g, tribe);
     return applied === 0 ? { chosen: 0, fallback: true } : { chosen: applied, fallback: false };
@@ -363,6 +366,18 @@ export async function runPlaytest(
   }
 
   const s = g.state;
+  // Early-gameover runs used to produce an empty turnNotes array (run1 bug):
+  // if the LLM tribe was eliminated (or the match ended) before it recorded any
+  // observation, add a synthetic terminal note so the feedback model still has
+  // per-run narrative context.
+  if (s.phase !== "playing") {
+    const llmT = s.tribes[params.llmTribe];
+    if (llmT && !llmT.alive) {
+      notes.push(`T${s.turn}: [system] ${llmT.name} (LLM tribe) was eliminated — match ended early.`);
+    } else if (notes.length === 0) {
+      notes.push(`T${s.turn}: [system] match ended (${s.winner != null ? `winner ${s.tribes[s.winner]?.name}` : "no winner"}) before the model recorded observations.`);
+    }
+  }
   const summary: MatchSummary = {
     seed: params.seed,
     size: params.size,
