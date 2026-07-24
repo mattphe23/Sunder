@@ -1,0 +1,121 @@
+{
+  "turnsPlayed": 17,
+  "llmActions": 15,
+  "fallbackActions": 0,
+  "matchSummary": {
+    "seed": 657569,
+    "size": 13,
+    "preset": "archipelago",
+    "llmTribe": 1,
+    "llmTribeName": "Kharzul",
+    "turns": 16,
+    "phase": "playing",
+    "winner": null,
+    "winnerName": null,
+    "winPath": null,
+    "tribeScores": [
+      {
+        "name": "Auren",
+        "alive": true,
+        "cities": 2,
+        "units": 4,
+        "stars": 0,
+        "techs": 12,
+        "score": 858
+      },
+      {
+        "name": "Kharzul",
+        "alive": true,
+        "cities": 1,
+        "units": 2,
+        "stars": 1,
+        "techs": 7,
+        "score": 418
+      },
+      {
+        "name": "Sunwei",
+        "alive": true,
+        "cities": 4,
+        "units": 7,
+        "stars": 9,
+        "techs": 8,
+        "score": 982
+      },
+      {
+        "name": "Vessari",
+        "alive": true,
+        "cities": 4,
+        "units": 4,
+        "stars": 11,
+        "techs": 6,
+        "score": 898
+      }
+    ],
+    "logTail": [
+      "The storm drifts across the waves.",
+      "Sunwei captured Talvi!",
+      "Sunwei built a port.",
+      "Dark clouds gather — a storm rages over the sea. Boats cannot enter it.",
+      "Barbarian raiders pour from the camp at (1, 7)! Guard your villages!",
+      "The barbarian camp at (6, 6) grows bolder…",
+      "Vessari found 8 stars in ancient ruins!",
+      "Wu Jian, commander of Sunwei, has fallen in battle!",
+      "The ancient Guardian stirs — it walks the Shatterlands once more!",
+      "The ancient Guardian stirs — it walks the Shatterlands once more!",
+      "The barbarian camp at (1, 7) grows bolder…",
+      "Barbarian raiders pour from the camp at (6, 6)! Guard your villages!",
+      "Sunwei captured Elba!",
+      "Vessari captured Norun!",
+      "The storm over the sea breaks apart.",
+      "The barbarian camp at (1, 7) grows bolder…",
+      "The barbarian camp at (6, 6) grows bolder…",
+      "Umbra grew to level 2!",
+      "Kelda grew to level 2!",
+      "The storm drifts across the waves.",
+      "The barbarian camp at (6, 6) grows bolder…",
+      "Smoke rises in the wilds — a barbarian camp has appeared at (1, 7)!",
+      "Rasza grew to level 2!",
+      "Dark clouds gather — a storm rages over the sea. Boats cannot enter it.",
+      "Sunwei learned Mathematics from ancient ruins!"
+    ],
+    "turnNotes": [
+      "T0: Initial unit movement options feel a bit limited for early exploration.",
+      "T4: The movement options for units seem a bit limited, making it hard to explore effectively in the first turn.",
+      "T5: It feels like I should be able to capture the village and then move the unit, but the game forces me to move first then capture. This is a bit counter-intuitive for a 4X game.",
+      "T9: null",
+      "T10: It's difficult to decide between attacking a weak enemy unit or focusing on harvesting and training new units for expansion."
+    ]
+  },
+  "feedback": {
+    "scores": {
+      "balance": 6,
+      "clarity": 5,
+      "fun": 6,
+      "pacing": 7
+    },
+    "balance": [
+      "Kharzul, the LLM tribe, is significantly behind in score (418) compared to other tribes like Sunwei (982) and Vessari (898), suggesting a potential imbalance or difficulty in early game expansion.",
+      "Kharzul has the fewest cities (1) and units (2) among all tribes, indicating a struggle in establishing a strong presence on the map.",
+      "The large disparity in stars (Kharzul with 1, Vessari with 11) suggests that resource generation or discovery might be unbalanced."
+    ],
+    "clarity": [
+      "The note from T5 indicates a counter-intuitive interaction where capturing a village and then moving a unit is not allowed, which could confuse players.",
+      "The repeated 'null' entry in turnNotes (T9) suggests a potential issue with the logging or data collection process for player feedback."
+    ],
+    "fun": [
+      "The early game unit movement limitations (T0, T4) might hinder early exploration and strategic options, potentially reducing player engagement.",
+      "The dilemma between attacking enemy units and focusing on harvesting/training (T10) presents an interesting strategic choice, which can be a source of fun."
+    ],
+    "bugs": [
+      "The turnNotes contain 'null' for T9, which is likely a data collection bug."
+    ],
+    "suggestions": [
+      "Consider adjusting Kharzul's starting conditions or AI strategy to improve its competitive standing against other tribes.",
+      "Review and clarify the unit movement and capture mechanics, especially for early game interactions, to ensure they are intuitive for players.",
+      "Investigate the cause of the 'null' entry in turnNotes to ensure all player feedback is accurately captured.",
+      "Explore ways to provide more diverse early-game unit movement options to encourage exploration and strategic depth."
+    ],
+    "verdict": "The match shows potential for engaging gameplay, but significant balance issues for the LLM tribe and some clarity problems with core mechanics need addressing. The early game experience could be improved with more flexible unit movement."
+  },
+  "model": "gemini-2.5-flash"
+}

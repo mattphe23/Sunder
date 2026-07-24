@@ -321,6 +321,24 @@ export class BoardRenderer {
     return (size - 1) / 2;
   }
 
+  /** v29 QoL: smoothly pan the camera to a tile (used by "next unit" cycling). */
+  focusTile(s: GameState, x: number, y: number) {
+    const c = this.center(s.size);
+    const target = new Vector3(x - c, 0, y - c);
+    const cam = this.camera;
+    const fps = 60;
+    const anim = new Animation("camPan", "target", fps, Animation.ANIMATIONTYPE_VECTOR3, Animation.ANIMATIONLOOPMODE_CONSTANT);
+    anim.setKeys([
+      { frame: 0, value: cam.target.clone() },
+      { frame: 14, value: target },
+    ]);
+    const ease = new CubicEase();
+    ease.setEasingMode(EasingFunction.EASINGMODE_EASEOUT);
+    anim.setEasingFunction(ease);
+    cam.animations = [anim];
+    this.scene.beginAnimation(cam, 0, 14, false);
+  }
+
   /** full rebuild of static board (called on new game / capture) */
   buildBoard(s: GameState) {
     this.tileMeshes.forEach((m) => m.dispose());

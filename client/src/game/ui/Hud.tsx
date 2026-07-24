@@ -7,8 +7,8 @@ import {
   harvestCost, canBuildPort, portCost, wallCost,
 } from "../core/rules";
 import { Button } from "@/components/ui/button";
-import { Star, Swords, FlaskConical, X, ChevronRight, Anchor, Ship, Skull, Shield, Flag, Landmark, ScrollText, Undo2, Bird, Crown, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { Star, Swords, FlaskConical, X, ChevronRight, Anchor, Ship, Skull, Shield, Flag, Landmark, ScrollText, Undo2, Bird, Crown, Sparkles, SkipForward } from "lucide-react";
+import { useState, useEffect } from "react";
 import { MuteButton } from "./MuteButton";
 import { sound } from "../sound";
 import { victoryProgress, VICTORY_PATH_START_TURN } from "../core/victory";
@@ -192,6 +192,9 @@ export function TopBar() {
           <Star className="h-4 w-4 fill-amber-300" />
           <span className="font-mono text-sm">{me.stars}</span>
           <span className="text-xs text-amber-200/70">+{starIncome(s, s.humanTribe)}</span>
+          {s.cities.some((c) => c.tribe === s.humanTribe && s.units.some((u) => u.x === c.x && u.y === c.y && u.tribe !== s.humanTribe && u.tribe >= 0)) && (
+            <span className="ml-1 rounded bg-red-500/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-300" title="An enemy stands on one of your cities — it produces no stars">Siege</span>
+          )}
         </span>
         <span className="text-xs text-slate-300/80">Turn {s.turn + 1}/{s.maxTurns}</span>
         {vp && (
@@ -225,6 +228,37 @@ export function BottomBar({ onOpenTech, onOpenDiplo }: { onOpenTech: () => void;
   const g = useGame();
   const s = g.state;
   const isMyTurn = s.currentTribe === s.humanTribe && !s.aiThinking;
+  // v29 QoL: late-game turns get tedious when you lose track of who still has
+  // moves. Surface the count, add one-key cycling, and nudge (not block) when
+  // ending a turn with idle units.
+  const movesLeft = isMyTurn ? game.unitsWithMoves().length : 0;
+  const [nudged, setNudged] = useState(false);
+  useEffect(() => { setNudged(false); }, [s.turn, s.currentTribe]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = document.activeElement;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || (el as HTMLElement).isContentEditable)) return;
+      if (e.key === "Tab" || e.key === "n" || e.key === "N") {
+        e.preventDefault();
+        if (game.state.currentTribe === game.state.humanTribe && !game.state.aiThinking) {
+          sound.play("click");
+          game.nextUnit();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+  const handleEndTurn = () => {
+    sound.play("click");
+    const left = game.unitsWithMoves().length;
+    if (left > 0 && !nudged) {
+      setNudged(true);
+      return; // first click: show the warning state instead of ending the turn
+    }
+    setNudged(false);
+    g.endTurn();
+  };
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-end justify-between gap-2 p-3" style={{ touchAction: "manipulation" }}>
       <div className="pointer-events-auto flex gap-2">
@@ -245,13 +279,30 @@ export function BottomBar({ onOpenTech, onOpenDiplo }: { onOpenTech: () => void;
             <Undo2 className="h-4 w-4" /> Undo
           </Button>
         )}
+        {isMyTurn && movesLeft > 0 && (
+          <Button
+            variant="secondary"
+            size="sm"
+            className="min-h-[44px] gap-1.5 border border-emerald-400/40 bg-[#1b1b3f]/85 px-4 text-emerald-200 backdrop-blur-md hover:bg-[#2a2a55] sm:min-h-0 sm:px-3"
+            onClick={() => { sound.play("click"); game.nextUnit(); }}
+            title="Cycle to the next unit that can still act (Tab / N)"
+          >
+            <SkipForward className="h-4 w-4" /> Next
+            <span className="ml-0.5 rounded-full bg-emerald-400/20 px-1.5 text-[11px] font-bold text-emerald-300">{movesLeft}</span>
+          </Button>
+        )}
       </div>
-      <div className="pointer-events-auto">
+      <div className="pointer-events-auto flex flex-col items-end gap-1.5">
+        {nudged && movesLeft > 0 && (
+          <div className="rounded-md border border-amber-400/40 bg-[#1b1b3f]/90 px-2.5 py-1 text-[11px] font-semibold text-amber-200 backdrop-blur-md">
+            {movesLeft} unit{movesLeft === 1 ? "" : "s"} can still act — tap again to end
+          </div>
+        )}
         <Button
           size="lg"
           disabled={!isMyTurn}
-          onClick={() => { sound.play("click"); g.endTurn(); }}
-          className="min-h-[48px] gap-2 bg-amber-400 font-display font-bold text-[#1b1b3f] shadow-lg shadow-amber-500/25 transition-transform hover:bg-amber-300 active:scale-[0.97]"
+          onClick={handleEndTurn}
+          className={`min-h-[48px] gap-2 font-display font-bold text-[#1b1b3f] shadow-lg transition-transform active:scale-[0.97] ${nudged && movesLeft > 0 ? "bg-amber-300 shadow-amber-400/40 ring-2 ring-amber-300/60" : "bg-amber-400 shadow-amber-500/25 hover:bg-amber-300"}`}
         >
           End Turn <ChevronRight className="h-4 w-4" />
         </Button>

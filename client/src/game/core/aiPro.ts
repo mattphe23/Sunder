@@ -287,6 +287,9 @@ function proUnitAction(store: StoreLike, u: Unit, tribeIdx: number, target: { x:
       const r = previewCombat(s, u, t);
       let score = r.damageToDefender * 1.1 + (r.defenderDies ? 16 : 0) - r.damageToAttacker * 1.4 - (r.attackerDies ? 30 : 0);
       if (t.guardian) score += r.defenderDies ? 20 : 4;
+      // v29 siege awareness: clear enemies squatting on our city tiles — they zero its income
+      const sc = cityAt(s, t.x, t.y);
+      if (sc && sc.tribe === tribeIdx) score += r.defenderDies ? 18 : 8;
       if (u.type === "catapult") {
         const dc = cityAt(s, t.x, t.y);
         if (dc && dc.walls && dc.tribe === t.tribe) score += 12;

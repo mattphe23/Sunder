@@ -351,6 +351,11 @@ export function starIncome(s: GameState, tribe: number): number {
   let income = 0;
   for (const c of s.cities) {
     if (c.tribe !== tribe) continue;
+    // v29 anti-turtling (Polytopia-authentic siege): an enemy unit standing ON
+    // the city tile chokes its production entirely. Turtling behind walls no
+    // longer preserves your economy once besiegers arrive.
+    const occupier = s.units.find((u) => u.x === c.x && u.y === c.y && u.tribe !== tribe && u.tribe >= 0);
+    if (occupier) continue;
     income += c.isCapital ? 2 : 1;
     income += Math.max(0, c.level - 1);
   }

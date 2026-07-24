@@ -199,6 +199,10 @@ function aiUnitAction(store: StoreLike, u: Unit, tribeIdx: number, warTarget: { 
       let score = r.damageToDefender + (r.defenderDies ? 15 : 0) - r.damageToAttacker * 1.2 - (r.attackerDies ? 25 : 0);
       // guardians gate a big reward: worth extra risk when the kill is close
       if (t.guardian) score += r.defenderDies ? 20 : 5;
+      // v29 siege awareness: an enemy standing ON one of our cities chokes its
+      // income — breaking the siege outweighs an even trade
+      const tc = cityAt(s, t.x, t.y);
+      if (tc && tc.tribe === tribeIdx) score += r.defenderDies ? 18 : 8;
       // catapults exist to crack fortified garrisons — bonus for hitting walled-city defenders
       if (u.type === "catapult") {
         const dc = cityAt(s, t.x, t.y);
@@ -255,7 +259,10 @@ function aiUnitAction(store: StoreLike, u: Unit, tribeIdx: number, warTarget: { 
     if (e.tribe === tribeIdx) continue;
     if (e.tribe >= 0 && atPeace(s, tribeIdx, e.tribe)) continue; // honor treaties
     const dist = Math.max(Math.abs(e.x - u.x), Math.abs(e.y - u.y));
-    objectives.push({ x: e.x, y: e.y, w: 40 - dist * 5 });
+    // v29 siege awareness: a besieger on our city tile is a priority target to converge on
+    const ec = cityAt(s, e.x, e.y);
+    const besieging = ec && ec.tribe === tribeIdx;
+    objectives.push({ x: e.x, y: e.y, w: (besieging ? 110 : 40) - dist * 5 });
   }
   if (objectives.length === 0) return;
   objectives.sort((a, b) => b.w - a.w);

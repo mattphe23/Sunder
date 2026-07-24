@@ -1,0 +1,106 @@
+{
+  "turnsPlayed": 6,
+  "llmActions": 11,
+  "fallbackActions": 1,
+  "matchSummary": {
+    "seed": 841758,
+    "size": 13,
+    "preset": "continents",
+    "llmTribe": 0,
+    "llmTribeName": "Auren",
+    "turns": 6,
+    "phase": "gameover",
+    "winner": 3,
+    "winnerName": "Vessari",
+    "winPath": null,
+    "tribeScores": [
+      {
+        "name": "Auren",
+        "alive": false,
+        "cities": 0,
+        "units": 0,
+        "stars": 1,
+        "techs": 5,
+        "score": 200
+      },
+      {
+        "name": "Kharzul",
+        "alive": true,
+        "cities": 4,
+        "units": 2,
+        "stars": 8,
+        "techs": 3,
+        "score": 713
+      },
+      {
+        "name": "Sunwei",
+        "alive": true,
+        "cities": 3,
+        "units": 4,
+        "stars": 8,
+        "techs": 5,
+        "score": 820
+      },
+      {
+        "name": "Vessari",
+        "alive": true,
+        "cities": 4,
+        "units": 2,
+        "stars": 8,
+        "techs": 4,
+        "score": 918
+      }
+    ],
+    "logTail": [
+      "Auren has fallen!",
+      "Kharzul captured Yoru!",
+      "Yoru is under siege — it produced no stars this turn!",
+      "Szara reached level 2!",
+      "Vessari captured Rasza!",
+      "Vesk grew to level 2!",
+      "Wu Jian reached level 2!",
+      "Sunwei learned Sailing from ancient ruins!",
+      "Sunwei captured Osmo!",
+      "Brann grew to level 3!",
+      "Quill grew to level 2!",
+      "Brann grew to level 2!",
+      "Lirath grew to level 2!",
+      "Vessari captured Sova!",
+      "Kharzul captured Fenwick!",
+      "Kharzul captured Tiko!",
+      "Vessari captured Quill!",
+      "Sunwei captured Lirath!",
+      "Ando grew to level 2!"
+    ],
+    "turnNotes": []
+  },
+  "feedback": {
+    "scores": {
+      "balance": 4,
+      "clarity": 7,
+      "fun": 6,
+      "pacing": 3
+    },
+    "balance": [
+      "Auren was eliminated by turn 6 with 0 cities and 0 units, indicating a significant early game disadvantage.",
+      "Vessari won despite having only 2 units, the same as Kharzul, suggesting that unit count isn't the primary driver of victory in this match.",
+      "The winner, Vessari, had a score of 918, while the second-place tribe, Sunwei, had 820, showing a reasonable, but not overwhelming, lead for the winner."
+    ],
+    "clarity": [
+      "The log entries clearly show city captures and level-ups, which is helpful for understanding the game flow.",
+      "The 'winPath' being null makes it unclear how Vessari achieved victory, as the log doesn't explicitly state a domination or score victory."
+    ],
+    "fun": [
+      "The rapid elimination of Auren might be frustrating for players of that tribe, as they had little opportunity to play.",
+      "Multiple city captures by Vessari, Kharzul, and Sunwei suggest active player engagement and strategic conflict."
+    ],
+    "bugs": [],
+    "suggestions": [
+      "Investigate Auren's starting conditions or early game bonuses to prevent such quick elimination, perhaps by giving them a stronger starting unit or more resources.",
+      "Clarify the win condition in the match data, either by populating 'winPath' or adding a specific 'winReason' field.",
+      "Consider adjusting the scoring for units or city defense to ensure that tribes with very few units don't win too easily, or conversely, that unit production is more impactful."
+    ],
+    "verdict": "The match was very short due to the early elimination of one tribe, and the balance seems off for Auren. More clarity on the win condition would be beneficial for analysis."
+  },
+  "model": "gemini-2.5-flash"
+}

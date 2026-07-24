@@ -288,3 +288,26 @@ below was checked against the actual codebase before being marked.
       analysis in docs/v28-balance-verification.md (run 3 leader gap 1.36→1.04; mechanics
       verified firing in logs; avg gap unchanged — income taper proposed as next lever)
 - [x] Checkpoint + deliver with before/after comparison
+
+## v29 — Fix Polytopia's pain points (user-approved direction: no income taper, Polytopia-style levers)
+### Late-game QoL (tedium)
+- [x] "Next unit" cycling: button + hotkey (Tab/N) jumps to the next unit with moves left
+- [x] Units-left indicator on the end-turn button (e.g. "3 units can still act")
+- [x] End-turn confirmation only when units still have moves (skippable via setting)
+- [x] Speed up AI/world turn resolution pacing (reduce artificial delays for large empires)
+### Anti-turtling (aggression-rewarding, Polytopia-style)
+- [x] Siege pressure: cities besieged by adjacent enemies produce reduced income (no walls nerf)
+- [x] Score/economy rewards for offense: capture bonus already exists — verify battle-win star
+      bounty or equivalent aggression incentive; tune if missing (added +8 score per battle won)
+- [x] Default turn cap review: ensure score-mode default runs tight (Polytopia-style 30-turn cap)
+- [x] AI: reduce passive-defense bias when ahead in force (push advantage instead of camping)
+### Validation
+- [x] Vitest coverage for QoL logic + siege/aggression tuning; full suite green
+- [x] Visual verification of new UI affordances
+- [x] Playtest-lab runs to sanity-check pacing/fun scores; checkpoint + deliver
+      (docs/v29-balance-verification.md — run3 pacing 7 vs ~4; run1 early death traced to LLM
+      misplay via deterministic all-scripted sim on same seed: scripts/simcheck-v29.ts)
+
+## Backlog (found during v29 validation, not yet scheduled)
+- [ ] playtest.ts: turnNotes empty when a match ends before the notes flush (early gameover) — run1
+- [ ] playtest.ts: occasional null turn note recorded (run3 T9)

@@ -60,6 +60,7 @@ export default function GameCanvas() {
         if (e.tribe === s.humanTribe) sound.play("capture");
       }
       if (e.type === "turnStarted" && e.tribe === s.humanTribe && s.turn > 0) sound.play("turn");
+      if (e.type === "focusTile") r.focusTile(s, e.x, e.y);
       if (e.type === "sfx") {
         sound.play(e.name);
         if (e.name === "heal" && e.x !== undefined && e.y !== undefined) r.healSparkle(s, e.x, e.y);

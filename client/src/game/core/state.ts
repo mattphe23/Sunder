@@ -31,6 +31,7 @@ export type GameEvent =
   | { type: "combat"; attackerId: number; defenderId: number; dmg: number; retaliation: number; defenderDied: boolean; attackerDied: boolean; ax: number; ay: number; dx: number; dy: number }
   | { type: "captured"; cityId: number; tribe: number }
   | { type: "turnStarted"; tribe: number }
+  | { type: "focusTile"; x: number; y: number }
   | { type: "sfx"; name: "plunder" | "heal" | "promote" | "ruin" | "victory" | "defeat" | "catapult" | "treaty" | "levelup"; x?: number; y?: number };
 
 type Listener = (e: GameEvent) => void;
@@ -215,7 +216,7 @@ class GameStore {
             runAiTurn(this, this.state.currentTribe);
             this.state.aiThinking = false;
             if (this.state.phase === "playing") this.endTurn();
-          }, 350);
+          }, 150);
         }
       }
       return true;
@@ -359,6 +360,14 @@ class GameStore {
     const income = starIncome(s, tribeIdx) + this.aiBonus(tribeIdx);
     tribe.stars += income;
     this.bumpStat(tribeIdx, "starsEarned", income);
+    // v29 siege visibility: tell the owner which cities produced nothing
+    if (tribe.isHuman) {
+      for (const c of s.cities) {
+        if (c.tribe !== tribeIdx) continue;
+        const occ = s.units.find((q) => q.x === c.x && q.y === c.y && q.tribe !== tribeIdx && q.tribe >= 0);
+        if (occ) s.log.unshift(`${c.name} is under siege — it produced no stars this turn!`);
+      }
+    }
     for (const u of s.units) {
       if (u.tribe === tribeIdx) { u.moved = false; u.attacked = false; }
     }
@@ -466,12 +475,16 @@ class GameStore {
     if (!tribe.isHuman && tribe.alive && s.phase === "playing") {
       s.aiThinking = true;
       this.emit({ type: "changed" });
-      // slight delay so the player sees AI turns happen
+      // v29 QoL: Polytopia complaint — waiting on AI turns drags the pace.
+      // 150ms keeps the "rivals are acting" beat readable; when no human is
+      // still alive (spectating a wipeout) drop to 60ms to fast-forward.
+      const humanAlive = s.tribes.some((t) => t.isHuman && t.alive);
+      const delay = humanAlive ? 150 : 60;
       setTimeout(() => {
         runAiTurn(this, next);
         s.aiThinking = false;
         if (this.state.phase === "playing") this.endTurn();
-      }, 350);
+      }, delay);
     }
   }
 
@@ -518,6 +531,10 @@ class GameStore {
       cities.reduce((a, c) => a + c.level * 50, 0) +
       units.length * 10 +
       t.techs.length * 40 +
+      // v29 anti-turtling: offense earns points — every battle won counts, so a
+      // camped equal-size empire scores lower than an aggressive one (Polytopia
+      // rewards conquest; this is our equivalent lever)
+      (s.stats?.[tribeIdx]?.battlesWon ?? 0) * 8 +
       // v17 hero stakes: a living commander earns their keep; a fallen one is a lasting wound
       units.filter((u) => u.hero).reduce((a, u) => a + 15 + ((u.level ?? 1) - 1) * 15, 0) -
       (t.heroFell ? 40 : 0);
@@ -531,6 +548,31 @@ class GameStore {
     s.selectedUnitId = unitId;
     this.pendingAttack = null;
     this.emit({ type: "changed" });
+  }
+
+  /** v29 QoL: ids of the human tribe's units that can still act this turn. */
+  unitsWithMoves(): number[] {
+    const s = this.state;
+    if (s.phase !== "playing" || s.currentTribe !== s.humanTribe) return [];
+    return s.units
+      .filter((u) => u.tribe === s.humanTribe && !u.guardian && (!u.moved || !u.attacked))
+      .map((u) => u.id);
+  }
+
+  /** v29 QoL: cycle selection to the next unit with moves left and pan to it. */
+  nextUnit() {
+    const s = this.state;
+    const ids = this.unitsWithMoves();
+    if (ids.length === 0) return;
+    const cur = s.selectedUnitId;
+    const at = cur == null ? -1 : ids.indexOf(cur);
+    const nextId = ids[(at + 1) % ids.length];
+    s.selectedCityId = null;
+    s.selectedUnitId = nextId;
+    this.pendingAttack = null;
+    this.emit({ type: "changed" });
+    const u = s.units.find((q) => q.id === nextId);
+    if (u) this.emit({ type: "focusTile", x: u.x, y: u.y });
   }
 
   selectCity(cityId: number | null) {
