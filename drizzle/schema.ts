@@ -132,3 +132,33 @@ export const playtestRuns = mysqlTable("playtest_runs", {
 
 export type PlaytestRun = typeof playtestRuns.$inferSelect;
 export type InsertPlaytestRun = typeof playtestRuns.$inferInsert;
+
+// ── Sunder v27: monetization — purchases + entitlements ─────────────────────
+// Product catalog is code-defined in shared/products.ts (single source of truth
+// for SKUs/prices/what each SKU grants); the DB stores who bought what.
+// Per Stripe guidance we store only Stripe IDs + business fields — amounts,
+// receipts, and card details live in Stripe and are fetched when needed.
+export const purchases = mysqlTable("purchases", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  /** SKU from shared/products.ts, e.g. "skin_auren_gilded" or "bundle_ultimate" */
+  sku: varchar("sku", { length: 64 }).notNull(),
+  stripeSessionId: varchar("stripeSessionId", { length: 128 }),
+  stripePaymentIntentId: varchar("stripePaymentIntentId", { length: 128 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type Purchase = typeof purchases.$inferSelect;
+
+// Entitlements are the unlocked capability keys a user owns. A bundle purchase
+// fans out into multiple entitlement rows (ultimate grants everything), so
+// gameplay checks stay a simple indexed lookup.
+export const entitlements = mysqlTable("entitlements", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  /** e.g. "skin.auren.gilded", "tribe.valkyra", "maps.pack1", "story.ch1" */
+  key: varchar("key", { length: 64 }).notNull(),
+  /** which purchase granted it (null = granted manually by admin) */
+  purchaseId: int("purchaseId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type Entitlement = typeof entitlements.$inferSelect;

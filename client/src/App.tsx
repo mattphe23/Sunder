@@ -7,12 +7,14 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { TurnAlerts } from "./game/online/TurnAlerts";
 import Home from "./pages/Home";
 import PlaytestLab from "./pages/PlaytestLab";
+import Store from "./pages/Store";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
       <Route path={"/"} component={Home} />
+      <Route path={"/store"} component={Store} />
       <Route path={"/playtest-lab"} component={PlaytestLab} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}

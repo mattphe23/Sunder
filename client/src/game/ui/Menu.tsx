@@ -28,6 +28,7 @@ import { LeaderboardPanel, LeaderboardSubmit } from "../online/Leaderboard";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Link } from "wouter";
 import { FlaskConical } from "lucide-react";
+import { Sparkles } from "lucide-react";
 
 /** Admin-only entry to the AI Playtest Lab; renders nothing for everyone else. */
 function AdminLabLink() {
@@ -664,6 +665,14 @@ export function MainMenu() {
 
         {/* v21: admin-only AI playtest lab entry */}
         <AdminLabLink />
+
+        {/* v27: store entry */}
+        <Link href="/store">
+          <span className="mt-3 flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.06] px-3 py-2 text-[12px] font-semibold text-slate-200 transition-colors hover:bg-white/[0.12]">
+            <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+            Store — skins, tribes, maps & Story Mode
+          </span>
+        </Link>
 
         <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-[11px] font-medium text-slate-300">
           <Star className="h-3 w-3 fill-amber-400 text-amber-400" />

@@ -226,12 +226,12 @@ below was checked against the actual codebase before being marked.
 - Ultimate pack: single purchase including everything
 
 ### Foundation
-- [ ] Catalog + entitlements DB schema (products, purchases, entitlements per user)
-- [ ] Stripe integration (checkout + webhook fulfillment)
-- [ ] Store UI (storefront page + in-menu upsell surfaces) with owned/locked states
-- [ ] Ultimate pack bundling logic (grants all entitlements)
-- [ ] PWA install support (manifest + service worker; installable to home screen, offline solo play)
-- [ ] App stores deferred until web monetization is proven (decision locked with user)
+- [x] Catalog + entitlements DB schema (code catalog shared/products.ts; purchases + entitlements tables, migration 0004 + indexes)
+- [x] Stripe integration (server/stripe.ts: checkout sessions w/ price_data + metadata, /api/stripe/webhook raw-body route, idempotent fulfillment, test-event handling; 8 vitest specs)
+- [x] Store UI (/store page: ultimate hero card, grouped sections, owned/locked states, purchase history, success/cancel return handling; main-menu Store entry)
+- [x] Ultimate pack bundling logic (bundle grants all entitlement keys, fan-out on fulfillment; savings copy in store)
+- [x] PWA install support (manifest.json + sw.js network-first shell/cache-first assets, 192/512 maskable icons, apple meta tags; SW registered in prod builds only)
+- [x] App stores deferred until web monetization is proven (decision locked with user)
 
 ### Premium content
 - [ ] Tribe skin system (recolor/costume variants on the Stage 2 character rig) + purchasable skins

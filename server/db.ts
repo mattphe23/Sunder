@@ -1,6 +1,6 @@
 import { and, desc, eq, gt, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, profiles, matches, matchTurns, InsertMatch, leaderboardEntries, playtestRuns, InsertPlaytestRun } from "../drizzle/schema";
+import { InsertUser, users, profiles, matches, matchTurns, InsertMatch, leaderboardEntries, playtestRuns, InsertPlaytestRun, purchases, entitlements } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -276,4 +276,42 @@ export async function listPlaytestRuns(limit = 30) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(playtestRuns).orderBy(desc(playtestRuns.id)).limit(limit);
+}
+
+// ── Sunder v27: monetization — purchases + entitlements ─────────────────────
+export async function getEntitlementKeys(userId: number): Promise<string[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.select({ key: entitlements.key }).from(entitlements).where(eq(entitlements.userId, userId));
+  return Array.from(new Set(rows.map((r) => r.key)));
+}
+
+export async function getPurchases(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(purchases).where(eq(purchases.userId, userId)).orderBy(desc(purchases.id));
+}
+
+export async function getPurchaseBySession(stripeSessionId: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(purchases).where(eq(purchases.stripeSessionId, stripeSessionId)).limit(1);
+  return rows[0];
+}
+
+export async function recordPurchase(p: { userId: number; sku: string; stripeSessionId: string | null; stripePaymentIntentId: string | null }): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const res = await db.insert(purchases).values(p);
+  return Number((res as unknown as [{ insertId: number }])[0]?.insertId ?? 0);
+}
+
+/** Grant entitlement keys, skipping ones the user already owns (idempotent). */
+export async function grantEntitlements(userId: number, keys: string[], purchaseId: number | null): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const owned = await getEntitlementKeys(userId);
+  const fresh = keys.filter((k) => !owned.includes(k));
+  if (fresh.length === 0) return;
+  await db.insert(entitlements).values(fresh.map((key) => ({ userId, key, purchaseId })));
 }

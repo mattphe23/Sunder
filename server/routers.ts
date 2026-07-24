@@ -7,6 +7,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { playtestRouter } from "./routers/playtest";
+import { storeRouter } from "./routers/store";
 
 // challengeKey format: "daily:2026-07-23" | "weekly:2026-W30" (server-checked)
 const challengeKeyShape = z
@@ -43,6 +44,7 @@ export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
   playtest: playtestRouter,
+  store: storeRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {

@@ -29,6 +29,13 @@
       "when": 1784860515644,
       "tag": "0003_premium_vance_astro",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1784861403967,
+      "tag": "0004_rapid_jubilee",
+      "breakpoints": true
     }
   ]
 }

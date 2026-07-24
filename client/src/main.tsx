@@ -8,6 +8,13 @@ import App from "./App";
 import { startLogin } from "./const";
 import "./index.css";
 
+// PWA: register the service worker for installability + offline solo play.
+if ("serviceWorker" in navigator && import.meta.env.PROD) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch((err) => console.warn("[PWA] SW registration failed:", err));
+  });
+}
+
 const queryClient = new QueryClient();
 
 const redirectToLoginIfUnauthorized = (error: unknown) => {
