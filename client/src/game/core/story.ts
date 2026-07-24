@@ -8,6 +8,8 @@ const KEY = "sunder-story-v1";
 export interface StoryProgress {
   /** missionId → completed */
   done: Record<string, boolean>;
+  /** missionId → best star rating earned (1..3); absent for legacy completions */
+  stars?: Record<string, number>;
 }
 
 export function loadStoryProgress(): StoryProgress {
@@ -25,6 +27,21 @@ export function markMissionDone(id: string) {
   const p = loadStoryProgress();
   p.done[id] = true;
   try { localStorage.setItem(KEY, JSON.stringify(p)); } catch { /* noop */ }
+}
+
+/** record a star rating for a completed mission, keeping the best across runs */
+export function recordMissionStars(id: string, stars: number) {
+  const p = loadStoryProgress();
+  p.done[id] = true;
+  p.stars ??= {};
+  p.stars[id] = Math.max(p.stars[id] ?? 0, Math.max(1, Math.min(3, stars)));
+  try { localStorage.setItem(KEY, JSON.stringify(p)); } catch { /* noop */ }
+}
+
+/** best stars earned for a mission (0 = not completed or legacy pre-star completion) */
+export function bestStars(id: string): number {
+  const p = loadStoryProgress();
+  return p.stars?.[id] ?? 0;
 }
 
 /** first not-yet-completed mission in a chapter (null = chapter complete) */
@@ -81,4 +98,28 @@ export function evaluateMission(s: GameState): boolean {
     default:
       return won;
   }
+}
+
+/** per-criterion breakdown for the game-over screen */
+export interface StarBreakdown {
+  stars: 1 | 2 | 3;
+  underPar: boolean;
+  noCityLost: boolean;
+  parTurns: number;
+}
+
+/**
+ * Star rating for an accomplished mission:
+ *   1★ objective complete · 2★ also finished by parTurns · 3★ also lost no city.
+ * The two bonus criteria are independent — but stars are cumulative in spirit,
+ * so 3★ requires both (speed alone or a clean board alone still reads as 2★).
+ */
+export function computeMissionStars(s: GameState): StarBreakdown | null {
+  if (!s.storyMission) return null;
+  const m = missionById(s.storyMission);
+  if (!m || !evaluateMission(s)) return null;
+  const underPar = s.turn <= m.parTurns;
+  const noCityLost = (s.stats?.[s.humanTribe]?.citiesLost ?? 0) === 0;
+  const stars = (1 + (underPar ? 1 : 0) + (noCityLost ? 1 : 0)) as 1 | 2 | 3;
+  return { stars, underPar, noCityLost, parTurns: m.parTurns };
 }

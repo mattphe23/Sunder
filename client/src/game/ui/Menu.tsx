@@ -13,7 +13,7 @@ import { ACHIEVEMENTS, loadAchievements, AchievementDef } from "../core/achievem
 import { dailyChallenge, weeklyChallenge, currentScore, ChallengeSetup, buildResultCard } from "../core/challenges";
 import { readFriendChallengeFromUrl, friendChallengeUrl, FriendChallenge } from "../core/challenges";
 import { CalendarDays, Repeat } from "lucide-react";
-import { Link2, Check, Swords as SwordsIcon, ClipboardCopy } from "lucide-react";
+import { Link2, Check, X, Swords as SwordsIcon, ClipboardCopy } from "lucide-react";
 import { LORE_TEASERS } from "./FactionIntro";
 import { MuteButton } from "./MuteButton";
 import { sound } from "../sound";
@@ -32,6 +32,7 @@ import { useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { FlaskConical } from "lucide-react";
 import { Sparkles, Paintbrush, BookOpen } from "lucide-react";
+import { EpilogueCard, epilogueSeen, markEpilogueSeen } from "./Epilogue";
 import { missionById } from "@shared/story";
 import { MAP_PACKS, CuratedMap } from "@shared/mapPacks";
 import { Map as MapIcon } from "lucide-react";
@@ -830,6 +831,10 @@ export function GameOver() {
   const friendRes = game.friendResult;
   const storyRes = game.storyMissionResult;
   const storyMissionDef = storyRes ? missionById(storyRes.missionId) : null;
+  // Chapter II epilogue: plays once, right after the campaign finale is won
+  const [epilogueOpen, setEpilogueOpen] = useState(
+    () => storyRes?.missionId === "ch2-m5" && storyRes.accomplished && !epilogueSeen(),
+  );
   const [, navigate] = useLocation();
   const canShare = !hotseat && s.tribes[s.humanTribe]?.defIndex !== undefined && s.tribes[s.humanTribe].defIndex !== CUSTOM_DEF_INDEX;
   const shareRun = async () => {
@@ -919,6 +924,9 @@ export function GameOver() {
   }
   return (
     <div className="absolute inset-0 z-40 flex items-center justify-center bg-[#141433]/90 p-4 backdrop-blur-sm">
+      {epilogueOpen && (
+        <EpilogueCard onClose={() => { markEpilogueSeen(); setEpilogueOpen(false); }} />
+      )}
       <div
         className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-lg border-2 bg-[#10102c] p-6 text-center shadow-2xl"
         style={{ borderColor: won ? "#ffb93877" : "rgba(255,255,255,0.12)", boxShadow: won ? "0 0 60px rgba(255,185,56,0.25)" : undefined }}
@@ -933,6 +941,29 @@ export function GameOver() {
               {storyRes.accomplished ? `Mission complete — ${storyMissionDef.title}` : `Mission failed — ${storyMissionDef.title}`}
             </p>
             {storyRes.accomplished ? storyMissionDef.victoryText : "The Shatterlands do not forgive — but they do forget. Regroup and try again."}
+            {storyRes.accomplished && storyRes.starResult && (
+              <div className="mt-2.5 border-t border-white/10 pt-2.5">
+                <div className="mb-1.5 flex justify-center gap-1.5">
+                  {[1, 2, 3].map((i) => (
+                    <Star
+                      key={i}
+                      className={`h-6 w-6 ${i <= storyRes.starResult!.stars ? "fill-amber-400 text-amber-300 drop-shadow-[0_0_8px_rgba(255,185,56,0.6)]" : "fill-transparent text-slate-600"}`}
+                    />
+                  ))}
+                </div>
+                <div className="space-y-0.5 text-[11px]">
+                  <p className="flex items-center gap-1.5 text-emerald-200"><Check className="h-3 w-3" /> Objective complete</p>
+                  <p className={`flex items-center gap-1.5 ${storyRes.starResult.underPar ? "text-emerald-200" : "text-slate-400"}`}>
+                    {storyRes.starResult.underPar ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                    Finish by turn {storyRes.starResult.parTurns + 1}
+                  </p>
+                  <p className={`flex items-center gap-1.5 ${storyRes.starResult.noCityLost ? "text-emerald-200" : "text-slate-400"}`}>
+                    {storyRes.starResult.noCityLost ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                    Lose no city
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         )}
         {winner && (

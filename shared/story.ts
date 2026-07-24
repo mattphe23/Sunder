@@ -25,6 +25,13 @@ export interface StoryMission {
   enemies: number[];
   difficulty: "easy" | "normal" | "hard";
   objective: StoryObjective;
+  /**
+   * Star ratings: 1★ complete the objective, 2★ also finish by this turn
+   * (0-based turn index, matches GameState.turn), 3★ also lose no city.
+   * For survive missions "finish" is the survival itself, so par is judged on
+   * cities kept + units lost instead; we still store parTurns for uniformity.
+   */
+  parTurns: number;
 }
 
 export interface StoryChapter {
@@ -57,6 +64,7 @@ export const CHAPTER_1: StoryChapter = {
       enemies: [0],
       difficulty: "easy",
       objective: { kind: "domination", text: "Defeat the Auren remnant" },
+      parTurns: 14,
     },
     {
       id: "ch1-m2",
@@ -74,6 +82,7 @@ export const CHAPTER_1: StoryChapter = {
       enemies: [1, 2],
       difficulty: "normal",
       objective: { kind: "domination", text: "Defeat the Kharzul and the Sunwei" },
+      parTurns: 20,
     },
     {
       id: "ch1-m3",
@@ -91,6 +100,7 @@ export const CHAPTER_1: StoryChapter = {
       enemies: [3, 5],
       difficulty: "hard",
       objective: { kind: "survive", turns: 30, text: "Survive to the final turn (outlast the score screen)" },
+      parTurns: 29,
     },
     {
       id: "ch1-m4",
@@ -108,6 +118,7 @@ export const CHAPTER_1: StoryChapter = {
       enemies: [4, 5],
       difficulty: "hard",
       objective: { kind: "capital", text: "Conquer the Nerivane and their allies" },
+      parTurns: 24,
     },
     {
       id: "ch1-m5",
@@ -125,6 +136,7 @@ export const CHAPTER_1: StoryChapter = {
       enemies: [6, 7, 5],
       difficulty: "hard",
       objective: { kind: "domination", text: "Defeat the storm, the spore, and the stone" },
+      parTurns: 27,
     },
   ],
 };
@@ -156,6 +168,7 @@ export const CHAPTER_2: StoryChapter = {
       enemies: [1],
       difficulty: "normal",
       objective: { kind: "domination", text: "Drive the Kharzul from the Seam" },
+      parTurns: 16,
     },
     {
       id: "ch2-m2",
@@ -173,6 +186,7 @@ export const CHAPTER_2: StoryChapter = {
       enemies: [4, 3],
       difficulty: "normal",
       objective: { kind: "domination", text: "Silence the Nerivane Echo and her Vessari privateers" },
+      parTurns: 22,
     },
     {
       id: "ch2-m3",
@@ -190,6 +204,7 @@ export const CHAPTER_2: StoryChapter = {
       enemies: [6, 5],
       difficulty: "hard",
       objective: { kind: "survive", turns: 30, text: "Survive the Valkyra stormline to the final turn" },
+      parTurns: 29,
     },
     {
       id: "ch2-m4",
@@ -207,6 +222,7 @@ export const CHAPTER_2: StoryChapter = {
       enemies: [7, 2],
       difficulty: "hard",
       objective: { kind: "capital", text: "Destroy the Mycelon sporemother and her Sunwei suppliers" },
+      parTurns: 24,
     },
     {
       id: "ch2-m5",
@@ -224,6 +240,7 @@ export const CHAPTER_2: StoryChapter = {
       enemies: [0, 3, 5],
       difficulty: "hard",
       objective: { kind: "domination", text: "Break the Crucible pact and claim the reforged world" },
+      parTurns: 28,
     },
   ],
 };

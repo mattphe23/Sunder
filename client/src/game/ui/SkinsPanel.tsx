@@ -5,8 +5,9 @@ import { useEffect, useState } from "react";
 import { SKINS, SkinDef, setActiveSkins } from "@/game/render/characters";
 import { TRIBE_DEFS } from "@/game/core/types";
 import { useEntitlements } from "@/hooks/useEntitlements";
+import SkinPreview from "@/components/SkinPreview";
 import { sound } from "../sound";
-import { Lock, Check, X, Paintbrush } from "lucide-react";
+import { Lock, Check, X, Paintbrush, Eye, EyeOff } from "lucide-react";
 import { Link } from "wouter";
 
 const KEY = "sunder-active-skins-v1";
@@ -37,12 +38,16 @@ export function initActiveSkins(ownedKeys: string[]) {
 export function SkinsPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const ent = useEntitlements();
   const [active, setActive] = useState<Record<number, string | undefined>>(() => loadActiveSkins());
-
+  /** which skin's 3D rig preview is expanded (one at a time keeps GPU cost tiny) */
+  const [previewKey, setPreviewKey] = useState<string | null>(null);
   // re-validate whenever entitlements arrive
   useEffect(() => {
     if (!ent.loading) setActive(initActiveSkins(ent.keys));
   }, [ent.loading, ent.keys.join(",")]);
-
+  // drop the expanded preview when the panel closes so it disposes its scene
+  useEffect(() => {
+    if (!open) setPreviewKey(null);
+  }, [open]);
   if (!open) return null;
 
   const pick = (skin: SkinDef, owned: boolean) => {
@@ -76,32 +81,52 @@ export function SkinsPanel({ open, onClose }: { open: boolean; onClose: () => vo
             const owned = ent.has(skin.key);
             const selected = active[skin.tribe] === skin.key;
             const tribe = TRIBE_DEFS[skin.tribe];
+            const previewing = previewKey === skin.key;
             return (
-              <button
+              <div
                 key={skin.key}
-                onClick={() => pick(skin, owned)}
-                disabled={!owned}
-                className={`relative flex items-center gap-3 rounded-md border-l-4 p-3 text-left transition-all duration-150 ${owned ? "active:scale-[0.98]" : "opacity-60"} ${selected ? "bg-white/10" : "bg-white/[0.04] hover:bg-white/10"}`}
+                className={`rounded-md border-l-4 transition-all duration-150 ${selected ? "bg-white/10" : "bg-white/[0.04]"}`}
                 style={{
                   borderLeftColor: skin.unitColor ?? skin.accent,
                   boxShadow: selected ? `0 0 16px ${skin.accent}44, inset 0 0 0 1px ${skin.accent}66` : "inset 0 0 0 1px rgba(255,255,255,0.08)",
                 }}
               >
-                {/* swatch pair: unit color + accent */}
-                <span className="flex shrink-0 items-center">
-                  <span className="h-6 w-6 rounded-full border border-white/20" style={{ background: skin.unitColor ?? tribe.color }} />
-                  <span className="-ml-2 h-6 w-6 rounded-full border border-white/20" style={{ background: skin.accent }} />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block font-display text-sm font-extrabold tracking-wide text-white">{skin.name}</span>
-                  <span className="block text-[11px] text-slate-400">for {tribe.name}</span>
-                </span>
-                {owned ? (
-                  selected && <Check className="h-4 w-4 shrink-0 text-emerald-300" />
-                ) : (
-                  <Lock className="h-4 w-4 shrink-0 text-slate-400" />
+                <div className="flex items-center gap-3 p-3">
+                  <button
+                    onClick={() => pick(skin, owned)}
+                    disabled={!owned}
+                    className={`flex min-w-0 flex-1 items-center gap-3 text-left transition-transform duration-150 ${owned ? "active:scale-[0.98]" : "opacity-60"}`}
+                  >
+                    {/* swatch pair: unit color + accent */}
+                    <span className="flex shrink-0 items-center">
+                      <span className="h-6 w-6 rounded-full border border-white/20" style={{ background: skin.unitColor ?? tribe.color }} />
+                      <span className="-ml-2 h-6 w-6 rounded-full border border-white/20" style={{ background: skin.accent }} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-display text-sm font-extrabold tracking-wide text-white">{skin.name}</span>
+                      <span className="block text-[11px] text-slate-400">for {tribe.name}</span>
+                    </span>
+                    {owned ? (
+                      selected && <Check className="h-4 w-4 shrink-0 text-emerald-300" />
+                    ) : (
+                      <Lock className="h-4 w-4 shrink-0 text-slate-400" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => { sound.play("click"); setPreviewKey(previewing ? null : skin.key); }}
+                    className={`shrink-0 rounded p-1.5 transition-colors ${previewing ? "bg-white/15 text-amber-300" : "text-slate-400 hover:bg-white/10 hover:text-white"}`}
+                    aria-label={previewing ? "Hide preview" : "Show preview"}
+                    title={previewing ? "Hide preview" : "Preview this skin"}
+                  >
+                    {previewing ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {previewing && (
+                  <div className="px-3 pb-3">
+                    <SkinPreview skinKey={skin.key} accent={skin.accent} className="" />
+                  </div>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>

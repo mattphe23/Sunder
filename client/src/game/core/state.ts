@@ -24,7 +24,7 @@ import { CustomTribeConfig, customTribeDef, CUSTOM_DEF_INDEX } from "./customTri
 import { runWorldPhase, worldUnitIntents, campAt } from "./events";
 import { recordGameResult } from "./profile";
 import { checkPathVictory } from "./victory";
-import { evaluateMission, markMissionDone } from "./story";
+import { evaluateMission, markMissionDone, computeMissionStars, recordMissionStars, type StarBreakdown } from "./story";
 export type GameEvent =
   | { type: "changed" }
   | { type: "unitMoved"; unitId: number; fromX: number; fromY: number; toX: number; toY: number }
@@ -1232,6 +1232,7 @@ class GameStore {
     s.log.unshift(`${s.tribes[u.tribe].name} captured ${city.name}!`);
     this.bumpStat(u.tribe, "citiesCaptured");
     if (wasCapital) this.bumpStat(u.tribe, "capitalsCaptured");
+    if (prevOwner !== null && prevOwner >= 0) this.bumpStat(prevOwner, "citiesLost");
     if (u.hero) this.grantXp(u, HERO_XP.capture);
     city.walls = false; // walls are torn down when a city falls
     this.recordReplay({ tribe: u.tribe, kind: "capture", text: `${s.tribes[u.tribe].name} captured ${city.name}` });
@@ -1364,7 +1365,7 @@ class GameStore {
   /** v16: outcome vs a friend's shared score (null = not a friend-challenge run) */
   friendResult: { name: string; theirScore: number; myScore: number; beaten: boolean } | null = null;
   /** story mode: set when the run that just ended completed its mission objective */
-  storyMissionResult: { missionId: string; accomplished: boolean } | null = null;
+  storyMissionResult: { missionId: string; accomplished: boolean; starResult: StarBreakdown | null } | null = null;
   private onGameOver() {
     this.newAchievements = evaluateAchievements(this.state);
     this.newChallengeBest = false;
@@ -1373,8 +1374,12 @@ class GameStore {
     const s = this.state;
     if (s.storyMission && (s.humanTribes?.length ?? 1) === 1) {
       const accomplished = evaluateMission(s);
-      if (accomplished) markMissionDone(s.storyMission);
-      this.storyMissionResult = { missionId: s.storyMission, accomplished };
+      const starResult = accomplished ? computeMissionStars(s) : null;
+      if (accomplished) {
+        if (starResult) recordMissionStars(s.storyMission, starResult.stars);
+        else markMissionDone(s.storyMission);
+      }
+      this.storyMissionResult = { missionId: s.storyMission, accomplished, starResult };
     }
     if (s.challenge && (s.humanTribes?.length ?? 1) === 1) {
       this.updateScore(s.humanTribe);

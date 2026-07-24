@@ -309,6 +309,8 @@ export interface TribeStats {
   capitalsCaptured: number;
   guardiansSlain: number;
   starsPlundered: number;
+  /** cities this tribe owned that an enemy captured (mission star criterion) */
+  citiesLost: number;
 }
 export const emptyStats = (): TribeStats => ({
   battlesWon: 0,
@@ -320,6 +322,7 @@ export const emptyStats = (): TribeStats => ({
   capitalsCaptured: 0,
   guardiansSlain: 0,
   starsPlundered: 0,
+  citiesLost: 0,
 });
 
 export interface GameState {

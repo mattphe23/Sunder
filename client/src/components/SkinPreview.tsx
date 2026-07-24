@@ -4,7 +4,7 @@
 // Falls back to a static two-tone swatch when WebGL/import fails.
 import { useEffect, useRef, useState } from "react";
 
-export default function SkinPreview({ skinKey, accent }: { skinKey: string; accent: string }) {
+export default function SkinPreview({ skinKey, accent, className = "mb-3" }: { skinKey: string; accent: string; className?: string }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [failed, setFailed] = useState(false);
@@ -39,7 +39,7 @@ export default function SkinPreview({ skinKey, accent }: { skinKey: string; acce
   }, [visible, skinKey]);
 
   return (
-    <div ref={wrapRef} className="mb-3 h-28 w-full overflow-hidden rounded-lg" style={{ background: `radial-gradient(ellipse at 50% 80%, ${accent}22, transparent 70%)` }}>
+    <div ref={wrapRef} className={`${className} h-28 w-full overflow-hidden rounded-lg`} style={{ background: `radial-gradient(ellipse at 50% 80%, ${accent}22, transparent 70%)` }}>
       {failed ? (
         <div className="flex h-full items-center justify-center">
           <div className="h-10 w-10 rounded-full border-2 border-white/20" style={{ background: accent }} />

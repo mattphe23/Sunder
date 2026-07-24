@@ -332,3 +332,20 @@ below was checked against the actual codebase before being marked.
 - [x] Visual verification on /store; console clean (all 6 rigs render live with skin colors; no console errors)
 ### Wrap-up
 - [x] Full suite green + tsc clean; checkpoint + deliver (84 tests, 15 files)
+
+## v31 — Mission stars + Skins picker previews + Chapter II epilogue (user request)
+### Mission star ratings
+- [x] Star criteria per mission: 1★ win objective, 2★ win under par turns, 3★ also lose no city (parTurns per mission in shared/story.ts)
+- [x] Track cities-lost for the human tribe during a mission run (state/stats)
+- [x] Persist best stars per mission in story progress (localStorage, backward-compatible with done map)
+- [x] GameOver screen: show stars earned this run + criteria breakdown
+- [x] Story page: show best-star rating on mission cards (+ total star counter, briefing modal criteria)
+- [x] Vitest: star computation (turn/city criteria), persistence keeps best, legacy progress migration (11 tests)
+### Skins picker previews
+- [x] Reuse SkinPreview component in SkinsPanel skin cards (eye-toggle expands one lazy canvas at a time)
+### Chapter II epilogue
+- [x] Generate epilogue illustration (Shatterlands reforged, painterly, matches game's indigo/amber palette)
+- [x] Epilogue cinematic card after completing ch2-m5: illustration + staged narrative + tease, then back to campaign
+- [x] Only shows once per completion (re-viewable via "Watch the epilogue" button on Story page)
+### Wrap-up v31
+- [x] Full suite green + tsc clean (95 tests / 16 files); visual verification in browser (epilogue card, star breakdown, Story/Store pages) — fixed an event-handling bug where one click closed the epilogue instead of advancing lines; checkpoint + deliver
