@@ -1,0 +1,21 @@
+CREATE TABLE `playtest_runs` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`requestedByUserId` int NOT NULL,
+	`status` enum('queued','running','done','failed') NOT NULL DEFAULT 'queued',
+	`seed` int NOT NULL,
+	`size` int NOT NULL DEFAULT 11,
+	`preset` varchar(20) NOT NULL DEFAULT 'continents',
+	`llmTribe` int NOT NULL DEFAULT 0,
+	`maxTurns` int NOT NULL DEFAULT 18,
+	`model` varchar(64),
+	`turnsPlayed` int NOT NULL DEFAULT 0,
+	`llmActions` int NOT NULL DEFAULT 0,
+	`fallbackActions` int NOT NULL DEFAULT 0,
+	`matchSummary` longtext,
+	`feedback` longtext,
+	`error` text,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	`finishedAt` timestamp,
+	CONSTRAINT `playtest_runs_id` PRIMARY KEY(`id`)
+);

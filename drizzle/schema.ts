@@ -102,3 +102,33 @@ export const leaderboardEntries = mysqlTable("leaderboard_entries", {
 
 export type LeaderboardEntry = typeof leaderboardEntries.$inferSelect;
 export type InsertLeaderboardEntry = typeof leaderboardEntries.$inferInsert;
+
+// ── Sunder v21: AI playtest lab (admin-only, on-demand) ─────────────────────
+// One row per playtest run. The job simulates a headless match where the
+// built-in LLM plays one tribe via a structured action API (scripted AI as
+// fallback and for opponents), then writes a structured feedback report.
+export const playtestRuns = mysqlTable("playtest_runs", {
+  id: int("id").autoincrement().primaryKey(),
+  requestedByUserId: int("requestedByUserId").notNull(),
+  status: mysqlEnum("status", ["queued", "running", "done", "failed"]).notNull().default("queued"),
+  // run parameters
+  seed: int("seed").notNull(),
+  size: int("size").notNull().default(11),
+  preset: varchar("preset", { length: 20 }).notNull().default("continents"),
+  llmTribe: int("llmTribe").notNull().default(0), // tribe index the LLM controls
+  maxTurns: int("maxTurns").notNull().default(18),
+  model: varchar("model", { length: 64 }), // LLM model id used
+  // outcome
+  turnsPlayed: int("turnsPlayed").notNull().default(0),
+  llmActions: int("llmActions").notNull().default(0), // actions the LLM chose itself
+  fallbackActions: int("fallbackActions").notNull().default(0), // scripted-AI fallbacks
+  matchSummary: longtext("matchSummary"), // JSON: winner, winPath, scores, event log tail
+  feedback: longtext("feedback"), // JSON: { balance, clarity, fun, bugs, scores{...} }
+  error: text("error"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  finishedAt: timestamp("finishedAt"),
+});
+
+export type PlaytestRun = typeof playtestRuns.$inferSelect;
+export type InsertPlaytestRun = typeof playtestRuns.$inferInsert;

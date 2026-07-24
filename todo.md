@@ -254,10 +254,15 @@ below was checked against the actual codebase before being marked.
 - [x] Verify across factions + map types in browser; tests green; checkpoint
 
 ### AI Playtest Lab (admin-only, on-demand)
-- [ ] Read automation/scheduling + LLM skills before design
-- [ ] Server: headless engine run wrapped as a playtest job (LLM plays turns via structured
-      action API with legal-move list; scripted-AI fallback on LLM failure)
-- [ ] LLM feedback report per match: balance, clarity, fun, bugs (structured JSON → DB)
-- [ ] DB table for playtest runs + reports; tRPC routes (adminProcedure)
-- [ ] Admin dashboard page: trigger run, progress, report list + detail view
-- [ ] Vitest coverage for playtest routes; browser verify; checkpoint + deliver
+- [x] Read automation/scheduling + LLM skills before design (on-demand runs, no cron needed)
+- [x] Server: headless engine run wrapped as a playtest job (server/playtest.ts — LLM picks from
+      an enumerated legal-action list each turn; scripted-AI fallback on any LLM failure)
+- [x] LLM feedback report per match: balance/clarity/fun/pacing scores + findings + verdict
+      (structured JSON via json_schema → playtest_runs.feedback)
+- [x] DB table playtest_runs + tRPC routes start/list/get (adminProcedure-gated)
+- [x] Admin dashboard /playtest-lab: run form (world/size/tribe/turn budget), live-polling run
+      list, report detail (score pills, findings, match table, model turn notes); admin-only
+      menu entry (AdminLabLink)
+- [x] Vitest: 4 new specs (engine run w/ mocked LLM, LLM-error fallback, anon + non-admin
+      gating); full suite 42 green. Live smoke test vs real gemini-2.5-flash: 8 turns/6.4s,
+      8 LLM actions, real report. Browser verified; checkpoint below

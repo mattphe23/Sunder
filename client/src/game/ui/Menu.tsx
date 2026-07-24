@@ -25,6 +25,24 @@ import { loadProfile, setProfileName, PlayerProfile } from "../core/profile";
 import { UserCircle, Pencil } from "lucide-react";
 import { OnlinePanel } from "../online/OnlinePanel";
 import { LeaderboardPanel, LeaderboardSubmit } from "../online/Leaderboard";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { Link } from "wouter";
+import { FlaskConical } from "lucide-react";
+
+/** Admin-only entry to the AI Playtest Lab; renders nothing for everyone else. */
+function AdminLabLink() {
+  const { user } = useAuth();
+  if (user?.role !== "admin") return null;
+  return (
+    <Link href="/playtest-lab">
+      <span className="mt-3 flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-[12px] font-semibold text-amber-200 transition-colors hover:bg-amber-400/20">
+        <FlaskConical className="h-3.5 w-3.5" />
+        AI Playtest Lab
+        <span className="text-[10px] font-normal text-amber-200/60">admin</span>
+      </span>
+    </Link>
+  );
+}
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip as RTooltip, ResponsiveContainer,
@@ -643,6 +661,9 @@ export function MainMenu() {
 
         {/* v19: global daily/weekly challenge leaderboard */}
         <LeaderboardPanel />
+
+        {/* v21: admin-only AI playtest lab entry */}
+        <AdminLabLink />
 
         <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-[11px] font-medium text-slate-300">
           <Star className="h-3 w-3 fill-amber-400 text-amber-400" />

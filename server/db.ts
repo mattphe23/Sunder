@@ -1,6 +1,6 @@
 import { and, desc, eq, gt, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, profiles, matches, matchTurns, InsertMatch, leaderboardEntries } from "../drizzle/schema";
+import { InsertUser, users, profiles, matches, matchTurns, InsertMatch, leaderboardEntries, playtestRuns, InsertPlaytestRun } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -248,4 +248,32 @@ export async function getLeaderboardRank(userId: number, challengeKey: string) {
     .from(leaderboardEntries)
     .where(and(eq(leaderboardEntries.challengeKey, challengeKey), gt(leaderboardEntries.score, mine.score)));
   return { rank: Number(rows[0]?.n ?? 0) + 1, entry: mine };
+}
+
+// ── Sunder v21: AI playtest lab ─────────────────────────────────────────────
+export async function createPlaytestRun(run: InsertPlaytestRun) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const res = await db.insert(playtestRuns).values(run);
+  const insertId = Number((res as unknown as [{ insertId: number }])[0]?.insertId ?? 0);
+  return getPlaytestRun(insertId);
+}
+
+export async function getPlaytestRun(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(playtestRuns).where(eq(playtestRuns.id, id)).limit(1);
+  return rows[0];
+}
+
+export async function updatePlaytestRun(id: number, set: Partial<InsertPlaytestRun>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(playtestRuns).set(set).where(eq(playtestRuns.id, id));
+}
+
+export async function listPlaytestRuns(limit = 30) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(playtestRuns).orderBy(desc(playtestRuns.id)).limit(limit);
 }
