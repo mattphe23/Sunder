@@ -10,6 +10,8 @@ export interface StoryProgress {
   done: Record<string, boolean>;
   /** missionId → best star rating earned (1..3); absent for legacy completions */
   stars?: Record<string, number>;
+  /** missionId → fewest turns on a winning run; absent for legacy completions */
+  turns?: Record<string, number>;
 }
 
 export function loadStoryProgress(): StoryProgress {
@@ -30,11 +32,15 @@ export function markMissionDone(id: string) {
 }
 
 /** record a star rating for a completed mission, keeping the best across runs */
-export function recordMissionStars(id: string, stars: number) {
+export function recordMissionStars(id: string, stars: number, turns?: number) {
   const p = loadStoryProgress();
   p.done[id] = true;
   p.stars ??= {};
   p.stars[id] = Math.max(p.stars[id] ?? 0, Math.max(1, Math.min(3, stars)));
+  if (typeof turns === "number" && turns > 0) {
+    p.turns ??= {};
+    p.turns[id] = Math.min(p.turns[id] ?? Infinity, turns);
+  }
   try { localStorage.setItem(KEY, JSON.stringify(p)); } catch { /* noop */ }
 }
 
@@ -42,6 +48,101 @@ export function recordMissionStars(id: string, stars: number) {
 export function bestStars(id: string): number {
   const p = loadStoryProgress();
   return p.stars?.[id] ?? 0;
+}
+
+/** fewest turns on a winning run (null = unknown/legacy) */
+export function bestTurns(id: string): number | null {
+  const p = loadStoryProgress();
+  const t = p.turns?.[id];
+  return typeof t === "number" && isFinite(t) ? t : null;
+}
+
+// ── Star-gated chapter rewards ──────────────────────────────────────────────
+
+export interface ChapterReward {
+  chapterId: string;
+  /** exclusive Tribe Forge banner color */
+  banner: { hex: string; name: string };
+  /** player title shown on the Story page once earned */
+  title: string;
+  /** stars required (all missions at 3★) */
+  starsRequired: number;
+}
+
+export const CHAPTER_REWARDS: ChapterReward[] = [
+  {
+    chapterId: "ch1",
+    banner: { hex: "#38bdf8", name: "Dawnforged" },
+    title: "Shardbreaker",
+    starsRequired: 15,
+  },
+  {
+    chapterId: "ch2",
+    banner: { hex: "#fbbf24", name: "Crucible Gold" },
+    title: "Worldsmith",
+    starsRequired: 15,
+  },
+];
+
+/** total best-stars earned across a chapter's missions */
+export function chapterStars(chapterId: string): number {
+  const ch = STORY_CHAPTERS.find((c) => c.id === chapterId);
+  if (!ch) return 0;
+  const p = loadStoryProgress();
+  return ch.missions.reduce((sum, m) => sum + (p.stars?.[m.id] ?? 0), 0);
+}
+
+/** reward earned when every mission in the chapter is at 3★ */
+export function rewardEarned(r: ChapterReward): boolean {
+  return chapterStars(r.chapterId) >= r.starsRequired;
+}
+
+/** all earned rewards, in chapter order */
+export function earnedRewards(): ChapterReward[] {
+  return CHAPTER_REWARDS.filter(rewardEarned);
+}
+
+/** highest earned title (later chapters outrank earlier), or null */
+export function playerTitle(): string | null {
+  const earned = earnedRewards();
+  return earned.length ? earned[earned.length - 1].title : null;
+}
+
+// ── Campaign stats summary ──────────────────────────────────────────────────
+
+export interface CampaignStats {
+  missionsDone: number;
+  missionsTotal: number;
+  totalStars: number;
+  starsTotal: number;
+  /** sum of best (fewest) turns across missions with a recorded time */
+  totalBestTurns: number;
+  /** fastest single mission: id, title, turns — or null when nothing recorded */
+  fastest: { id: string; title: string; turns: number } | null;
+  perChapter: { chapterId: string; label: string; stars: number; starsMax: number; done: number; total: number }[];
+}
+
+export function campaignStats(): CampaignStats {
+  const p = loadStoryProgress();
+  let missionsDone = 0, missionsTotal = 0, totalStars = 0, totalBestTurns = 0;
+  let fastest: CampaignStats["fastest"] = null;
+  const perChapter: CampaignStats["perChapter"] = [];
+  for (const c of STORY_CHAPTERS) {
+    let chStars = 0, chDone = 0;
+    for (const m of c.missions) {
+      missionsTotal++;
+      if (p.done[m.id]) { missionsDone++; chDone++; }
+      chStars += p.stars?.[m.id] ?? 0;
+      const t = p.turns?.[m.id];
+      if (typeof t === "number" && isFinite(t)) {
+        totalBestTurns += t;
+        if (!fastest || t < fastest.turns) fastest = { id: m.id, title: m.title, turns: t };
+      }
+    }
+    totalStars += chStars;
+    perChapter.push({ chapterId: c.id, label: c.title, stars: chStars, starsMax: c.missions.length * 3, done: chDone, total: c.missions.length });
+  }
+  return { missionsDone, missionsTotal, totalStars, starsTotal: missionsTotal * 3, totalBestTurns, fastest, perChapter };
 }
 
 /** first not-yet-completed mission in a chapter (null = chapter complete) */

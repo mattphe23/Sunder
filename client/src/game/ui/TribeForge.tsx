@@ -7,7 +7,8 @@ import {
   loadCustomTribe, saveCustomTribe, deleteCustomTribe, FORGE_PRESETS,
 } from "../core/customTribe";
 import { UNIT_STATS, UnitType, FactionPassive, TechId } from "../core/types";
-import { Hammer, X, Star, Trash2, Sparkles } from "lucide-react";
+import { Hammer, X, Star, Trash2, Sparkles, Lock } from "lucide-react";
+import { CHAPTER_REWARDS, rewardEarned, chapterStars } from "../core/story";
 import { sound } from "../sound";
 
 export function TribeForge({ onClose, onSaved }: { onClose: () => void; onSaved: (c: CustomTribeConfig) => void }) {
@@ -94,6 +95,24 @@ export function TribeForge({ onClose, onSaved }: { onClose: () => void; onSaved:
               style={{ background: c.hex, boxShadow: color === c.hex ? `0 0 14px ${c.hex}` : "none" }}
             />
           ))}
+          {/* star-gated reward banners — earned by 3-starring every mission in a chapter */}
+          {CHAPTER_REWARDS.map((r) => {
+            const earned = rewardEarned(r);
+            return (
+              <button
+                key={r.banner.hex}
+                onClick={() => { if (!earned) return; sound.play("click"); setColor(r.banner.hex); }}
+                title={earned ? `${r.banner.name} — campaign reward` : `${r.banner.name} — earn ${r.starsRequired}★ in ${r.chapterId === "ch1" ? "Chapter I" : "Chapter II"} (${chapterStars(r.chapterId)}/${r.starsRequired})`}
+                aria-label={r.banner.name}
+                disabled={!earned}
+                className={`relative h-8 w-8 rotate-45 rounded-sm transition-transform ${earned ? "active:scale-90" : "cursor-not-allowed"} ${color === r.banner.hex ? "scale-110 ring-2 ring-amber-300" : earned ? "opacity-75 hover:opacity-100" : "opacity-30"}`}
+                style={{ background: r.banner.hex, boxShadow: color === r.banner.hex ? `0 0 14px ${r.banner.hex}` : "none" }}
+              >
+                {!earned && <Lock className="absolute inset-0 m-auto h-3.5 w-3.5 -rotate-45 text-black/70" />}
+                {earned && <Star className="absolute inset-0 m-auto h-3 w-3 -rotate-45 fill-black/40 text-black/50" />}
+              </button>
+            );
+          })}
         </div>
 
         {/* passive */}

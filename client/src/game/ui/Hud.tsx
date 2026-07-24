@@ -12,6 +12,7 @@ import { useState, useEffect } from "react";
 import { MuteButton } from "./MuteButton";
 import { sound } from "../sound";
 import { victoryProgress, VICTORY_PATH_START_TURN } from "../core/victory";
+import { missionById } from "@shared/story";
 
 const panel = "rounded-xl border border-white/10 bg-[#1b1b3f]/85 backdrop-blur-md shadow-xl shadow-black/40 text-slate-100";
 
@@ -183,6 +184,11 @@ export function TopBar() {
   // v20: asymmetric faction victory path progress
   const vp = victoryProgress(s, s.humanTribe);
   const pathLocked = s.turn < VICTORY_PATH_START_TURN;
+  // v32: story missions surface the 2★ par live, so players can chase it
+  // without memorizing the briefing. Same +1 display convention as "Turn N".
+  const mission = s.storyMission ? missionById(s.storyMission) : null;
+  const parBlown = mission ? s.turn > mission.parTurns : false;
+  const cityLost = mission ? (s.stats?.[s.humanTribe]?.citiesLost ?? 0) > 0 : false;
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-2 p-3">
       <div className={`${panel} pointer-events-auto flex items-center gap-3 px-4 py-2`}>
@@ -197,6 +203,19 @@ export function TopBar() {
           )}
         </span>
         <span className="text-xs text-slate-300/80">Turn {s.turn + 1}/{s.maxTurns}</span>
+        {mission && (
+          <span
+            className={`hidden items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold sm:flex ${parBlown ? "border-white/15 bg-white/5 text-slate-400" : "border-amber-400/40 bg-amber-400/10 text-amber-200"}`}
+            title={`${mission.title} — 2★: win by turn ${mission.parTurns + 1}${parBlown ? " (par passed — 2★ pace lost this run)" : ""}. 3★: also lose no city${cityLost ? " (a city has fallen this run)" : ""}.`}
+          >
+            <Star className={`h-3 w-3 ${parBlown ? "text-slate-500" : "fill-amber-300 text-amber-300"}`} />
+            <span className="font-display tracking-wide">Par</span>
+            <span className={`font-mono ${parBlown ? "line-through opacity-70" : ""}`}>T{mission.parTurns + 1}</span>
+            {cityLost && (
+              <span className="rounded bg-red-500/20 px-1 text-red-300" title="A city has fallen — 3★ requires losing none">city lost</span>
+            )}
+          </span>
+        )}
         {vp && (
           <span
             className={`hidden items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold sm:flex ${vp.done ? "border-amber-400/60 bg-amber-400/15 text-amber-300" : "border-white/15 bg-white/5 text-slate-300"}`}

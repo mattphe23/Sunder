@@ -4,7 +4,10 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { STORY_CHAPTERS } from "@shared/story";
 import type { StoryChapter, StoryMission } from "@shared/story";
-import { bestStars, chapterUnlocked, loadStoryProgress, missionUnlocked } from "@/game/core/story";
+import {
+  bestStars, chapterUnlocked, loadStoryProgress, missionUnlocked,
+  CHAPTER_REWARDS, rewardEarned, chapterStars, playerTitle, campaignStats,
+} from "@/game/core/story";
 import { useEntitlements } from "@/hooks/useEntitlements";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { startLogin } from "@/const";
@@ -13,7 +16,7 @@ import { TRIBE_DEFS } from "@/game/core/types";
 import { loadCustomTribe } from "@/game/core/customTribe";
 import { EpilogueCard, epilogueSeen, markEpilogueSeen } from "@/game/ui/Epilogue";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, BookOpen, Check, Lock, Play, Sparkles, Star, Swords } from "lucide-react";
+import { ArrowLeft, BookOpen, Check, Crown, Flag, Gauge, Lock, Play, Sparkles, Star, Swords, Timer, Trophy } from "lucide-react";
 
 /** three-star row for a mission (0 = completed pre-stars or not completed) */
 function StarRow({ n, size = "h-3.5 w-3.5" }: { n: number; size?: string }) {
@@ -64,12 +67,32 @@ export default function Story() {
   const renderChapter = (ch: StoryChapter) => {
     const unlockedChapter = chapterUnlocked(ch.id);
     const chDone = ch.missions.filter((m) => progress.done[m.id]).length;
+    const reward = CHAPTER_REWARDS.find((r) => r.chapterId === ch.id);
+    const earned = reward ? rewardEarned(reward) : false;
+    const chStars = chapterStars(ch.id);
     return (
       <section key={ch.id} className="mb-10">
         <div className="mb-4 text-center">
           <h2 className="text-2xl font-black tracking-tight text-white">{ch.title}</h2>
           <p className="mx-auto mt-1 max-w-xl text-sm leading-relaxed text-slate-400">{ch.tagline}</p>
           <p className="mt-1 text-xs text-slate-500">{chDone}/{ch.missions.length} missions complete</p>
+          {reward && unlockedChapter && (
+            <div
+              className={`mx-auto mt-3 inline-flex items-center gap-2.5 rounded-full border px-3.5 py-1.5 text-xs ${earned ? "border-amber-400/40 bg-amber-400/10 text-amber-200" : "border-white/10 bg-white/[0.04] text-slate-400"}`}
+              title={earned ? "Reward earned!" : `Earn all ${reward.starsRequired} stars in this chapter to unlock`}
+            >
+              {earned ? <Trophy className="h-3.5 w-3.5 text-amber-300" /> : <Lock className="h-3 w-3" />}
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rotate-45" style={{ background: reward.banner.hex, boxShadow: earned ? `0 0 8px ${reward.banner.hex}` : "none", opacity: earned ? 1 : 0.45 }} />
+                “{reward.banner.name}” banner
+              </span>
+              <span className="opacity-50">+</span>
+              <span className="flex items-center gap-1"><Crown className={`h-3 w-3 ${earned ? "text-amber-300" : ""}`} /> “{reward.title}” title</span>
+              <span className={`ml-1 flex items-center gap-0.5 font-bold ${earned ? "text-amber-300" : ""}`}>
+                <Star className={`h-3 w-3 ${earned ? "fill-amber-400 text-amber-300" : "fill-transparent"}`} /> {chStars}/{reward.starsRequired}
+              </span>
+            </div>
+          )}
         </div>
         {!unlockedChapter ? (
           <div className="rounded-2xl border border-white/10 bg-[#12122c] p-6 text-center">
@@ -146,10 +169,59 @@ export default function Story() {
             <span className="text-xs font-bold uppercase tracking-[0.25em]">Story Mode</span>
           </div>
           <h1 className="text-3xl font-black tracking-tight text-white">The Sundering Saga</h1>
+          {owned && playerTitle() && (
+            <p className="mt-1.5 flex items-center justify-center gap-1.5 text-sm font-bold text-amber-300">
+              <Crown className="h-4 w-4" /> {playerTitle()}
+            </p>
+          )}
           <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-slate-400">
             Two chapters, ten missions — lead your tribe from the smallest shard to the reforged world.
           </p>
         </div>
+
+        {owned && doneCount > 0 && (() => {
+          const st = campaignStats();
+          return (
+            <div className="mb-8 rounded-2xl border border-white/10 bg-[#12122c] p-4">
+              <p className="mb-3 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400">
+                <Gauge className="h-3.5 w-3.5 text-amber-300" /> Campaign record
+              </p>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="rounded-lg bg-black/25 p-3 text-center">
+                  <p className="text-lg font-black text-white">{st.missionsDone}<span className="text-xs font-bold text-slate-500">/{st.missionsTotal}</span></p>
+                  <p className="mt-0.5 flex items-center justify-center gap-1 text-[10px] uppercase tracking-wide text-slate-400"><Flag className="h-3 w-3" /> Missions</p>
+                </div>
+                <div className="rounded-lg bg-black/25 p-3 text-center">
+                  <p className="text-lg font-black text-amber-300">{st.totalStars}<span className="text-xs font-bold text-slate-500">/{st.starsTotal}</span></p>
+                  <p className="mt-0.5 flex items-center justify-center gap-1 text-[10px] uppercase tracking-wide text-slate-400"><Star className="h-3 w-3" /> Stars</p>
+                </div>
+                <div className="rounded-lg bg-black/25 p-3 text-center">
+                  <p className="text-lg font-black text-white">{st.totalBestTurns > 0 ? st.totalBestTurns : "—"}</p>
+                  <p className="mt-0.5 flex items-center justify-center gap-1 text-[10px] uppercase tracking-wide text-slate-400"><Timer className="h-3 w-3" /> Best turns total</p>
+                </div>
+                <div className="rounded-lg bg-black/25 p-3 text-center">
+                  <p className="truncate text-lg font-black text-white" title={st.fastest ? `${st.fastest.title} — turn ${st.fastest.turns + 1}` : undefined}>
+                    {st.fastest ? `T${st.fastest.turns + 1}` : "—"}
+                  </p>
+                  <p className="mt-0.5 flex items-center justify-center gap-1 text-[10px] uppercase tracking-wide text-slate-400"><Sparkles className="h-3 w-3" /> Fastest win</p>
+                </div>
+              </div>
+              {st.fastest && (
+                <p className="mt-2 text-center text-[11px] text-slate-500">Fastest: “{st.fastest.title}” — won by turn {st.fastest.turns + 1}</p>
+              )}
+              <div className="mt-3 grid gap-1.5 sm:grid-cols-2">
+                {st.perChapter.map((c) => (
+                  <div key={c.chapterId} className="flex items-center justify-between rounded-md bg-black/20 px-3 py-1.5 text-[11px]">
+                    <span className="truncate text-slate-300">{c.label.split("—")[0].trim()}</span>
+                    <span className="ml-2 flex shrink-0 items-center gap-2 text-slate-400">
+                      {c.done}/{c.total} <span className="flex items-center gap-0.5 font-bold text-amber-300"><Star className="h-3 w-3 fill-amber-400 text-amber-300" />{c.stars}/{c.starsMax}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {!owned && !entLoading ? (
           <div className="rounded-2xl border border-amber-400/20 bg-[#161638] p-8 text-center">

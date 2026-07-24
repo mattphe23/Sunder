@@ -349,3 +349,21 @@ below was checked against the actual codebase before being marked.
 - [x] Only shows once per completion (re-viewable via "Watch the epilogue" button on Story page)
 ### Wrap-up v31
 - [x] Full suite green + tsc clean (95 tests / 16 files); visual verification in browser (epilogue card, star breakdown, Story/Store pages) — fixed an event-handling bug where one click closed the epilogue instead of advancing lines; checkpoint + deliver
+
+## v32 — Star rewards, campaign stats, par hint
+
+### Star-gated chapter rewards
+- [x] Define chapter rewards (unique banner + player title per chapter at 15/15 stars) in shared story/rewards module
+- [x] Unlock logic: derive earned rewards from best-star progress (client story layer), with helper + tests
+- [x] Reward UI: rewards strip on Story page chapter headers (locked/unlocked states, progress x/15)
+- [x] Apply rewards: unlocked banner usable in Tribe Forge / title shown on Story page header
+
+### Campaign stats summary
+- [x] Track per-mission completion stats (turns taken on best win) alongside stars
+- [x] Stats panel on Story page: total stars, missions done, fastest finishes, stars per chapter
+
+### Par-turn hint in-game
+- [x] Show "Par: turn N" (and no-city-lost status) in the top bar during story missions
+
+### v32 wrap-up
+- [x] Tests + tsc green (103 tests); visual verification via temp dev-preview (removed); checkpoint + deliver

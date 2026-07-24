@@ -1376,7 +1376,7 @@ class GameStore {
       const accomplished = evaluateMission(s);
       const starResult = accomplished ? computeMissionStars(s) : null;
       if (accomplished) {
-        if (starResult) recordMissionStars(s.storyMission, starResult.stars);
+        if (starResult) recordMissionStars(s.storyMission, starResult.stars, s.turn);
         else markMissionDone(s.storyMission);
       }
       this.storyMissionResult = { missionId: s.storyMission, accomplished, starResult };
