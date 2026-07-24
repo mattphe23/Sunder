@@ -84,6 +84,7 @@ export class BoardRenderer {
   private fxMeshes: Mesh[] = [];
   private disposed = false;
   private cameraInitialized = false;
+  private cameraGameSig = "";
   private shadowGen: ShadowGenerator | null = null;
   private pipeline: DefaultRenderingPipeline | null = null;
   private lowQuality = false;
@@ -307,6 +308,17 @@ export class BoardRenderer {
       this.camera.target = cap ? new Vector3(cap.x - c, 0, cap.y - c) : Vector3.Zero();
       this.camera.radius = 13;
       this.cameraInitialized = true;
+      this.cameraGameSig = `${s.seed}:${s.humanTribe}:${s.size}`;
+    } else {
+      // A different game started within the same renderer session (e.g. Play Again
+      // straight into a new match) — recenter on the new capital.
+      const sig = `${s.seed}:${s.humanTribe}:${s.size}`;
+      if (this.cameraGameSig !== sig) {
+        const cap = s.cities.find((ci) => ci.isCapital && ci.tribe === s.humanTribe);
+        this.camera.target = cap ? new Vector3(cap.x - c, 0, cap.y - c) : Vector3.Zero();
+        this.camera.radius = 13;
+        this.cameraGameSig = sig;
+      }
     }
   }
 

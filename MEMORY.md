@@ -2,6 +2,30 @@
 
 - React 19 StrictMode double-mount guarded via startedRef in GameCanvas.
 
+## v24 delivered (a43b9884)
+- Fog "bug" root cause = movement: 1-MP units couldn't enter cost-2 forest → position-locked on
+  forest-heavy maps → fog never lifted. Fix in rules.ts reachableTiles: slow-but-passable terrain
+  always enterable as full-stop move (cost clamped to remaining MP, no pathing beyond).
+- Graphics readability pass in scene.ts: buildFogTile (dark #1b1b3f cloud slabs + flat mist
+  puffs) for unexplored; foggedMat indigo wash applied to tile tops AND decor StandardMaterials;
+  two-tone trees w/ trunks; gray rock + snow-cap mountains; fruit bush w/ red berries; brown
+  animal critter; cyan crystal shards; city tribe-colored ground plate + cream houses w/ tribe
+  roofs; port sail marker.
+- Verified: fresh Pangaea game + live save render match state; 31 tests green; console clean.
+- Multi-map verify (screenshots inspected directly):
+  * Highlands (00-31-14 shot): gray rock mountains w/ white snow caps clearly mountains; cyan
+    crystal shard clusters visible; city on plate w/ house; two-tone trees; dark indigo fog-cloud
+    bank w/ mist puffs distinct from terrain. Legible.
+  * Archipelago post-camera-fix (00-36-05 shot): Sunwei capital island CENTERED (gold plate city
+    + banner), bright blue deep water vs light cyan shallows, fruit bushes w/ red berries, animal
+    critter, trees, gold port-like structure, gray statue decor — all distinct. Fog bank reads
+    as unexplored ocean. Legible. Console clean; test saves cleared.
+- BONUS FIX found during verify: camera didn't recenter on a NEW game started in the same
+  renderer session (cameraInitialized only) → added cameraGameSig (seed:humanTribe:size) so
+  Play Again/new match recenters on the new capital. tsc clean. NOT yet checkpointed.
+- NOTE: cities use `tribe` field (not owner); newGame humanTribe must be 0..tribes-1 (4 tribes).
+- REMAINING: checkpoint camera fix; user to confirm live production serves latest.
+
 ## v24 — fog-of-war + readability (user report) IN PROGRESS
 - FOG FINDINGS (verified in browser + headless): engine explore/reveal pipeline WORKS —
   moveUnit → exploreAround (radius 2) → changed → GameCanvas rebuilds board. Delta confirmed +4/+5.

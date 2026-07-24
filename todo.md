@@ -167,3 +167,11 @@ below was checked against the actual codebase before being marked.
       cities get a tribe-colored ground plate + cream houses with tribe-colored roofs
 - [x] Verify in-browser (live save render matches game state: 34 explored tiles all in vision
       render bright — correct; fog bank reads clearly), 31 tests green, type-check clean
+- [x] Fresh Pangaea game renders correctly (fog-cloud bank, two-tone trees, berry bushes,
+      snow-capped mountains, city plate, hero halo), console clean, test save cleaned up
+- [x] Verify v24 graphics/fog on the other map types (Highlands, Archipelago) — readability
+      and fog confirmed correct in browser (snow-cap mountains/crystals on Highlands; centered
+      capital island, water contrast, resources on Archipelago); console clean
+- [x] Camera recenter fix: new game in same session now recenters on the player's capital
+      (cameraGameSig in scene.ts)
+- [ ] Confirm the live production site serves checkpoint a43b9884 (v24 fog fix + graphics)
