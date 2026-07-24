@@ -692,3 +692,18 @@ Key APIs: game.dismissHandoff() exists (L~732 sets handoff=null + emit). trpc ho
   area now washes indigo (was near-white), fog bank dark, resources readable. Then: unit shapes
   unchanged (OK), run pnpm check + vitest, update todo.md v24 items, checkpoint + notify user.
 - Save slot 1 has user's real Auren T3 save — do NOT delete it.
+## v25 — PRODUCTION BLANK PAGE ROOT CAUSE (2026-07-24)
+- Live URL: polyclone-n6b64njm.manus.space (from user screenshot). Deployment itself succeeded.
+- Symptom: HTML 200, all chunks 200, ZERO console errors, but #root stays empty (React never mounts).
+- Root cause: my v23 manualChunks split (react / vendor / radix / icons / babylon) created a
+  chunk-initialization-order bug: vendor-DV9byOkb.js calls React's createContext at module-init
+  time but the react chunk's exports aren't initialized yet (circular cross-chunk imports) →
+  "Cannot read properties of undefined (reading 'createContext')" — surfaced only by manually
+  importing the entry module. Classic manualChunks pitfall.
+- Why preview worked: dev server serves unbundled ESM; only the production Rollup output is affected.
+- Fix: make manualChunks put React AND all react-dependent vendor libs in ONE chunk; only split
+  truly independent heavy libs (babylon). Keep lazy GameCanvas.
+- FIX APPLIED & VERIFIED: vite.config.ts now emits index (324KB) + vendor (1.04MB) + babylon
+  (2.18MB, lazy) + GameCanvas (36KB); build 50s. Local prod server on :4174 rendered the full
+  menu in the sandbox browser (all buttons, factions, challenges). 31 tests green, tsc clean.
+  Production URL: polyclone-n6b64njm.manus.space — must re-verify after publish.

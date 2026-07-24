@@ -171,14 +171,20 @@ export default defineConfig({
     // Split the heavyweight deps out of the entry chunk. A single ~8MB
     // index.js made CI minification slow/memory-hungry enough to stall the
     // publish pipeline; separate chunks minify in parallel and cache better.
+    //
+    // IMPORTANT: React and everything that imports React at module-init time
+    // (radix, lucide, tanstack, trpc, wouter, ...) MUST live in the SAME chunk.
+    // Splitting them (as a previous revision did) caused a cross-chunk
+    // circular-init bug in the Rollup output: vendor code ran before the react
+    // chunk's exports were initialized → "Cannot read properties of undefined
+    // (reading 'createContext')" → blank white page in production only.
+    // Babylon is safe to split: it has no React dependency and is only pulled
+    // in through the lazy-loaded GameCanvas.
     rollupOptions: {
       output: {
         manualChunks(id: string) {
           if (id.includes("node_modules")) {
             if (id.includes("@babylonjs")) return "babylon";
-            if (id.includes("react-dom") || id.includes("/react/")) return "react";
-            if (id.includes("@radix-ui")) return "radix";
-            if (id.includes("lucide-react")) return "icons";
             return "vendor";
           }
         },

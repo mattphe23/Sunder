@@ -145,7 +145,9 @@ below was checked against the actual codebase before being marked.
 - [x] Apply fix and retrigger publish — manualChunks splitting, lazy GameCanvas, tree-shaken
       Babylon submodule imports (chunk 8.1MB → 2.08MB, build 3m31s → 42s), sourcemaps off,
       removed stale server/index.ts, added pipeline shader side-effect imports (console clean)
-- [ ] Verify live production site serves the latest version
+- [x] Verify live production site serves the latest version — user provided production URL
+      (polyclone-n6b64njm.manus.space); deployment reported successful, but site shows a BLANK
+      PAGE on mobile Safari → new bug investigation below
       when leader falls behind
 - [x] Run the built production server locally (NODE_ENV=production node dist/index.js) — starts
       clean, serves index (200, 370KB), babylon chunk (200, 2.1MB), tRPC auth.me responds; the
@@ -174,4 +176,17 @@ below was checked against the actual codebase before being marked.
       capital island, water contrast, resources on Archipelago); console clean
 - [x] Camera recenter fix: new game in same session now recenters on the player's capital
       (cameraGameSig in scene.ts)
-- [ ] Confirm the live production site serves checkpoint a43b9884 (v24 fog fix + graphics)
+- [x] Confirm the live production site serves the fog fix + graphics pass — superseded by the
+      blank-page investigation (v25 section)
+
+## v25 — Production blank page (user report, iPhone Safari)
+
+- [x] Probe polyclone-n6b64njm.manus.space: HTML 200, all chunks 200, API 200 — but #root empty
+- [x] Diagnose root cause: v23 manualChunks split React from react-dependent vendor code →
+      cross-chunk circular init → "undefined createContext" → silent blank page (prod only;
+      dev serves unbundled ESM). Reproduced in sandbox browser via manual module import.
+- [x] Fix: single vendor chunk (React + dependents together); only Babylon split (independent,
+      lazy-loaded). Verified locally: prod build served on :4174 renders the full menu.
+- [x] 31 vitest green, tsc clean after fix
+- [ ] Verify fix on the live production URL after publish
+- [ ] Report findings to the user
