@@ -270,3 +270,21 @@ below was checked against the actual codebase before being marked.
 - [x] Vitest: 4 new specs (engine run w/ mocked LLM, LLM-error fallback, anon + non-admin
       gating); full suite 42 green. Live smoke test vs real gemini-2.5-flash: 8 turns/6.4s,
       8 LLM actions, real report. Browser verified; checkpoint below
+
+## v28 — Playtest-driven balance fixes (user-approved, docs/playtest-review-2026-07-24.md)
+
+- [x] Anti-snowball: barbarian camps target the score leader (faster action cadence when a
+      leader exists, warbands up to 3 raiders, raiders prefer leader units/cities at 2× bias)
+- [x] Anti-snowball: coalition pact members gain +15% attack vs. the common enemy
+      (coalitionStrikeBonus in rules.ts; battle-preview chip "Coalition +15% vs leader")
+- [x] Riding tech cost bumped: base 4★ → 6★ (≈7★ → ≈10★ after empire scaling)
+- [x] Auren early game: Scholars tribes start with 7★ instead of 5★
+- [x] Ruin economy: star payouts taper ×0.75 per prior ruin claimed (floor 40%, min 2★),
+      applied to both regular ruins and Great Ruins
+- [x] Log clarity: camp messages carry (x, y) coords + leader-hunt callout; Research panel
+      states the Scholars 20% discount is included in shown costs
+- [x] Vitest coverage: server/balance.v28.test.ts (6 specs); full suite 69 green
+- [x] Re-ran all 4 original seeds with identical params (scripts/rerun-v28.ts); before/after
+      analysis in docs/v28-balance-verification.md (run 3 leader gap 1.36→1.04; mechanics
+      verified firing in logs; avg gap unchanged — income taper proposed as next lever)
+- [x] Checkpoint + deliver with before/after comparison

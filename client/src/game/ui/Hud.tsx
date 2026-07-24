@@ -455,7 +455,12 @@ export function TechPanel({ open, onClose }: { open: boolean; onClose: () => voi
             <button onClick={onClose}><X className="h-5 w-5 text-slate-400" /></button>
           </div>
         </div>
-        <p className="mb-3 text-[11px] text-slate-400">Tech costs scale with your empire size — plan your path.</p>
+        <p className="mb-3 text-[11px] text-slate-400">
+          Tech costs scale with your empire size — plan your path.
+          {me.passive === "scholars" && (
+            <span className="ml-1 text-sky-300">Scholars: shown costs already include your 20% discount.</span>
+          )}
+        </p>
         <div className="space-y-1.5">
           {TECHS.map((t) => {
             const owned = me.techs.includes(t.id);

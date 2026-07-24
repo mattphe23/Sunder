@@ -248,7 +248,9 @@ class GameStore {
         passive: d.passive,
         passiveDesc: d.passiveDesc,
         isHuman: humans.includes(i),
-        stars: 5,
+        // v28 balance: Scholars tribes start +2 stars — playtests showed the tech
+        // discount pays off too late against early aggression/plunder economies.
+        stars: d.passive === "scholars" ? 7 : 5,
         techs: [d.startTech as TechId],
         alive: true,
         score: 0,
@@ -818,6 +820,15 @@ class GameStore {
     s.stats[tribeIdx][key] += amount;
   }
 
+  /** v28 anti-snowball: star payouts from ruins taper with each ruin a tribe has
+   *  already claimed (×0.75 per prior claim, floor 40%) — playtests showed a
+   *  ruin-rush economy snowballing one tribe far ahead of the field. */
+  private ruinTaper(tribeIdx: number, stars: number): number {
+    const claimed = this.state.stats?.[tribeIdx]?.ruinsClaimed ?? 0;
+    const mult = Math.max(0.4, Math.pow(0.75, claimed));
+    return Math.max(2, Math.round(stars * mult));
+  }
+
   /** roll and grant a ruin reward for the unit that stepped on a ruin */
   private exploreRuin(u: Unit) {
     const s = this.state;
@@ -830,7 +841,7 @@ class GameStore {
     const roll = rng(s.seed + s.turn * 97 + u.x * 13 + u.y * 31)();
     let msg: string;
     if (roll < 0.5) {
-      const stars = 5 + Math.floor(roll * 10); // 5–9 stars
+      const stars = this.ruinTaper(u.tribe, 5 + Math.floor(roll * 10)); // 5–9 stars, tapered
       tribe.stars += stars;
       this.bumpStat(u.tribe, "starsEarned", stars);
       msg = `${tribe.name} found ${stars} stars in ancient ruins!`;
@@ -841,8 +852,9 @@ class GameStore {
         tribe.techs.push(pick.id);
         msg = `${tribe.name} learned ${pick.name} from ancient ruins!`;
       } else {
-        tribe.stars += 6;
-        msg = `${tribe.name} found 6 stars in ancient ruins!`;
+        const stars = this.ruinTaper(u.tribe, 6);
+        tribe.stars += stars;
+        msg = `${tribe.name} found ${stars} stars in ancient ruins!`;
       }
     } else {
       // free unit on or near the ruin
@@ -852,8 +864,9 @@ class GameStore {
         s.units.push(nu);
         msg = `A veteran Warrior joined ${tribe.name} at the ruins!`;
       } else {
-        tribe.stars += 6;
-        msg = `${tribe.name} found 6 stars in ancient ruins!`;
+        const stars = this.ruinTaper(u.tribe, 6);
+        tribe.stars += stars;
+        msg = `${tribe.name} found ${stars} stars in ancient ruins!`;
       }
     }
     s.log.unshift(msg);
@@ -871,7 +884,7 @@ class GameStore {
     const roll = rng(s.seed + s.turn * 131 + u.x * 17 + u.y * 41)();
     let msg: string;
     if (roll < 0.45) {
-      const stars = 12 + Math.floor(roll * 14); // 12–18 stars
+      const stars = this.ruinTaper(u.tribe, 12 + Math.floor(roll * 14)); // 12–18 stars, tapered
       tribe.stars += stars;
       this.bumpStat(u.tribe, "starsEarned", stars);
       msg = `${tribe.name} claimed the Great Ruin — a hoard of ${stars} stars!`;
@@ -880,22 +893,26 @@ class GameStore {
       if (unknown.length > 0) {
         const pick = unknown[Math.floor(roll * 100) % unknown.length];
         tribe.techs.push(pick.id);
-        tribe.stars += 8;
-        msg = `${tribe.name} claimed the Great Ruin — ${pick.name} and 8 stars!`;
+        const stars = this.ruinTaper(u.tribe, 8);
+        tribe.stars += stars;
+        msg = `${tribe.name} claimed the Great Ruin — ${pick.name} and ${stars} stars!`;
       } else {
-        tribe.stars += 15;
-        msg = `${tribe.name} claimed the Great Ruin — 15 stars!`;
+        const stars = this.ruinTaper(u.tribe, 15);
+        tribe.stars += stars;
+        msg = `${tribe.name} claimed the Great Ruin — ${stars} stars!`;
       }
     } else {
       const spot = this.freeSpotNear(u.x, u.y);
       if (spot) {
         const nu = makeUnit(s.nextUnitId++, "swordsman", u.tribe, spot.x, spot.y);
         s.units.push(nu);
-        tribe.stars += 5;
-        msg = `${tribe.name} claimed the Great Ruin — a veteran Swordsman and 5 stars!`;
+        const stars = this.ruinTaper(u.tribe, 5);
+        tribe.stars += stars;
+        msg = `${tribe.name} claimed the Great Ruin — a veteran Swordsman and ${stars} stars!`;
       } else {
-        tribe.stars += 15;
-        msg = `${tribe.name} claimed the Great Ruin — 15 stars!`;
+        const stars = this.ruinTaper(u.tribe, 15);
+        tribe.stars += stars;
+        msg = `${tribe.name} claimed the Great Ruin — ${stars} stars!`;
       }
     }
     s.log.unshift(msg);

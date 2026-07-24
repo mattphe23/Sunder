@@ -1,0 +1,113 @@
+{
+  "turnsPlayed": 19,
+  "llmActions": 23,
+  "fallbackActions": 0,
+  "matchSummary": {
+    "seed": 841758,
+    "size": 13,
+    "preset": "continents",
+    "llmTribe": 0,
+    "llmTribeName": "Auren",
+    "turns": 16,
+    "phase": "playing",
+    "winner": null,
+    "winnerName": null,
+    "winPath": null,
+    "tribeScores": [
+      {
+        "name": "Auren",
+        "alive": true,
+        "cities": 2,
+        "units": 2,
+        "stars": 24,
+        "techs": 5,
+        "score": 535
+      },
+      {
+        "name": "Kharzul",
+        "alive": true,
+        "cities": 2,
+        "units": 0,
+        "stars": 31,
+        "techs": 6,
+        "score": 500
+      },
+      {
+        "name": "Sunwei",
+        "alive": true,
+        "cities": 5,
+        "units": 7,
+        "stars": 14,
+        "techs": 9,
+        "score": 1440
+      },
+      {
+        "name": "Vessari",
+        "alive": true,
+        "cities": 3,
+        "units": 2,
+        "stars": 0,
+        "techs": 9,
+        "score": 940
+      }
+    ],
+    "logTail": [
+      "The barbarian camp at (11, 4) grows bolder…",
+      "Sunwei claimed the Great Ruin — a hoard of 14 stars!",
+      "Brann raised city walls!",
+      "Sunwei built a port.",
+      "Wu Jian, commander of Sunwei, has fallen in battle!",
+      "The storm over the sea breaks apart.",
+      "Barbarian raiders pour from the camp at (11, 4)! They hunt Sunwei, the mightiest empire!",
+      "Sunwei captured Brann!",
+      "The ancient Guardian stirs — it walks the Shatterlands once more!",
+      "The ancient Guardian stirs — it walks the Shatterlands once more!",
+      "The barbarian camp at (11, 4) grows bolder…",
+      "Auren captured Zefi!",
+      "Vessari and Kharzul formed a pact against Sunwei!",
+      "The storm drifts across the waves.",
+      "The barbarian camp at (11, 4) grows bolder…",
+      "Dark clouds gather — a storm rages over the sea. Boats cannot enter it.",
+      "Barbarian raiders pour from the camp at (11, 4)! They hunt Sunwei, the mightiest empire!",
+      "Sova grew to level 2!",
+      "The barbarian camp at (11, 4) grows bolder…",
+      "Drukhar, commander of Kharzul, has fallen in battle!",
+      "Szara, commander of Vessari, has fallen in battle!",
+      "The storm over the sea breaks apart.",
+      "The barbarian camp at (11, 4) grows bolder…",
+      "Szara plundered 2★ from Sunwei!",
+      "Vesk grew to level 2!"
+    ],
+    "turnNotes": []
+  },
+  "feedback": {
+    "scores": {
+      "balance": 5,
+      "clarity": 7,
+      "fun": 6,
+      "pacing": 6
+    },
+    "balance": [
+      "Sunwei is significantly ahead of other tribes with 1440 score, while the next closest is Vessari with 940 score, indicating a potential snowballing issue.",
+      "The 'pact against Sunwei' between Vessari and Kharzul suggests that the AI recognizes the imbalance, but it doesn't seem to have been effective in curbing Sunwei's lead.",
+      "Auren and Kharzul are significantly behind in score (535 and 500 respectively) and unit count (2 and 0 respectively), making them less impactful in the mid-game."
+    ],
+    "clarity": [
+      "The log entries about barbarian camps growing bolder and then pouring out raiders are clear and easy to understand.",
+      "The Great Ruin reward of 14 stars for Sunwei is clearly stated and its impact is immediately visible in their score."
+    ],
+    "fun": [
+      "The event of a Great Ruin providing a significant star boost (14 stars) adds an exciting element of chance and reward.",
+      "The emergence of barbarian raiders targeting the 'mightiest empire' (Sunwei) provides a dynamic challenge and potential for comeback mechanics.",
+      "The 'pact against Sunwei' adds an interesting diplomatic layer to the gameplay, even if its effectiveness in this match was limited."
+    ],
+    "bugs": [],
+    "suggestions": [
+      "Consider adjusting the Great Ruin rewards to be more scaled or provide different types of bonuses to prevent early game snowballing.",
+      "Evaluate the effectiveness of AI pacts and alliances; perhaps they need stronger mechanics or more aggressive actions to counter dominant players.",
+      "Implement a catch-up mechanic for tribes with very low unit counts (like Kharzul with 0 units) to prevent them from becoming irrelevant too quickly."
+    ],
+    "verdict": "The match showed some fun and clear mechanics, but significant balance issues led to one tribe dominating. The AI's attempt to counter the leader was a good sign, but ultimately ineffective."
+  },
+  "model": "gemini-2.5-flash"
+}

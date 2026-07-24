@@ -1,0 +1,112 @@
+{
+  "turnsPlayed": 19,
+  "llmActions": 23,
+  "fallbackActions": 1,
+  "matchSummary": {
+    "seed": 437396,
+    "size": 13,
+    "preset": "archipelago",
+    "llmTribe": 0,
+    "llmTribeName": "Auren",
+    "turns": 16,
+    "phase": "playing",
+    "winner": null,
+    "winnerName": null,
+    "winPath": null,
+    "tribeScores": [
+      {
+        "name": "Auren",
+        "alive": true,
+        "cities": 1,
+        "units": 0,
+        "stars": 29,
+        "techs": 4,
+        "score": 270
+      },
+      {
+        "name": "Kharzul",
+        "alive": true,
+        "cities": 3,
+        "units": 1,
+        "stars": 54,
+        "techs": 4,
+        "score": 635
+      },
+      {
+        "name": "Sunwei",
+        "alive": true,
+        "cities": 1,
+        "units": 0,
+        "stars": 66,
+        "techs": 6,
+        "score": 400
+      },
+      {
+        "name": "Vessari",
+        "alive": true,
+        "cities": 5,
+        "units": 3,
+        "stars": 16,
+        "techs": 7,
+        "score": 1070
+      }
+    ],
+    "logTail": [
+      "The storm drifts across the waves.",
+      "The barbarian camp at (7, 0) grows bolder…",
+      "The barbarian camp at (1, 0) grows bolder…",
+      "Barbarian raiders pour from the camp at (7, 0)! They hunt Vessari, the mightiest empire!",
+      "The barbarian camp at (1, 0) grows bolder…",
+      "Vessari captured Lirath!",
+      "Wu Jian, commander of Sunwei, has fallen in battle!",
+      "The ancient Guardian stirs — it walks the Shatterlands once more!",
+      "The ancient Guardian stirs — it walks the Shatterlands once more!",
+      "Dark clouds gather — a storm rages over the sea. Boats cannot enter it.",
+      "The barbarian camp at (7, 0) grows bolder…",
+      "Barbarian raiders pour from the camp at (1, 0)! Guard your villages!",
+      "Vessari captured Yoru!",
+      "Sunwei learned Mining from ancient ruins!",
+      "Vessari and Kharzul formed a pact against Sunwei!",
+      "Sunwei captured Lirath!",
+      "The storm over the sea breaks apart.",
+      "The barbarian camp at (7, 0) grows bolder…",
+      "The barbarian camp at (1, 0) grows bolder…",
+      "The storm drifts across the waves.",
+      "The storm drifts across the waves.",
+      "The barbarian camp at (1, 0) grows bolder…",
+      "Smoke rises in the wilds — a barbarian camp has appeared at (7, 0)!",
+      "Sunwei captured Yoru!",
+      "Dark clouds gather — a storm rages over the sea. Boats cannot enter it."
+    ],
+    "turnNotes": [
+      "T0: The 'passive: Scholars' ability is a nice touch for early game tech choices."
+    ]
+  },
+  "feedback": {
+    "scores": {
+      "balance": 5,
+      "clarity": 7,
+      "fun": 6,
+      "pacing": 5
+    },
+    "balance": [
+      "Vessari is significantly outperforming other tribes with 1070 score and 5 cities, while the next highest is Kharzul with 635 score and 3 cities.",
+      "Auren and Sunwei are struggling, both having only 1 city and significantly lower scores (270 and 400 respectively), indicating a potential early game disadvantage or difficulty scaling."
+    ],
+    "clarity": [
+      "The log entries clearly indicate when barbarian camps appear, grow bolder, and when raiders attack.",
+      "The log also clearly states when tribes form pacts, which is helpful for understanding diplomatic shifts."
+    ],
+    "fun": [
+      "The dynamic events like barbarian raids and the Guardian stirring add an element of unpredictability and challenge.",
+      "The formation of pacts between tribes suggests an engaging diplomatic layer to the gameplay."
+    ],
+    "bugs": [],
+    "suggestions": [
+      "Investigate why Vessari is able to expand so much more effectively than other tribes, perhaps by reviewing their starting position or tribal bonuses.",
+      "Consider adjustments to Auren's and Sunwei's starting conditions or early game bonuses to help them compete with more dominant tribes."
+    ],
+    "verdict": "The game shows promise with interesting dynamic events and diplomacy, but significant balance issues are apparent, particularly with Vessari's dominance and other tribes' struggles."
+  },
+  "model": "gemini-2.5-flash"
+}

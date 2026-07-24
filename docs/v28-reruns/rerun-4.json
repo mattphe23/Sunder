@@ -1,0 +1,114 @@
+{
+  "turnsPlayed": 21,
+  "llmActions": 15,
+  "fallbackActions": 1,
+  "matchSummary": {
+    "seed": 146213,
+    "size": 13,
+    "preset": "continents",
+    "llmTribe": 1,
+    "llmTribeName": "Kharzul",
+    "turns": 18,
+    "phase": "playing",
+    "winner": null,
+    "winnerName": null,
+    "winPath": null,
+    "tribeScores": [
+      {
+        "name": "Auren",
+        "alive": true,
+        "cities": 6,
+        "units": 12,
+        "stars": 12,
+        "techs": 11,
+        "score": 1520
+      },
+      {
+        "name": "Kharzul",
+        "alive": true,
+        "cities": 2,
+        "units": 2,
+        "stars": 13,
+        "techs": 6,
+        "score": 575
+      },
+      {
+        "name": "Sunwei",
+        "alive": true,
+        "cities": 2,
+        "units": 4,
+        "stars": 8,
+        "techs": 9,
+        "score": 710
+      },
+      {
+        "name": "Vessari",
+        "alive": true,
+        "cities": 3,
+        "units": 2,
+        "stars": 7,
+        "techs": 11,
+        "score": 970
+      }
+    ],
+    "logTail": [
+      "The barbarian camp at (9, 11) grows bolder…",
+      "Barbarian raiders pour from the camp at (0, 1)! They hunt Auren, the mightiest empire!",
+      "Wu Jian, commander of Sunwei, has fallen in battle!",
+      "Szara, commander of Vessari, has fallen in battle!",
+      "Auren captured Elba!",
+      "Auren built a port.",
+      "Norun grew to level 2!",
+      "The barbarian camp at (9, 11) grows bolder…",
+      "The barbarian camp at (0, 1) grows bolder…",
+      "Auren captured Norun!",
+      "Vessari and Sunwei formed a pact against Auren!",
+      "The storm over the sea breaks apart.",
+      "The barbarian camp at (0, 1) grows bolder…",
+      "Barbarian raiders pour from the camp at (0, 1)! They hunt Auren, the mightiest empire!",
+      "Smoke rises in the wilds — a barbarian camp has appeared at (9, 11)!",
+      "Vessari claimed the Great Ruin — a hoard of 6 stars!",
+      "Vessari razed the barbarian camp — 5★ plundered!",
+      "The ancient Guardian stirs — it walks the Shatterlands once more!",
+      "The ancient Guardian stirs — it walks the Shatterlands once more!",
+      "The barbarian camp at (0, 1) grows bolder…",
+      "Smoke rises in the wilds — a barbarian camp has appeared at (1, 0)!",
+      "Dark clouds gather — a storm rages over the sea. Boats cannot enter it.",
+      "The storm over the sea breaks apart.",
+      "The barbarian camp at (0, 1) grows bolder…",
+      "Szara reached level 3!"
+    ],
+    "turnNotes": [
+      "T0: Initial unit movement options feel a bit limited, making it hard to quickly expand to multiple villages."
+    ]
+  },
+  "feedback": {
+    "scores": {
+      "balance": 5,
+      "clarity": 7,
+      "fun": 6,
+      "pacing": 5
+    },
+    "balance": [
+      "Auren is significantly outperforming other tribes with a score of 1520, 6 cities, and 12 units, suggesting a potential imbalance in starting positions or early-game advantages.",
+      "Kharzul, the LLM tribe, is struggling with only 2 cities and 2 units, resulting in a low score of 575, indicating it may be underpowered or its AI needs improvement.",
+      "The 'pact against Auren' between Vessari and Sunwei suggests that Auren's dominance is noticeable to other AI players, which is a good sign for emergent gameplay but also highlights Auren's strong position."
+    ],
+    "clarity": [
+      "The log entries clearly indicate barbarian activity, including camps growing bolder and raiders attacking, which is good for understanding the world state.",
+      "The log also clearly shows when cities are captured and when tribes form pacts, providing good feedback on major game events."
+    ],
+    "fun": [
+      "The emergence of barbarian camps and subsequent raids adds an element of dynamic challenge and unpredictability to the game.",
+      "The Great Ruin and barbarian camp razing events provide opportunities for tribes to gain stars and resources, which can be engaging for players."
+    ],
+    "bugs": [],
+    "suggestions": [
+      "Investigate Auren's starting position and early-game bonuses to ensure fair play for all tribes.",
+      "Review Kharzul's AI strategy, especially in the early turns, to help it expand and compete more effectively.",
+      "Consider adjusting the initial unit movement options to allow for quicker expansion to multiple villages, as noted in the turn notes, to improve early game pacing."
+    ],
+    "verdict": "The game shows potential with dynamic events and clear logging, but significant balance issues exist, particularly with Auren's dominance and Kharzul's underperformance, which need to be addressed for a more engaging and fair experience."
+  },
+  "model": "gemini-2.5-flash"
+}

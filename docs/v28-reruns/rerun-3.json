@@ -1,0 +1,116 @@
+{
+  "turnsPlayed": 17,
+  "llmActions": 27,
+  "fallbackActions": 0,
+  "matchSummary": {
+    "seed": 657569,
+    "size": 13,
+    "preset": "archipelago",
+    "llmTribe": 1,
+    "llmTribeName": "Kharzul",
+    "turns": 16,
+    "phase": "playing",
+    "winner": null,
+    "winnerName": null,
+    "winPath": null,
+    "tribeScores": [
+      {
+        "name": "Auren",
+        "alive": true,
+        "cities": 3,
+        "units": 4,
+        "stars": 15,
+        "techs": 10,
+        "score": 820
+      },
+      {
+        "name": "Kharzul",
+        "alive": true,
+        "cities": 2,
+        "units": 1,
+        "stars": 17,
+        "techs": 6,
+        "score": 510
+      },
+      {
+        "name": "Sunwei",
+        "alive": true,
+        "cities": 1,
+        "units": 0,
+        "stars": 17,
+        "techs": 8,
+        "score": 430
+      },
+      {
+        "name": "Vessari",
+        "alive": true,
+        "cities": 4,
+        "units": 1,
+        "stars": 49,
+        "techs": 7,
+        "score": 850
+      }
+    ],
+    "logTail": [
+      "Auren captured Rasza!",
+      "Szara, commander of Vessari, has fallen in battle!",
+      "The storm drifts across the waves.",
+      "The barbarian camp at (1, 7) grows bolder…",
+      "Barbarian raiders pour from the camp at (6, 6)! They hunt Vessari, the mightiest empire!",
+      "Dark clouds gather — a storm rages over the sea. Boats cannot enter it.",
+      "Barbarian raiders pour from the camp at (1, 7)! They hunt Vessari, the mightiest empire!",
+      "The barbarian camp at (6, 6) grows bolder…",
+      "Drukhar, commander of Kharzul, has fallen in battle!",
+      "The ancient Guardian stirs — it walks the Shatterlands once more!",
+      "The ancient Guardian stirs — it walks the Shatterlands once more!",
+      "Auren and Sunwei formed a pact against Vessari!",
+      "Vessari captured Umbra!",
+      "The barbarian camp at (1, 7) grows bolder…",
+      "The barbarian camp at (6, 6) grows bolder…",
+      "Kharzul captured Talvi!",
+      "The storm over the sea breaks apart.",
+      "The barbarian camp at (1, 7) grows bolder…",
+      "Barbarian raiders pour from the camp at (6, 6)! Guard your villages!",
+      "Wu Jian, commander of Sunwei, has fallen in battle!",
+      "Vessari learned Hunting from ancient ruins!",
+      "The storm drifts across the waves.",
+      "The barbarian camp at (6, 6) grows bolder…",
+      "⚔ Auren betrayed Sunwei — the pact is broken!",
+      "The barbarian camp at (6, 6) grows bolder…"
+    ],
+    "turnNotes": [
+      "T9: Berserker training is expensive but seems worth it for early aggression."
+    ]
+  },
+  "feedback": {
+    "scores": {
+      "balance": 6,
+      "clarity": 8,
+      "fun": 7,
+      "pacing": 7
+    },
+    "balance": [
+      "Vessari is significantly ahead with 850 score and 49 stars, indicating a potential snowball effect after only 16 turns.",
+      "Kharzul, the LLM tribe, has a low score of 510 and only 2 cities and 1 unit, suggesting it struggled to expand and compete.",
+      "Auren and Sunwei formed a pact against Vessari, but Auren betrayed Sunwei, indicating that the alliance system might not be effectively balancing power.",
+      "The repeated barbarian camp growth and raids, especially targeting Vessari, seem to be a mechanic attempting to curb the leader, but it doesn't appear to be enough."
+    ],
+    "clarity": [
+      "The log entries clearly describe events like city captures, commander deaths, and barbarian activity.",
+      "The turn note about Berserker training is helpful for understanding player strategy."
+    ],
+    "fun": [
+      "The dynamic events like barbarian raids and the stirring Guardian add an element of unpredictability and excitement.",
+      "The pacts and betrayals between tribes contribute to an engaging diplomatic layer."
+    ],
+    "bugs": [],
+    "suggestions": [
+      "Consider adjusting the barbarian raid frequency or strength, especially against the leading player, to make them a more impactful balancing mechanism.",
+      "Investigate why the LLM tribe (Kharzul) fell behind so significantly, perhaps by reviewing its decision-making or starting conditions.",
+      "Explore ways to make alliances more stable or provide clearer incentives for maintaining them, given Auren's quick betrayal.",
+      "Evaluate the early game resource acquisition and expansion rates to prevent one tribe from gaining an insurmountable lead by turn 16."
+    ],
+    "verdict": "The match shows promise with engaging events and diplomacy, but significant balance issues exist, particularly with one tribe dominating and the LLM tribe struggling. Further tuning of balancing mechanics and AI strategy is recommended."
+  },
+  "model": "gemini-2.5-flash"
+}

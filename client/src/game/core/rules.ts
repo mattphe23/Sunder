@@ -7,6 +7,17 @@ import {
   TRIBE_DEFS, WALL_DEFENSE_BONUS, HeroPerkId, idx, inBounds,
 } from "./types";
 import { inStorm, campAt } from "./events";
+import { commonEnemy } from "./coalition";
+import { atPeace } from "./diplomacy";
+
+/** v28 anti-snowball: attacker belongs to an AI pact striking the runaway leader. */
+export function coalitionStrikeBonus(s: GameState, attacker: Unit, defender: Unit): boolean {
+  if (attacker.tribe < 0 || defender.tribe < 0) return false;
+  const enemy = commonEnemy(s);
+  if (enemy === null || defender.tribe !== enemy || attacker.tribe === enemy) return false;
+  // pacted with at least one other tribe — the coalition war council
+  return s.tribes.some((t) => t.alive && t.index !== attacker.tribe && atPeace(s, attacker.tribe, t.index));
+}
 
 export function tileAt(s: GameState, x: number, y: number): Tile {
   return s.tiles[idx(x, y, s.size)];
@@ -201,6 +212,8 @@ export function previewCombat(s: GameState, attacker: Unit, defender: Unit): Com
   if (attacker.type === "berserker" && defender.hp < defender.maxHp) atk *= 1.5;
   // Nerivane Tidecaller: the tide strikes hardest — +30% attack from a water tile
   if (attacker.type === "tidecaller" && tileAt(s, attacker.x, attacker.y).terrain === "water") atk *= 1.3;
+  // v28 anti-snowball: coalition members strike the common enemy 15% harder
+  if (coalitionStrikeBonus(s, attacker, defender)) atk *= 1.15;
   const attackForce = atk * (attacker.hp / attacker.maxHp);
   const defenseForce = dStats.defense * (defender.hp / defender.maxHp) * defenseBonus(s, defender, attacker);
   const total = attackForce + defenseForce;
@@ -236,6 +249,7 @@ export function combatModifiers(s: GameState, attacker: Unit, defender: Unit): {
   if (inspiredBy(s, attacker)) out.push({ text: "Inspired +15% attack", side: "atk" });
   if (attacker.type === "berserker" && defender.hp < defender.maxHp) out.push({ text: "Berserker +50% vs wounded", side: "atk" });
   if (attacker.type === "tidecaller" && tileAt(s, attacker.x, attacker.y).terrain === "water") out.push({ text: "Tidecaller +30% from water", side: "atk" });
+  if (coalitionStrikeBonus(s, attacker, defender)) out.push({ text: "Coalition +15% vs leader", side: "atk" });
   if (attacker.tribe >= 0 && s.tribes[attacker.tribe].passive === "stormborn") out.push({ text: "Stormborn — retaliation halved", side: "atk" });
   if (attacker.hp < attacker.maxHp) out.push({ text: "Wounded — attack force reduced", side: "atk" });
   // --- defender modifiers (mirrors defenseBonus) ---

@@ -3,6 +3,7 @@
 // Three systems: barbarian camps (spawn → grow → raid), storms (roaming water squalls that
 // block naval movement), and awakening guardians (great-ruin sentinels that stir and roam).
 import { GameState, Tile, Unit, GUARDIAN_TRIBE } from "./types";
+import { commonEnemy } from "./coalition";
 
 /* ------------------------------ world event types ------------------------------ */
 
@@ -110,6 +111,9 @@ export function runWorldPhase(s: GameState, makeUnit: (type: Unit["type"], tribe
   s.camps = s.camps ?? [];
   s.storms = s.storms ?? [];
   s.nextEventId = s.nextEventId ?? 1;
+  // v28 anti-snowball: when one tribe runs away with the game, the wilds smell
+  // blood — camps act a turn sooner and raiding warbands grow larger.
+  const leaderIdx = commonEnemy(s);
 
   /* ---- barbarian camps ---- */
   const r1 = eventRng(s.seed, s.turn, 11);
@@ -117,15 +121,15 @@ export function runWorldPhase(s: GameState, makeUnit: (type: Unit["type"], tribe
     const site = campSites(s, r1)[0];
     if (site) {
       s.camps.push({ id: s.nextEventId++, x: site.x, y: site.y, strength: 1, nextActionTurn: s.turn + 2 });
-      events.push({ kind: "campSpawned", text: "Smoke rises in the wilds — a barbarian camp has appeared!", turn: s.turn, x: site.x, y: site.y });
+      events.push({ kind: "campSpawned", text: `Smoke rises in the wilds — a barbarian camp has appeared at (${site.x}, ${site.y})!`, turn: s.turn, x: site.x, y: site.y });
     }
   }
   for (const camp of [...s.camps]) {
     if (s.turn < camp.nextActionTurn) continue;
-    camp.nextActionTurn = s.turn + 2;
+    camp.nextActionTurn = s.turn + (leaderIdx !== null ? 1 : 2);
     if (camp.strength < CAMP_RAID_STRENGTH) {
       camp.strength++;
-      events.push({ kind: "campGrew", text: "The barbarian camp grows bolder…", turn: s.turn, x: camp.x, y: camp.y });
+      events.push({ kind: "campGrew", text: `The barbarian camp at (${camp.x}, ${camp.y}) grows bolder…`, turn: s.turn, x: camp.x, y: camp.y });
     } else {
       // raid: spawn 1-2 warriors adjacent to the camp aimed at the nearest city
       const r2 = eventRng(s.seed, s.turn, camp.id + 100);
@@ -136,7 +140,8 @@ export function runWorldPhase(s: GameState, makeUnit: (type: Unit["type"], tribe
         const t = s.tiles[idx(s, nx, ny)];
         if ((t.terrain === "grass" || t.terrain === "forest") && !unitAtTile(s, nx, ny) && !campAt(s, nx, ny)) spots.push({ x: nx, y: ny });
       }
-      const count = Math.min(spots.length, 1 + (r2() < 0.5 ? 1 : 0));
+      // v28: leader-hunting warbands run larger (up to 3 raiders)
+      const count = Math.min(spots.length, 1 + (r2() < 0.5 ? 1 : 0) + (leaderIdx !== null && r2() < 0.6 ? 1 : 0));
       for (let i = 0; i < count; i++) {
         const u = makeUnit("warrior", GUARDIAN_TRIBE, spots[i].x, spots[i].y);
         u.raider = true;
@@ -144,7 +149,8 @@ export function runWorldPhase(s: GameState, makeUnit: (type: Unit["type"], tribe
       }
       if (count > 0) {
         camp.strength = 1; // spent
-        events.push({ kind: "campRaid", text: "Barbarian raiders pour from their camp — guard your villages!", turn: s.turn, x: camp.x, y: camp.y });
+        const hunt = leaderIdx !== null ? ` They hunt ${s.tribes[leaderIdx].name}, the mightiest empire!` : " Guard your villages!";
+        events.push({ kind: "campRaid", text: `Barbarian raiders pour from the camp at (${camp.x}, ${camp.y})!${hunt}`, turn: s.turn, x: camp.x, y: camp.y });
       }
     }
   }
@@ -202,26 +208,33 @@ export function runWorldPhase(s: GameState, makeUnit: (type: Unit["type"], tribe
 export function worldUnitIntents(s: GameState): { unit: Unit; move?: { x: number; y: number }; targetUnitId?: number }[] {
   const intents: { unit: Unit; move?: { x: number; y: number }; targetUnitId?: number }[] = [];
   const hostiles = s.units.filter((u) => u.tribe === GUARDIAN_TRIBE && (u.awake || u.raider));
+  // v28 anti-snowball: raiders prefer the runaway leader's units and cities —
+  // non-leader targets look twice as distant to raider eyes.
+  const leaderIdx = commonEnemy(s);
   for (const h of hostiles) {
     // nearest target: any tribal unit, else nearest city
     let best: { x: number; y: number; unitId?: number } | null = null;
     let bestD = Infinity;
     for (const u of s.units) {
       if (u.tribe === GUARDIAN_TRIBE) continue;
-      const d = Math.max(Math.abs(u.x - h.x), Math.abs(u.y - h.y));
+      let d = Math.max(Math.abs(u.x - h.x), Math.abs(u.y - h.y));
+      if (h.raider && leaderIdx !== null && u.tribe !== leaderIdx) d *= 2;
       if (d < bestD) { bestD = d; best = { x: u.x, y: u.y, unitId: u.id }; }
     }
     for (const c of s.cities) {
       if (c.tribe === null) continue;
-      const d = Math.max(Math.abs(c.x - h.x), Math.abs(c.y - h.y));
+      let d = Math.max(Math.abs(c.x - h.x), Math.abs(c.y - h.y));
+      if (h.raider && leaderIdx !== null && c.tribe !== leaderIdx) d *= 2;
       if (d < bestD) { bestD = d; best = { x: c.x, y: c.y }; }
     }
     if (!best) continue;
-    if (bestD === 1 && best.unitId !== undefined) {
+    // act on the target's TRUE distance (bias only reorders preference)
+    const trueD = Math.max(Math.abs(best.x - h.x), Math.abs(best.y - h.y));
+    if (trueD === 1 && best.unitId !== undefined) {
       intents.push({ unit: h, targetUnitId: best.unitId });
       continue;
     }
-    if (bestD <= 6) {
+    if (trueD <= 6) {
       // step toward target on walkable land
       const sx = Math.sign(best.x - h.x), sy = Math.sign(best.y - h.y);
       const options = [

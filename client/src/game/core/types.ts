@@ -231,7 +231,8 @@ export const TECHS: TechDef[] = [
   { id: "climbing", name: "Climbing", tier: 1, requires: null, baseCost: 4, desc: "Units can climb mountains." },
   { id: "mining", name: "Mining", tier: 2, requires: "climbing", baseCost: 5, desc: "Harvest minerals in mountains." },
   { id: "smithery", name: "Smithery", tier: 3, requires: "mining", baseCost: 6, desc: "Unlocks the Swordsman." },
-  { id: "riding", name: "Riding", tier: 1, requires: null, baseCost: 4, desc: "Unlocks the fast Rider unit." },
+  // v28 balance: 4 → 6 (playtests flagged early cavalry tempo as under-priced vs tier peers)
+  { id: "riding", name: "Riding", tier: 1, requires: null, baseCost: 6, desc: "Unlocks the fast Rider unit." },
   { id: "freeSpirit", name: "Free Spirit", tier: 2, requires: "riding", baseCost: 5, desc: "City defense bonus." },
   { id: "chivalry", name: "Chivalry", tier: 3, requires: "freeSpirit", baseCost: 6, desc: "Unlocks the mighty Knight." },
   { id: "mathematics", name: "Mathematics", tier: 3, requires: "forestry", baseCost: 6, desc: "Unlocks the Catapult — siege engine that ignores city walls." },
