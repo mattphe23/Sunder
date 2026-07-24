@@ -10,6 +10,7 @@ import { useEntitlements } from "@/hooks/useEntitlements";
 import { PRODUCTS, formatPrice, ultimateSavings, type Product } from "@shared/products";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import SkinPreview from "@/components/SkinPreview";
 import { ArrowLeft, Check, Crown, Loader2, Lock, Map as MapIcon, Palette, ScrollText, Shield, Sparkles } from "lucide-react";
 
 const KIND_META: Record<string, { title: string; blurb: string; icon: React.ReactNode }> = {
@@ -34,6 +35,7 @@ function ProductCard({ p, owned, onBuy, buying }: { p: Product; owned: boolean; 
   return (
     <div className="relative flex flex-col rounded-xl border border-white/10 bg-white/[0.04] p-4 transition-transform hover:-translate-y-0.5" style={{ boxShadow: `inset 0 2px 0 ${p.accent}33` }}>
       <div className="mb-2 h-1.5 w-10 rounded-full" style={{ background: p.accent }} />
+      {p.kind === "skin" && <SkinPreview skinKey={p.grants[0]} accent={p.accent} />}
       <h3 className="font-bold text-white">{p.name}</h3>
       <p className="mt-1 flex-1 text-xs leading-relaxed text-white/55">{p.tagline}</p>
       <div className="mt-3 flex items-center justify-between">

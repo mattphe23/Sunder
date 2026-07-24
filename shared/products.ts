@@ -56,8 +56,8 @@ export const PRODUCTS: Product[] = [
   // — map packs ($2.99 each) —
   { sku: "maps_forgotten_realms", kind: "maps", name: "Forgotten Realms Pack", tagline: "4 AI-forged maps: calderas, terraces, and lost valleys.", priceCents: 299, grants: [ENT.MAPS_FORGOTTEN_REALMS], accent: "#f59e0b" },
   { sku: "maps_shattered_seas", kind: "maps", name: "Shattered Seas Pack", tagline: "4 AI-forged maps: reefs, straits, and island fortresses.", priceCents: 299, grants: [ENT.MAPS_SHATTERED_SEAS], accent: "#22d3ee" },
-  // — story mode ($4.99 per chapter) —
-  { sku: "story_ch1", kind: "story", name: "Story Mode — Chapter I: The Sundering", tagline: "Lead your forged tribe through 5 campaign missions.", priceCents: 499, grants: [ENT.STORY_CH1], accent: "#f43f5e" },
+  // — story mode ($4.99, whole campaign; Chapter II is a free content update) —
+  { sku: "story_ch1", kind: "story", name: "Story Mode — The Sundering Saga", tagline: "Two chapters, 10 campaign missions — from the smallest shard to the reforged world.", priceCents: 499, grants: [ENT.STORY_CH1], accent: "#f43f5e" },
   // — ultimate ($14.99) —
   { sku: "bundle_ultimate", kind: "bundle", name: "Ultimate Pack", tagline: "Everything — all skins, tribes, maps, and Story Mode. Forever.", priceCents: 1499, grants: ALL_ENTITLEMENT_KEYS, accent: "#fbbf24" },
 ];

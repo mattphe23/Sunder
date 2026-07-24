@@ -313,3 +313,22 @@ below was checked against the actual codebase before being marked.
       (fixed: synthetic terminal note recorded when the LLM tribe is eliminated / match ends early)
 - [x] playtest.ts: occasional null turn note recorded (run3 T9)
       (fixed: literal "null"/blank note strings filtered before recording; test added, 78 green)
+
+## v30 — Story Mode Chapter II + Store skin previews (user request)
+### Chapter II: campaign continuation
+- [x] Write Chapter II narrative arc (5 missions) continuing from the Chapter I finale
+- [x] Define 5 seed-locked missions in shared/story.ts (objectives, opponents, unlock chain)
+- [x] Chapter II gating: unlocked after completing Chapter I mission 5 (same story.ch1 entitlement;
+      chapterUnlocked/nextCampaignMission added to core/story.ts; product copy updated to 10-mission saga)
+- [x] Story page UI: chapter sections, locked-state copy, mission cards for Chapter II
+- [x] GameOver/campaign progression handles ch2 mission completion + next-mission continue
+      (missionById/evaluateMission resolve ch2 ids; objective kinds reused — covered by tests)
+- [x] Vitest coverage: mission definitions valid, unlock chain, objective evaluation on ch2 types
+      (server/story.ch2.test.ts — 84 tests green)
+### Store skin previews
+- [x] Reusable SkinPreview component: small Babylon canvas rendering the character rig with the skin applied (rotating idle)
+- [x] Wire previews into Store product cards for the 6 tribe skins (lazy-mounted, dispose on unmount)
+- [x] Fallback for software renderers / canvas failure (static swatch)
+- [x] Visual verification on /store; console clean (all 6 rigs render live with skin colors; no console errors)
+### Wrap-up
+- [x] Full suite green + tsc clean; checkpoint + deliver (84 tests, 15 files)

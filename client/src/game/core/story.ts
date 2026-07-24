@@ -36,10 +36,29 @@ export function nextMission(chapterId: string): StoryMission | null {
   return null;
 }
 
-/** a mission is playable when all previous missions in its chapter are done */
+/** a chapter is playable when every mission of every earlier chapter is done */
+export function chapterUnlocked(chapterId: string): boolean {
+  const idx = STORY_CHAPTERS.findIndex((c) => c.id === chapterId);
+  if (idx < 0) return false;
+  const p = loadStoryProgress();
+  return STORY_CHAPTERS.slice(0, idx).every((c) => c.missions.every((m) => p.done[m.id]));
+}
+
+/** first not-yet-completed mission across the whole campaign (null = campaign complete) */
+export function nextCampaignMission(): StoryMission | null {
+  for (const c of STORY_CHAPTERS) {
+    if (!chapterUnlocked(c.id)) return null; // shouldn't happen (earlier chapter has the gap)
+    const m = nextMission(c.id);
+    if (m) return m;
+  }
+  return null;
+}
+
+/** a mission is playable when its chapter is unlocked and all previous missions in the chapter are done */
 export function missionUnlocked(m: StoryMission, chapterId: string): boolean {
   const ch = STORY_CHAPTERS.find((c) => c.id === chapterId);
   if (!ch) return false;
+  if (!chapterUnlocked(chapterId)) return false;
   const p = loadStoryProgress();
   return ch.missions.every((x) => x.index >= m.index || p.done[x.id]);
 }
