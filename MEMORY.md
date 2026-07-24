@@ -707,3 +707,6 @@ Key APIs: game.dismissHandoff() exists (L~732 sets handoff=null + emit). trpc ho
   (2.18MB, lazy) + GameCanvas (36KB); build 50s. Local prod server on :4174 rendered the full
   menu in the sandbox browser (all buttons, factions, challenges). 31 tests green, tsc clean.
   Production URL: polyclone-n6b64njm.manus.space — must re-verify after publish.
+- 15 min after v25 checkpoint, production still served OLD bundle (index-JA0aYoly.js). Saved
+  v25.1 checkpoint at user request to re-trigger publish. New bundle marker: index-L4ItyS2I.js
+  (name may change on rebuild — check for absence of separate react-/radix-/icons- chunks).

@@ -190,3 +190,4 @@ below was checked against the actual codebase before being marked.
 - [x] 31 vitest green, tsc clean after fix
 - [ ] Verify fix on the live production URL after publish
 - [ ] Report findings to the user
+- [ ] Save a fresh checkpoint (v25.1) to re-trigger the publish (user request)
