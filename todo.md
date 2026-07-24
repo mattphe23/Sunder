@@ -147,3 +147,23 @@ below was checked against the actual codebase before being marked.
       removed stale server/index.ts, added pipeline shader side-effect imports (console clean)
 - [ ] Verify live production site serves the latest version
       when leader falls behind
+- [x] Run the built production server locally (NODE_ENV=production node dist/index.js) — starts
+      clean, serves index (200, 370KB), babylon chunk (200, 2.1MB), tRPC auth.me responds; the
+      deployed artifact itself is healthy
+
+# v24 — Fog-of-war fix + graphics readability pass (user report, live site)
+- [x] BUG root cause found: reveal pipeline itself works, but 1-MP units could never ENTER
+      cost-2 forest (and mountains/water are tech-gated), so units got position-locked and fog
+      never lifted. Fixed with the Polytopia rule: slow-but-passable terrain is enterable as a
+      full-stop move whenever the unit has any MP left (reachableTiles clamps cost, stops pathing
+      beyond). Verified headless: forest now reachable from the previously stuck spot; 31 tests green
+- [x] Make fog rendering legible: unexplored = dark cloud slabs + flat mist puffs (map extent
+      always legible, no void); explored-not-visible tiles get desaturated indigo wash on BOTH
+      tile tops and decor materials (snow caps/houses no longer punch through); live-visible
+      tiles full brightness
+- [x] Graphics readability: two-tone trees with trunks, gray rocky mountains with white snow
+      caps (no more "ice cube" cones), fruit = green bush + red berries, animal = brown critter
+      with head/ears, mineral = glowing cyan crystal shards, ports get a cream sail marker,
+      cities get a tribe-colored ground plate + cream houses with tribe-colored roofs
+- [x] Verify in-browser (live save render matches game state: 34 explored tiles all in vision
+      render bright — correct; fog bank reads clearly), 31 tests green, type-check clean

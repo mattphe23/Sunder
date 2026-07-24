@@ -109,7 +109,11 @@ export function reachableTiles(s: GameState, unit: Unit): { x: number; y: number
         if (!inBounds(nx, ny, s.size)) continue;
         const t = tileAt(s, nx, ny);
         const cost = moveCost(s, unit, t);
-        const nd = cd + cost;
+        // Polytopia rule: stepping into slow-but-passable terrain (e.g. forest without
+        // forestry) is always allowed if the unit has ANY movement left — it just ends
+        // the move there. Without this, 1-MP units could never enter cost-2 forest and
+        // players got stuck ("fog never lifts"). Impassable (Infinity) stays impassable.
+        const nd = Number.isFinite(cost) && cd < mp ? Math.min(cd + cost, mp) : cd + cost;
         if (nd > mp) continue;
         const key = idx(nx, ny, s.size);
         if (dist.has(key) && dist.get(key)! <= nd) continue;
@@ -118,7 +122,8 @@ export function reachableTiles(s: GameState, unit: Unit): { x: number; y: number
         // v17 living map: storms make water impassable; camps can be entered (razed) but not passed through
         if ((t.terrain === "water" || t.terrain === "ocean") && inStorm(s, nx, ny)) continue;
         dist.set(key, nd);
-        if (!campAt(s, nx, ny)) frontier.push([nx, ny, nd]);
+        // a clamped slow step exhausts movement — don't continue pathing beyond it
+        if (!campAt(s, nx, ny) && cd + cost <= mp) frontier.push([nx, ny, nd]);
         out.push({ x: nx, y: ny });
       }
     }

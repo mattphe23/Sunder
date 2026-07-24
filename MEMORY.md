@@ -2,6 +2,21 @@
 
 - React 19 StrictMode double-mount guarded via startedRef in GameCanvas.
 
+## v24 — fog-of-war + readability (user report) IN PROGRESS
+- FOG FINDINGS (verified in browser + headless): engine explore/reveal pipeline WORKS —
+  moveUnit → exploreAround (radius 2) → changed → GameCanvas rebuilds board. Delta confirmed +4/+5.
+- REAL ROOT CAUSE of "fog doesn't lift": moveCost — forest costs 2 MP without forestry tech, and
+  warriors have 1 MP, so units CANNOT ENTER forest early game; mountains impassable without
+  climbing; water impassable without port+sailing. Maps are forest/mountain-heavy → player feels
+  stuck, fog never lifts nearby. Warrior at (9,8) couldn't move to ANY adjacent tile (all forest
+  cost-2 or water) — a legal no-move position on turn 2!
+- Also: unexplored is pure void (no hint anything is there) and explored-dim (0.45) is subtle,
+  worsening the perception. Plan: (a) allow entering forest at full-stop (Polytopia rule: moving
+  into forest ends movement — cost = max(1, remaining) instead of hard 2>1 rejection), (b) make
+  fog rendering legible: unexplored → dark "cloud" tiles instead of void, explored-not-visible
+  clearly dimmed, (c) graphics readability pass on decor meshes.
+- Babylon NOT exposed as window.BABYLON (submodule imports). Test via state, not scene.
+
 ## v23 — publish-stall fix (2026-07-23 ~14:30-15:00 UTC) CURRENT
 - SYMPTOM: publishes stuck for hours (v22/v22.1/v22.2). Production manus.space URL guesses 404. `manus-webdev-logs` says platform-default logs unsupported → likely no deploy ever completed.
 - v22.1 had "Divergence resolved: force-pushed" that replaced working tree with stale ~v15; rolled back to c0f745f2, restored+checkpointed as 9a12e615 (v22.2), 31 tests green.
@@ -15,6 +30,13 @@
 - Shader compile errors after refactor (VERTEX SHADER ERROR, imageProcessing defines) FIXED by shader side-effect imports; console clean post-14:51 reload.
 - Board renders fine (screenshot verified). Synthetic/browser-tool canvas clicks not triggering BJS POINTERTAP selection — KNOWN pre-existing limitation (see "Verified in browser 2026-07-22" note: exact canvas picking needs real human clicks; POINTERTAP works for humans). NOT a regression.
 - Test save "Auren T1" in slot 1 — clear localStorage polyforge-save-v1 before delivery.
+- v23 checkpoint f1c16406 saved (publish fix). Post-checkpoint: waited ~10 min, probed domain guesses
+  (polytopia-clone.manus.space, n6b64njmivwhl28ndcd6ip.manus.space etc.) — all 404. `manus-webdev-logs`
+  still says platform "default" unsupported. Cannot verify from sandbox; actual production domain is
+  only visible in user's Management UI → Settings → Domains. User is on phone.
+- Production artifact verified healthy locally: `PORT=4173 NODE_ENV=production node dist/index.js`
+  → 200 on /, babylon chunk served, tRPC auth.me responds. Project side is fine; the publish
+  blockage is platform-side. User confirms live site still does not load.
 - NEXT: pnpm check + vitest, clear test save, checkpoint (triggers fresh publish), verify publish lands, tell user.
 
 ## v15 graphics pass — progress (CURRENT)
@@ -609,3 +631,40 @@ Key APIs: game.dismissHandoff() exists (L~732 sets handoff=null + emit). trpc ho
 - server/coalition.test.ts: 5 unit tests w/ fake GameState (strengthOf = army+stars*0.35+cityLevels*2+cities*3 — fake states must balance cities/units or dominance checks misfire).
 - engine.sim.test.ts hero test REFRAMED: was survival-rate floor (flaky — heroes legitimately die to ENEMY attacks); now behavioral: wounded (≤60%) hero never ends its own turn farther from nearest friendly city. 31 tests green, 6 files.
 - match.test.ts already covers create→join→alternate turns→finish + full-match/stranger guards + abandon via appRouter.createCaller with mocked db (in-memory). Two-account browser E2E not feasible (needs two real Manus OAuth accounts) — server contract is the testable surface.
+- MOVEMENT FIX APPLIED in rules.ts reachableTiles: cost clamp `Number.isFinite(cost) && cd < mp ?
+  min(cd+cost, mp) : cd+cost`, frontier only extended when `cd+cost <= mp`. Verified: forest now
+  enterable from stuck spot; 31 tests green; tsc clean. Told user.
+- SCENE.TS STRUCTURE (for readability pass): buildTile decor at lines ~305-489:
+  port pier+mast ~307-325, forest 3 cone-trees ~326-335 (#2c7a34), mountain 1 cone tess4 #e8eef7
+  ~336-343, resource = tiny 0.13 icosphere orb ~344-353 (fruit #ff7854, animal #c98d4a, mineral
+  #9ad7e8) — MAIN CULPRIT, unreadable, ruin obelisk+glow cap+stump ~354-384, greatRuin gold twin
+  pillars+core+plinth ~385-423, city houses ring (0.26 boxes) + capital spire + walls ~424-484,
+  fog dim `if (!visible) decor.visibility = 0.45` line 486, tileColor ~491 (owner tint lerp 0.22).
+  buildBoard skips !explored tiles entirely (line ~276) → unexplored = VOID.
+  syncUnits ~507; syncWorld (camps/storms) ~570; animateMove ~958.
+  TERRAIN_H/TERRAIN_COLORS consts near top; mat(hex) cached; addShadows(m, receiveOnly).
+- READABILITY PLAN: (1) unexplored tiles → dark flat "cloud" boxes (single dark mat #1c1c40,
+  slight height, no decor, non-pickable) so map extent is visible; (2) explored-not-visible:
+  keep 0.45 dim but ALSO desaturate tile color toward indigo (lerp 0.5) for clear fog read;
+  (3) resources: bigger recognizable shapes — fruit = 2-3 orange spheres on small bush, animal
+  = brown body+head boxes (critter), mineral = crystal polyhedron cluster (cyan, slight emissive);
+  (4) forest trees: two-tone (trunk cylinder + canopy cone), vary heights; (5) mountain: snow cap
+  cone atop gray rock cone; (6) city: keep houses but add ground plate ring in tribe color for
+  ownership read; (7) port: bigger pier + tribe-colored sail triangle; (8) unit shapes stay but
+  ensure tribe color plate under units. Keep perf: all plain meshes, cached mats.
+
+## Graphics readability pass (v24, in progress)
+- DONE in scene.ts: buildFogTile (unexplored = dark slab #1b1b3f + flat mist puff alpha 0.4,
+  scaling.y 0.22); foggedMat(hex) = desat 0.6 + wash to #262650 0.55, cached "fog:"+hex;
+  fogged tile tops use foggedMat, tile visibility 0.75; fogged DECOR now washes materials via
+  foggedMat + visibility 0.6 (fix: snow caps/white houses punched through fog).
+- Decor redesigns DONE: two-tone trees (trunk #6d4a2f + canopy cones #2c7a34/#37914b, varied h);
+  mountains = gray rock #7d8aa0 + snow cap #f4f8ff + shoulder peak #93a1b8; port adds cream sail;
+  resources: fruit = green bush + 3 red berries, animal = brown critter (body/head/ears),
+  mineral = 3 cyan crystal shards (emissive); city: color plate disc under city, cream houses
+  #e8e2d4 with tribe-color pitched roofs, capital gold spire kept.
+- Movement/fog FIX (earlier): rules.ts reachableTiles full-stop entry into slow terrain.
+- VERIFY NEXT: reload ?r=4 → CONTINUE save (slot 1 Auren T3), screenshot: check fogged mountain
+  area now washes indigo (was near-white), fog bank dark, resources readable. Then: unit shapes
+  unchanged (OK), run pnpm check + vitest, update todo.md v24 items, checkpoint + notify user.
+- Save slot 1 has user's real Auren T3 save — do NOT delete it.

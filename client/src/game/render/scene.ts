@@ -240,6 +240,23 @@ export class BoardRenderer {
     return m;
   }
 
+  /** fog-of-war variant of a tile color: desaturated and washed toward deep indigo */
+  private foggedMat(hex: string): StandardMaterial {
+    const key = "fog:" + hex;
+    let m = this.mats.get(key);
+    if (!m) {
+      const base = Color3.FromHexString(hex);
+      const grey = (base.r + base.g + base.b) / 3;
+      const desat = Color3.Lerp(base, new Color3(grey, grey, grey), 0.6);
+      const washed = Color3.Lerp(desat, Color3.FromHexString("#262650"), 0.55);
+      m = new StandardMaterial("m" + key, this.scene);
+      m.diffuseColor = washed;
+      m.specularColor = Color3.Black();
+      this.mats.set(key, m);
+    }
+    return m;
+  }
+
   /** dedicated animated material for water tiles (kept out of the shared cache) */
   private waterMat(deep: boolean): StandardMaterial {
     const name = deep ? "water-ocean" : "water-shallow";
@@ -277,7 +294,12 @@ export class BoardRenderer {
     const c = this.center(s.size);
     const human = s.humanTribe;
     for (const t of s.tiles) {
-      if (!t.explored[human]) continue;
+      if (!t.explored[human]) {
+        // unexplored: render a dark "cloud" slab so the map's extent stays legible
+        // (tiles simply not existing read as a rendering bug, not as fog)
+        this.buildFogTile(s, t, c);
+        continue;
+      }
       this.buildTile(s, t, c);
     }
     if (!this.cameraInitialized) {
@@ -288,6 +310,44 @@ export class BoardRenderer {
     }
   }
 
+  /** unexplored tile: low dark slab + soft mist puff — clearly "fog", clearly there */
+  private buildFogTile(s: GameState, t: Tile, c: number) {
+    const key = idx(t.x, t.y, s.size);
+    const box = MeshBuilder.CreateBox("t" + key, { width: TILE * 0.96, depth: TILE * 0.96, height: 0.2 }, this.scene);
+    box.position = new Vector3(t.x - c, 0.1 - 0.4, t.y - c);
+    let fogMat = this.mats.get("fog-cloud");
+    if (!fogMat) {
+      fogMat = new StandardMaterial("fog-cloud", this.scene);
+      fogMat.diffuseColor = Color3.FromHexString("#1b1b3f");
+      fogMat.emissiveColor = Color3.FromHexString("#08081c");
+      fogMat.specularColor = Color3.Black();
+      this.mats.set("fog-cloud", fogMat);
+    }
+    box.material = fogMat;
+    box.metadata = { tile: true, x: t.x, y: t.y };
+    box.parent = this.root;
+    this.tileMeshes.set(key, box);
+    // deterministic mist puff so the fog bank looks organic, not gridded
+    const j = ((t.x * 31 + t.y * 17) % 7) / 7;
+    const puff = MeshBuilder.CreateIcoSphere("mist", { radius: 0.34 + j * 0.18, subdivisions: 2 }, this.scene);
+    puff.position = new Vector3(t.x - c + (j - 0.5) * 0.34, -0.2, t.y - c + (0.5 - j) * 0.34);
+    puff.scaling.y = 0.22;
+    let mistMat = this.mats.get("fog-mist");
+    if (!mistMat) {
+      mistMat = new StandardMaterial("fog-mist", this.scene);
+      mistMat.diffuseColor = Color3.FromHexString("#252550");
+      mistMat.emissiveColor = Color3.FromHexString("#101028");
+      mistMat.specularColor = Color3.Black();
+      mistMat.alpha = 0.4;
+      this.mats.set("fog-mist", mistMat);
+    }
+    puff.material = mistMat;
+    puff.isPickable = false;
+    puff.metadata = { tile: true, x: t.x, y: t.y };
+    puff.parent = this.root;
+    this.decorMeshes.set(key, [puff]);
+  }
+
   private buildTile(s: GameState, t: Tile, c: number) {
     const key = idx(t.x, t.y, s.size);
     const h = TERRAIN_H[t.terrain];
@@ -296,20 +356,23 @@ export class BoardRenderer {
     if (t.terrain === "water" || t.terrain === "ocean") {
       box.material = this.waterMat(t.terrain === "ocean");
     } else {
-      box.material = this.mat(this.tileColor(s, t));
+      // fog of war: explored-but-not-visible tiles get a desaturated indigo-washed
+      // material so "old intel" reads clearly different from live vision
+      const fogged = !isVisibleTo(s, s.humanTribe, t.x, t.y);
+      box.material = fogged ? this.foggedMat(this.tileColor(s, t)) : this.mat(this.tileColor(s, t));
     }
     box.metadata = { tile: true, x: t.x, y: t.y };
     box.parent = this.root;
     this.addShadows(box, true); // tiles receive shadows
     // fog of war depth: explored but not currently visible → dimmed
     const visible = isVisibleTo(s, s.humanTribe, t.x, t.y);
-    if (!visible) box.visibility = 0.45;
+    if (!visible) box.visibility = 0.75;
     this.tileMeshes.set(key, box);
 
     const decor: Mesh[] = [];
     const top = h - 0.4;
     if (t.port !== null) {
-      // port: wooden pier ring + mast
+      // port: wooden pier + mast with a tribe-colored triangular sail (reads as "harbor")
       const pier = MeshBuilder.CreateCylinder("port", { diameter: 0.55, height: 0.1, tessellation: 8 }, this.scene);
       pier.position = new Vector3(t.x - c, top + 0.06, t.y - c);
       pier.material = this.mat("#a97c50");
@@ -322,34 +385,110 @@ export class BoardRenderer {
       mast.metadata = { tile: true, x: t.x, y: t.y };
       mast.parent = this.root;
       decor.push(mast);
+      // sail: flattened cone reads as a triangular sail from the game camera
+      const sail = MeshBuilder.CreateCylinder("sail", { diameterTop: 0, diameterBottom: 0.3, height: 0.34, tessellation: 3 }, this.scene);
+      sail.position = new Vector3(t.x - c + 0.02, top + 0.34, t.y - c);
+      sail.scaling.z = 0.25;
+      sail.material = this.mat("#f2ead8");
+      sail.metadata = { tile: true, x: t.x, y: t.y };
+      sail.parent = this.root;
+      decor.push(sail);
     }
     if (t.terrain === "forest") {
+      // two-tone trees: brown trunk + layered canopy, varied heights — unmistakably a forest
       for (let i = 0; i < 3; i++) {
-        const tree = MeshBuilder.CreateCylinder("tr", { diameterTop: 0, diameterBottom: 0.28, height: 0.45, tessellation: 5 }, this.scene);
-        tree.position = new Vector3(t.x - c + (i - 1) * 0.24, top + 0.22, t.y - c + ((i * 7) % 3 - 1) * 0.22);
-        tree.material = this.mat("#2c7a34");
-        tree.metadata = { tile: true, x: t.x, y: t.y };
-        tree.parent = this.root;
-        decor.push(tree);
+        const px = t.x - c + (i - 1) * 0.26;
+        const pz = t.y - c + ((i * 7) % 3 - 1) * 0.24;
+        const th = 0.4 + ((i * 13 + t.x + t.y) % 3) * 0.09;
+        const trunk = MeshBuilder.CreateCylinder("trk", { diameter: 0.09, height: 0.22, tessellation: 5 }, this.scene);
+        trunk.position = new Vector3(px, top + 0.11, pz);
+        trunk.material = this.mat("#6d4a2f");
+        trunk.metadata = { tile: true, x: t.x, y: t.y };
+        trunk.parent = this.root;
+        decor.push(trunk);
+        const canopy = MeshBuilder.CreateCylinder("tr", { diameterTop: 0, diameterBottom: 0.3, height: th, tessellation: 6 }, this.scene);
+        canopy.position = new Vector3(px, top + 0.2 + th / 2, pz);
+        canopy.material = this.mat(i === 1 ? "#2c7a34" : "#37914b");
+        canopy.metadata = { tile: true, x: t.x, y: t.y };
+        canopy.parent = this.root;
+        decor.push(canopy);
       }
     }
     if (t.terrain === "mountain") {
-      const peak = MeshBuilder.CreateCylinder("pk", { diameterTop: 0, diameterBottom: 0.55, height: 0.5, tessellation: 4 }, this.scene);
-      peak.position = new Vector3(t.x - c, top + 0.25, t.y - c);
-      peak.material = this.mat("#e8eef7");
-      peak.metadata = { tile: true, x: t.x, y: t.y };
-      peak.parent = this.root;
-      decor.push(peak);
+      // gray rock peak with a white snow cap (was one pale cone that read as "ice cube")
+      const rock = MeshBuilder.CreateCylinder("pk", { diameterTop: 0.14, diameterBottom: 0.6, height: 0.42, tessellation: 5 }, this.scene);
+      rock.position = new Vector3(t.x - c, top + 0.21, t.y - c);
+      rock.rotation.y = ((t.x + t.y) % 4) * 0.4;
+      rock.material = this.mat("#7d8aa0");
+      rock.metadata = { tile: true, x: t.x, y: t.y };
+      rock.parent = this.root;
+      decor.push(rock);
+      const snow = MeshBuilder.CreateCylinder("snow", { diameterTop: 0, diameterBottom: 0.22, height: 0.24, tessellation: 5 }, this.scene);
+      snow.position = new Vector3(t.x - c, top + 0.52, t.y - c);
+      snow.rotation.y = rock.rotation.y;
+      snow.material = this.mat("#f4f8ff");
+      snow.metadata = { tile: true, x: t.x, y: t.y };
+      snow.parent = this.root;
+      decor.push(snow);
+      // small secondary shoulder peak for a mountain silhouette
+      const shoulder = MeshBuilder.CreateCylinder("pk2", { diameterTop: 0, diameterBottom: 0.3, height: 0.3, tessellation: 5 }, this.scene);
+      shoulder.position = new Vector3(t.x - c + 0.24, top + 0.15, t.y - c - 0.18);
+      shoulder.material = this.mat("#93a1b8");
+      shoulder.metadata = { tile: true, x: t.x, y: t.y };
+      shoulder.parent = this.root;
+      decor.push(shoulder);
     }
     if (t.resource) {
-      if (!visible) { /* resources still shown dimmed */ }
-      const rc = t.resource === "fruit" ? "#ff7854" : t.resource === "animal" ? "#c98d4a" : "#9ad7e8";
-      const orb = MeshBuilder.CreateIcoSphere("res", { radius: 0.13, subdivisions: 1 }, this.scene);
-      orb.position = new Vector3(t.x - c + 0.3, top + 0.14, t.y - c + 0.3);
-      orb.material = this.mat(rc);
-      orb.metadata = { tile: true, x: t.x, y: t.y };
-      orb.parent = this.root;
-      decor.push(orb);
+      // distinct silhouettes per resource type (was one tiny ambiguous orb)
+      const rx = t.x - c + 0.3, rz = t.y - c + 0.3;
+      const md = { tile: true, x: t.x, y: t.y };
+      if (t.resource === "fruit") {
+        // fruit: leafy bush studded with bright berries
+        const bush = MeshBuilder.CreateIcoSphere("res", { radius: 0.16, subdivisions: 1 }, this.scene);
+        bush.position = new Vector3(rx, top + 0.12, rz);
+        bush.scaling.y = 0.8;
+        bush.material = this.mat("#3f9e46");
+        bush.metadata = md; bush.parent = this.root; decor.push(bush);
+        for (const [bx, bz, by] of [[-0.08, 0.06, 0.2], [0.1, -0.02, 0.16], [0, 0.1, 0.1]] as const) {
+          const berry = MeshBuilder.CreateIcoSphere("berry", { radius: 0.055, subdivisions: 1 }, this.scene);
+          berry.position = new Vector3(rx + bx, top + by, rz + bz);
+          berry.material = this.mat("#ff5a3c");
+          berry.metadata = md; berry.parent = this.root; decor.push(berry);
+        }
+      } else if (t.resource === "animal") {
+        // animal: little brown critter — body, head, two ears
+        const body = MeshBuilder.CreateBox("res", { width: 0.24, depth: 0.16, height: 0.14 }, this.scene);
+        body.position = new Vector3(rx, top + 0.08, rz);
+        body.material = this.mat("#a5713d");
+        body.metadata = md; body.parent = this.root; decor.push(body);
+        const head = MeshBuilder.CreateBox("head", { width: 0.11, depth: 0.11, height: 0.11 }, this.scene);
+        head.position = new Vector3(rx + 0.15, top + 0.16, rz);
+        head.material = this.mat("#b8834e");
+        head.metadata = md; head.parent = this.root; decor.push(head);
+        for (const ez of [-0.035, 0.035]) {
+          const ear = MeshBuilder.CreateBox("ear", { width: 0.03, depth: 0.03, height: 0.07 }, this.scene);
+          ear.position = new Vector3(rx + 0.15, top + 0.25, rz + ez);
+          ear.material = this.mat("#8a5c30");
+          ear.metadata = md; ear.parent = this.root; decor.push(ear);
+        }
+      } else {
+        // mineral: glinting crystal shard cluster
+        let crysMat = this.mats.get("crystal");
+        if (!crysMat) {
+          crysMat = new StandardMaterial("crystal", this.scene);
+          crysMat.diffuseColor = Color3.FromHexString("#7fd4ef");
+          crysMat.emissiveColor = Color3.FromHexString("#1e6c8a");
+          crysMat.specularColor = new Color3(0.4, 0.5, 0.6);
+          this.mats.set("crystal", crysMat);
+        }
+        for (const [sx, sz, sh, rot] of [[0, 0, 0.34, 0], [0.11, -0.06, 0.2, 0.5], [-0.09, 0.08, 0.16, -0.4]] as const) {
+          const shard = MeshBuilder.CreateCylinder("res", { diameterTop: 0, diameterBottom: 0.12, height: sh, tessellation: 4 }, this.scene);
+          shard.position = new Vector3(rx + sx, top + sh / 2, rz + sz);
+          shard.rotation.z = rot * 0.3;
+          shard.material = crysMat;
+          shard.metadata = md; shard.parent = this.root; decor.push(shard);
+        }
+      }
     }
     if (t.ruin) {
       // ancient ruin: weathered obelisk with a glowing amber capstone
@@ -426,6 +565,14 @@ export class BoardRenderer {
       const isNeutral = city.tribe === null;
       const col = isNeutral ? "#c9b896" : s.tribes[city.tribe!].color;
       const n = isNeutral ? 1 : Math.min(4, city.level + 1);
+      // ownership plate: a flat colored disc under the city makes "whose city is this"
+      // readable at any zoom (neutral = sand ring)
+      const plate = MeshBuilder.CreateCylinder("cityplate", { diameter: 0.95, height: 0.05, tessellation: 12 }, this.scene);
+      plate.position = new Vector3(t.x - c, top + 0.03, t.y - c);
+      plate.material = this.mat(col);
+      plate.metadata = { tile: true, x: t.x, y: t.y };
+      plate.parent = this.root;
+      decor.push(plate);
       for (let i = 0; i < n; i++) {
         const house = MeshBuilder.CreateBox("cty", { width: 0.26, depth: 0.26, height: 0.3 + i * 0.05 }, this.scene);
         const ang = (i / n) * Math.PI * 2;
@@ -434,10 +581,19 @@ export class BoardRenderer {
           top + 0.16 + i * 0.02,
           t.y - c + Math.sin(ang) * 0.22 * (n > 1 ? 1 : 0)
         );
-        house.material = this.mat(col);
+        house.material = this.mat("#e8e2d4");
         house.metadata = { tile: true, x: t.x, y: t.y };
         house.parent = this.root;
         decor.push(house);
+        // pitched roof in tribe color so buildings read as houses, not boxes
+        const roof = MeshBuilder.CreateCylinder("roof", { diameterTop: 0, diameterBottom: 0.3, height: 0.16, tessellation: 4 }, this.scene);
+        roof.position = house.position.clone();
+        roof.position.y = top + 0.16 + i * 0.02 + (0.3 + i * 0.05) / 2 + 0.08;
+        roof.rotation.y = Math.PI / 4;
+        roof.material = this.mat(col);
+        roof.metadata = { tile: true, x: t.x, y: t.y };
+        roof.parent = this.root;
+        decor.push(roof);
       }
       if (city.isCapital && city.tribe !== null) {
         const spire = MeshBuilder.CreateCylinder("cap", { diameterTop: 0, diameterBottom: 0.2, height: 0.55, tessellation: 4 }, this.scene);
@@ -483,7 +639,17 @@ export class BoardRenderer {
         }
       }
     }
-    if (!visible) decor.forEach((m) => (m.visibility = 0.45));
+    if (!visible) {
+      // fogged decor: dim AND wash toward indigo so bright meshes (snow caps,
+      // white houses) don't punch through the fog-of-war read
+      decor.forEach((m) => {
+        m.visibility = 0.6;
+        const cur = m.material as StandardMaterial | null;
+        if (cur && (cur as StandardMaterial).diffuseColor) {
+          m.material = this.foggedMat((cur as StandardMaterial).diffuseColor.toHexString());
+        }
+      });
+    }
     decor.forEach((m) => this.addShadows(m));
     this.decorMeshes.set(key, decor);
   }
