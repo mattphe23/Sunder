@@ -23,10 +23,10 @@ function fakeState(overrides: Partial<GameState> = {}): GameState {
 }
 
 describe("v20 asymmetric victory paths", () => {
-  it("defines a path for all 6 factions plus the generic custom path", () => {
-    expect(VICTORY_PATHS.length).toBe(7);
+  it("defines a path for all 8 factions plus the generic custom path", () => {
+    expect(VICTORY_PATHS.length).toBe(9);
     const ids = new Set(VICTORY_PATHS.map((p) => p.id));
-    expect(ids.size).toBe(7);
+    expect(ids.size).toBe(9);
     for (const p of VICTORY_PATHS) {
       expect(p.name.length).toBeGreaterThan(2);
       expect(p.goal.length).toBeGreaterThan(5);
@@ -89,9 +89,9 @@ describe("v20 asymmetric victory paths", () => {
     expect(checkPathVictory(s)).toBeNull();
   });
 
-  it("custom forge tribes (defIndex 6) fall back to the generic Ascendance path", () => {
+  it("custom forge tribes (defIndex 8 = TRIBE_DEFS.length) fall back to the generic Ascendance path", () => {
     const s = fakeState();
-    s.tribes[0].defIndex = 6;
+    s.tribes[0].defIndex = 8;
     s.tribes[0].score = 899;
     expect(victoryProgress(s, 0)!.def.id).toBe("ascendance");
     expect(victoryProgress(s, 0)!.done).toBe(false);

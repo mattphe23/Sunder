@@ -373,6 +373,19 @@ class GameStore {
       if (h.tribe !== tribeIdx || !h.hero || !(h.perks?.includes("mender"))) continue;
       if (h.hp < h.maxHp) { h.hp = Math.min(h.maxHp, h.hp + 3); healed = true; healedAt.push({ x: h.x, y: h.y }); }
     }
+    // Mycelon Sporebound: units resting in friendly territory knit flesh with spores (+2 HP)
+    if (tribe.passive === "sporebound") {
+      for (const u of s.units) {
+        if (u.tribe !== tribeIdx || u.hp >= u.maxHp || u.guardian) continue;
+        const t = s.tiles[u.y * s.size + u.x];
+        const owner = t.ownerCityId != null ? s.cities.find((c) => c.id === t.ownerCityId) : null;
+        if (owner && owner.tribe === tribeIdx) {
+          u.hp = Math.min(u.maxHp, u.hp + 2);
+          healed = true;
+          healedAt.push({ x: u.x, y: u.y });
+        }
+      }
+    }
     if (healed && tribeIdx === s.humanTribe) {
       for (const p of healedAt) this.emit({ type: "sfx", name: "heal", x: p.x, y: p.y });
     }
@@ -1466,13 +1479,17 @@ if (typeof window !== "undefined") {
       const [seed = "4242", size = "11", tribe = "0", preset = "continents"] = dg.split(",");
       // hide onboarding overlays so screenshots show the raw board
       try { localStorage.setItem("polyforge-tutorial-done", "1"); } catch { /* noop */ }
-      const tribeIdx = Math.min(3, Math.max(0, parseInt(tribe, 10) || 0));
+      const req = Math.max(0, parseInt(tribe, 10) || 0);
+      // values 0-3 pick a roster slot on the default roster; larger values are
+      // TRIBE_DEFS indices (e.g. 6/7 premium tribes) injected as slot 0
+      const roster = req > 3 ? [req, 1, 2, 3] : undefined;
       game.newGame({
-        humanTribe: tribeIdx,
+        humanTribe: req > 3 ? 0 : req,
         difficulty: "normal",
         size: parseInt(size, 10) || 11,
         seed: parseInt(seed, 10) || 4242,
         preset: preset as MapPreset,
+        roster,
       });
       game.state.showIntro = false;
       game.emit({ type: "changed" });

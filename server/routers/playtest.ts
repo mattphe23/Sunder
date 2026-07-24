@@ -8,6 +8,7 @@ import { TRPCError } from "@trpc/server";
 import * as db from "../db";
 import { adminProcedure, router } from "../_core/trpc";
 import { runPlaytest, DEFAULT_PLAYTEST_MODEL } from "../playtest";
+import { runMapBuilder } from "../mapBuilder";
 
 // Serialize runs in-process: the game engine is a module singleton, so two
 // concurrent playtests would corrupt each other's state.
@@ -47,6 +48,22 @@ function enqueue(runId: number, params: { seed: number; size: number; preset: st
 }
 
 export const playtestRouter = router({
+  // AI map builder: survey candidate seeds, measure fairness metrics, LLM
+  // ranks and names the best boards. Synchronous — a survey is seconds of
+  // generation plus one LLM call, well inside the request window.
+  buildMaps: adminProcedure
+    .input(
+      z.object({
+        preset: z.enum(["continents", "archipelago", "highlands", "pangaea"]).default("continents"),
+        size: z.union([z.literal(9), z.literal(11), z.literal(13)]).default(11),
+        count: z.number().int().min(6).max(24).default(12),
+        brief: z.string().max(300).optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      return runMapBuilder(input);
+    }),
+
   start: adminProcedure
     .input(
       z.object({

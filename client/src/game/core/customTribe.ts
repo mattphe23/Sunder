@@ -5,7 +5,7 @@
 import { FactionPassive, TechId, UnitType, TRIBE_DEFS } from "./types";
 
 const KEY = "polyforge-custom-tribe-v1";
-export const CUSTOM_DEF_INDEX = TRIBE_DEFS.length; // 6 — slot appended at runtime
+export const CUSTOM_DEF_INDEX = TRIBE_DEFS.length; // 8 (6 standard + 2 premium) — slot appended at runtime
 
 export interface CustomTribeConfig {
   name: string;

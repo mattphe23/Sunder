@@ -74,6 +74,27 @@ const INTROS: IntroDef[] = [
       "Let rivals bleed on your defenses, then counterattack with fresh units.",
     ],
   },
+  // ── premium tribes (store unlocks) ──
+  {
+    title: "The Valkyra Stormhost",
+    lore: "They descend from the thunder-plateaus where lightning is weather and omen both. A Valkyra charge is not a battle — it is a verdict, delivered before the defense can answer.",
+    uniqueUnit: "archer",
+    openings: [
+      "Retaliation against you is halved — trade blows aggressively; you win attrition.",
+      "Open with Archery already known: field ranged cover from the very first turns.",
+      "Push for veteran units — four living veterans summon the Storm Legend victory.",
+    ],
+  },
+  {
+    title: "The Mycelon Bloom",
+    lore: "Beneath the forest floor the Mycelon are one flesh, dreaming a slow green dream. Cut them and they knit; burn them and the spores ride the smoke to somewhere new.",
+    uniqueUnit: "defender",
+    openings: [
+      "Units heal +2 extra HP resting in your territory — defend on home soil and outlast.",
+      "Free Spirit is pre-researched: your cities defend strongly from turn 1.",
+      "Spread to 5 cities and the Overgrowth victory blooms — expand relentlessly.",
+    ],
+  },
 ];
 
 // v19: compact lore teasers for menu faction-card hovers — title + the first

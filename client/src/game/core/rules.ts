@@ -209,7 +209,11 @@ export function previewCombat(s: GameState, attacker: Unit, defender: Unit): Com
   if (bulwarkShielded(s, defender)) damageToDefender = Math.max(1, Math.round(damageToDefender * 0.8));
   // v16 hero Warding aura: adjacent allies take 15% less damage
   if (wardedBy(s, defender)) damageToDefender = Math.max(1, Math.round(damageToDefender * 0.85));
-  const damageToAttacker = Math.round((defenseForce / total) * dStats.defense * 4.5);
+  let damageToAttacker = Math.round((defenseForce / total) * dStats.defense * 4.5);
+  // Valkyra Stormborn: strikes land like thunder — retaliation against them is halved
+  if (attacker.tribe >= 0 && s.tribes[attacker.tribe].passive === "stormborn") {
+    damageToAttacker = Math.floor(damageToAttacker * 0.5);
+  }
   const defenderDies = defender.hp - damageToDefender <= 0;
   // retaliation only if defender survives, attacker within defender's range, and attacker adjacent (melee exposure)
   const dist = Math.max(Math.abs(attacker.x - defender.x), Math.abs(attacker.y - defender.y));
@@ -232,6 +236,7 @@ export function combatModifiers(s: GameState, attacker: Unit, defender: Unit): {
   if (inspiredBy(s, attacker)) out.push({ text: "Inspired +15% attack", side: "atk" });
   if (attacker.type === "berserker" && defender.hp < defender.maxHp) out.push({ text: "Berserker +50% vs wounded", side: "atk" });
   if (attacker.type === "tidecaller" && tileAt(s, attacker.x, attacker.y).terrain === "water") out.push({ text: "Tidecaller +30% from water", side: "atk" });
+  if (attacker.tribe >= 0 && s.tribes[attacker.tribe].passive === "stormborn") out.push({ text: "Stormborn — retaliation halved", side: "atk" });
   if (attacker.hp < attacker.maxHp) out.push({ text: "Wounded — attack force reduced", side: "atk" });
   // --- defender modifiers (mirrors defenseBonus) ---
   if (bulwarkShielded(s, defender)) out.push({ text: "Bulwark aura −20% damage taken", side: "def" });

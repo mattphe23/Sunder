@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, FlaskConical, ArrowLeft, Bot, Swords, Bug, Lightbulb, Eye, Sparkles } from "lucide-react";
+import { Loader2, FlaskConical, ArrowLeft, Bot, Swords, Bug, Lightbulb, Eye, Sparkles, Map as MapIcon } from "lucide-react";
 
 const TRIBE_NAMES = ["Auren", "Kharzul", "Sunwei", "Vessari"]; // roster slots 0-3
 
@@ -294,9 +294,112 @@ export default function PlaytestLab() {
                 )}
               </CardContent>
             </Card>
+
+            <MapBuilderCard />
           </>
         )}
       </div>
     </div>
+  );
+}
+
+/** AI Map Builder — surveys candidate seeds, measures fairness metrics, and the
+ *  LLM names + ranks the best boards for curated packs. */
+function MapBuilderCard() {
+  const [preset, setPreset] = useState("continents");
+  const [size, setSize] = useState("11");
+  const [brief, setBrief] = useState("");
+  const build = trpc.playtest.buildMaps.useMutation();
+  const res = build.data;
+  return (
+    <Card className="border-white/10 bg-white/5">
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-white"><MapIcon className="h-4 w-4 text-violet-300" /> AI Map Builder</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="space-y-1">
+            <label className="text-[11px] uppercase tracking-wider text-white/50">World</label>
+            <Select value={preset} onValueChange={setPreset}>
+              <SelectTrigger className="w-36 border-white/20 bg-white/5 text-white"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="continents">Continents</SelectItem>
+                <SelectItem value="archipelago">Archipelago</SelectItem>
+                <SelectItem value="highlands">Highlands</SelectItem>
+                <SelectItem value="pangaea">Pangaea</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-[11px] uppercase tracking-wider text-white/50">Size</label>
+            <Select value={size} onValueChange={setSize}>
+              <SelectTrigger className="w-24 border-white/20 bg-white/5 text-white"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="9">9×9</SelectItem>
+                <SelectItem value="11">11×11</SelectItem>
+                <SelectItem value="13">13×13</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="min-w-48 flex-1 space-y-1">
+            <label className="text-[11px] uppercase tracking-wider text-white/50">Designer brief (optional)</label>
+            <input
+              value={brief}
+              onChange={(e) => setBrief(e.target.value)}
+              maxLength={300}
+              placeholder="e.g. naval chokepoints, aggressive early contact…"
+              className="w-full rounded-md border border-white/20 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-violet-400"
+            />
+          </div>
+          <Button
+            onClick={() => build.mutate({ preset: preset as never, size: Number(size) as never, brief: brief || undefined })}
+            disabled={build.isPending}
+            className="bg-violet-500 text-white hover:bg-violet-400"
+          >
+            {build.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <MapIcon className="mr-1 h-4 w-4" />}
+            Survey & rank
+          </Button>
+        </div>
+        <p className="mt-2 text-xs text-white/45">Generates 12 candidate boards, measures fairness (capital spread, start resources) and terrain mix, then the model names and ranks the 3 best. Picks can be added to curated packs by seed.</p>
+
+        {build.error && <p className="mt-3 text-sm text-red-300">{build.error.message}</p>}
+        {res && (
+          <div className="mt-4 space-y-3">
+            {res.picks.length === 0 ? (
+              <p className="text-sm text-white/50">No picks returned — try another survey.</p>
+            ) : (
+              res.picks.map((p) => {
+                const cand = res.candidates.find((c) => c.seed === p.seed);
+                return (
+                  <div key={p.seed} className="rounded-lg border border-violet-400/25 bg-violet-400/10 p-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold text-violet-100">{p.name}</span>
+                      <Badge variant="outline" className="border-violet-300/40 font-mono text-violet-200">seed {p.seed}</Badge>
+                      <span className="text-xs text-white/50">{p.preset} {p.size}×{p.size}</span>
+                      <a
+                        href={`/?devgame=${p.seed},${p.size},0,${p.preset}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="ml-auto text-xs font-semibold text-violet-300 underline-offset-2 hover:underline"
+                      >
+                        Preview board ↗
+                      </a>
+                    </div>
+                    <p className="mt-1 text-sm italic text-white/75">“{p.blurb}”</p>
+                    <p className="mt-1 text-xs text-white/55">{p.reasoning}</p>
+                    {cand && (
+                      <p className="mt-1.5 font-mono text-[10px] text-white/40">
+                        land {Math.round(cand.metrics.landPct * 100)}% · resources {Math.round(cand.metrics.resourcePct * 100)}% · capital spread ≥{cand.metrics.capitalSpreadMin} · start stdev {cand.metrics.capitalResourceStdev}
+                      </p>
+                    )}
+                  </div>
+                );
+              })
+            )}
+            {res.notes && <p className="text-xs text-white/50">Designer notes: {res.notes}</p>}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

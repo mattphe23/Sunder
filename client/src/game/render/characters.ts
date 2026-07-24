@@ -45,7 +45,7 @@ const BONE = "#e8e2d2";
 // defIndex matches TRIBE_DEFS order: Auren, Kharzul, Sunwei, Vessari, Nerivane, Dravok.
 interface Costume {
   accent: string;
-  headgear: "circlet" | "horns" | "straw" | "hood" | "crest" | "helm" | "none";
+  headgear: "circlet" | "horns" | "straw" | "hood" | "crest" | "helm" | "wings" | "cap" | "none";
 }
 const COSTUMES: Costume[] = [
   { accent: "#9fc4ff", headgear: "circlet" }, // Auren — scholars, silver-blue circlet
@@ -54,11 +54,46 @@ const COSTUMES: Costume[] = [
   { accent: "#d4b3ff", headgear: "hood" },    // Vessari — outriders, riding hood
   { accent: "#a0f0e4", headgear: "crest" },   // Nerivane — tideborn, fin crest
   { accent: "#e0c9a8", headgear: "helm" },    // Dravok — stonebound, stone helm
+  { accent: "#bae6fd", headgear: "wings" },   // Valkyra — stormborn, winged helm (premium)
+  { accent: "#d9f99d", headgear: "cap" },     // Mycelon — sporebound, mushroom cap (premium)
 ];
 const RAIDER_COSTUME: Costume = { accent: "#8d7a84", headgear: "none" };
 
+/* ---------- tribe skins (store unlocks) ----------
+ * A skin restyles a standard tribe's costume: new accent + optional unit color
+ * override. Selection lives in localStorage and is applied via setActiveSkins()
+ * from the React layer (entitlement-checked there). The rig itself is unchanged.
+ */
+export interface SkinDef {
+  key: string;          // entitlement key, e.g. "skin.auren.gilded"
+  name: string;
+  tribe: number;        // TRIBE_DEFS index it applies to
+  accent: string;       // costume accent replacement
+  unitColor?: string;   // optional replacement for the tribe unit color
+}
+export const SKINS: SkinDef[] = [
+  { key: "skin.auren.gilded", name: "Gilded Auren", tribe: 0, accent: "#ffd76e", unitColor: "#c9a227" },
+  { key: "skin.kharzul.obsidian", name: "Obsidian Kharzul", tribe: 1, accent: "#ff8c5a", unitColor: "#3b3542" },
+  { key: "skin.sunwei.jade", name: "Jade Sunwei", tribe: 2, accent: "#fdf6d8", unitColor: "#2e9e6b" },
+  { key: "skin.vessari.midnight", name: "Midnight Vessari", tribe: 3, accent: "#b39ddb", unitColor: "#4c3a8a" },
+  { key: "skin.nerivane.abyssal", name: "Abyssal Nerivane", tribe: 4, accent: "#7dd3fc", unitColor: "#155e75" },
+  { key: "skin.dravok.molten", name: "Molten Dravok", tribe: 5, accent: "#fca55a", unitColor: "#7c3a2d" },
+];
+
+/** active skin per TRIBE_DEFS index (skin key or undefined) — set from React */
+let activeSkins: Record<number, string | undefined> = {};
+export function setActiveSkins(next: Record<number, string | undefined>) {
+  activeSkins = { ...next };
+}
+export function skinFor(defIndex: number): SkinDef | undefined {
+  const key = activeSkins[defIndex];
+  return key ? SKINS.find((s) => s.key === key && s.tribe === defIndex) : undefined;
+}
+
 function costumeFor(defIndex: number): Costume {
-  return defIndex >= 0 && defIndex < COSTUMES.length ? COSTUMES[defIndex] : RAIDER_COSTUME;
+  const base = defIndex >= 0 && defIndex < COSTUMES.length ? COSTUMES[defIndex] : RAIDER_COSTUME;
+  const skin = skinFor(defIndex);
+  return skin ? { ...base, accent: skin.accent } : base;
 }
 
 /* ---------- primitive helpers (all meshes non-pickable, parented) ---------- */
@@ -157,6 +192,23 @@ function buildHeadgear(spec: CharacterSpec, parent: TransformNode, headY: number
     case "helm":
       ball(spec, "gear", 0.105, STEEL_DARK, parent, 0, headY + 0.025, 0).scaling.y = 0.7;
       break;
+    case "wings": {
+      // Valkyra winged helm: steel dome + two swept accent wings
+      ball(spec, "gear", 0.1, STEEL, parent, 0, headY + 0.03, 0).scaling.y = 0.65;
+      for (const sx of [-0.1, 0.1]) {
+        const wing = cyl(spec, "gear", 0, 0.07, 0.16, 3, c.accent, parent, sx, headY + 0.1, -0.01);
+        wing.rotation.z = sx > 0 ? -0.85 : 0.85;
+        wing.rotation.x = -0.15;
+      }
+      break;
+    }
+    case "cap": {
+      // Mycelon mushroom cap: wide dome with pale underside
+      const dome = ball(spec, "gear", 0.15, c.accent, parent, 0, headY + 0.075, 0);
+      dome.scaling.y = 0.55;
+      cyl(spec, "gear", 0.2, 0.2, 0.02, 10, BONE, parent, 0, headY + 0.045, 0);
+      break;
+    }
     case "none":
       break;
   }

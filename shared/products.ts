@@ -51,11 +51,11 @@ export const PRODUCTS: Product[] = [
   { sku: "skin_nerivane_abyssal", kind: "skin", name: "Abyssal Nerivane", tagline: "Tideborn from the lightless deep.", priceCents: 199, grants: [ENT.SKIN_NERIVANE_ABYSSAL], accent: "#0e7490" },
   { sku: "skin_dravok_molten", kind: "skin", name: "Molten Dravok", tagline: "Stonebound veined with living magma.", priceCents: 199, grants: [ENT.SKIN_DRAVOK_MOLTEN], accent: "#ea580c" },
   // — premium tribes ($3.99 each) —
-  { sku: "tribe_valkyra", kind: "tribe", name: "Valkyra", tagline: "Stormborn — attacks may stun defenders for a turn.", priceCents: 399, grants: [ENT.TRIBE_VALKYRA], accent: "#38bdf8" },
-  { sku: "tribe_mycelon", kind: "tribe", name: "Mycelon", tagline: "Sporebound — fallen enemies seed free Sporelings.", priceCents: 399, grants: [ENT.TRIBE_MYCELON], accent: "#a3e635" },
+  { sku: "tribe_valkyra", kind: "tribe", name: "Valkyra", tagline: "Stormborn — enemy retaliation against your attacks is halved.", priceCents: 399, grants: [ENT.TRIBE_VALKYRA], accent: "#38bdf8" },
+  { sku: "tribe_mycelon", kind: "tribe", name: "Mycelon", tagline: "Sporebound — units recover +2 extra HP resting in friendly territory.", priceCents: 399, grants: [ENT.TRIBE_MYCELON], accent: "#a3e635" },
   // — map packs ($2.99 each) —
-  { sku: "maps_forgotten_realms", kind: "maps", name: "Forgotten Realms Pack", tagline: "5 AI-forged maps: canyons, oases, and lost valleys.", priceCents: 299, grants: [ENT.MAPS_FORGOTTEN_REALMS], accent: "#f59e0b" },
-  { sku: "maps_shattered_seas", kind: "maps", name: "Shattered Seas Pack", tagline: "5 AI-forged maps: reefs, straits, and island fortresses.", priceCents: 299, grants: [ENT.MAPS_SHATTERED_SEAS], accent: "#22d3ee" },
+  { sku: "maps_forgotten_realms", kind: "maps", name: "Forgotten Realms Pack", tagline: "4 AI-forged maps: calderas, terraces, and lost valleys.", priceCents: 299, grants: [ENT.MAPS_FORGOTTEN_REALMS], accent: "#f59e0b" },
+  { sku: "maps_shattered_seas", kind: "maps", name: "Shattered Seas Pack", tagline: "4 AI-forged maps: reefs, straits, and island fortresses.", priceCents: 299, grants: [ENT.MAPS_SHATTERED_SEAS], accent: "#22d3ee" },
   // — story mode ($4.99 per chapter) —
   { sku: "story_ch1", kind: "story", name: "Story Mode — Chapter I: The Sundering", tagline: "Lead your forged tribe through 5 campaign missions.", priceCents: 499, grants: [ENT.STORY_CH1], accent: "#f43f5e" },
   // — ultimate ($14.99) —

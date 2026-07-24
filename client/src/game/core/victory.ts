@@ -13,7 +13,7 @@ export interface VictoryPathDef {
   flavor: string;
 }
 
-/** path per TRIBE_DEFS index; index 6 (custom forge tribes) uses the generic path */
+/** path per TRIBE_DEFS index; the final entry (custom forge tribes) is the generic path */
 export const VICTORY_PATHS: VictoryPathDef[] = [
   { id: "enlightenment", name: "Enlightenment", goal: `Research all ${TECHS.length} technologies`, flavor: "The Auren archives are complete — knowledge itself has conquered the Shatterlands." },
   { id: "bloodforge", name: "Bloodforge", goal: "Win 18 battles", flavor: "Kharzul's forges run red — no army dares stand against the Bloodforge." },
@@ -21,6 +21,8 @@ export const VICTORY_PATHS: VictoryPathDef[] = [
   { id: "plunderking", name: "Plunder King", goal: "Amass 45 stars in the treasury", flavor: "Vessari's saddlebags overflow — the Shatterlands' wealth rides with the Plunder King." },
   { id: "tidemastery", name: "Tide Mastery", goal: "Hold 4 ports on the open water", flavor: "Every current answers Nerivane — the tides themselves have chosen a master." },
   { id: "unbrokenwall", name: "Unbroken Wall", goal: "Hold 3 walled cities", flavor: "Dravok's ramparts blot out the horizon — the Unbroken Wall stands eternal." },
+  { id: "stormlegend", name: "Storm Legend", goal: "Field 4 veteran units at once", flavor: "Valkyra's thunder never fades — an army of storm-tempered legends darkens the sky." },
+  { id: "overgrowth", name: "Overgrowth", goal: "Hold 5 cities", flavor: "Mycelon's spores drift on every wind — the Shatterlands bloom beneath one endless canopy." },
   { id: "ascendance", name: "Ascendance", goal: "Reach 900 score", flavor: "A tribe forged from nothing now defines the age — the Shatterlands kneel to its ascendance." },
 ];
 
@@ -51,6 +53,10 @@ export function victoryProgress(s: GameState, tribeIdx: number): VictoryProgress
       current = s.tiles.filter((tl) => tl.port === tribeIdx).length; target = 4; break;
     case "unbrokenwall":
       current = s.cities.filter((c) => c.tribe === tribeIdx && c.walls).length; target = 3; break;
+    case "stormlegend":
+      current = s.units.filter((u) => u.tribe === tribeIdx && u.veteran).length; target = 4; break;
+    case "overgrowth":
+      current = s.cities.filter((c) => c.tribe === tribeIdx).length; target = 5; break;
     case "ascendance":
       current = t.score; target = 900; break;
   }

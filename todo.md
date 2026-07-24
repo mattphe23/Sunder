@@ -234,10 +234,10 @@ below was checked against the actual codebase before being marked.
 - [x] App stores deferred until web monetization is proven (decision locked with user)
 
 ### Premium content
-- [ ] Tribe skin system (recolor/costume variants on the Stage 2 character rig) + purchasable skins
-- [ ] New premium tribes (unlock with purchase)
-- [ ] AI Map Builder: LLM designs/refines maps (terrain balance, spawn fairness, chokepoints) → curated premium map packs
-- [ ] Premium map packs purchasable + selectable in game setup
+- [x] Tribe skin system (recolor/costume variants on the Stage 2 character rig) + purchasable skins
+- [x] New premium tribes (unlock with purchase)
+- [x] AI Map Builder: LLM designs/refines maps (terrain balance, spawn fairness, chokepoints) → curated premium map packs
+- [x] Premium map packs purchasable + selectable in game setup
 
 ### Story Mode
 - [ ] Campaign: conquer territory-by-territory with your forged tribe + mini-games

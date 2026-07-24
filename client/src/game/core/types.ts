@@ -195,7 +195,7 @@ export const HERO_PERK_POOL: HeroPerkId[] = [
 // note: "relic" is never offered on level-up — it is earned only by slaying the awakened Guardian
 
 /** flavor hero names per TRIBE_DEFS index */
-export const HERO_NAMES = ["Maelis", "Drukhar", "Wu Jian", "Szara", "Nereth", "Borvak"] as const;
+export const HERO_NAMES = ["Maelis", "Drukhar", "Wu Jian", "Szara", "Nereth", "Borvak", "Skadi", "Morel"] as const;
 
 export type TechId =
   | "hunting"
@@ -247,7 +247,7 @@ export const WALL_COST = 5;
 /** defense multiplier for a defender garrisoned in a walled city (vs 1.5 for unwalled city) */
 export const WALL_DEFENSE_BONUS = 2.0;
 
-export type FactionPassive = "scholars" | "forgeborn" | "harvesters" | "outriders" | "tideborn" | "stonebound";
+export type FactionPassive = "scholars" | "forgeborn" | "harvesters" | "outriders" | "tideborn" | "stonebound" | "stormborn" | "sporebound";
 
 export interface Tribe {
   index: number;
@@ -274,7 +274,16 @@ export const TRIBE_DEFS = [
   { name: "Vessari", color: "#9d5ce8", colorName: "Violet", passive: "outriders" as FactionPassive, passiveDesc: "Outriders — all units gain +1 movement on grass", startTech: "riding" as TechId },
   { name: "Nerivane", color: "#2dd4bf", colorName: "Tidal Teal", passive: "tideborn" as FactionPassive, passiveDesc: "Tideborn — ports cost 1 star and boats move +1", startTech: "sailing" as TechId },
   { name: "Dravok", color: "#a8763e", colorName: "Ochre", passive: "stonebound" as FactionPassive, passiveDesc: "Stonebound — city walls cost 2 less and defenders in cities gain +10% defense", startTech: "shields" as TechId },
+  // ── premium tribes (store unlocks; humans need the entitlement to select) ──
+  { name: "Valkyra", color: "#38bdf8", colorName: "Storm Blue", passive: "stormborn" as FactionPassive, passiveDesc: "Stormborn — enemy retaliation against your attacks is halved", startTech: "archery" as TechId },
+  { name: "Mycelon", color: "#a3e635", colorName: "Spore Green", passive: "sporebound" as FactionPassive, passiveDesc: "Sporebound — units recover +2 extra HP when resting in friendly territory", startTech: "freeSpirit" as TechId },
 ] as const;
+
+/** TRIBE_DEFS indices that require a store entitlement for human selection. */
+export const PREMIUM_TRIBES: Record<number, string> = {
+  6: "tribe.valkyra",
+  7: "tribe.mycelon",
+};
 
 export type Phase = "menu" | "playing" | "gameover";
 

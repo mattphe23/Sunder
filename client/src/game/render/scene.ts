@@ -21,7 +21,7 @@ import { EasingFunction, CubicEase } from "@babylonjs/core/Animations/easing";
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTexture";
-import { buildCharacter } from "./characters";
+import { buildCharacter, skinFor } from "./characters";
 // side-effect registrations the barrel used to pull in implicitly
 import "@babylonjs/core/Animations/animatable";
 import "@babylonjs/core/Culling/ray";
@@ -991,9 +991,11 @@ export class BoardRenderer {
       return node;
     }
     // v17: camp raiders are tribeless — dark iron & bone palette
-    const col = u.tribe < 0 ? "#5a4a52" : s.tribes[u.tribe].color;
     // Stage 2: shared procedural character rig, dressed per class + faction
     const defIndex = u.tribe < 0 ? -1 : s.tribes[u.tribe].defIndex;
+    // tribe skins may restyle the costume color; base puck keeps the true tribe color
+    const skin = u.tribe < 0 ? undefined : skinFor(defIndex);
+    const col = u.tribe < 0 ? "#5a4a52" : (skin?.unitColor ?? s.tribes[u.tribe].color);
     // named accent materials the rig needs (bloom-visible glow accents)
     let orbMat = this.mats.get("arcanist-orb");
     if (!orbMat) {

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useGame } from "../useGame";
 import { game, loadHall, HallEntry } from "../core/state";
-import { TRIBE_DEFS, Difficulty } from "../core/types";
+import { TRIBE_DEFS, PREMIUM_TRIBES, Difficulty } from "../core/types";
 import { MAP_PRESETS, MapPreset } from "../core/mapgen";
 import { Button } from "@/components/ui/button";
 import { Swords, Star, Play, Trophy, ChevronDown, Crown } from "lucide-react";
@@ -26,9 +26,14 @@ import { UserCircle, Pencil } from "lucide-react";
 import { OnlinePanel } from "../online/OnlinePanel";
 import { LeaderboardPanel, LeaderboardSubmit } from "../online/Leaderboard";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { useEntitlements } from "@/hooks/useEntitlements";
+import { SkinsPanel, initActiveSkins } from "./SkinsPanel";
+import { useEffect } from "react";
 import { Link } from "wouter";
 import { FlaskConical } from "lucide-react";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Paintbrush } from "lucide-react";
+import { MAP_PACKS, CuratedMap } from "@shared/mapPacks";
+import { Map as MapIcon } from "lucide-react";
 
 /** Admin-only entry to the AI Playtest Lab; renders nothing for everyone else. */
 function AdminLabLink() {
@@ -42,6 +47,66 @@ function AdminLabLink() {
         <span className="text-[10px] font-normal text-amber-200/60">admin</span>
       </span>
     </Link>
+  );
+}
+
+/** Premium curated maps — seed-locked boards sold in packs. Owned packs expand
+ *  into a playable map list; unowned ones deep-link to the store. */
+function CuratedMapsSection({ onPlay }: { onPlay: (m: CuratedMap) => void }) {
+  const ent = useEntitlements();
+  const [open, setOpen] = useState(false);
+  const ownedCount = MAP_PACKS.filter((p) => ent.has(p.key)).length;
+  return (
+    <div className="mt-4 w-full">
+      <button
+        onClick={() => { sound.play("click"); setOpen((o) => !o); }}
+        className="flex w-full items-center justify-between rounded-md border border-white/10 bg-white/5 px-3 py-2 transition-colors hover:bg-white/10"
+      >
+        <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
+          <MapIcon className="h-3 w-3 text-violet-300" /> Curated maps
+          <span className="rounded bg-violet-400/20 px-1.5 py-0.5 font-mono text-[9px] font-bold text-violet-200">
+            {ownedCount}/{MAP_PACKS.length} packs
+          </span>
+        </span>
+        <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="mt-2 flex flex-col gap-2">
+          {MAP_PACKS.map((pack) => {
+            const owned = ent.has(pack.key);
+            return (
+              <div key={pack.key} className="rounded-md border border-white/10 bg-white/[0.03] p-2">
+                <div className="mb-1.5 flex items-center justify-between px-1">
+                  <span className="font-display text-[11px] font-extrabold uppercase tracking-wide text-slate-200">{pack.name}</span>
+                  {!owned && (
+                    <Link href="/store">
+                      <span className="flex cursor-pointer items-center gap-1 rounded bg-amber-400/15 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase text-amber-300 hover:bg-amber-400/25">
+                        <Lock className="h-2.5 w-2.5" /> Unlock in Store
+                      </span>
+                    </Link>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {pack.maps.map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => { if (owned) onPlay(m); else { sound.play("click"); window.location.href = "/store"; } }}
+                      title={m.blurb}
+                      className={`rounded-md border px-2 py-1.5 text-left transition-colors ${owned ? "border-violet-400/30 bg-violet-400/10 hover:bg-violet-400/20 active:scale-[0.97]" : "border-white/10 bg-white/5 opacity-60 hover:bg-white/10"}`}
+                    >
+                      <span className={`block truncate font-display text-[11px] font-bold ${owned ? "text-violet-100" : "text-slate-400"}`}>
+                        {owned ? m.name : <><Lock className="mr-1 inline h-2.5 w-2.5" />{m.name}</>}
+                      </span>
+                      <span className="block truncate text-[9px] leading-tight text-slate-400">{m.size}×{m.size} · {m.preset}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 import {
@@ -133,6 +198,14 @@ export function MainMenu() {
   const slots = game.slotSummaries();
   const [forgeOpen, setForgeOpen] = useState(false);
   const [custom, setCustom] = useState<CustomTribeConfig | null>(() => loadCustomTribe());
+  const [skinsOpen, setSkinsOpen] = useState(false);
+  const ent = useEntitlements();
+  // apply saved skin selections (validated against ownership) to the renderer
+  useEffect(() => {
+    if (!ent.loading) initActiveSkins(ent.keys);
+  }, [ent.loading, ent.keys.join(",")]);
+  /** premium tribe defs are locked until the entitlement (or ultimate) is owned */
+  const tribeLocked = (i: number) => i in PREMIUM_TRIBES && !ent.has(PREMIUM_TRIBES[i]);
   const tribe = faction === CUSTOM_DEF_INDEX && custom
     ? { name: custom.name, color: custom.color }
     : TRIBE_DEFS[Math.min(faction, TRIBE_DEFS.length - 1)];
@@ -154,7 +227,9 @@ export function MainMenu() {
     // Roster: 4 of the 6 tribes play a match. Humans keep their picked defs;
     // AI slots are filled from remaining defs at random for match variety.
     const humanDefs = mode === "hotseat" ? [...players] : [faction];
-    const rest = TRIBE_DEFS.map((_, i) => i).filter((i) => !humanDefs.includes(i) && i !== CUSTOM_DEF_INDEX);
+    // AI opponents draw from the 6 standard tribes only — premium tribes stay
+    // player-exclusive so an unlock feels special (and unowned ones never appear).
+    const rest = TRIBE_DEFS.map((_, i) => i).filter((i) => !humanDefs.includes(i) && i !== CUSTOM_DEF_INDEX && !(i in PREMIUM_TRIBES));
     for (let i = rest.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [rest[i], rest[j]] = [rest[j], rest[i]];
@@ -281,7 +356,10 @@ export function MainMenu() {
             {TRIBE_DEFS.map((t, i) => (
               <button
                 key={t.name}
-                onClick={() => (mode === "solo" ? setFaction(i) : togglePlayer(i))}
+                onClick={() => {
+                  if (tribeLocked(i)) { sound.play("click"); window.location.href = "/store"; return; }
+                  mode === "solo" ? setFaction(i) : togglePlayer(i);
+                }}
                 className={`group relative overflow-hidden rounded-md border-l-4 p-3 text-left transition-all duration-150 active:scale-[0.97] ${(mode === "solo" ? faction === i : players.includes(i)) ? "bg-white/10" : "bg-white/[0.04] hover:bg-white/10"}`}
                 style={{
                   borderLeftColor: t.color,
@@ -294,9 +372,18 @@ export function MainMenu() {
                 {mode === "hotseat" && players.includes(i) && (
                   <span className="absolute bottom-2 right-2 rounded bg-white/15 px-1.5 py-0.5 font-mono text-[9px] font-bold text-white">P{players.indexOf(i) + 1}</span>
                 )}
+                {i in PREMIUM_TRIBES && (
+                  <span
+                    className="absolute right-2 top-2 flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wide"
+                    style={{ background: `${t.color}26`, color: t.color }}
+                  >
+                    {tribeLocked(i) ? <Lock className="h-2.5 w-2.5" /> : <Sparkles className="h-2.5 w-2.5" />}
+                    {tribeLocked(i) ? "Store" : "Premium"}
+                  </span>
+                )}
                 <div className="mb-1 flex items-center gap-2">
                   <span className="h-3 w-3 rotate-45" style={{ background: t.color, boxShadow: `0 0 8px ${t.color}` }} />
-                  <span className="font-display text-sm font-extrabold tracking-wide text-white">{t.name}</span>
+                  <span className={`font-display text-sm font-extrabold tracking-wide ${tribeLocked(i) ? "text-slate-400" : "text-white"}`}>{t.name}</span>
                 </div>
                 <p className="text-[11px] leading-snug text-slate-300">{t.passiveDesc}</p>
                 {/* v19: lore teaser — slides in on hover/focus (desktop); harmless on touch */}
@@ -413,6 +500,28 @@ export function MainMenu() {
               ))}
             </div>
           </div>
+
+          {/* Curated map packs — premium seed-locked boards */}
+          <CuratedMapsSection
+            onPlay={(m) => {
+              sound.play("click");
+              const humanDefs = mode === "hotseat" ? [...players] : [faction];
+              const rest = TRIBE_DEFS.map((_, i) => i).filter((i) => !humanDefs.includes(i) && i !== CUSTOM_DEF_INDEX && !(i in PREMIUM_TRIBES));
+              for (let i = rest.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [rest[i], rest[j]] = [rest[j], rest[i]];
+              }
+              const roster = [...humanDefs, ...rest].slice(0, 4).map((d) => (d === CUSTOM_DEF_INDEX ? 0 : d));
+              const customSlot = [...humanDefs, ...rest].slice(0, 4).indexOf(CUSTOM_DEF_INDEX);
+              const humanSlots = humanDefs.map((d) => [...humanDefs, ...rest].slice(0, 4).indexOf(d)).sort((a, b) => a - b);
+              const customOpt = customSlot >= 0 && custom ? { slot: customSlot, config: custom } : undefined;
+              g.newGame({
+                size: m.size, humanTribe: humanSlots[0], difficulty, seed: m.seed,
+                preset: m.preset, roster, custom: customOpt,
+                ...(mode === "hotseat" ? { humanTribes: humanSlots } : {}),
+              });
+            }}
+          />
         </div>
 
         <Button
@@ -666,13 +775,22 @@ export function MainMenu() {
         {/* v21: admin-only AI playtest lab entry */}
         <AdminLabLink />
 
-        {/* v27: store entry */}
-        <Link href="/store">
-          <span className="mt-3 flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.06] px-3 py-2 text-[12px] font-semibold text-slate-200 transition-colors hover:bg-white/[0.12]">
-            <Sparkles className="h-3.5 w-3.5 text-amber-300" />
-            Store — skins, tribes, maps & Story Mode
-          </span>
-        </Link>
+        {/* v27: store + skins entries */}
+        <div className="mt-3 flex w-full gap-2">
+          <Link href="/store" className="flex-1">
+            <span className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.06] px-3 py-2 text-[12px] font-semibold text-slate-200 transition-colors hover:bg-white/[0.12]">
+              <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+              Store
+            </span>
+          </Link>
+          <button
+            onClick={() => { sound.play("click"); setSkinsOpen(true); }}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.06] px-3 py-2 text-[12px] font-semibold text-slate-200 transition-colors hover:bg-white/[0.12]"
+          >
+            <Paintbrush className="h-3.5 w-3.5 text-teal-300" />
+            Skins
+          </button>
+        </div>
 
         <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-[11px] font-medium text-slate-300">
           <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
@@ -685,6 +803,7 @@ export function MainMenu() {
           onSaved={(c) => { setCustom(c); setForgeOpen(false); if (mode === "solo") setFaction(CUSTOM_DEF_INDEX); }}
         />
       )}
+      <SkinsPanel open={skinsOpen} onClose={() => setSkinsOpen(false)} />
     </div>
   );
 }
