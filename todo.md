@@ -188,10 +188,76 @@ below was checked against the actual codebase before being marked.
 - [x] Fix: single vendor chunk (React + dependents together); only Babylon split (independent,
       lazy-loaded). Verified locally: prod build served on :4174 renders the full menu.
 - [x] 31 vitest green, tsc clean after fix
-- [ ] Verify fix on the live production URL after publish
-- [ ] Report findings to the user
+- [x] Verify fix on the live production URL after publish — polyclone-n6b64njm.manus.space now
+      serves index-D4ukHSby.js + unified vendor-GgkRUVUS.js (no split react chunk); full menu
+      renders in browser (factions, Impossible tier, challenges, leaderboard)
+- [x] Report findings to the user
+
+## Polytopia-Level Graphics Roadmap (user request — walkthrough document)
+
+- [x] Research Polytopia's actual art style: visual pillars, references, technique breakdowns
+      (docs/polytopia-style-research.md: Polysthetic modelling breakdown, official assets page,
+      2 high-res gameplay screenshots inspected)
+- [x] Audit Sunder's current renderer (scene.ts) against those pillars — 7 gaps identified
+- [x] Write the staged roadmap document (5 stages, effort/payoff table, what to avoid)
+- [x] Deliver the document to the user
 - [x] Save a fresh checkpoint (v25.1 / a10d4a37) to re-trigger the publish (user request)
 - [x] Investigate checkpoint sync: git log shows v25/v25.1 committed AND pushed (HEAD ==
       origin/main == a10d4a37); dev server restarted to force re-sync; production STILL serves
       old bundle. Conclusion: checkpoints are correctly stored; the card display + publish
       rotation failures are platform-side. → user to report at help.manus.im
+
+## v26 — Graphics Stage 1+2 (approved roadmap) + AI Playtest Lab (on-demand)
+
+### Stage 1: flat-shading foundation
+- [x] Unlit flat colors on tile tops (emissive-only materials, no lighting gradients)
+- [x] Palette discipline: 2-3 hand-picked value steps per terrain in a central palette module
+- [x] Slab side walls darkened by fixed ratio (color does the depth work)
+- [x] Shallow-water band around coastlines (pale ring where land meets water)
+- [x] Disable terrain cast shadows; trim bloom to accents only (fires/crystals)
+- [x] Verify: board reads as flat painted quilt, no gradients across tile tops
+
+## v27+ — Monetization roadmap (user-approved three-tier structure)
+
+### Tier structure (locked with user)
+- Base game (free): quick matches, 6 standard tribes, standard maps, multiplayer, Tribe Forge basics
+- Upgraded base: purchasable tribe skins, premium unlockable tribes, premium map packs
+- Story Mode: near-standalone campaign game with its own pack purchases
+- Ultimate pack: single purchase including everything
+
+### Foundation
+- [ ] Catalog + entitlements DB schema (products, purchases, entitlements per user)
+- [ ] Stripe integration (checkout + webhook fulfillment)
+- [ ] Store UI (storefront page + in-menu upsell surfaces) with owned/locked states
+- [ ] Ultimate pack bundling logic (grants all entitlements)
+- [ ] PWA install support (manifest + service worker; installable to home screen, offline solo play)
+- [ ] App stores deferred until web monetization is proven (decision locked with user)
+
+### Premium content
+- [ ] Tribe skin system (recolor/costume variants on the Stage 2 character rig) + purchasable skins
+- [ ] New premium tribes (unlock with purchase)
+- [ ] AI Map Builder: LLM designs/refines maps (terrain balance, spawn fairness, chokepoints) → curated premium map packs
+- [ ] Premium map packs purchasable + selectable in game setup
+
+### Story Mode
+- [ ] Campaign: conquer territory-by-territory with your forged tribe + mini-games
+- [ ] Chapter/pack release format with separate purchases
+- [ ] Story Mode entry gated by purchase; included in ultimate pack
+
+### Stage 2: procedural character units
+- [x] Shared character rig from primitives (torso, head, limbs) in a new units module
+- [x] Per-class props: spear/bow/shield/hammer/sail etc. for all unit classes incl. uniques
+- [x] Per-faction costume colors + headgear variants
+- [x] Tribe-colored base block under each unit; keep health badge readable
+- [x] Hero keeps distinct crown/banner accent on the new rig
+- [x] Chunky hop movement retained/verified with new meshes
+- [x] Verify across factions + map types in browser; tests green; checkpoint
+
+### AI Playtest Lab (admin-only, on-demand)
+- [ ] Read automation/scheduling + LLM skills before design
+- [ ] Server: headless engine run wrapped as a playtest job (LLM plays turns via structured
+      action API with legal-move list; scripted-AI fallback on LLM failure)
+- [ ] LLM feedback report per match: balance, clarity, fun, bugs (structured JSON → DB)
+- [ ] DB table for playtest runs + reports; tRPC routes (adminProcedure)
+- [ ] Admin dashboard page: trigger run, progress, report list + detail view
+- [ ] Vitest coverage for playtest routes; browser verify; checkpoint + deliver

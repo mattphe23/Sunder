@@ -21,6 +21,7 @@ import { EasingFunction, CubicEase } from "@babylonjs/core/Animations/easing";
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTexture";
+import { buildCharacter } from "./characters";
 // side-effect registrations the barrel used to pull in implicitly
 import "@babylonjs/core/Animations/animatable";
 import "@babylonjs/core/Culling/ray";
@@ -47,17 +48,18 @@ import "@babylonjs/core/Shaders/depthBoxBlur.fragment";
 import { DefaultRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline";
 import { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator";
 import "@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent";
-import { GameState, Tile, Unit, UnitType, idx } from "../core/types";
+import { GameState, Tile, Unit, idx } from "../core/types";
 import { game } from "../core/state";
 import { reachableTiles, attackableUnits, cityAt, isVisibleTo } from "../core/rules";
+import { PALETTE, darken } from "./palette";
 
 const TILE = 1.02;
 const TERRAIN_COLORS: Record<string, string> = {
-  grass: "#7ec850",
-  forest: "#3e9142",
-  mountain: "#b8c4d4",
-  water: "#3f8fd4",
-  ocean: "#20509c",
+  grass: PALETTE.terrain.grass.top,
+  forest: PALETTE.terrain.forest.top,
+  mountain: PALETTE.terrain.mountain.top,
+  water: PALETTE.terrain.water.top,
+  ocean: PALETTE.terrain.ocean.top,
 };
 const TERRAIN_H: Record<string, number> = {
   grass: 0.3, forest: 0.34, mountain: 0.85, water: 0.14, ocean: 0.08,
@@ -107,10 +109,12 @@ export class BoardRenderer {
       const q = (Math.sin(this.shimmerT * 2.7 + 1.3) + 1) / 2; // offset ripple
       for (const wm of this.waterMats) {
         const deep = wm.name.includes("ocean");
-        const base = deep ? 0.045 : 0.085;
-        const amp = deep ? 0.03 : 0.05;
-        const e = base + amp * (0.6 * p + 0.4 * q);
-        wm.emissiveColor.set(e * 0.55, e * 0.85, e * 1.35);
+        // Stage 1: flat unlit water — the whole color IS the emissive channel,
+        // so shimmer is a gentle brightness pulse around the palette value.
+        const base = Color3.FromHexString(deep ? TERRAIN_COLORS.ocean : TERRAIN_COLORS.water);
+        const amp = deep ? 0.05 : 0.08;
+        const k = 1 + amp * (0.6 * p + 0.4 * q) - amp / 2;
+        wm.emissiveColor.set(Math.min(1, base.r * k), Math.min(1, base.g * k), Math.min(1, base.b * k));
       }
     });
 
@@ -154,19 +158,19 @@ export class BoardRenderer {
     this.camera.pinchToPanMaxDistance = 20;
 
     const hemi = new HemisphericLight("hemi", new Vector3(0.2, 1, 0.1), this.scene);
-    hemi.intensity = 0.75;
-    hemi.diffuse = Color3.FromHexString("#dfe8ff");
-    hemi.groundColor = Color3.FromHexString("#4a3a70");
+    // Stage 1 flat shading: terrain and decor are unlit (emissive-only), so
+    // this light only matters for the few remaining lit materials (units keep
+    // a whisper of shading until Stage 2 replaces them). Kept dim and neutral.
+    hemi.intensity = 0.55;
+    hemi.diffuse = Color3.FromHexString("#ffffff");
+    hemi.groundColor = Color3.FromHexString("#8a86a8");
     const sun = new DirectionalLight("sun", new Vector3(-0.5, -1, 0.35), this.scene);
-    sun.intensity = 0.9;
-    sun.diffuse = Color3.FromHexString("#ffe9c4");
-    // soft blurred shadows from the warm key light
+    sun.intensity = 0.55;
+    sun.diffuse = Color3.FromHexString("#fff4e0");
     sun.position = new Vector3(8, 14, -6);
-    const sg = new ShadowGenerator(1024, sun);
-    sg.useBlurExponentialShadowMap = true;
-    sg.blurKernel = 16;
-    sg.darkness = 0.55; // keep shadows soft and readable, not harsh black
-    this.shadowGen = sg;
+    // Stage 1: no shadow generator — Polytopia-style flat boards get depth
+    // from palette value steps, not shadow maps. Blob shadows land in Stage 3.
+    this.shadowGen = null;
   }
 
   /** post-processing: bloom for glows, FXAA, filmic tone mapping, slight contrast */
@@ -175,18 +179,21 @@ export class BoardRenderer {
     this.pipeline = pipe;
     pipe.fxaaEnabled = true;
     pipe.bloomEnabled = true;
-    pipe.bloomThreshold = 0.62;
-    pipe.bloomWeight = 0.35;
-    pipe.bloomKernel = 48;
+    // Stage 1: bloom trimmed to true accents only (crystals, fires, ruin
+    // glows). Flat unlit tile tops are bright, so the threshold must sit
+    // above them or the whole board hazes over.
+    pipe.bloomThreshold = 0.88;
+    pipe.bloomWeight = 0.22;
+    pipe.bloomKernel = 32;
     pipe.bloomScale = 0.5;
     pipe.imageProcessingEnabled = true;
     if (pipe.imageProcessing) {
-      pipe.imageProcessing.toneMappingEnabled = true;
-      pipe.imageProcessing.toneMappingType = 1; // ACES filmic
-      pipe.imageProcessing.contrast = 1.12;
-      pipe.imageProcessing.exposure = 1.06;
+      // flat colors are hand-picked — filmic tone mapping would re-grade them
+      pipe.imageProcessing.toneMappingEnabled = false;
+      pipe.imageProcessing.contrast = 1.04;
+      pipe.imageProcessing.exposure = 1.0;
       pipe.imageProcessing.vignetteEnabled = true;
-      pipe.imageProcessing.vignetteWeight = 1.6;
+      pipe.imageProcessing.vignetteWeight = 1.2;
       pipe.imageProcessing.vignetteColor = new Color4(0.05, 0.05, 0.16, 0);
     }
     this.setupAdaptiveQuality();
@@ -234,8 +241,13 @@ export class BoardRenderer {
     let m = this.mats.get(hex);
     if (!m) {
       m = new StandardMaterial("m" + hex, this.scene);
-      m.diffuseColor = Color3.FromHexString(hex);
-      m.specularColor = new Color3(0.05, 0.05, 0.08);
+      // Stage 1 flat shading: UNLIT. The color lives in emissive; diffuse is
+      // black so no light gradient ever crosses a face. Every mesh face shows
+      // exactly the hand-picked palette value.
+      m.emissiveColor = Color3.FromHexString(hex);
+      m.diffuseColor = Color3.Black();
+      m.specularColor = Color3.Black();
+      m.disableLighting = true;
       this.mats.set(hex, m);
     }
     return m;
@@ -251,8 +263,10 @@ export class BoardRenderer {
       const desat = Color3.Lerp(base, new Color3(grey, grey, grey), 0.6);
       const washed = Color3.Lerp(desat, Color3.FromHexString("#262650"), 0.55);
       m = new StandardMaterial("m" + key, this.scene);
-      m.diffuseColor = washed;
+      m.emissiveColor = washed;
+      m.diffuseColor = Color3.Black();
       m.specularColor = Color3.Black();
+      m.disableLighting = true;
       this.mats.set(key, m);
     }
     return m;
@@ -264,10 +278,12 @@ export class BoardRenderer {
     let m = this.mats.get(name);
     if (!m) {
       m = new StandardMaterial(name, this.scene);
-      m.diffuseColor = Color3.FromHexString(deep ? TERRAIN_COLORS.ocean : TERRAIN_COLORS.water);
-      m.specularColor = new Color3(0.25, 0.3, 0.45);
-      m.specularPower = 32;
-      m.alpha = deep ? 0.92 : 0.9;
+      // Stage 1: flat unlit water. The shimmer loop animates a small additive
+      // emissive pulse on top of the flat base color (see onBeforeRender).
+      m.diffuseColor = Color3.Black();
+      m.specularColor = Color3.Black();
+      m.disableLighting = true;
+      m.emissiveColor = Color3.FromHexString(deep ? TERRAIN_COLORS.ocean : TERRAIN_COLORS.water);
       this.mats.set(name, m);
       this.waterMats.push(m);
     }
@@ -279,6 +295,26 @@ export class BoardRenderer {
     if (!this.shadowGen) return;
     if (!receiveOnly) this.shadowGen.addShadowCaster(m);
     m.receiveShadows = true;
+  }
+
+  /**
+   * Stage 1: slab material with hand-picked top + darker side walls.
+   * Babylon boxes UV-map all faces to the same texture, so instead of a
+   * MultiMaterial we build TWO stacked meshes: a thin top plate carrying the
+   * top color and the slab body carrying the side color. Cheaper than
+   * per-face submeshes and keeps the picking metadata on the body.
+   */
+  private buildSlab(name: string, x: number, z: number, h: number, topHex: string, sideHex: string, fogged: boolean): Mesh {
+    const topMat = fogged ? this.foggedMat(topHex) : this.mat(topHex);
+    const sideMat = fogged ? this.foggedMat(sideHex) : this.mat(sideHex);
+    const body = MeshBuilder.CreateBox(name, { width: TILE * 0.96, depth: TILE * 0.96, height: h }, this.scene);
+    body.position = new Vector3(x, h / 2 - 0.4, z);
+    body.material = sideMat;
+    const cap = MeshBuilder.CreateBox(name + "-cap", { width: TILE * 0.965, depth: TILE * 0.965, height: 0.03 }, this.scene);
+    cap.position = new Vector3(0, h / 2 + 0.001, 0);
+    cap.material = topMat;
+    cap.parent = body;
+    return body;
   }
 
   center(size: number) {
@@ -330,9 +366,10 @@ export class BoardRenderer {
     let fogMat = this.mats.get("fog-cloud");
     if (!fogMat) {
       fogMat = new StandardMaterial("fog-cloud", this.scene);
-      fogMat.diffuseColor = Color3.FromHexString("#1b1b3f");
-      fogMat.emissiveColor = Color3.FromHexString("#08081c");
+      fogMat.emissiveColor = Color3.FromHexString(PALETTE.fog.cloud);
+      fogMat.diffuseColor = Color3.Black();
       fogMat.specularColor = Color3.Black();
+      fogMat.disableLighting = true;
       this.mats.set("fog-cloud", fogMat);
     }
     box.material = fogMat;
@@ -347,9 +384,10 @@ export class BoardRenderer {
     let mistMat = this.mats.get("fog-mist");
     if (!mistMat) {
       mistMat = new StandardMaterial("fog-mist", this.scene);
-      mistMat.diffuseColor = Color3.FromHexString("#252550");
-      mistMat.emissiveColor = Color3.FromHexString("#101028");
+      mistMat.emissiveColor = Color3.FromHexString(PALETTE.fog.mist);
+      mistMat.diffuseColor = Color3.Black();
       mistMat.specularColor = Color3.Black();
+      mistMat.disableLighting = true;
       mistMat.alpha = 0.4;
       this.mats.set("fog-mist", mistMat);
     }
@@ -363,22 +401,55 @@ export class BoardRenderer {
   private buildTile(s: GameState, t: Tile, c: number) {
     const key = idx(t.x, t.y, s.size);
     const h = TERRAIN_H[t.terrain];
-    const box = MeshBuilder.CreateBox("t" + key, { width: TILE * 0.96, depth: TILE * 0.96, height: h }, this.scene);
-    box.position = new Vector3(t.x - c, h / 2 - 0.4, t.y - c);
+    const visible = isVisibleTo(s, s.humanTribe, t.x, t.y);
+    const fogged = !visible;
+    let box: Mesh;
     if (t.terrain === "water" || t.terrain === "ocean") {
-      box.material = this.waterMat(t.terrain === "ocean");
+      // water: flat slab, single animated material; side gets its own darker flat
+      const deep = t.terrain === "ocean";
+      box = MeshBuilder.CreateBox("t" + key, { width: TILE * 0.96, depth: TILE * 0.96, height: h }, this.scene);
+      box.position = new Vector3(t.x - c, h / 2 - 0.4, t.y - c);
+      box.material = fogged
+        ? this.foggedMat(deep ? TERRAIN_COLORS.ocean : TERRAIN_COLORS.water)
+        : this.waterMat(deep);
     } else {
-      // fog of war: explored-but-not-visible tiles get a desaturated indigo-washed
-      // material so "old intel" reads clearly different from live vision
-      const fogged = !isVisibleTo(s, s.humanTribe, t.x, t.y);
-      box.material = fogged ? this.foggedMat(this.tileColor(s, t)) : this.mat(this.tileColor(s, t));
+      // land: top plate carries the palette top step, slab body the darker side step
+      const topHex = this.tileColor(s, t);
+      const swatch = PALETTE.terrain[t.terrain];
+      // owned-border tint shifts the top; derive the side from the tinted top
+      const sideHex = topHex === swatch?.top && swatch ? swatch.side : darken(topHex);
+      box = this.buildSlab("t" + key, t.x - c, t.y - c, h, topHex, sideHex, fogged);
+      // shallow-water shore band: pale trim on land edges that touch water
+      const shoreMat = fogged ? this.foggedMat(PALETTE.shore) : this.mat(PALETTE.shore);
+      const dirs: [number, number, number][] = [[1, 0, 0], [-1, 0, Math.PI], [0, 1, Math.PI / 2], [0, -1, -Math.PI / 2]];
+      for (const [dx, dy] of dirs) {
+        const nx = t.x + dx, ny = t.y + dy;
+        if (nx < 0 || ny < 0 || nx >= s.size || ny >= s.size) continue;
+        const nb = s.tiles[idx(nx, ny, s.size)];
+        if (nb.terrain !== "water" && nb.terrain !== "ocean") continue;
+        const band = MeshBuilder.CreateBox("shore", {
+          width: dx !== 0 ? 0.09 : TILE * 0.98,
+          depth: dy !== 0 ? 0.09 : TILE * 0.98,
+          height: 0.05,
+        }, this.scene);
+        band.position = new Vector3(
+          dx * (TILE * 0.96) / 2,
+          -h / 2 + TERRAIN_H[nb.terrain] - 0.028,
+          dy * (TILE * 0.96) / 2
+        );
+        band.material = shoreMat;
+        band.isPickable = false;
+        band.parent = box;
+      }
     }
     box.metadata = { tile: true, x: t.x, y: t.y };
+    box.getChildMeshes().forEach((m) => { m.metadata = { tile: true, x: t.x, y: t.y }; });
     box.parent = this.root;
-    this.addShadows(box, true); // tiles receive shadows
     // fog of war depth: explored but not currently visible → dimmed
-    const visible = isVisibleTo(s, s.humanTribe, t.x, t.y);
-    if (!visible) box.visibility = 0.75;
+    if (!visible) {
+      box.visibility = 0.75;
+      box.getChildMeshes().forEach((m) => (m.visibility = 0.75));
+    }
     this.tileMeshes.set(key, box);
 
     const decor: Mesh[] = [];
@@ -414,13 +485,13 @@ export class BoardRenderer {
         const th = 0.4 + ((i * 13 + t.x + t.y) % 3) * 0.09;
         const trunk = MeshBuilder.CreateCylinder("trk", { diameter: 0.09, height: 0.22, tessellation: 5 }, this.scene);
         trunk.position = new Vector3(px, top + 0.11, pz);
-        trunk.material = this.mat("#6d4a2f");
+        trunk.material = this.mat(PALETTE.tree.trunk);
         trunk.metadata = { tile: true, x: t.x, y: t.y };
         trunk.parent = this.root;
         decor.push(trunk);
         const canopy = MeshBuilder.CreateCylinder("tr", { diameterTop: 0, diameterBottom: 0.3, height: th, tessellation: 6 }, this.scene);
         canopy.position = new Vector3(px, top + 0.2 + th / 2, pz);
-        canopy.material = this.mat(i === 1 ? "#2c7a34" : "#37914b");
+        canopy.material = this.mat(i === 1 ? PALETTE.tree.canopyB : i === 0 ? PALETTE.tree.canopyA : PALETTE.tree.canopyLight);
         canopy.metadata = { tile: true, x: t.x, y: t.y };
         canopy.parent = this.root;
         decor.push(canopy);
@@ -431,21 +502,21 @@ export class BoardRenderer {
       const rock = MeshBuilder.CreateCylinder("pk", { diameterTop: 0.14, diameterBottom: 0.6, height: 0.42, tessellation: 5 }, this.scene);
       rock.position = new Vector3(t.x - c, top + 0.21, t.y - c);
       rock.rotation.y = ((t.x + t.y) % 4) * 0.4;
-      rock.material = this.mat("#7d8aa0");
+      rock.material = this.mat(PALETTE.rock.body);
       rock.metadata = { tile: true, x: t.x, y: t.y };
       rock.parent = this.root;
       decor.push(rock);
       const snow = MeshBuilder.CreateCylinder("snow", { diameterTop: 0, diameterBottom: 0.22, height: 0.24, tessellation: 5 }, this.scene);
       snow.position = new Vector3(t.x - c, top + 0.52, t.y - c);
       snow.rotation.y = rock.rotation.y;
-      snow.material = this.mat("#f4f8ff");
+      snow.material = this.mat(PALETTE.rock.snow);
       snow.metadata = { tile: true, x: t.x, y: t.y };
       snow.parent = this.root;
       decor.push(snow);
       // small secondary shoulder peak for a mountain silhouette
       const shoulder = MeshBuilder.CreateCylinder("pk2", { diameterTop: 0, diameterBottom: 0.3, height: 0.3, tessellation: 5 }, this.scene);
       shoulder.position = new Vector3(t.x - c + 0.24, top + 0.15, t.y - c - 0.18);
-      shoulder.material = this.mat("#93a1b8");
+      shoulder.material = this.mat(PALETTE.rock.shadow);
       shoulder.metadata = { tile: true, x: t.x, y: t.y };
       shoulder.parent = this.root;
       decor.push(shoulder);
@@ -488,9 +559,11 @@ export class BoardRenderer {
         let crysMat = this.mats.get("crystal");
         if (!crysMat) {
           crysMat = new StandardMaterial("crystal", this.scene);
-          crysMat.diffuseColor = Color3.FromHexString("#7fd4ef");
-          crysMat.emissiveColor = Color3.FromHexString("#1e6c8a");
-          crysMat.specularColor = new Color3(0.4, 0.5, 0.6);
+          // bloom accent: bright emissive above the 0.88 threshold
+          crysMat.emissiveColor = Color3.FromHexString("#9fe8ff");
+          crysMat.diffuseColor = Color3.Black();
+          crysMat.specularColor = Color3.Black();
+          crysMat.disableLighting = true;
           this.mats.set("crystal", crysMat);
         }
         for (const [sx, sz, sh, rot] of [[0, 0, 0.34, 0], [0.11, -0.06, 0.2, 0.5], [-0.09, 0.08, 0.16, -0.4]] as const) {
@@ -516,8 +589,9 @@ export class BoardRenderer {
       let capMat = this.mats.get("ruin-glow");
       if (!capMat) {
         capMat = new StandardMaterial("ruin-glow", this.scene);
-        capMat.diffuseColor = Color3.FromHexString("#ffd76a");
-        capMat.emissiveColor = Color3.FromHexString("#b78a2e");
+        capMat.emissiveColor = Color3.FromHexString("#ffe08a");
+        capMat.diffuseColor = Color3.Black();
+        capMat.disableLighting = true;
         this.mats.set("ruin-glow", capMat);
       }
       cap.material = capMat;
@@ -538,15 +612,17 @@ export class BoardRenderer {
       let goldMat = this.mats.get("greatruin-gold");
       if (!goldMat) {
         goldMat = new StandardMaterial("greatruin-gold", this.scene);
-        goldMat.diffuseColor = Color3.FromHexString("#e8c766");
-        goldMat.emissiveColor = Color3.FromHexString("#7a5c14");
+        goldMat.emissiveColor = Color3.FromHexString("#e8c766");
+        goldMat.diffuseColor = Color3.Black();
+        goldMat.disableLighting = true;
         this.mats.set("greatruin-gold", goldMat);
       }
       let coreMat = this.mats.get("greatruin-core");
       if (!coreMat) {
         coreMat = new StandardMaterial("greatruin-core", this.scene);
-        coreMat.diffuseColor = Color3.FromHexString("#fff3c4");
-        coreMat.emissiveColor = Color3.FromHexString("#e0a92e");
+        coreMat.emissiveColor = Color3.FromHexString("#fff3c4");
+        coreMat.diffuseColor = Color3.Black();
+        coreMat.disableLighting = true;
         this.mats.set("greatruin-core", coreMat);
       }
       for (const sx of [-0.28, 0.28]) {
@@ -575,7 +651,7 @@ export class BoardRenderer {
     const city = t.cityId !== null ? s.cities[t.cityId] : null;
     if (city) {
       const isNeutral = city.tribe === null;
-      const col = isNeutral ? "#c9b896" : s.tribes[city.tribe!].color;
+      const col = isNeutral ? PALETTE.city.neutral : s.tribes[city.tribe!].color;
       const n = isNeutral ? 1 : Math.min(4, city.level + 1);
       // ownership plate: a flat colored disc under the city makes "whose city is this"
       // readable at any zoom (neutral = sand ring)
@@ -593,7 +669,7 @@ export class BoardRenderer {
           top + 0.16 + i * 0.02,
           t.y - c + Math.sin(ang) * 0.22 * (n > 1 ? 1 : 0)
         );
-        house.material = this.mat("#e8e2d4");
+        house.material = this.mat(PALETTE.city.house);
         house.metadata = { tile: true, x: t.x, y: t.y };
         house.parent = this.root;
         decor.push(house);
@@ -620,8 +696,10 @@ export class BoardRenderer {
         let wallMat = this.mats.get("city-wall");
         if (!wallMat) {
           wallMat = new StandardMaterial("city-wall", this.scene);
-          wallMat.diffuseColor = Color3.FromHexString("#a8a5b8");
+          wallMat.emissiveColor = Color3.FromHexString(PALETTE.city.wall);
+          wallMat.diffuseColor = Color3.Black();
           wallMat.specularColor = Color3.Black();
+          wallMat.disableLighting = true;
           this.mats.set("city-wall", wallMat);
         }
         const half = 0.44;
@@ -657,8 +735,9 @@ export class BoardRenderer {
       decor.forEach((m) => {
         m.visibility = 0.6;
         const cur = m.material as StandardMaterial | null;
-        if (cur && (cur as StandardMaterial).diffuseColor) {
-          m.material = this.foggedMat((cur as StandardMaterial).diffuseColor.toHexString());
+        if (cur && cur.emissiveColor) {
+          // unlit materials carry their color in emissive
+          m.material = this.foggedMat(cur.emissiveColor.toHexString());
         }
       });
     }
@@ -719,7 +798,7 @@ export class BoardRenderer {
       const hull = node.getChildMeshes().find((m) => m.name === "hull");
       if (u.boat && !hull) {
         const b = MeshBuilder.CreateBox("hull", { width: 0.5, depth: 0.3, height: 0.12 }, this.scene);
-        b.position.y = -0.2;
+        b.position.y = -0.02; // just under the rig's base puck
         b.material = this.mat("#8a6642");
         b.parent = node;
         b.isPickable = false;
@@ -727,7 +806,8 @@ export class BoardRenderer {
         hull.dispose();
       }
       const h = TERRAIN_H[s.tiles[idx(u.x, u.y, s.size)].terrain];
-      const target = new Vector3(u.x - c, h - 0.4 + 0.32, u.y - c);
+      // Stage 2 rig stands on y=0 (feet/puck at the node origin) — sit on the tile top
+      const target = new Vector3(u.x - c, h - 0.4 + 0.02, u.y - c);
       if (!node.position.equalsWithEpsilon(target, 0.01)) {
         this.animateMove(node, target);
       }
@@ -800,8 +880,9 @@ export class BoardRenderer {
     let fireMat = this.mats.get("camp-fire");
     if (!fireMat) {
       fireMat = new StandardMaterial("camp-fire", this.scene);
-      fireMat.diffuseColor = Color3.FromHexString("#ff7b2d");
-      fireMat.emissiveColor = Color3.FromHexString("#e85d1a");
+      fireMat.emissiveColor = Color3.FromHexString("#ff8c3d");
+      fireMat.diffuseColor = Color3.Black();
+      fireMat.disableLighting = true;
       this.mats.set("camp-fire", fireMat);
     }
     const fire = MeshBuilder.CreateIcoSphere("fire", { radius: 0.07, subdivisions: 1 }, this.scene);
@@ -831,16 +912,18 @@ export class BoardRenderer {
     let cloudMat = this.mats.get("storm-cloud");
     if (!cloudMat) {
       cloudMat = new StandardMaterial("storm-cloud", this.scene);
-      cloudMat.diffuseColor = Color3.FromHexString("#2a2d45");
-      cloudMat.emissiveColor = Color3.FromHexString("#141628");
+      cloudMat.emissiveColor = Color3.FromHexString("#2a2d45");
+      cloudMat.diffuseColor = Color3.Black();
+      cloudMat.disableLighting = true;
       cloudMat.alpha = 0.82;
       this.mats.set("storm-cloud", cloudMat);
     }
     let boltMat = this.mats.get("storm-bolt");
     if (!boltMat) {
       boltMat = new StandardMaterial("storm-bolt", this.scene);
-      boltMat.diffuseColor = Color3.FromHexString("#9db8ff");
-      boltMat.emissiveColor = Color3.FromHexString("#7d9dff");
+      boltMat.emissiveColor = Color3.FromHexString("#b8ccff");
+      boltMat.diffuseColor = Color3.Black();
+      boltMat.disableLighting = true;
       this.mats.set("storm-bolt", boltMat);
     }
     // layered cloud discs
@@ -888,8 +971,9 @@ export class BoardRenderer {
       let eyeMat = this.mats.get(eyeKey);
       if (!eyeMat) {
         eyeMat = new StandardMaterial(eyeKey, this.scene);
-        eyeMat.diffuseColor = Color3.FromHexString(u.awake ? "#ff4d3d" : "#ffb938");
-        eyeMat.emissiveColor = Color3.FromHexString(u.awake ? "#e8291a" : "#d98f1f");
+        eyeMat.emissiveColor = Color3.FromHexString(u.awake ? "#ff5d4d" : "#ffc851");
+        eyeMat.diffuseColor = Color3.Black();
+        eyeMat.disableLighting = true;
         this.mats.set(eyeKey, eyeMat);
       }
       eye.material = eyeMat;
@@ -908,188 +992,67 @@ export class BoardRenderer {
     }
     // v17: camp raiders are tribeless — dark iron & bone palette
     const col = u.tribe < 0 ? "#5a4a52" : s.tribes[u.tribe].color;
-    const shapes: Record<UnitType, () => Mesh> = {
-      warrior: () => MeshBuilder.CreateBox("b", { size: 0.3 }, this.scene),
-      archer: () => MeshBuilder.CreateCylinder("b", { diameterTop: 0, diameterBottom: 0.3, height: 0.42, tessellation: 6 }, this.scene),
-      defender: () => MeshBuilder.CreateBox("b", { width: 0.38, depth: 0.2, height: 0.36 }, this.scene),
-      rider: () => MeshBuilder.CreateCapsule("b", { radius: 0.13, height: 0.5, orientation: Vector3.Forward() }, this.scene),
-      swordsman: () => MeshBuilder.CreateBox("b", { size: 0.34 }, this.scene),
-      knight: () => MeshBuilder.CreateCapsule("b", { radius: 0.16, height: 0.55, orientation: Vector3.Forward() }, this.scene),
-      catapult: () => {
-        // siege engine: wooden base frame + angled throwing arm + boulder
-        const base = MeshBuilder.CreateBox("b", { width: 0.4, depth: 0.3, height: 0.12 }, this.scene);
-        const wood = this.mat("#8a6a42");
-        const arm = MeshBuilder.CreateBox("arm", { width: 0.06, depth: 0.42, height: 0.06 }, this.scene);
-        arm.position = new Vector3(0, 0.18, -0.05);
-        arm.rotation.x = -Math.PI / 5;
-        arm.material = wood;
-        arm.isPickable = false;
-        arm.parent = base;
-        const boulder = MeshBuilder.CreateIcoSphere("boulder", { radius: 0.08, subdivisions: 1 }, this.scene);
-        boulder.position = new Vector3(0, 0.32, -0.22);
-        boulder.material = this.mat("#9a97a8");
-        boulder.isPickable = false;
-        boulder.parent = base;
-        for (const sx of [-0.17, 0.17]) {
-          const wheel = MeshBuilder.CreateCylinder("wheel", { diameter: 0.14, height: 0.05, tessellation: 8 }, this.scene);
-          wheel.rotation.z = Math.PI / 2;
-          wheel.position = new Vector3(sx, -0.04, 0.08);
-          wheel.material = wood;
-          wheel.isPickable = false;
-          wheel.parent = base;
-        }
-        return base;
-      },
-      // Auren Arcanist — hooded mystic: tall robe cone with a floating rune orb
-      arcanist: () => {
-        const robe = MeshBuilder.CreateCylinder("b", { diameterTop: 0.1, diameterBottom: 0.32, height: 0.48, tessellation: 6 }, this.scene);
-        const orb = MeshBuilder.CreateIcoSphere("orb", { radius: 0.07, subdivisions: 1 }, this.scene);
-        orb.position = new Vector3(0.16, 0.42, 0);
-        let om = this.mats.get("arcanist-orb");
-        if (!om) {
-          om = new StandardMaterial("arcanist-orb", this.scene);
-          (om as StandardMaterial).diffuseColor = Color3.FromHexString("#7fd8ff");
-          (om as StandardMaterial).emissiveColor = Color3.FromHexString("#4fb6ec");
-          this.mats.set("arcanist-orb", om);
-        }
-        orb.material = om;
-        orb.isPickable = false;
-        orb.parent = robe;
-        const bob = new Animation("orbBob", "position.y", 30, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CYCLE);
-        bob.setKeys([{ frame: 0, value: 0.42 }, { frame: 45, value: 0.5 }, { frame: 90, value: 0.42 }]);
-        orb.animations = [bob];
-        this.scene.beginAnimation(orb, 0, 90, true);
-        return robe;
-      },
-      // Kharzul Berserker — hulking brute: wide slab body with two jutting axe blades
-      berserker: () => {
-        const body = MeshBuilder.CreateBox("b", { width: 0.4, depth: 0.26, height: 0.34 }, this.scene);
-        for (const sx of [-0.26, 0.26]) {
-          const blade = MeshBuilder.CreateCylinder("blade", { diameterTop: 0, diameterBottom: 0.14, height: 0.22, tessellation: 4 }, this.scene);
-          blade.position = new Vector3(sx, 0.2, 0);
-          blade.rotation.z = sx > 0 ? -Math.PI / 7 : Math.PI / 7;
-          blade.material = this.mat("#c9c4d4");
-          blade.isPickable = false;
-          blade.parent = body;
-        }
-        return body;
-      },
-      // Sunwei Warden — mountain sentinel: squat stone-flanked tower with a peak cap
-      warden: () => {
-        const body = MeshBuilder.CreateCylinder("b", { diameterTop: 0.26, diameterBottom: 0.36, height: 0.4, tessellation: 6 }, this.scene);
-        const cap = MeshBuilder.CreateCylinder("cap", { diameterTop: 0, diameterBottom: 0.3, height: 0.16, tessellation: 6 }, this.scene);
-        cap.position.y = 0.28;
-        cap.material = this.mat("#8f8fa3");
-        cap.isPickable = false;
-        cap.parent = body;
-        return body;
-      },
-      // Vessari Raider — sleek low rider: forward capsule with twin saddle pennants
-      raider: () => {
-        const body = MeshBuilder.CreateCapsule("b", { radius: 0.12, height: 0.56, orientation: Vector3.Forward() }, this.scene);
-        const pennant = MeshBuilder.CreateCylinder("pennant", { diameterTop: 0, diameterBottom: 0.09, height: 0.2, tessellation: 4 }, this.scene);
-        pennant.position = new Vector3(0, 0.24, -0.14);
-        pennant.material = this.mat("#ffb938");
-        pennant.isPickable = false;
-        pennant.parent = body;
-        return body;
-      },
-      // Nerivane Tidecaller — sleek swimmer: slim body with a cresting glowing fin
-      tidecaller: () => {
-        const body = MeshBuilder.CreateCapsule("b", { radius: 0.12, height: 0.46 }, this.scene);
-        const fin = MeshBuilder.CreateCylinder("fin", { diameterTop: 0, diameterBottom: 0.18, height: 0.24, tessellation: 3 }, this.scene);
-        fin.position = new Vector3(0, 0.32, 0.1);
-        fin.rotation.x = -0.55;
-        let fm = this.mats.get("tide-fin");
-        if (!fm) {
-          fm = new StandardMaterial("tide-fin", this.scene);
-          (fm as StandardMaterial).diffuseColor = Color3.FromHexString("#7ff0e3");
-          (fm as StandardMaterial).emissiveColor = Color3.FromHexString("#1a9e8f");
-          this.mats.set("tide-fin", fm);
-        }
-        fin.material = fm;
-        fin.isPickable = false;
-        fin.parent = body;
-        const trident = MeshBuilder.CreateCylinder("trident", { diameter: 0.035, height: 0.44, tessellation: 5 }, this.scene);
-        trident.position = new Vector3(0.15, 0.12, 0);
-        trident.material = this.mat("#e8fffb");
-        trident.isPickable = false;
-        trident.parent = body;
-        return body;
-      },
-      // Dravok Bulwark — living rampart: wide squat body behind a broad stone slab shield
-      bulwark: () => {
-        const body = MeshBuilder.CreateBox("b", { width: 0.34, depth: 0.24, height: 0.38 }, this.scene);
-        const slab = MeshBuilder.CreateBox("slab", { width: 0.46, height: 0.36, depth: 0.07 }, this.scene);
-        slab.position = new Vector3(0, 0.04, 0.17);
-        slab.material = this.mat("#8a8177");
-        slab.isPickable = false;
-        slab.parent = body;
-        for (const sx of [-0.2, 0.2]) {
-          const merlon = MeshBuilder.CreateBox("merlon", { width: 0.08, height: 0.1, depth: 0.07 }, this.scene);
-          merlon.position = new Vector3(sx, 0.26, 0.17);
-          merlon.material = this.mat("#8a8177");
-          merlon.isPickable = false;
-          merlon.parent = body;
-        }
-        return body;
-      },
-      // v16 Hero Commander — regal figure: caped body, banner spear, floating molten crown
-      hero: () => {
-        const body = MeshBuilder.CreateCylinder("b", { diameterTop: 0.2, diameterBottom: 0.34, height: 0.46, tessellation: 6 }, this.scene);
-        // banner spear with tribe-color pennant
-        const pole = MeshBuilder.CreateCylinder("pole", { diameter: 0.03, height: 0.6, tessellation: 5 }, this.scene);
-        pole.position = new Vector3(0.18, 0.2, 0);
-        pole.material = this.mat("#d9cfc0");
-        pole.isPickable = false;
-        pole.parent = body;
-        const flag = MeshBuilder.CreateBox("flag", { width: 0.02, height: 0.12, depth: 0.18 }, this.scene);
-        flag.position = new Vector3(0.18, 0.42, 0.1);
-        flag.material = this.mat(col);
-        flag.isPickable = false;
-        flag.parent = body;
-        // floating molten crown — the commander's mark
-        const crown = MeshBuilder.CreateTorus("crown", { diameter: 0.2, thickness: 0.04, tessellation: 6 }, this.scene);
-        crown.position.y = 0.52;
-        let hm = this.mats.get("hero-crown");
-        if (!hm) {
-          hm = new StandardMaterial("hero-crown", this.scene);
-          (hm as StandardMaterial).diffuseColor = Color3.FromHexString("#ffb938");
-          (hm as StandardMaterial).emissiveColor = Color3.FromHexString("#ff8c1f");
-          this.mats.set("hero-crown", hm);
-        }
-        crown.material = hm;
-        crown.isPickable = false;
-        crown.parent = body;
-        const spin = new Animation("crownSpin", "rotation.y", 30, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CYCLE);
-        spin.setKeys([{ frame: 0, value: 0 }, { frame: 120, value: Math.PI * 2 }]);
-        crown.animations = [spin];
-        this.scene.beginAnimation(crown, 0, 120, true);
-        // level pips: tiny gems orbiting the crown (level - 1 of them)
-        const lvl = Math.min(4, u.level ?? 1);
-        for (let i = 1; i < lvl; i++) {
-          const pip = MeshBuilder.CreatePolyhedron("pip", { type: 1, size: 0.035 }, this.scene);
-          const ang = (i / 3) * Math.PI * 2;
-          pip.position = new Vector3(Math.cos(ang) * 0.14, 0.52, Math.sin(ang) * 0.14);
-          pip.material = hm;
-          pip.isPickable = false;
-          pip.parent = body;
-        }
-        return body;
-      },
-    };
-    const body = shapes[u.type]();
-    if (u.type !== "catapult") body.material = this.mat(col);
-    else body.material = this.mat(col); // frame carries the tribe color; details stay wood/stone
-    body.parent = node;
-    body.isPickable = false;
-    // head dot for humanoid silhouette
-    if (u.type !== "catapult" && u.type !== "warden" && u.type !== "arcanist" && u.type !== "hero") {
-      const head = MeshBuilder.CreateIcoSphere("h", { radius: 0.1, subdivisions: 1 }, this.scene);
-      head.position.y = 0.3;
-      head.material = this.mat("#f5e6cf");
-      head.parent = node;
-      head.isPickable = false;
+    // Stage 2: shared procedural character rig, dressed per class + faction
+    const defIndex = u.tribe < 0 ? -1 : s.tribes[u.tribe].defIndex;
+    // named accent materials the rig needs (bloom-visible glow accents)
+    let orbMat = this.mats.get("arcanist-orb");
+    if (!orbMat) {
+      orbMat = new StandardMaterial("arcanist-orb", this.scene);
+      (orbMat as StandardMaterial).emissiveColor = Color3.FromHexString("#9fe4ff");
+      (orbMat as StandardMaterial).diffuseColor = Color3.Black();
+      (orbMat as StandardMaterial).disableLighting = true;
+      this.mats.set("arcanist-orb", orbMat);
+    }
+    let finMat = this.mats.get("tide-fin");
+    if (!finMat) {
+      finMat = new StandardMaterial("tide-fin", this.scene);
+      (finMat as StandardMaterial).emissiveColor = Color3.FromHexString("#9ffaef");
+      (finMat as StandardMaterial).diffuseColor = Color3.Black();
+      (finMat as StandardMaterial).disableLighting = true;
+      this.mats.set("tide-fin", finMat);
+    }
+    const rig = buildCharacter(
+      { scene: this.scene, mat: (hex) => this.mat(hex), color: col, defIndex, type: u.type },
+      node,
+      { orbMat, finMat },
+    );
+    // arcanist: bob the rune orb
+    if (u.type === "arcanist" && rig.orb) {
+      const bob = new Animation("orbBob", "position.y", 30, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CYCLE);
+      const y0 = rig.orb.position.y;
+      bob.setKeys([{ frame: 0, value: y0 }, { frame: 45, value: y0 + 0.07 }, { frame: 90, value: y0 }]);
+      rig.orb.animations = [bob];
+      this.scene.beginAnimation(rig.orb, 0, 90, true);
+    }
+    // hero: floating molten crown + level pips above the rig's head
+    if (u.type === "hero") {
+      const crownY = rig.headY + 0.16;
+      const crown = MeshBuilder.CreateTorus("crown", { diameter: 0.2, thickness: 0.04, tessellation: 6 }, this.scene);
+      crown.position.y = crownY;
+      let hm = this.mats.get("hero-crown");
+      if (!hm) {
+        hm = new StandardMaterial("hero-crown", this.scene);
+        (hm as StandardMaterial).emissiveColor = Color3.FromHexString("#ffca5a");
+        (hm as StandardMaterial).diffuseColor = Color3.Black();
+        (hm as StandardMaterial).disableLighting = true;
+        this.mats.set("hero-crown", hm);
+      }
+      crown.material = hm;
+      crown.isPickable = false;
+      crown.parent = node;
+      const spin = new Animation("crownSpin", "rotation.y", 30, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CYCLE);
+      spin.setKeys([{ frame: 0, value: 0 }, { frame: 120, value: Math.PI * 2 }]);
+      crown.animations = [spin];
+      this.scene.beginAnimation(crown, 0, 120, true);
+      const lvl = Math.min(4, u.level ?? 1);
+      for (let i = 1; i < lvl; i++) {
+        const pip = MeshBuilder.CreatePolyhedron("pip", { type: 1, size: 0.035 }, this.scene);
+        const ang = (i / 3) * Math.PI * 2;
+        pip.position = new Vector3(Math.cos(ang) * 0.14, crownY, Math.sin(ang) * 0.14);
+        pip.material = hm;
+        pip.isPickable = false;
+        pip.parent = node;
+      }
     }
     if (u.hero) node.metadata = { ...(node.metadata ?? {}), heroLevel: u.level ?? 1 };
     // veteran crest: golden rotating diamond floating above the unit
@@ -1099,8 +1062,9 @@ export class BoardRenderer {
       let cm = this.mats.get("vet-crest");
       if (!cm) {
         cm = new StandardMaterial("vet-crest", this.scene);
-        (cm as StandardMaterial).diffuseColor = Color3.FromHexString("#ffb938");
-        (cm as StandardMaterial).emissiveColor = Color3.FromHexString("#e8a41f");
+        (cm as StandardMaterial).emissiveColor = Color3.FromHexString("#ffcf5e");
+        (cm as StandardMaterial).diffuseColor = Color3.Black();
+        (cm as StandardMaterial).disableLighting = true;
         this.mats.set("vet-crest", cm);
       }
       crest.material = cm;

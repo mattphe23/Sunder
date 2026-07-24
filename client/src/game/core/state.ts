@@ -1458,4 +1458,24 @@ export const game = new GameStore();
 // dev/testing convenience: expose the singleton store
 if (typeof window !== "undefined") {
   (window as any).__polyforge = game;
+  // dev-only visual-verify hook: ?devgame=seed,size,tribeIdx,preset starts a game
+  // immediately so headless screenshots can inspect in-game rendering.
+  if (import.meta.env.DEV) {
+    const dg = new URLSearchParams(window.location.search).get("devgame");
+    if (dg) {
+      const [seed = "4242", size = "11", tribe = "0", preset = "continents"] = dg.split(",");
+      // hide onboarding overlays so screenshots show the raw board
+      try { localStorage.setItem("polyforge-tutorial-done", "1"); } catch { /* noop */ }
+      const tribeIdx = Math.min(3, Math.max(0, parseInt(tribe, 10) || 0));
+      game.newGame({
+        humanTribe: tribeIdx,
+        difficulty: "normal",
+        size: parseInt(size, 10) || 11,
+        seed: parseInt(seed, 10) || 4242,
+        preset: preset as MapPreset,
+      });
+      game.state.showIntro = false;
+      game.emit({ type: "changed" });
+    }
+  }
 }
