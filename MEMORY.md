@@ -710,3 +710,8 @@ Key APIs: game.dismissHandoff() exists (L~732 sets handoff=null + emit). trpc ho
 - 15 min after v25 checkpoint, production still served OLD bundle (index-JA0aYoly.js). Saved
   v25.1 checkpoint at user request to re-trigger publish. New bundle marker: index-L4ItyS2I.js
   (name may change on rebuild — check for absence of separate react-/radix-/icons- chunks).
+- SYNC INVESTIGATION (01:25): git HEAD == origin/main == a10d4a37 (v25.1) — checkpoints ARE
+  pushed to the shared remote. webdev_restart_server re-synced cleanly. Production still on old
+  broken bundle (index-JA0aYoly.js with split react chunk). User reports checkpoint cards not
+  appearing in their app UI. All evidence points to platform-side propagation failure (UI cards
+  + deploy rotation), NOT project state. Advised user to report to help.manus.im.

@@ -190,4 +190,8 @@ below was checked against the actual codebase before being marked.
 - [x] 31 vitest green, tsc clean after fix
 - [ ] Verify fix on the live production URL after publish
 - [ ] Report findings to the user
-- [ ] Save a fresh checkpoint (v25.1) to re-trigger the publish (user request)
+- [x] Save a fresh checkpoint (v25.1 / a10d4a37) to re-trigger the publish (user request)
+- [x] Investigate checkpoint sync: git log shows v25/v25.1 committed AND pushed (HEAD ==
+      origin/main == a10d4a37); dev server restarted to force re-sync; production STILL serves
+      old bundle. Conclusion: checkpoints are correctly stored; the card display + publish
+      rotation failures are platform-side. → user to report at help.manus.im
