@@ -488,5 +488,6 @@ below was checked against the actual codebase before being marked.
 - [x] Hall of Conquest: persist each finished match's score breakdown and show it in the history screen (expandable per past match)
 - [x] Vitest coverage for road raiding + breakdown persistence; type-check + full suite green
 - [x] In-browser verification (raid severs income, pulse renders, hall shows breakdowns); checkpoint + deliver
-- [ ] v40-prep: headless AI-vs-AI batch simulation script with score collection
-- [ ] v40-prep: balance report from AI match batch results
+- [x] v40-prep: headless AI-vs-AI batch simulation script with score collection
+- [x] v40-prep: balance report from AI match batch results
+- [x] Tribe & character roster document with Polytopia-style visual descriptions for external art mockups
