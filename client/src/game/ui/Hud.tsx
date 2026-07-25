@@ -6,9 +6,10 @@ import {
   techCost, canResearch, trainableUnits, starIncome, cityAt, canHarvest,
   harvestCost, canBuildPort, portCost, wallCost, canBuild, unitCapacity, unitCount,
   adjacencyPop, marketStars, canQuake, quakeVictims, quakeWallTargets, QUAKE_DAMAGE,
+  canBuildRoad, roadCost, connectedCityIds,
 } from "../core/rules";
 import { Button } from "@/components/ui/button";
-import { Star, Swords, FlaskConical, X, ChevronRight, Anchor, Ship, Skull, Shield, Flag, Landmark, ScrollText, Undo2, Bird, Crown, Sparkles, SkipForward, Zap, Grid3x3 } from "lucide-react";
+import { Star, Swords, FlaskConical, X, ChevronRight, Anchor, Ship, Skull, Shield, Flag, Landmark, ScrollText, Undo2, Bird, Crown, Sparkles, SkipForward, Zap, Grid3x3, Route } from "lucide-react";
 import { useState, useEffect } from "react";
 import { MuteButton } from "./MuteButton";
 import { sound } from "../sound";
@@ -487,6 +488,9 @@ export function SelectionPanel() {
     const me = s.tribes[s.humanTribe];
     const harvestables = s.tiles.filter((t) => t.ownerCityId === city.id && t.resource && canHarvest(s, s.humanTribe, t));
     const portSites = s.tiles.filter((t) => t.ownerCityId === city.id && canBuildPort(s, s.humanTribe, t));
+    // v38 roads: sites inside this city's borders where a road can be laid
+    const roadSites = s.tiles.filter((t) => t.ownerCityId === city.id && canBuildRoad(s, s.humanTribe, t));
+    const connected = connectedCityIds(s, s.humanTribe);
     const cap = unitCapacity(s, s.humanTribe);
     const count = unitCount(s, s.humanTribe);
     const atCap = count >= cap;
@@ -506,6 +510,11 @@ export function SelectionPanel() {
         {city.walls && (
           <p className="mb-2 flex items-center gap-1 text-[11px] font-semibold text-slate-200">
             <Shield className="h-3 w-3 text-slate-300" /> Walled — defenders gain a fortified bonus
+          </p>
+        )}
+        {!city.isCapital && connected.has(city.id) && (
+          <p className="mb-2 flex items-center gap-1 text-[11px] font-semibold text-amber-200">
+            <Route className="h-3 w-3 text-amber-300" /> Trade route to the capital — +1★/turn
           </p>
         )}
         <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
@@ -566,6 +575,26 @@ export function SelectionPanel() {
                   className={`flex items-center gap-1 rounded-md border border-white/10 px-2 py-1 text-xs ${me.stars >= portCost(s, s.humanTribe) ? "bg-white/5 hover:bg-white/15" : "opacity-40"}`}
                 >
                   <Anchor className="h-3 w-3 text-cyan-300" /> ({t.x},{t.y})
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+        {roadSites.length > 0 && (
+          <>
+            <p className="mb-1 mt-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              Build road ({roadCost(s, s.humanTribe)}★ · link cities to the capital for +1★)
+            </p>
+            <div className="flex flex-wrap gap-1">
+              {roadSites.map((t) => (
+                <button
+                  key={`r${t.x},${t.y}`}
+                  disabled={me.stars < roadCost(s, s.humanTribe)}
+                  onClick={() => { sound.play("click"); g.buildRoad(t.x, t.y); }}
+                  title="Roads halve movement cost and link cities to the capital's trade network."
+                  className={`flex items-center gap-1 rounded-md border border-white/10 px-2 py-1 text-xs ${me.stars >= roadCost(s, s.humanTribe) ? "bg-white/5 hover:bg-white/15" : "opacity-40"}`}
+                >
+                  <Route className="h-3 w-3 text-amber-300" /> ({t.x},{t.y})
                 </button>
               ))}
             </div>

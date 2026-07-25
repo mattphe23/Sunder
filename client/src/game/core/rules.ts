@@ -4,7 +4,7 @@
 
 import {
   GameState, Tile, Unit, UnitType, UNIT_STATS, City, TechId, TECHS,
-  TRIBE_DEFS, WALL_DEFENSE_BONUS, HeroPerkId, BuildingDef, BUILDINGS, idx, inBounds,
+  TRIBE_DEFS, WALL_DEFENSE_BONUS, HeroPerkId, BuildingDef, BUILDINGS, ROAD_COST, idx, inBounds,
 } from "./types";
 import { inStorm, campAt } from "./events";
 import { commonEnemy } from "./coalition";
@@ -61,8 +61,13 @@ function moveCost(s: GameState, unit: Unit, t: Tile): number {
       // Sunwei Warden: born of the peaks — climbs at no penalty
       if (unit.type === "warden") return 1;
       return hasTech(s, tribe, "climbing") ? 2 : Infinity;
-    case "forest": return hasTech(s, tribe, "forestry") ? 1 : 2;
+    case "forest":
+      // v38 roads: a cleared road through the woods — half cost for any land unit
+      if (t.road) return 0.5;
+      return hasTech(s, tribe, "forestry") ? 1 : 2;
     case "grass": {
+      // v38 roads: paved ground moves land units at half cost (roads are unowned)
+      if (t.road) return 0.5;
       const passive = s.tribes[tribe]?.passive;
       return passive === "outriders" ? 0.5 : 1;
     }
@@ -77,6 +82,61 @@ export function portCost(s: GameState, tribe: number): number {
 }
 export function wallCost(s: GameState, tribe: number): number {
   return s.tribes[tribe]?.passive === "stonebound" ? 3 : 5;
+}
+export function roadCost(s: GameState, tribe: number): number {
+  return ROAD_COST;
+}
+
+/**
+ * v38 roads: may this tribe lay a road on tile `t`? Roads go on passable land
+ * (grass or forest) that is not water/mountain, not a city tile (cities are
+ * road nodes automatically), and not inside an enemy's borders.
+ */
+export function canBuildRoad(s: GameState, tribe: number, t: Tile | undefined): boolean {
+  if (!t || t.road || t.cityId !== null) return false;
+  if (t.terrain !== "grass" && t.terrain !== "forest") return false;
+  if (!hasTech(s, tribe, "roads")) return false;
+  // own or neutral land only — you cannot pave a rival's territory
+  if (t.ownerCityId !== null && s.cities[t.ownerCityId]?.tribe !== tribe) return false;
+  return s.tribes[tribe].stars >= roadCost(s, tribe);
+}
+
+/**
+ * v38 Capital Trade Network: ids of this tribe's cities connected to its
+ * capital through a chain of road tiles (4-adjacent). City tiles themselves
+ * count as road nodes, so two adjacent cities are trivially connected.
+ */
+export function connectedCityIds(s: GameState, tribe: number): Set<number> {
+  const out = new Set<number>();
+  const capital = s.cities.find((c) => c.tribe === tribe && c.isCapital);
+  if (!capital) return out;
+  const isNode = (t: Tile): boolean => {
+    if (t.road) return true;
+    // a city tile of the same tribe acts as a road node
+    if (t.cityId !== null && s.cities[t.cityId]?.tribe === tribe) return true;
+    return false;
+  };
+  const seen = new Set<number>();
+  const startKey = idx(capital.x, capital.y, s.size);
+  seen.add(startKey);
+  const queue: [number, number][] = [[capital.x, capital.y]];
+  while (queue.length) {
+    const [cx, cy] = queue.shift()!;
+    const tile = tileAt(s, cx, cy);
+    if (tile.cityId !== null && s.cities[tile.cityId]?.tribe === tribe) out.add(tile.cityId);
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      const nx = cx + dx, ny = cy + dy;
+      if (!inBounds(nx, ny, s.size)) continue;
+      const key = idx(nx, ny, s.size);
+      if (seen.has(key)) continue;
+      const nb = tileAt(s, nx, ny);
+      if (!isNode(nb)) continue;
+      seen.add(key);
+      queue.push([nx, ny]);
+    }
+  }
+  out.delete(capital.id); // the capital itself doesn't pay itself a trade bonus
+  return out;
 }
 
 /* ------------------------------- v16 hero helpers ------------------------------- */
@@ -531,6 +591,17 @@ export function starIncome(s: GameState, tribe: number): number {
     // v35: each Workshop reward adds +1 income for its city
     income += (c.rewards ?? []).filter((r) => r === "workshop").length;
   }
+  // v38 Capital Trade Network: each non-capital city connected to the capital
+  // by roads earns +1 star (a besieged city is choked like the rest)
+  if (hasTech(s, tribe, "roads")) {
+    for (const id of Array.from(connectedCityIds(s, tribe))) {
+      const c = s.cities[id];
+      if (!c || c.tribe !== tribe) continue;
+      const occupier = s.units.find((u) => u.x === c.x && u.y === c.y && u.tribe !== tribe && u.tribe >= 0);
+      if (occupier) continue;
+      income += 1;
+    }
+  }
   // v37 markets: +1 star per adjacent Sawmill/Windmill, counted live so a
   // market grows as new partners are placed beside it
   const marketDef = BUILDINGS.find((b) => b.id === "market");
@@ -549,6 +620,39 @@ export function starIncome(s: GameState, tribe: number): number {
 }
 
 export const POP_PER_LEVEL = 3;
+
+/**
+ * v38 game-over transparency: the exact components of a tribe's score, mirroring
+ * GameStore.updateScore so players can see what won or lost the match.
+ * Keep in sync with updateScore in state.ts.
+ */
+export interface ScoreParts {
+  cities: number;       // cities held × 100
+  cityLevels: number;   // Σ city level × 50
+  units: number;        // units fielded × 10
+  techs: number;        // techs researched × 40
+  battles: number;      // battles won × 8
+  hero: number;         // living hero bonus (15 + 15/level past 1)
+  heroFell: number;     // −40 if the commander fell
+  total: number;
+}
+export function scoreBreakdown(s: GameState, tribeIdx: number): ScoreParts {
+  const t = s.tribes[tribeIdx];
+  const cities = s.cities.filter((c) => c.tribe === tribeIdx);
+  const units = s.units.filter((u) => u.tribe === tribeIdx);
+  const parts: ScoreParts = {
+    cities: cities.length * 100,
+    cityLevels: cities.reduce((a, c) => a + c.level * 50, 0),
+    units: units.length * 10,
+    techs: t.techs.length * 40,
+    battles: (s.stats?.[tribeIdx]?.battlesWon ?? 0) * 8,
+    hero: units.filter((u) => u.hero).reduce((a, u) => a + 15 + ((u.level ?? 1) - 1) * 15, 0),
+    heroFell: t.heroFell ? -40 : 0,
+    total: 0,
+  };
+  parts.total = parts.cities + parts.cityLevels + parts.units + parts.techs + parts.battles + parts.hero + parts.heroFell;
+  return parts;
+}
 
 export function tribeDefs() {
   return TRIBE_DEFS;

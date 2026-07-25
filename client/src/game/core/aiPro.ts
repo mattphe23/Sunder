@@ -13,6 +13,7 @@ import {
   trainableUnits, techCost, cityAt, unitAt, canBuildPort, tileAt, uniqueUnitOf,
   starIncome, harvestCost, portCost, wallCost, canBuild, adjacencyPop, marketStars,
   canQuake, quakeVictims, quakeWallTargets, QUAKE_DAMAGE,
+  canBuildRoad, roadCost, connectedCityIds,
 } from "./rules";
 import { GameState, TECHS, UNIT_STATS, UnitType, Unit, TechId, idx, BuildingType, BUILDINGS } from "./types";
 import { atPeace, setPeace, aiWantsPeaceWith, markDiploUsed, diploUsed, strengthOf, PEACE_TREATY_TURNS } from "./diplomacy";
@@ -31,6 +32,7 @@ interface StoreLike {
   buildPort(x: number, y: number): void;
   buildWalls(cityId: number): void;
   quake(id: number): void;
+  buildRoad(x: number, y: number): void;
 }
 
 const cheb = (ax: number, ay: number, bx: number, by: number) => Math.max(Math.abs(ax - bx), Math.abs(ay - by));
@@ -215,6 +217,31 @@ export function runProAiTurn(store: StoreLike, tribeIdx: number) {
   if (me.stars > portCost(s, tribeIdx) + 6 && (waterFrac > 0.28 || path?.def.id === "tidemastery")) {
     const site = s.tiles.find((t) => canBuildPort(s, tribeIdx, t));
     if (site) store.buildPort(site.x, site.y);
+  }
+
+  // v38 roads: optimizer view — a 2★ segment moves a city toward a permanent
+  // +1★/turn trade link, so pave deterministically toward the nearest
+  // unconnected city whenever the treasury can spare it
+  if (me.techs.includes("roads") && me.stars > roadCost(s, tribeIdx) + 2) {
+    const capital = s.cities.find((c) => c.tribe === tribeIdx && c.isCapital);
+    if (capital) {
+      const connected = connectedCityIds(s, tribeIdx);
+      const roadTarget = s.cities
+        .filter((c) => c.tribe === tribeIdx && !c.isCapital && !connected.has(c.id))
+        .sort((a, b) => (Math.abs(a.x - capital.x) + Math.abs(a.y - capital.y)) - (Math.abs(b.x - capital.x) + Math.abs(b.y - capital.y)))[0];
+      if (roadTarget) {
+        let cx = roadTarget.x, cy = roadTarget.y;
+        for (let step = 0; step < s.size * 2; step++) {
+          if (cx === capital.x && cy === capital.y) break;
+          if (Math.abs(capital.x - cx) >= Math.abs(capital.y - cy) && capital.x !== cx) cx += Math.sign(capital.x - cx);
+          else cy += Math.sign(capital.y - cy);
+          const t = tileAt(s, cx, cy);
+          if (t.road || t.cityId !== null) continue;
+          if (canBuildRoad(s, tribeIdx, t)) store.buildRoad(cx, cy);
+          break; // one segment per turn; blocked terrain ends the attempt
+        }
+      }
+    }
   }
 
   // walls: protect the capital when threatened, or chase unbrokenwall path

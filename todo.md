@@ -468,3 +468,13 @@ below was checked against the actual codebase before being marked.
 ### Wrap-up v37
 - [x] Vitest coverage for quake + market income; type-check + full suite green
 - [x] In-browser verification (quake button/FX, market chips, planner overlay); checkpoint + deliver
+
+## v38 — Roads & Trade Network, Score Breakdown, Live Planner
+- [x] Roads: road flag on tiles, build-road action (tech-gated, cost, buildable on own/neutral passable land), road rendering on tiles
+- [x] Road movement: units move cheaper along connected road tiles
+- [x] Capital Trade Network: cities connected to the capital via roads earn +1 star/turn; income + city panel indication
+- [x] AI builds roads to connect cities to the capital when affordable
+- [x] Score breakdown panel on game-over screen (tech, cities, buildings, kills, etc.) for all tribes
+- [x] Live planner mode: overlay stays open while building; chips update after each placement; build clicks work through planner
+- [x] Vitest coverage for roads/trade network + score breakdown; type-check + full suite green (140/140)
+- [x] In-browser verification (roads render, trade income, game-over breakdown, live planner); checkpoint + deliver

@@ -662,6 +662,30 @@ export class BoardRenderer {
 
     const decor: Mesh[] = [];
     const top = h - 0.4;
+    if (t.road) {
+      // v38 roads: sandy paving — a center disc plus strips reaching toward each
+      // 4-adjacent road tile or friendly-city tile, so paths read as connected
+      const roadMat = this.mat("#c9a86a");
+      const hub = MeshBuilder.CreateCylinder("road", { diameter: 0.34, height: 0.045, tessellation: 10 }, this.scene);
+      hub.position = new Vector3(t.x - c, top + 0.025, t.y - c);
+      hub.material = roadMat;
+      hub.metadata = { tile: true, x: t.x, y: t.y };
+      hub.parent = this.root;
+      decor.push(hub);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+        const nx = t.x + dx, ny = t.y + dy;
+        if (nx < 0 || ny < 0 || nx >= s.size || ny >= s.size) continue;
+        const nb = s.tiles[ny * s.size + nx];
+        const links = nb.road || nb.cityId !== null;
+        if (!links) continue;
+        const strip = MeshBuilder.CreateBox("roadStrip", { width: dx !== 0 ? 0.5 : 0.16, height: 0.04, depth: dy !== 0 ? 0.5 : 0.16 }, this.scene);
+        strip.position = new Vector3(t.x - c + dx * 0.33, top + 0.022, t.y - c + dy * 0.33);
+        strip.material = roadMat;
+        strip.metadata = { tile: true, x: t.x, y: t.y };
+        strip.parent = this.root;
+        decor.push(strip);
+      }
+    }
     if (t.port !== null) {
       // port: wooden pier + mast with a tribe-colored triangular sail (reads as "harbor")
       const pier = MeshBuilder.CreateCylinder("port", { diameter: 0.55, height: 0.1, tessellation: 8 }, this.scene);
@@ -1754,8 +1778,10 @@ export class BoardRenderer {
   showHighlights(s: GameState) {
     this.highlightMeshes.forEach((m) => m.dispose());
     this.highlightMeshes = [];
-    // v37 city planner: overlay takes over highlight duty while open
-    if (s.plannerOpen && s.currentTribe === s.humanTribe && !s.aiThinking) {
+    // v37/v38 city planner: a live planning mode — the overlay persists while a
+    // city panel is open (chips re-render after every build via the store's
+    // "changed" event), but defers to movement rings when a unit is selected
+    if (s.plannerOpen && s.selectedUnitId === null && s.currentTribe === s.humanTribe && !s.aiThinking) {
       this.showPlanner(s);
       return;
     }
@@ -1836,6 +1862,8 @@ export class BoardRenderer {
       pm.disableDepthWrite = true;
       pm.zOffset = -2;
       pad.material = pm;
+      // v38 live planner: pads keep tile metadata so clicking one selects the
+      // owning city (opening its build panel) without leaving planner mode
       pad.metadata = { tile: true, x: site.x, y: site.y };
       pad.parent = this.root;
       this.highlightMeshes.push(pad);

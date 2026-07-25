@@ -6,6 +6,7 @@ import {
   reachableTiles, attackableUnits, previewCombat, canResearch, canHarvest,
   trainableUnits, techCost, cityAt, unitAt, canBuildPort, tileAt, uniqueUnitOf, canBuild, adjacencyPop, marketStars,
   canQuake, quakeVictims, quakeWallTargets, QUAKE_DAMAGE,
+  canBuildRoad, roadCost, connectedCityIds,
 } from "./rules";
 import { GameState, TECHS, UNIT_STATS, UnitType, Unit, TechId, PORT_COST, WALL_COST, BuildingType, BUILDINGS } from "./types";
 import { atPeace, setPeace, aiWantsPeaceWith, markDiploUsed, diploUsed, strengthOf, PEACE_TREATY_TURNS } from "./diplomacy";
@@ -26,6 +27,7 @@ interface StoreLike {
   buildPort(x: number, y: number): void;
   buildWalls(cityId: number): void;
   quake(id: number): void;
+  buildRoad(x: number, y: number): void;
 }
 
 export function runAiTurn(store: StoreLike, tribeIdx: number) {
@@ -138,6 +140,31 @@ export function runAiTurn(store: StoreLike, tribeIdx: number) {
     const site = s.tiles.find((t) => canBuildPort(s, tribeIdx, t));
     // tidemastery (Nerivane): ports are the win condition — build eagerly
     if (site && Math.random() < (pathId === "tidemastery" ? 0.9 : 0.5)) store.buildPort(site.x, site.y);
+  }
+
+  // 2b2. v38 roads: pave toward the capital — each connected city is +1★/turn,
+  // so a short road pays for itself in a couple of turns
+  if (s.tribes[tribeIdx].techs.includes("roads") && s.tribes[tribeIdx].stars > roadCost(s, tribeIdx) + 3) {
+    const capital = s.cities.find((c) => c.tribe === tribeIdx && c.isCapital);
+    if (capital) {
+      const connected = connectedCityIds(s, tribeIdx);
+      const target = s.cities
+        .filter((c) => c.tribe === tribeIdx && !c.isCapital && !connected.has(c.id))
+        .sort((a, b) => (Math.abs(a.x - capital.x) + Math.abs(a.y - capital.y)) - (Math.abs(b.x - capital.x) + Math.abs(b.y - capital.y)))[0];
+      if (target && Math.random() < 0.75) {
+        // greedy 4-adjacent walk from the city toward the capital; pave the first gap
+        let cx = target.x, cy = target.y;
+        for (let step = 0; step < s.size * 2; step++) {
+          if (cx === capital.x && cy === capital.y) break;
+          if (Math.abs(capital.x - cx) >= Math.abs(capital.y - cy) && capital.x !== cx) cx += Math.sign(capital.x - cx);
+          else cy += Math.sign(capital.y - cy);
+          const t = tileAt(s, cx, cy);
+          if (t.road || t.cityId !== null) continue;
+          if (canBuildRoad(s, tribeIdx, t)) store.buildRoad(cx, cy);
+          break; // one segment per turn; stop if the path is blocked
+        }
+      }
+    }
   }
 
   // 2c. fortify: wall up high-level cities when stars allow (capital first)

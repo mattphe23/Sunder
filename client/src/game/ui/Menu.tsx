@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useGame } from "../useGame";
 import { game, loadHall, HallEntry } from "../core/state";
 import { TRIBE_DEFS, PREMIUM_TRIBES, Difficulty } from "../core/types";
+import { scoreBreakdown } from "../core/rules";
 import { MAP_PRESETS, MapPreset } from "../core/mapgen";
 import { Button } from "@/components/ui/button";
 import { Swords, Star, Play, Trophy, ChevronDown, Crown } from "lucide-react";
@@ -822,6 +823,8 @@ export function GameOver() {
   const [replayOpen, setReplayOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [resultCopied, setResultCopied] = useState(false);
+  // v38: which tribe's score breakdown row is expanded (default: the winner's)
+  const [breakdownFor, setBreakdownFor] = useState<number | null>(null);
   const winner = s.winner !== null ? s.tribes[s.winner] : null;
   const hotseat = (s.humanTribes?.length ?? 1) > 1;
   const won = hotseat
@@ -1019,21 +1022,44 @@ export function GameOver() {
         )}
         <div className="my-4"><FacetRule /></div>
         <div className="space-y-1.5">
-          {ranked.map((t, i) => (
-            <div
-              key={t.index}
-              className="flex items-center justify-between rounded-md border-l-4 bg-white/5 px-3 py-1.5 text-sm"
-              style={{ borderLeftColor: t.color, boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.07)" }}
-            >
-              <span className="flex items-center gap-2 text-slate-200">
-                <span className="font-mono text-xs text-slate-500">#{i + 1}</span>
-                <span className="h-2.5 w-2.5 rotate-45" style={{ background: t.color }} />
-                <span className="font-display font-bold">{t.name}</span>
-                {!t.alive && <span className="text-[10px] text-red-400">fallen</span>}
-              </span>
-              <span className="font-mono text-slate-300">{t.score}</span>
-            </div>
-          ))}
+          {ranked.map((t, i) => {
+            const open = breakdownFor === t.index;
+            const bd = open ? scoreBreakdown(s, t.index) : null;
+            return (
+              <div
+                key={t.index}
+                className="rounded-md border-l-4 bg-white/5 text-sm"
+                style={{ borderLeftColor: t.color, boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.07)" }}
+              >
+                <button
+                  onClick={() => { sound.play("click"); setBreakdownFor(open ? null : t.index); }}
+                  className="flex w-full items-center justify-between px-3 py-1.5 text-left"
+                  title={open ? "Hide score breakdown" : "Show score breakdown"}
+                >
+                  <span className="flex items-center gap-2 text-slate-200">
+                    <span className="font-mono text-xs text-slate-500">#{i + 1}</span>
+                    <span className="h-2.5 w-2.5 rotate-45" style={{ background: t.color }} />
+                    <span className="font-display font-bold">{t.name}</span>
+                    {!t.alive && <span className="text-[10px] text-red-400">fallen</span>}
+                  </span>
+                  <span className="flex items-center gap-1.5 font-mono text-slate-300">
+                    {t.score}
+                    <ChevronDown className={`h-3.5 w-3.5 text-slate-500 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+                  </span>
+                </button>
+                {open && bd && (
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 border-t border-white/10 px-3 py-2 text-left text-[11px] text-slate-400 sm:grid-cols-3">
+                    <span className="flex justify-between gap-2">Cities <span className="font-mono text-slate-200">{bd.cities}</span></span>
+                    <span className="flex justify-between gap-2">City levels <span className="font-mono text-slate-200">{bd.cityLevels}</span></span>
+                    <span className="flex justify-between gap-2">Techs <span className="font-mono text-slate-200">{bd.techs}</span></span>
+                    <span className="flex justify-between gap-2">Army <span className="font-mono text-slate-200">{bd.units}</span></span>
+                    <span className="flex justify-between gap-2">Battles won <span className="font-mono text-slate-200">{bd.battles}</span></span>
+                    <span className="flex justify-between gap-2">Hero <span className="font-mono text-slate-200">{bd.hero + bd.heroFell}{bd.heroFell !== 0 && <span className="text-red-400/80"> (fell)</span>}</span></span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
         {chartData.length > 1 && (
           <div className="mt-4 rounded-md border border-white/10 bg-white/[0.03] p-2 pt-3">

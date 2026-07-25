@@ -22,6 +22,8 @@ export interface Tile {
   greatRuin: boolean;
   /** v35 economy: production building placed on this tile (inside a city's borders) */
   building?: BuildingType | null;
+  /** v38 roads: a road runs across this tile (roads are unowned, like Polytopia) */
+  road?: boolean;
 }
 
 /* ---------------------------------- v35 economy ---------------------------------- */
@@ -283,7 +285,8 @@ export type TechId =
   | "mathematics"
   | "forestry"
   | "sailing"
-  | "navigation";
+  | "navigation"
+  | "roads";
 
 export interface TechDef {
   id: TechId;
@@ -310,10 +313,15 @@ export const TECHS: TechDef[] = [
   { id: "mathematics", name: "Mathematics", tier: 3, requires: "forestry", baseCost: 6, desc: "Unlocks the Catapult — siege engine that ignores city walls." },
   { id: "sailing", name: "Sailing", tier: 2, requires: "organization", baseCost: 5, desc: "Build ports; units embark on boats to cross shallow water." },
   { id: "navigation", name: "Navigation", tier: 3, requires: "sailing", baseCost: 6, desc: "Boats can cross deep ocean tiles." },
+  // v38 trade network: the second placement economy — roads knit cities to the capital
+  { id: "roads", name: "Roads", tier: 2, requires: "riding", baseCost: 5, desc: "Build roads — faster overland movement; cities linked to your capital earn +1 star." },
 ];
 
 /** cost in stars to build a port on a shallow water tile in your city borders */
 export const PORT_COST = 3;
+
+/** v38: cost in stars to lay a road on a passable land tile */
+export const ROAD_COST = 2;
 
 /** cost in stars to build walls in a level-3+ city */
 export const WALL_COST = 5;

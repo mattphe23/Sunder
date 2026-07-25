@@ -14,6 +14,7 @@ import {
   canHarvest, harvestCost, starIncome, tileAt, unitAt, cityAt, trainableUnits,
   POP_PER_LEVEL, canBuildPort, portCost, wallCost, canBuild, atUnitCapacity,
   knockbackDestination, adjacencyPop, marketStars, canQuake, quakeVictims, quakeWallTargets, QUAKE_DAMAGE,
+  canBuildRoad, roadCost, connectedCityIds,
 } from "./rules";
 import { runAiTurn } from "./ai";
 import { evaluateAchievements, AchievementDef } from "./achievements";
@@ -1306,6 +1307,27 @@ class GameStore {
     s.tribes[tribeIdx].stars -= cost;
     t.port = tribeIdx;
     s.log.unshift(`${s.tribes[tribeIdx].name} built a port.`);
+    this.emit({ type: "changed" });
+  }
+
+  /** v38 roads: lay a road on a passable land tile (own or neutral territory) */
+  buildRoad(x: number, y: number) {
+    const s = this.state;
+    const tribeIdx = s.currentTribe;
+    const t = tileAt(s, x, y);
+    if (!canBuildRoad(s, tribeIdx, t)) return;
+    const cost = roadCost(s, tribeIdx);
+    if (s.tribes[tribeIdx].stars < cost) return;
+    const before = connectedCityIds(s, tribeIdx).size;
+    s.tribes[tribeIdx].stars -= cost;
+    t.road = true;
+    const after = connectedCityIds(s, tribeIdx).size;
+    if (after > before) {
+      const gained = after - before;
+      s.log.unshift(`${s.tribes[tribeIdx].name} built a road — ${gained} more ${gained === 1 ? "city" : "cities"} now trade with the capital (+${gained}★/turn)!`);
+    } else {
+      s.log.unshift(`${s.tribes[tribeIdx].name} built a road.`);
+    }
     this.emit({ type: "changed" });
   }
 
