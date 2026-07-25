@@ -20,7 +20,58 @@ export interface Tile {
   ruin: boolean;
   /** rare great ruin — guarded by a neutral guardian; bigger reward once claimed */
   greatRuin: boolean;
+  /** v35 economy: production building placed on this tile (inside a city's borders) */
+  building?: BuildingType | null;
 }
+
+/* ---------------------------------- v35 economy ---------------------------------- */
+
+/** buildings convert stars into city population (Polytopia-style) */
+export type BuildingType = "hut" | "farm" | "mine";
+export interface BuildingDef {
+  id: BuildingType;
+  name: string;
+  terrain: Terrain;
+  cost: number;
+  pop: number;
+  tech: TechId;
+  desc: string;
+}
+export const BUILDINGS: BuildingDef[] = [
+  { id: "hut", name: "Lumber Hut", terrain: "forest", cost: 2, pop: 1, tech: "forestry", desc: "A woodcutter's hut among the pines. +1 population." },
+  { id: "farm", name: "Farm", terrain: "grass", cost: 4, pop: 2, tech: "organization", desc: "Terraced fields feed the city. +2 population." },
+  { id: "mine", name: "Mine", terrain: "mountain", cost: 4, pop: 2, tech: "mining", desc: "Deep shafts of ore and gems. +2 population." },
+];
+
+/** rewards chosen at each city level-up (2 offered, pick 1) */
+export type CityReward =
+  | "workshop" // +1 star income from this city
+  | "explorer" // reveal the land around the city
+  | "wall" // free city walls
+  | "stars" // +5 stars now
+  | "borderGrowth" // borders expand one ring
+  | "popGrowth" // +3 population toward the next level
+  | "park" // +15 score
+  | "superUnit"; // a Colossus super unit spawns at the city
+
+/** the two rewards offered on reaching a given level (first level-up = level 2) */
+export function rewardChoicesForLevel(level: number): [CityReward, CityReward] {
+  if (level === 2) return ["workshop", "explorer"];
+  if (level === 3) return ["wall", "stars"];
+  if (level === 4) return ["borderGrowth", "popGrowth"];
+  return ["park", "superUnit"];
+}
+
+export const REWARD_INFO: Record<CityReward, { name: string; desc: string }> = {
+  workshop: { name: "Workshop", desc: "+1 star income from this city, every turn." },
+  explorer: { name: "Explorer", desc: "Reveals the land around the city." },
+  wall: { name: "City Wall", desc: "Free walls — garrisoned defenders hold far stronger." },
+  stars: { name: "Resources", desc: "+5 stars to the treasury, immediately." },
+  borderGrowth: { name: "Border Growth", desc: "The city's borders expand one ring outward." },
+  popGrowth: { name: "Population Boom", desc: "+3 population toward the next level." },
+  park: { name: "Park", desc: "+15 score — a monument to prosperity." },
+  superUnit: { name: "Colossus", desc: "A towering super unit rises to defend this city." },
+};
 
 export interface City {
   id: number;
@@ -33,7 +84,10 @@ export interface City {
   isCapital: boolean;
   /** city walls: defenders garrisoned here get a stronger defense bonus */
   walls?: boolean;
-  /** unit currently being trained none this scope — training is instant spawn */
+  /** v35: rewards chosen at level-ups (drives income, score, etc.) */
+  rewards?: CityReward[];
+  /** v35: border rings claimed (1 = base ring; borderGrowth reward bumps to 2) */
+  borderRadius?: number;
 }
 
 export type UnitType =
@@ -44,6 +98,8 @@ export type UnitType =
   | "swordsman"
   | "knight"
   | "catapult"
+  // v35: city level-5 reward super unit
+  | "colossus"
   // faction-unique units (v10)
   | "arcanist" // Auren — ranged mystic; adjacent friendly units heal +2 HP at turn start
   | "berserker" // Kharzul — brutal melee; +50% damage vs already-wounded targets, low defense
@@ -81,6 +137,11 @@ export const UNIT_STATS: Record<UnitType, UnitStats> = {
   swordsman: { name: "Swordsman", cost: 5, hp: 15, attack: 3, defense: 3, movement: 1, range: 1, dash: true, tech: "smithery" },
   knight: { name: "Knight", cost: 8, hp: 10, attack: 3.5, defense: 1, movement: 3, range: 1, dash: true, tech: "chivalry" },
   catapult: { name: "Catapult", cost: 8, hp: 10, attack: 4, defense: 0, movement: 1, range: 3, dash: false, tech: "mathematics" },
+  colossus: {
+    name: "Colossus", cost: 10, hp: 24, attack: 3, defense: 3, movement: 1, range: 1, dash: true,
+    tech: null,
+    perk: "City reward super unit — a slow, towering juggernaut. Cannot be trained.",
+  },
   hero: {
     name: "Commander", cost: 10, hp: 14, attack: 2.5, defense: 2, movement: 1, range: 1, dash: true,
     tech: null,
@@ -387,6 +448,8 @@ export interface GameState {
   storyMission?: string;
   /** v16: human hero levelled up — unit id awaiting a perk choice (blocks end turn UI-side) */
   pendingPerk?: number | null;
+  /** v35: human city levelled up — city id awaiting a reward choice (blocks end turn UI-side) */
+  pendingCityReward?: number | null;
   /** v16: friend challenge — decoded from a shared link (?c=): beat `score` set by `name` */
   /** v16: a friend's shared "beat my score" target — name + score (map setup applied at newGame) */
   friendChallenge?: { name: string; score: number } | null;

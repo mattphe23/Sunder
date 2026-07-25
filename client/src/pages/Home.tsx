@@ -3,7 +3,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { useGame } from "@/game/useGame";
 import { sound } from "@/game/sound";
 import { MainMenu, GameOver } from "@/game/ui/Menu";
-import { TopBar, BottomBar, SelectionPanel, TechPanel, LogTicker, BattlePreview, TurnRecap, PerkChoice } from "@/game/ui/Hud";
+import { TopBar, BottomBar, SelectionPanel, TechPanel, LogTicker, BattlePreview, TurnRecap, PerkChoice, CityRewardChoice } from "@/game/ui/Hud";
 import { Minimap } from "@/game/ui/Minimap";
 import { Tutorial } from "@/game/ui/Tutorial";
 import { FactionIntro } from "@/game/ui/FactionIntro";
@@ -47,6 +47,7 @@ export default function Home() {
       <BattlePreview />
       <TurnRecap />
       <PerkChoice />
+      <CityRewardChoice />
       <WorldEventCards />
       <HeroFallenCard />
       <OnlineGame />

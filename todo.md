@@ -420,11 +420,12 @@ below was checked against the actual codebase before being marked.
 ## v35 — Economy depth (user-approved Tier 1 from gap analysis; starts after v34 ships)
 
 ### Core loop
-- [ ] City level-up reward choice (2 options per level, Polytopia-style: workshop/explorer, wall/stars, pop growth/border growth, park/super unit — tuned to Sunder)
-- [ ] Unit capacity per city (level + 1); training blocked at cap with clear UI
-- [ ] Scoped building set: Lumber Hut (forest), Farm (grass), Mine (mountain) + 1 adjacency building (Sawmill) — population per build, placement UI
-- [ ] Interactive ruins: examine action with random rewards (stars/tech/population/veteran unit)
-- [ ] Tech cost scales with city count (anti-snowball)
+- [x] City level-up reward choice (workshop/explorer at L2, wall/stars at L3, borderGrowth/popGrowth at L4, park/superUnit at L5+ — modal for human, AI auto-picks, endTurn blocked while pending)
+- [x] Unit capacity per city (city levels + 1); training blocked at cap with count/cap display in the train panel
+- [x] Scoped building set: Lumber Hut (forest), Farm (grass), Mine (mountain) — +1 pop each, build buttons in SelectionPanel, tile meshes rendered (Sawmill deferred: three buildings close the loop; adjacency math is better validated after playtests)
+- [x] Interactive ruins: ALREADY EXISTS — step-on ruins grant tapered random rewards (stars/tech/free unit) + guarded Great Ruins; no work needed
+- [x] Tech cost scales with city count: ALREADY EXISTS in techCost() (baseCost + tier×(cities−1)×1.5); no work needed
 ### Support
-- [ ] AI (both brains) understands rewards, buildings, capacity, ruins
-- [ ] Balance validation run via playtest harness; vitest coverage; visual verification
+- [x] AI (both brains) understands rewards (auto-pick heuristic), buildings (places when resources run dry), capacity (train gated), ruins (pre-existing interactive rewards)
+- [x] Vitest coverage: economy.v35.test.ts (9 tests) + sim harness fixes — 112 tests green, tsc clean
+- [x] Balance validation run via playtest harness; visual verification in browser (4-seed probe: rewards through superUnit picked, up to 13 buildings placed, city level 5 reached, no stalls; in-browser: reward modal choice→wall applied, capacity display "1/5 units", research→harvest→build hut loop verified end-to-end with correct gating)

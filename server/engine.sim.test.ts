@@ -47,6 +47,12 @@ function simulate(seed: number, difficulty: "easy" | "normal" | "hard" | "imposs
         else s.pendingPerk = null;
       } else s.pendingPerk = null;
     }
+    // v35: city level-up reward choices block endTurn; auto-resolve headlessly
+    if (s.pendingCityReward != null) {
+      const city = s.cities[s.pendingCityReward];
+      if (city) game.aiPickCityReward(city);
+      s.pendingCityReward = null;
+    }
     if (s.tribes[s.currentTribe]?.alive) runAiTurn(game, s.currentTribe);
     if (game.state.phase !== "playing") break;
     game.endTurn();
@@ -105,6 +111,11 @@ describe("v20 headless AI-vs-AI simulation", () => {
           const choices = game.perkChoices(hero);
           if (choices.length > 0) game.choosePerk(choices[0]); else s.pendingPerk = null;
         } else s.pendingPerk = null;
+      }
+      if (s.pendingCityReward != null) {
+        const city = s.cities[s.pendingCityReward];
+        if (city) game.aiPickCityReward(city);
+        s.pendingCityReward = null;
       }
       const cur = s.currentTribe;
       const distHome = (u: { x: number; y: number }, tribe: number) => {

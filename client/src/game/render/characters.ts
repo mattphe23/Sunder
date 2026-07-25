@@ -421,6 +421,23 @@ export function buildCharacter(spec: CharacterSpec, node: TransformNode, opts?: 
       box(spec, "flag", 0.02, 0.12, 0.18, spec.color, node, 0.18, rig.shoulderY + 0.22, 0.1);
       return rig;
     }
+    case "colossus": {
+      // reward-only super unit: hulking stone giant, twice normal bulk
+      const rig = buildRig(spec, node, { bulk: 1.6 });
+      // massive shoulders + stone fists
+      for (const sx of [-0.26, 0.26]) {
+        ball(spec, "prop", 0.09, STEEL_DARK, node, sx, rig.shoulderY + 0.02, 0);
+        ball(spec, "prop", 0.11, STEEL, node, sx * 1.25, rig.shoulderY - 0.22, 0.04);
+      }
+      // glowing rune chest plate in the tribe accent
+      box(spec, "prop", 0.16, 0.16, 0.03, c.accent, node, 0, rig.shoulderY - 0.12, 0.18);
+      // crown of jagged stone
+      for (const [hx, hz] of [[-0.05, 0], [0.05, 0], [0, -0.05], [0, 0.05]] as const) {
+        cyl(spec, "gear", 0, 0.04, 0.1, 4, STEEL_DARK, node, hx, rig.headY + 0.1, hz);
+      }
+      node.scaling.setAll(1.25);
+      return rig;
+    }
     default: {
       const rig = buildRig(spec, node);
       buildHeadgear(spec, node, rig.headY);

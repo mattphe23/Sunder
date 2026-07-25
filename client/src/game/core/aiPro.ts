@@ -11,9 +11,9 @@
 import {
   reachableTiles, attackableUnits, previewCombat, canResearch, canHarvest,
   trainableUnits, techCost, cityAt, unitAt, canBuildPort, tileAt, uniqueUnitOf,
-  starIncome, harvestCost, portCost, wallCost,
+  starIncome, harvestCost, portCost, wallCost, canBuild,
 } from "./rules";
-import { GameState, TECHS, UNIT_STATS, UnitType, Unit, TechId, idx } from "./types";
+import { GameState, TECHS, UNIT_STATS, UnitType, Unit, TechId, idx, BuildingType, BUILDINGS } from "./types";
 import { atPeace, setPeace, aiWantsPeaceWith, markDiploUsed, diploUsed, strengthOf, PEACE_TREATY_TURNS } from "./diplomacy";
 import { victoryProgress } from "./victory";
 import { commonEnemy, inCoalition, claimCoalitionTarget, maybeBetray } from "./coalition";
@@ -23,6 +23,7 @@ interface StoreLike {
   research(t: TechId): void;
   harvest(x: number, y: number): void;
   train(cityId: number, type: UnitType): void;
+  build(x: number, y: number, type: BuildingType): void;
   moveUnit(id: number, x: number, y: number): void;
   attack(a: number, d: number): void;
   captureCity(id: number): void;
@@ -178,6 +179,17 @@ export function runProAiTurn(store: StoreLike, tribeIdx: number) {
   for (const t of s.tiles) {
     if (me.stars < harvestCost(s, tribeIdx) + 2) break;
     if (canHarvest(s, tribeIdx, t)) store.harvest(t.x, t.y);
+  }
+
+  // v35 buildings: convert surplus stars into population once resources thin out
+  if (me.stars > 9) {
+    const harvestables = s.tiles.filter((t) => canHarvest(s, tribeIdx, t)).length;
+    if (harvestables === 0) {
+      for (const b of BUILDINGS) {
+        const site = s.tiles.find((t) => canBuild(s, tribeIdx, t, b));
+        if (site) { store.build(site.x, site.y, b.id); break; }
+      }
+    }
   }
 
   // ports: only on water-heavy maps or tidemastery path

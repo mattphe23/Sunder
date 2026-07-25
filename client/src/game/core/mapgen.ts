@@ -216,8 +216,9 @@ export function generateMap(size: number, seed: number, tribeCount: number, pres
 }
 
 export function claimBorders(tiles: Tile[], size: number, city: City) {
-  for (let dy = -1; dy <= 1; dy++) {
-    for (let dx = -1; dx <= 1; dx++) {
+  const r = city.borderRadius ?? 1; // v35: borderGrowth reward expands to radius 2
+  for (let dy = -r; dy <= r; dy++) {
+    for (let dx = -r; dx <= r; dx++) {
       const x = city.x + dx, y = city.y + dy;
       if (!inBounds(x, y, size)) continue;
       const t = tiles[idx(x, y, size)];

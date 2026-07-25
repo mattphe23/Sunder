@@ -1,10 +1,10 @@
 // Sunder HUD — Isoglow glass panels over the indigo void; amber star accent.
 import { useGame } from "../useGame";
 import { game } from "../core/state";
-import { UNIT_STATS, TECHS, HERO_PERKS, HERO_XP_THRESHOLDS, HERO_MAX_LEVEL } from "../core/types";
+import { UNIT_STATS, TECHS, HERO_PERKS, HERO_XP_THRESHOLDS, HERO_MAX_LEVEL, BUILDINGS, REWARD_INFO, rewardChoicesForLevel } from "../core/types";
 import {
   techCost, canResearch, trainableUnits, starIncome, cityAt, canHarvest,
-  harvestCost, canBuildPort, portCost, wallCost,
+  harvestCost, canBuildPort, portCost, wallCost, canBuild, unitCapacity, unitCount,
 } from "../core/rules";
 import { Button } from "@/components/ui/button";
 import { Star, Swords, FlaskConical, X, ChevronRight, Anchor, Ship, Skull, Shield, Flag, Landmark, ScrollText, Undo2, Bird, Crown, Sparkles, SkipForward } from "lucide-react";
@@ -48,6 +48,47 @@ export function PerkChoice() {
                 <span>
                   <span className="block font-display text-sm font-bold text-slate-100">{def.name}</span>
                   <span className="block text-[11px] text-slate-300">{def.desc}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** v35 — City level-up: choose one of two rewards. Blocks input until resolved. */
+export function CityRewardChoice() {
+  const g = useGame();
+  const s = g.state;
+  if (s.pendingCityReward == null || s.phase !== "playing") return null;
+  const city = s.cities[s.pendingCityReward];
+  if (!city || city.tribe !== s.humanTribe) return null;
+  const options = rewardChoicesForLevel(city.level);
+  return (
+    <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/55 p-4">
+      <div className={`${panel} w-full max-w-md border-emerald-400/40 p-5`}>
+        <div className="mb-1 flex items-center justify-center gap-2">
+          <Landmark className="h-5 w-5 text-emerald-300" />
+          <span className="font-display text-lg font-bold text-emerald-300">{city.name} — Level {city.level}</span>
+        </div>
+        <p className="mb-4 text-center text-xs text-slate-300">
+          The city flourishes. Choose how it grows — the other path is lost.
+        </p>
+        <div className="space-y-2">
+          {options.map((r) => {
+            const info = REWARD_INFO[r];
+            return (
+              <button
+                key={r}
+                onClick={() => { sound.play("click"); game.chooseCityReward(city.id, r); }}
+                className="flex w-full items-center gap-3 rounded-lg border border-emerald-400/25 bg-emerald-400/5 px-4 py-3 text-left transition-all hover:border-emerald-400/60 hover:bg-emerald-400/15 active:scale-[0.98]"
+              >
+                <Sparkles className="h-4 w-4 shrink-0 text-emerald-300" />
+                <span>
+                  <span className="block font-display text-sm font-bold text-slate-100">{info.name}</span>
+                  <span className="block text-[11px] text-slate-300">{info.desc}</span>
                 </span>
               </button>
             );
@@ -417,6 +458,13 @@ export function SelectionPanel() {
     const me = s.tribes[s.humanTribe];
     const harvestables = s.tiles.filter((t) => t.ownerCityId === city.id && t.resource && canHarvest(s, s.humanTribe, t));
     const portSites = s.tiles.filter((t) => t.ownerCityId === city.id && canBuildPort(s, s.humanTribe, t));
+    const cap = unitCapacity(s, s.humanTribe);
+    const count = unitCount(s, s.humanTribe);
+    const atCap = count >= cap;
+    const buildSites = BUILDINGS.map((b) => ({
+      b,
+      sites: s.tiles.filter((t) => t.ownerCityId === city.id && canBuild(s, s.humanTribe, t, b)),
+    })).filter((e) => e.sites.length > 0);
     return (
       <div className={`${panel} absolute bottom-16 left-3 z-20 w-64 p-3`}>
         <div className="mb-1 flex items-center justify-between">
@@ -431,11 +479,14 @@ export function SelectionPanel() {
             <Shield className="h-3 w-3 text-slate-300" /> Walled — defenders gain a fortified bonus
           </p>
         )}
-        <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Train unit</p>
+        <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          Train unit <span className={atCap ? "text-rose-300" : "text-slate-500"}>({count}/{cap} units)</span>
+        </p>
+        {atCap && <p className="mb-1 text-[10px] text-rose-300/80">At capacity — level up cities to field more units.</p>}
         <div className="mb-2 grid grid-cols-2 gap-1">
           {trainableUnits(s, s.humanTribe).map((ut) => {
             const st = UNIT_STATS[ut];
-            const afford = me.stars >= st.cost;
+            const afford = me.stars >= st.cost && !atCap;
             const unique = st.faction !== undefined;
             return (
               <button
@@ -491,6 +542,26 @@ export function SelectionPanel() {
             </div>
           </>
         )}
+        {buildSites.map(({ b, sites }) => (
+          <div key={b.id}>
+            <p className="mb-1 mt-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              {b.name} ({b.cost}★ · +{b.pop} pop)
+            </p>
+            <div className="flex flex-wrap gap-1">
+              {sites.map((t) => (
+                <button
+                  key={`b${t.x},${t.y}`}
+                  disabled={me.stars < b.cost}
+                  onClick={() => { sound.play("click"); g.build(t.x, t.y, b.id); }}
+                  title={b.desc}
+                  className={`flex items-center gap-1 rounded-md border border-white/10 px-2 py-1 text-xs ${me.stars >= b.cost ? "bg-white/5 hover:bg-white/15" : "opacity-40"}`}
+                >
+                  <Landmark className="h-3 w-3 text-emerald-300" /> ({t.x},{t.y})
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
         {!city.walls && city.level >= 3 && (
           <button
             disabled={me.stars < wallCost(s, s.humanTribe)}

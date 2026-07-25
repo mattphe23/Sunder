@@ -4,9 +4,9 @@
 
 import {
   reachableTiles, attackableUnits, previewCombat, canResearch, canHarvest,
-  trainableUnits, techCost, cityAt, unitAt, canBuildPort, tileAt, uniqueUnitOf,
+  trainableUnits, techCost, cityAt, unitAt, canBuildPort, tileAt, uniqueUnitOf, canBuild,
 } from "./rules";
-import { GameState, TECHS, UNIT_STATS, UnitType, Unit, TechId, PORT_COST, WALL_COST } from "./types";
+import { GameState, TECHS, UNIT_STATS, UnitType, Unit, TechId, PORT_COST, WALL_COST, BuildingType, BUILDINGS } from "./types";
 import { atPeace, setPeace, aiWantsPeaceWith, markDiploUsed, diploUsed, strengthOf, PEACE_TREATY_TURNS } from "./diplomacy";
 import { victoryProgress } from "./victory";
 import { runProAiTurn } from "./aiPro";
@@ -18,6 +18,7 @@ interface StoreLike {
   research(t: TechId): void;
   harvest(x: number, y: number): void;
   train(cityId: number, type: UnitType): void;
+  build(x: number, y: number, type: BuildingType): void;
   moveUnit(id: number, x: number, y: number): void;
   attack(a: number, d: number): void;
   captureCity(id: number): void;
@@ -98,6 +99,14 @@ export function runAiTurn(store: StoreLike, tribeIdx: number) {
     // plunderking (Vessari): hoard toward the 45★ target once past halfway
     if (pathId === "plunderking" && path && path.current > path.target * 0.55) break;
     if (canHarvest(s, tribeIdx, t)) store.harvest(t.x, t.y);
+  }
+
+  // 2a. v35 economy: once spare stars accumulate, place a production building
+  if (s.tribes[tribeIdx].stars > 8) {
+    for (const b of BUILDINGS) {
+      const site = s.tiles.find((t) => canBuild(s, tribeIdx, t, b));
+      if (site && Math.random() < 0.6) { store.build(site.x, site.y, b.id); break; }
+    }
   }
 
   // 2b. naval: occasionally build a port if it has Sailing and spare stars

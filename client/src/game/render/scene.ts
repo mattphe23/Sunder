@@ -800,6 +800,52 @@ export class BoardRenderer {
         }
       }
     }
+    if (t.building) {
+      // v35 economy buildings — small structures replacing the harvested look
+      const bx = t.x - c, bz = t.y - c;
+      const md = { tile: true, x: t.x, y: t.y };
+      if (t.building === "hut") {
+        // lumber hut: timber cabin with a dark gable roof
+        const base = MeshBuilder.CreateBox("bld", { width: 0.34, depth: 0.28, height: 0.18 }, this.scene);
+        base.position = new Vector3(bx + 0.05, top + 0.09, bz + 0.05);
+        base.material = this.mat("#8a6642");
+        base.metadata = md; base.parent = this.root; decor.push(base);
+        const roof = MeshBuilder.CreateCylinder("bldroof", { diameterTop: 0, diameterBottom: 0.42, height: 0.16, tessellation: 4 }, this.scene);
+        roof.position = new Vector3(bx + 0.05, top + 0.26, bz + 0.05);
+        roof.rotation.y = Math.PI / 4;
+        roof.material = this.mat("#6e4f31");
+        roof.metadata = md; roof.parent = this.root; decor.push(roof);
+      } else if (t.building === "farm") {
+        // farm: golden crop rows + tiny shed
+        for (const dz of [-0.14, 0, 0.14]) {
+          const row = MeshBuilder.CreateBox("bld", { width: 0.46, depth: 0.09, height: 0.09 }, this.scene);
+          row.position = new Vector3(bx, top + 0.045, bz + dz);
+          row.material = this.mat("#d8b84a");
+          row.metadata = md; row.parent = this.root; decor.push(row);
+        }
+        const shed = MeshBuilder.CreateBox("bldshed", { width: 0.13, depth: 0.13, height: 0.14 }, this.scene);
+        shed.position = new Vector3(bx + 0.3, top + 0.07, bz - 0.28);
+        shed.material = this.mat("#8a6642");
+        shed.metadata = md; shed.parent = this.root; decor.push(shed);
+      } else if (t.building === "mine") {
+        // mine: dark tunnel mouth into a rock mound + support beams
+        const mound = MeshBuilder.CreateIcoSphere("bld", { radius: 0.24, subdivisions: 1 }, this.scene);
+        mound.position = new Vector3(bx, top + 0.1, bz);
+        mound.scaling.y = 0.75;
+        mound.material = this.mat(PALETTE.rock.body);
+        mound.metadata = md; mound.parent = this.root; decor.push(mound);
+        const mouth = MeshBuilder.CreateBox("bldmouth", { width: 0.14, depth: 0.06, height: 0.14 }, this.scene);
+        mouth.position = new Vector3(bx, top + 0.07, bz + 0.21);
+        mouth.material = this.mat("#1b1b30");
+        mouth.metadata = md; mouth.parent = this.root; decor.push(mouth);
+        for (const sx of [-0.09, 0.09]) {
+          const beam = MeshBuilder.CreateBox("bldbeam", { width: 0.03, depth: 0.03, height: 0.16 }, this.scene);
+          beam.position = new Vector3(bx + sx, top + 0.08, bz + 0.23);
+          beam.material = this.mat("#6e4f31");
+          beam.metadata = md; beam.parent = this.root; decor.push(beam);
+        }
+      }
+    }
     if (t.ruin) {
       // Ancient ruin: a weathered temple remnant — cracked stone plinth, a ring
       // of broken columns at varying heights, a leaning obelisk, scattered

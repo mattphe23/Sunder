@@ -4,7 +4,7 @@
 
 import {
   GameState, Tile, Unit, UnitType, UNIT_STATS, City, TechId, TECHS,
-  TRIBE_DEFS, WALL_DEFENSE_BONUS, HeroPerkId, idx, inBounds,
+  TRIBE_DEFS, WALL_DEFENSE_BONUS, HeroPerkId, BuildingDef, idx, inBounds,
 } from "./types";
 import { inStorm, campAt } from "./events";
 import { commonEnemy } from "./coalition";
@@ -342,9 +342,42 @@ export function trainableUnits(s: GameState, tribe: number): UnitType[] {
   const unique = uniqueUnitOf(s, tribe);
   return (Object.keys(UNIT_STATS) as UnitType[]).filter((ut) =>
     ut !== "hero" &&
+    ut !== "colossus" && // reward-only super unit — never trainable
     hasTech(s, tribe, UNIT_STATS[ut].tech) &&
     (UNIT_STATS[ut].faction === undefined || ut === unique)
   );
+}
+
+/* ---------------------------------- v35 economy ---------------------------------- */
+
+/** each city supports (level + 1) units; capitals support one extra */
+export function unitCapacity(s: GameState, tribe: number): number {
+  let cap = 0;
+  for (const c of s.cities) {
+    if (c.tribe !== tribe) continue;
+    cap += c.level + 1 + (c.isCapital ? 1 : 0);
+  }
+  return cap;
+}
+
+/** units counting against capacity (heroes are earned, not trained — they are free) */
+export function unitCount(s: GameState, tribe: number): number {
+  return s.units.filter((u) => u.tribe === tribe && !u.hero).length;
+}
+
+export function atUnitCapacity(s: GameState, tribe: number): boolean {
+  return unitCount(s, tribe) >= unitCapacity(s, tribe);
+}
+
+/** can this tribe place building `b` on tile `t`? */
+export function canBuild(s: GameState, tribe: number, t: Tile | undefined, b: BuildingDef): boolean {
+  if (!t || t.building || t.resource || t.cityId !== null) return false;
+  if (t.terrain !== b.terrain) return false;
+  if (t.ownerCityId === null) return false;
+  const city = s.cities[t.ownerCityId];
+  if (!city || city.tribe !== tribe) return false;
+  if (!hasTech(s, tribe, b.tech)) return false;
+  return s.tribes[tribe].stars >= b.cost;
 }
 
 export function starIncome(s: GameState, tribe: number): number {
@@ -358,6 +391,8 @@ export function starIncome(s: GameState, tribe: number): number {
     if (occupier) continue;
     income += c.isCapital ? 2 : 1;
     income += Math.max(0, c.level - 1);
+    // v35: each Workshop reward adds +1 income for its city
+    income += (c.rewards ?? []).filter((r) => r === "workshop").length;
   }
   return income;
 }

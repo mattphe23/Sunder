@@ -7,11 +7,12 @@ import {
   Difficulty, idx, PORT_COST, WALL_COST, TECHS, RecapEntry, GUARDIAN_TRIBE,
   emptyStats, ReplayEntry, HeroPerkId, HERO_PERKS, HERO_PERK_POOL,
   HERO_XP_THRESHOLDS, HERO_MAX_LEVEL, HERO_XP, HERO_NAMES,
+  City, CityReward, BuildingType, BUILDINGS, rewardChoicesForLevel, REWARD_INFO,
 } from "./types";
 import {
   reachableTiles, attackableUnits, previewCombat, combatModifiers, techCost, canResearch,
   canHarvest, harvestCost, starIncome, tileAt, unitAt, cityAt, trainableUnits,
-  POP_PER_LEVEL, canBuildPort, portCost, wallCost,
+  POP_PER_LEVEL, canBuildPort, portCost, wallCost, canBuild, atUnitCapacity,
 } from "./rules";
 import { runAiTurn } from "./ai";
 import { evaluateAchievements, AchievementDef } from "./achievements";
@@ -455,6 +456,7 @@ class GameStore {
   endTurn() {
     const s = this.state;
     if (s.phase !== "playing") return;
+    if (s.pendingCityReward != null) return; // v35: resolve the level-up choice first
     s.selectedUnitId = null;
     this.lastMove = null;
     s.selectedCityId = null;
@@ -1255,12 +1257,127 @@ class GameStore {
     s.tribes[tribeIdx].stars -= harvestCost(s, tribeIdx);
     const city = s.cities[t.ownerCityId!];
     t.resource = null;
-    city.population++;
-    if (city.population >= POP_PER_LEVEL) {
-      city.population = 0;
+    this.addPopulation(city, 1);
+    this.emit({ type: "changed" });
+  }
+
+  /** v35: add population to a city, levelling it up (with reward choice) as thresholds pass */
+  addPopulation(city: City, amount: number) {
+    const s = this.state;
+    city.population += amount;
+    while (city.population >= POP_PER_LEVEL) {
+      city.population -= POP_PER_LEVEL;
       city.level++;
       s.log.unshift(`${city.name} grew to level ${city.level}!`);
+      if (city.tribe === s.humanTribe) {
+        // human picks from the modal; queue persists across saves (like hero perks)
+        s.pendingCityReward = city.id;
+      } else if (city.tribe !== null) {
+        this.aiPickCityReward(city);
+      }
     }
+  }
+
+  /** v35: apply a chosen level-up reward to a city */
+  chooseCityReward(cityId: number, reward: CityReward) {
+    const s = this.state;
+    const city = s.cities[cityId];
+    if (!city || city.tribe === null) return;
+    const [a, b] = rewardChoicesForLevel(city.level);
+    if (reward !== a && reward !== b) return;
+    if (s.pendingCityReward === cityId) s.pendingCityReward = null;
+    city.rewards = [...(city.rewards ?? []), reward];
+    const tribe = city.tribe;
+    switch (reward) {
+      case "workshop":
+        break; // handled in starIncome
+      case "explorer": {
+        for (let dy = -3; dy <= 3; dy++) {
+          for (let dx = -3; dx <= 3; dx++) {
+            const x = city.x + dx, y = city.y + dy;
+            if (x < 0 || y < 0 || x >= s.size || y >= s.size) continue;
+            s.tiles[idx(x, y, s.size)].explored[tribe] = true;
+          }
+        }
+        break;
+      }
+      case "wall":
+        city.walls = true;
+        break;
+      case "stars":
+        s.tribes[tribe].stars += 5;
+        this.bumpStat(tribe, "starsEarned", 5);
+        break;
+      case "borderGrowth":
+        city.borderRadius = 2;
+        claimBorders(s.tiles, s.size, city);
+        break;
+      case "popGrowth":
+        this.addPopulation(city, 3);
+        break;
+      case "park":
+        s.tribes[tribe].score += 15;
+        break;
+      case "superUnit": {
+        // spawn on the city tile if free, else the first free adjacent land tile
+        let sx = city.x, sy = city.y;
+        if (unitAt(s, sx, sy)) {
+          outer: for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              const x = city.x + dx, y = city.y + dy;
+              if (x < 0 || y < 0 || x >= s.size || y >= s.size) continue;
+              const tt = s.tiles[idx(x, y, s.size)];
+              if ((tt.terrain === "grass" || tt.terrain === "forest") && !unitAt(s, x, y)) { sx = x; sy = y; break outer; }
+            }
+          }
+        }
+        if (!unitAt(s, sx, sy)) {
+          const u = makeUnit(s.nextUnitId++, "colossus", tribe, sx, sy);
+          u.moved = true; u.attacked = true;
+          s.units.push(u);
+          s.log.unshift(`A Colossus rises in ${city.name}!`);
+        } else {
+          // no room — fall back to stars so the reward is never lost
+          s.tribes[tribe].stars += 5;
+        }
+        break;
+      }
+    }
+    s.log.unshift(`${city.name} chose ${REWARD_INFO[reward].name}.`);
+    this.emit({ type: "changed" });
+  }
+
+  /** AI reward policy: frontier cities fortify, others grow the economy */
+  aiPickCityReward(city: City) {
+    const s = this.state;
+    const [a, b] = rewardChoicesForLevel(city.level);
+    const tribe = city.tribe!;
+    // any enemy unit within 3 tiles → prefer defensive picks
+    const threatened = s.units.some((u) =>
+      u.tribe >= 0 && u.tribe !== tribe &&
+      Math.max(Math.abs(u.x - city.x), Math.abs(u.y - city.y)) <= 3
+    );
+    let pick: CityReward = a;
+    if (city.level === 2) pick = "workshop";
+    else if (city.level === 3) pick = threatened && !city.walls ? "wall" : "stars";
+    else if (city.level === 4) pick = "popGrowth";
+    else pick = threatened ? "superUnit" : "park";
+    if (pick !== a && pick !== b) pick = a;
+    this.chooseCityReward(city.id, pick);
+  }
+
+  /** v35: place a production building on an owned border tile */
+  build(x: number, y: number, type: BuildingType) {
+    const s = this.state;
+    const tribeIdx = s.currentTribe;
+    const t = tileAt(s, x, y);
+    const def = BUILDINGS.find((b) => b.id === type);
+    if (!def || !canBuild(s, tribeIdx, t, def)) return;
+    s.tribes[tribeIdx].stars -= def.cost;
+    t.building = type;
+    const city = s.cities[t.ownerCityId!];
+    s.log.unshift(`${s.tribes[tribeIdx].name} built a ${def.name} near ${city.name}.`);
+    this.addPopulation(city, def.pop);
     this.emit({ type: "changed" });
   }
 
@@ -1281,6 +1398,7 @@ class GameStore {
     const tribeIdx = s.currentTribe;
     if (city.tribe !== tribeIdx) return;
     if (!trainableUnits(s, tribeIdx).includes(type)) return;
+    if (atUnitCapacity(s, tribeIdx)) return; // v35: cities support (level+1) units each
     const stats = UNIT_STATS[type];
     if (s.tribes[tribeIdx].stars < stats.cost) return;
     if (unitAt(s, city.x, city.y)) return;
@@ -1537,6 +1655,7 @@ function emptyState(): GameState {
     scoreHistory: [],
     stats: [],
     pendingPerk: null,
+    pendingCityReward: null,
     friendChallenge: null,
   };
 }

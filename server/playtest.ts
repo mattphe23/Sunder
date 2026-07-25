@@ -350,6 +350,12 @@ export async function runPlaytest(
         else s.pendingPerk = null;
       } else s.pendingPerk = null;
     }
+    // v35: auto-resolve city level-up reward choices (endTurn blocks on them)
+    if (s.pendingCityReward != null) {
+      const city = s.cities[s.pendingCityReward];
+      if (city) g.aiPickCityReward(city);
+      s.pendingCityReward = null;
+    }
     const tribe = s.currentTribe;
     if (s.tribes[tribe]?.alive) {
       if (tribe === params.llmTribe) {
