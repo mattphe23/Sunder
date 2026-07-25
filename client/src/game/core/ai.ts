@@ -4,7 +4,7 @@
 
 import {
   reachableTiles, attackableUnits, previewCombat, canResearch, canHarvest,
-  trainableUnits, techCost, cityAt, unitAt, canBuildPort, tileAt, uniqueUnitOf, canBuild, adjacencyPop,
+  trainableUnits, techCost, cityAt, unitAt, canBuildPort, tileAt, uniqueUnitOf, canBuild, adjacencyPop, marketStars,
   canQuake, quakeVictims, quakeWallTargets, QUAKE_DAMAGE,
 } from "./rules";
 import { GameState, TECHS, UNIT_STATS, UnitType, Unit, TechId, PORT_COST, WALL_COST, BuildingType, BUILDINGS } from "./types";
@@ -106,6 +106,17 @@ export function runAiTurn(store: StoreLike, tribeIdx: number) {
   // 2a. v35 economy: once spare stars accumulate, place a production building
   if (s.tribes[tribeIdx].stars > 8) {
     for (const b of BUILDINGS) {
+      // v37 market: permanent income — take it once 2+ partner mills stand together
+      if (b.incomeAdjacentTo) {
+        const sites = s.tiles.filter((t) => canBuild(s, tribeIdx, t, b));
+        let best: { x: number; y: number } | null = null, bestStars = 0;
+        for (const t of sites) {
+          const v = marketStars(s, t.x, t.y, b);
+          if (v > bestStars) { bestStars = v; best = { x: t.x, y: t.y }; }
+        }
+        if (best && bestStars >= 2 && Math.random() < 0.7) { store.build(best.x, best.y, b.id); break; }
+        continue;
+      }
       // v36 adjacency buildings: only worth it with 2+ partner neighbors — pick the best site
       if (b.adjacentTo) {
         const sites = s.tiles.filter((t) => canBuild(s, tribeIdx, t, b));

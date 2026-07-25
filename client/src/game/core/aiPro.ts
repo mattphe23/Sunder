@@ -11,7 +11,7 @@
 import {
   reachableTiles, attackableUnits, previewCombat, canResearch, canHarvest,
   trainableUnits, techCost, cityAt, unitAt, canBuildPort, tileAt, uniqueUnitOf,
-  starIncome, harvestCost, portCost, wallCost, canBuild, adjacencyPop,
+  starIncome, harvestCost, portCost, wallCost, canBuild, adjacencyPop, marketStars,
   canQuake, quakeVictims, quakeWallTargets, QUAKE_DAMAGE,
 } from "./rules";
 import { GameState, TECHS, UNIT_STATS, UnitType, Unit, TechId, idx, BuildingType, BUILDINGS } from "./types";
@@ -190,14 +190,15 @@ export function runProAiTurn(store: StoreLike, tribeIdx: number) {
     // while harvests remain (pop-per-star beats a 2★ harvest at that point)
     let placed = false;
     for (const b of BUILDINGS) {
-      if (!b.adjacentTo) continue;
+      if (!b.adjacentTo && !b.incomeAdjacentTo) continue;
       const sites = s.tiles.filter((t) => canBuild(s, tribeIdx, t, b));
-      let best: { x: number; y: number } | null = null, bestPop = 0;
+      let best: { x: number; y: number } | null = null, bestVal = 0;
       for (const t of sites) {
-        const p = adjacencyPop(s, t.x, t.y, b);
-        if (p > bestPop) { bestPop = p; best = { x: t.x, y: t.y }; }
+        // v37: markets are scored by star income, mills by population
+        const v = b.incomeAdjacentTo ? marketStars(s, t.x, t.y, b) : adjacencyPop(s, t.x, t.y, b);
+        if (v > bestVal) { bestVal = v; best = { x: t.x, y: t.y }; }
       }
-      if (best && bestPop >= 2) { store.build(best.x, best.y, b.id); placed = true; break; }
+      if (best && bestVal >= 2) { store.build(best.x, best.y, b.id); placed = true; break; }
     }
     if (!placed && harvestables === 0) {
       for (const b of BUILDINGS) {

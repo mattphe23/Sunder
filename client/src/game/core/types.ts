@@ -27,7 +27,7 @@ export interface Tile {
 /* ---------------------------------- v35 economy ---------------------------------- */
 
 /** buildings convert stars into city population (Polytopia-style) */
-export type BuildingType = "hut" | "farm" | "mine" | "sawmill" | "windmill";
+export type BuildingType = "hut" | "farm" | "mine" | "sawmill" | "windmill" | "market";
 export interface BuildingDef {
   id: BuildingType;
   name: string;
@@ -38,6 +38,8 @@ export interface BuildingDef {
   desc: string;
   /** v36 adjacency building: +1 pop per (8-way) neighboring building of this type; one per city */
   adjacentTo?: BuildingType;
+  /** v37 income building: +1 star income per (8-way) neighboring building in this list; one per city */
+  incomeAdjacentTo?: BuildingType[];
 }
 export const BUILDINGS: BuildingDef[] = [
   { id: "hut", name: "Lumber Hut", terrain: "forest", cost: 2, pop: 1, tech: "forestry", desc: "A woodcutter's hut among the pines. +1 population." },
@@ -46,6 +48,8 @@ export const BUILDINGS: BuildingDef[] = [
   // v36 adjacency buildings — the placement-puzzle layer: value scales with neighbors
   { id: "sawmill", name: "Sawmill", terrain: "grass", cost: 5, pop: 0, tech: "forestry", adjacentTo: "hut", desc: "+1 population per adjacent Lumber Hut. One per city." },
   { id: "windmill", name: "Windmill", terrain: "grass", cost: 5, pop: 0, tech: "organization", adjacentTo: "farm", desc: "+1 population per adjacent Farm. One per city." },
+  // v37 market — extends the placement puzzle into the star economy
+  { id: "market", name: "Market", terrain: "grass", cost: 5, pop: 0, tech: "sailing", incomeAdjacentTo: ["sawmill", "windmill"], desc: "+1 star income per adjacent Sawmill or Windmill. One per city." },
 ];
 
 /** rewards chosen at each city level-up (2 offered, pick 1) */
@@ -410,6 +414,8 @@ export interface GameState {
   nextUnitId: number;
   selectedUnitId: number | null;
   selectedCityId: number | null;
+  /** v37 city planner: overlay showing projected adjacency values on buildable tiles */
+  plannerOpen?: boolean;
   winner: number | null;
   /** log messages for the ticker */
   log: string[];

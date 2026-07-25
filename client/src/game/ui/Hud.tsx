@@ -5,10 +5,10 @@ import { UNIT_STATS, TECHS, HERO_PERKS, HERO_XP_THRESHOLDS, HERO_MAX_LEVEL, BUIL
 import {
   techCost, canResearch, trainableUnits, starIncome, cityAt, canHarvest,
   harvestCost, canBuildPort, portCost, wallCost, canBuild, unitCapacity, unitCount,
-  adjacencyPop, canQuake, quakeVictims, quakeWallTargets, QUAKE_DAMAGE,
+  adjacencyPop, marketStars, canQuake, quakeVictims, quakeWallTargets, QUAKE_DAMAGE,
 } from "../core/rules";
 import { Button } from "@/components/ui/button";
-import { Star, Swords, FlaskConical, X, ChevronRight, Anchor, Ship, Skull, Shield, Flag, Landmark, ScrollText, Undo2, Bird, Crown, Sparkles, SkipForward, Zap } from "lucide-react";
+import { Star, Swords, FlaskConical, X, ChevronRight, Anchor, Ship, Skull, Shield, Flag, Landmark, ScrollText, Undo2, Bird, Crown, Sparkles, SkipForward, Zap, Grid3x3 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { MuteButton } from "./MuteButton";
 import { sound } from "../sound";
@@ -329,6 +329,15 @@ export function BottomBar({ onOpenTech, onOpenDiplo }: { onOpenTech: () => void;
         <Button variant="secondary" size="sm" className="min-h-[44px] gap-1.5 border border-white/10 bg-[#1b1b3f]/85 px-4 text-slate-100 backdrop-blur-md hover:bg-[#2a2a55] sm:min-h-0 sm:px-3" onClick={() => { sound.play("click"); onOpenDiplo(); }}>
           <Bird className="h-4 w-4 text-sky-300" /> Diplomacy
         </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          className={`min-h-[44px] gap-1.5 border px-4 backdrop-blur-md sm:min-h-0 sm:px-3 ${s.plannerOpen ? "border-emerald-400/60 bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30" : "border-white/10 bg-[#1b1b3f]/85 text-slate-100 hover:bg-[#2a2a55]"}`}
+          onClick={() => { sound.play("click"); g.togglePlanner(); }}
+          title="City planner — overlay projected building values on every buildable tile"
+        >
+          <Grid3x3 className="h-4 w-4 text-emerald-300" /> Planner
+        </Button>
         {game.canUndo() && (
           <Button
             variant="secondary"
@@ -565,21 +574,23 @@ export function SelectionPanel() {
         {buildSites.map(({ b, sites }) => (
           <div key={b.id}>
             <p className="mb-1 mt-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-              {b.name} ({b.cost}★ · {b.adjacentTo ? "+1 pop / adjacent" : `+${b.pop} pop`})
+              {b.name} ({b.cost}★ · {b.incomeAdjacentTo ? "+1★ / adjacent" : b.adjacentTo ? "+1 pop / adjacent" : `+${b.pop} pop`})
             </p>
             <div className="flex flex-wrap gap-1">
               {sites.map((t) => {
                 const gain = adjacencyPop(s, t.x, t.y, b);
+                const starGain = b.incomeAdjacentTo ? marketStars(s, t.x, t.y, b) : 0;
                 return (
                   <button
                     key={`b${t.x},${t.y}`}
                     disabled={me.stars < b.cost}
                     onClick={() => { sound.play("click"); g.build(t.x, t.y, b.id); }}
-                    title={`${b.desc} Builds here for +${gain} population.`}
+                    title={b.incomeAdjacentTo ? `${b.desc} Builds here for +${starGain}★ per turn.` : `${b.desc} Builds here for +${gain} population.`}
                     className={`flex items-center gap-1 rounded-md border border-white/10 px-2 py-1 text-xs ${me.stars >= b.cost ? "bg-white/5 hover:bg-white/15" : "opacity-40"}`}
                   >
                     <Landmark className="h-3 w-3 text-emerald-300" /> ({t.x},{t.y})
                     {b.adjacentTo && <span className={gain > 0 ? "text-emerald-300" : "text-slate-500"}>+{gain}</span>}
+                    {b.incomeAdjacentTo && <span className={starGain > 0 ? "text-amber-300" : "text-slate-500"}>+{starGain}★</span>}
                   </button>
                 );
               })}

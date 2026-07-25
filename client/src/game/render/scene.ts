@@ -50,7 +50,7 @@ import { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator"
 import "@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent";
 import { GameState, Tile, Unit, idx } from "../core/types";
 import { game } from "../core/state";
-import { reachableTiles, attackableUnits, cityAt, isVisibleTo } from "../core/rules";
+import { reachableTiles, attackableUnits, cityAt, isVisibleTo, plannerSites } from "../core/rules";
 import { PALETTE, darken } from "./palette";
 
 const TILE = 1.02;
@@ -885,6 +885,39 @@ export class BoardRenderer {
           sail.material = this.mat("#efe6d2");
           sail.metadata = md; sail.parent = this.root; decor.push(sail);
         }
+      } else if (t.building === "market") {
+        // v37 market: awning stall with striped canopy + crates + a gold coin marker
+        const stall = MeshBuilder.CreateBox("bld", { width: 0.34, depth: 0.26, height: 0.12 }, this.scene);
+        stall.position = new Vector3(bx, top + 0.06, bz);
+        stall.material = this.mat("#8a6642");
+        stall.metadata = md; stall.parent = this.root; decor.push(stall);
+        // striped canopy: alternating cream / crimson slats
+        for (let i = 0; i < 4; i++) {
+          const slat = MeshBuilder.CreateBox("bldawning", { width: 0.1, depth: 0.34, height: 0.03 }, this.scene);
+          slat.position = new Vector3(bx - 0.15 + i * 0.1, top + 0.24, bz);
+          slat.rotation.z = 0.1;
+          slat.material = this.mat(i % 2 === 0 ? "#efe6d2" : "#c8553d");
+          slat.metadata = md; slat.parent = this.root; decor.push(slat);
+        }
+        // corner posts
+        for (const [px, pz] of [[-0.15, -0.12], [0.15, -0.12], [-0.15, 0.12], [0.15, 0.12]] as const) {
+          const post = MeshBuilder.CreateBox("bldpost", { width: 0.03, depth: 0.03, height: 0.2 }, this.scene);
+          post.position = new Vector3(bx + px, top + 0.12, bz + pz);
+          post.material = this.mat("#6e4f31");
+          post.metadata = md; post.parent = this.root; decor.push(post);
+        }
+        // crates beside the stall
+        const crate = MeshBuilder.CreateBox("bldcrate", { size: 0.1 }, this.scene);
+        crate.position = new Vector3(bx + 0.24, top + 0.05, bz + 0.1);
+        crate.rotation.y = 0.4;
+        crate.material = this.mat("#a07a4e");
+        crate.metadata = md; crate.parent = this.root; decor.push(crate);
+        // gold coin marker: reads "star economy" at a glance
+        const coin = MeshBuilder.CreateCylinder("bldcoin", { diameter: 0.12, height: 0.03, tessellation: 12 }, this.scene);
+        coin.position = new Vector3(bx - 0.22, top + 0.16, bz - 0.1);
+        coin.rotation.x = Math.PI / 2.6;
+        coin.material = this.mat("#ffd76a");
+        coin.metadata = md; coin.parent = this.root; decor.push(coin);
       }
     }
     if (t.ruin) {
@@ -1721,6 +1754,11 @@ export class BoardRenderer {
   showHighlights(s: GameState) {
     this.highlightMeshes.forEach((m) => m.dispose());
     this.highlightMeshes = [];
+    // v37 city planner: overlay takes over highlight duty while open
+    if (s.plannerOpen && s.currentTribe === s.humanTribe && !s.aiThinking) {
+      this.showPlanner(s);
+      return;
+    }
     const u = s.units.find((q) => q.id === s.selectedUnitId);
     if (!u || u.tribe !== s.humanTribe || s.currentTribe !== s.humanTribe) return;
     const c = this.center(s.size);
@@ -1764,6 +1802,63 @@ export class BoardRenderer {
     sel.isPickable = false;
     sel.parent = this.root;
     this.highlightMeshes.push(sel);
+  }
+
+  /**
+   * v37 city planner overlay: dims every tile and floats projected adjacency
+   * values over buildable sites — emerald "+N" for population (mills/farms),
+   * amber "+N★" for market income — so placement reads at a glance.
+   */
+  private showPlanner(s: GameState) {
+    const c = this.center(s.size);
+    // dim pane: one big translucent quad above the board
+    const dim = MeshBuilder.CreateGround("plannerdim", { width: s.size + 2, height: s.size + 2 }, this.scene);
+    dim.position = new Vector3(0, 1.35, 0);
+    const dm = new StandardMaterial("plannerdimm", this.scene);
+    dm.diffuseColor = Color3.FromHexString("#0a0a20");
+    dm.emissiveColor = Color3.FromHexString("#0a0a20");
+    dm.alpha = 0.38;
+    dm.disableDepthWrite = true;
+    dim.material = dm;
+    dim.isPickable = false;
+    dim.parent = this.root;
+    this.highlightMeshes.push(dim as unknown as Mesh);
+    for (const site of plannerSites(s, s.humanTribe)) {
+      const h = TERRAIN_H[s.tiles[idx(site.x, site.y, s.size)].terrain];
+      // glow pad marking the buildable tile
+      const pad = MeshBuilder.CreateBox("plannerpad", { width: TILE * 0.86, depth: TILE * 0.86, height: 0.02 }, this.scene);
+      pad.position = new Vector3(site.x - c, h - 0.4 + 0.09, site.y - c);
+      const pm = new StandardMaterial("plannerpadm", this.scene);
+      const hex = site.kind === "stars" ? "#ffd76a" : "#5ee0a0";
+      pm.diffuseColor = Color3.FromHexString(hex);
+      pm.emissiveColor = Color3.FromHexString(hex);
+      pm.alpha = site.value > 0 ? 0.4 : 0.15;
+      pm.disableDepthWrite = true;
+      pm.zOffset = -2;
+      pad.material = pm;
+      pad.metadata = { tile: true, x: site.x, y: site.y };
+      pad.parent = this.root;
+      this.highlightMeshes.push(pad);
+      // floating value label
+      const size = 256;
+      const dt = new DynamicTexture("plannerlbl", { width: size, height: size }, this.scene, false);
+      dt.hasAlpha = true;
+      const text = site.kind === "stars" ? `+${site.value}\u2605` : `+${site.value}`;
+      dt.drawText(text, null, 150, "bold 96px Fredoka, sans-serif", hex, "transparent", true);
+      const plane = MeshBuilder.CreatePlane("plannerlblp", { size: 0.8 }, this.scene);
+      const lm = new StandardMaterial("plannerlblm", this.scene);
+      lm.diffuseTexture = dt;
+      lm.emissiveColor = Color3.White();
+      lm.useAlphaFromDiffuseTexture = true;
+      lm.disableDepthWrite = true;
+      lm.backFaceCulling = false;
+      plane.material = lm;
+      plane.billboardMode = Mesh.BILLBOARDMODE_ALL;
+      plane.position = new Vector3(site.x - c, h - 0.4 + 0.75, site.y - c);
+      plane.isPickable = false;
+      plane.parent = this.root;
+      this.highlightMeshes.push(plane);
+    }
   }
 
   // ---------- combat juice ----------

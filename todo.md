@@ -459,12 +459,12 @@ below was checked against the actual codebase before being marked.
 - [x] Quake FX: screen-shake / ground ripple + hit flashes on all affected units
 - [x] AI (both brains) uses Quake when 2+ adjacent enemies or an adjacent walled city makes it worthwhile
 ### Market adjacency building
-- [ ] Market building def: grass, unlocked with an appropriate tech, base 0 pop, +1 star income per adjacent Sawmill/Windmill/Workshop, one per city
-- [ ] Star income integration in starIncome(); build UI shows projected +N★ chip; tile mesh in renderer
-- [ ] AI places Markets when 2+ adjacent income partners exist
+- [x] Market building def: grass, unlocked with Sailing, base 0 pop, +1 star income per adjacent Sawmill/Windmill, one per city (Workshop is a city reward, not a tile building — partners are the mills)
+- [x] Star income integration in starIncome(); build UI shows projected +N★ chip; tile mesh in renderer (striped awning stall + gold coin)
+- [x] AI places Markets when 2+ adjacent income partners exist
 ### City planner overlay
-- [ ] Planner toggle (bottom bar) dims the map and overlays projected adjacency/pop values on every buildable site of the selected tribe's cities
-- [ ] Overlay values update live as buildings change; Escape or re-toggle closes
+- [x] Planner toggle (bottom bar) dims the map and overlays projected adjacency/pop values on every buildable site of the selected tribe's cities
+- [x] Overlay values update live as buildings change; Escape or re-toggle closes
 ### Wrap-up v37
-- [ ] Vitest coverage for quake + market income; type-check + full suite green
-- [ ] In-browser verification (quake button/FX, market chips, planner overlay); checkpoint + deliver
+- [x] Vitest coverage for quake + market income; type-check + full suite green
+- [x] In-browser verification (quake button/FX, market chips, planner overlay); checkpoint + deliver

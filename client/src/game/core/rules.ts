@@ -4,7 +4,7 @@
 
 import {
   GameState, Tile, Unit, UnitType, UNIT_STATS, City, TechId, TECHS,
-  TRIBE_DEFS, WALL_DEFENSE_BONUS, HeroPerkId, BuildingDef, idx, inBounds,
+  TRIBE_DEFS, WALL_DEFENSE_BONUS, HeroPerkId, BuildingDef, BUILDINGS, idx, inBounds,
 } from "./types";
 import { inStorm, campAt } from "./events";
 import { commonEnemy } from "./coalition";
@@ -437,8 +437,8 @@ export function canBuild(s: GameState, tribe: number, t: Tile | undefined, b: Bu
   const city = s.cities[t.ownerCityId];
   if (!city || city.tribe !== tribe) return false;
   if (!hasTech(s, tribe, b.tech)) return false;
-  // v36 adjacency buildings are unique per city — a second sawmill adds nothing
-  if (b.adjacentTo && s.tiles.some((q) => q.ownerCityId === t.ownerCityId && q.building === b.id)) return false;
+  // v36/v37 adjacency & income buildings are unique per city — a second adds nothing
+  if ((b.adjacentTo || b.incomeAdjacentTo) && s.tiles.some((q) => q.ownerCityId === t.ownerCityId && q.building === b.id)) return false;
   return s.tribes[tribe].stars >= b.cost;
 }
 
@@ -461,6 +461,62 @@ export function adjacencyPop(s: GameState, x: number, y: number, b: BuildingDef)
   return pop;
 }
 
+/**
+ * v37: star income a Market at (x,y) would earn — +1 per neighboring (8-way)
+ * partner building (Sawmill/Windmill). Used by starIncome, the build-UI chip,
+ * and the city-planner overlay.
+ */
+export function marketStars(s: GameState, x: number, y: number, b: BuildingDef): number {
+  if (!b.incomeAdjacentTo) return 0;
+  let stars = 0;
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= s.size || ny >= s.size) continue;
+      const nb = tileAt(s, nx, ny).building;
+      if (nb && b.incomeAdjacentTo.includes(nb)) stars++;
+    }
+  }
+  return stars;
+}
+
+/**
+ * v37 city planner: every tile the tribe could build on right now (ignoring
+ * star cost, so the overlay teaches even when the treasury is empty), with the
+ * projected value of the best building there. kind drives the chip color:
+ * "pop" (mills/basic) vs "stars" (market).
+ */
+export interface PlannerSite {
+  x: number;
+  y: number;
+  building: BuildingDef;
+  value: number;
+  kind: "pop" | "stars";
+}
+export function plannerSites(s: GameState, tribe: number): PlannerSite[] {
+  const stars = s.tribes[tribe].stars;
+  const out: PlannerSite[] = [];
+  for (const t of s.tiles) {
+    let best: PlannerSite | null = null;
+    for (const b of BUILDINGS) {
+      // evaluate affordability-free: temporarily treat cost as met
+      const affordable = stars >= b.cost;
+      const ok = affordable
+        ? canBuild(s, tribe, t, b)
+        : canBuild({ ...s, tribes: s.tribes.map((tr, i) => (i === tribe ? { ...tr, stars: b.cost } : tr)) } as GameState, tribe, t, b);
+      if (!ok) continue;
+      const site: PlannerSite = b.incomeAdjacentTo
+        ? { x: t.x, y: t.y, building: b, value: marketStars(s, t.x, t.y, b), kind: "stars" }
+        : { x: t.x, y: t.y, building: b, value: adjacencyPop(s, t.x, t.y, b), kind: "pop" };
+      // prefer the highest value; stars break ties (income compounds)
+      if (!best || site.value > best.value || (site.value === best.value && site.kind === "stars" && best.kind === "pop")) best = site;
+    }
+    if (best) out.push(best);
+  }
+  return out;
+}
+
 export function starIncome(s: GameState, tribe: number): number {
   let income = 0;
   for (const c of s.cities) {
@@ -474,6 +530,20 @@ export function starIncome(s: GameState, tribe: number): number {
     income += Math.max(0, c.level - 1);
     // v35: each Workshop reward adds +1 income for its city
     income += (c.rewards ?? []).filter((r) => r === "workshop").length;
+  }
+  // v37 markets: +1 star per adjacent Sawmill/Windmill, counted live so a
+  // market grows as new partners are placed beside it
+  const marketDef = BUILDINGS.find((b) => b.id === "market");
+  if (marketDef) {
+    for (const t of s.tiles) {
+      if (t.building !== "market" || t.ownerCityId === null) continue;
+      const city = s.cities[t.ownerCityId];
+      if (!city || city.tribe !== tribe) continue;
+      // a besieged city's market is choked along with the rest of its economy
+      const occupier = s.units.find((u) => u.x === city.x && u.y === city.y && u.tribe !== tribe && u.tribe >= 0);
+      if (occupier) continue;
+      income += marketStars(s, t.x, t.y, marketDef);
+    }
   }
   return income;
 }

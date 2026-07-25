@@ -13,7 +13,7 @@ import {
   reachableTiles, attackableUnits, previewCombat, combatModifiers, techCost, canResearch,
   canHarvest, harvestCost, starIncome, tileAt, unitAt, cityAt, trainableUnits,
   POP_PER_LEVEL, canBuildPort, portCost, wallCost, canBuild, atUnitCapacity,
-  knockbackDestination, adjacencyPop, canQuake, quakeVictims, quakeWallTargets, QUAKE_DAMAGE,
+  knockbackDestination, adjacencyPop, marketStars, canQuake, quakeVictims, quakeWallTargets, QUAKE_DAMAGE,
 } from "./rules";
 import { runAiTurn } from "./ai";
 import { evaluateAchievements, AchievementDef } from "./achievements";
@@ -584,6 +584,13 @@ class GameStore {
     s.selectedUnitId = null;
     s.selectedCityId = cityId;
     this.pendingAttack = null;
+    this.emit({ type: "changed" });
+  }
+
+  /** v37 city planner: toggle the projected-adjacency overlay */
+  togglePlanner() {
+    const s = this.state;
+    s.plannerOpen = !s.plannerOpen;
     this.emit({ type: "changed" });
   }
 
@@ -1482,7 +1489,9 @@ class GameStore {
     const city = s.cities[t.ownerCityId!];
     // v36 adjacency buildings: pop scales with partner neighbors at build time
     const pop = adjacencyPop(s, x, y, def);
-    s.log.unshift(`${s.tribes[tribeIdx].name} built a ${def.name} near ${city.name}${def.adjacentTo ? ` (+${pop} pop)` : ""}.`);
+    // v37 market: income buildings report stars, not pop (starIncome counts them live)
+    const mkt = def.incomeAdjacentTo ? marketStars(s, x, y, def) : 0;
+    s.log.unshift(`${s.tribes[tribeIdx].name} built a ${def.name} near ${city.name}${def.adjacentTo ? ` (+${pop} pop)` : def.incomeAdjacentTo ? ` (+${mkt}★/turn)` : ""}.`);
     if (pop > 0) this.addPopulation(city, pop);
     // ...and existing adjacency buildings nearby grow when a new partner arrives
     if (!def.adjacentTo) {
