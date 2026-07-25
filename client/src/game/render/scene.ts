@@ -64,6 +64,12 @@ const TERRAIN_COLORS: Record<string, string> = {
 const TERRAIN_H: Record<string, number> = {
   grass: 0.3, forest: 0.34, mountain: 0.85, water: 0.14, ocean: 0.08,
 };
+// v33 diorama: land slabs extrude a fixed skirt below their logical base so
+// cliffs read chunky where land meets water or the void. Water stays thin.
+const LAND_SKIRT = 0.34;
+// v33 diorama: one shared drop-shadow plane per tile, floating in the void
+// beneath the board — sells the "island floating over the abyss" look.
+const SHADOW_Y = -0.78;
 
 export interface PickInfo {
   kind: "tile";
@@ -307,14 +313,44 @@ export class BoardRenderer {
   private buildSlab(name: string, x: number, z: number, h: number, topHex: string, sideHex: string, fogged: boolean): Mesh {
     const topMat = fogged ? this.foggedMat(topHex) : this.mat(topHex);
     const sideMat = fogged ? this.foggedMat(sideHex) : this.mat(sideHex);
-    const body = MeshBuilder.CreateBox(name, { width: TILE * 0.96, depth: TILE * 0.96, height: h }, this.scene);
-    body.position = new Vector3(x, h / 2 - 0.4, z);
+    // v33 diorama: extend the slab body downward by a fixed skirt so land
+    // cliffs read chunky above water and the void — the "board game piece" look.
+    const bodyH = h + LAND_SKIRT;
+    const body = MeshBuilder.CreateBox(name, { width: TILE * 0.96, depth: TILE * 0.96, height: bodyH }, this.scene);
+    // top face must stay at the original y (= h - 0.4), so center sits lower
+    body.position = new Vector3(x, h - 0.4 - bodyH / 2, z);
     body.material = sideMat;
     const cap = MeshBuilder.CreateBox(name + "-cap", { width: TILE * 0.965, depth: TILE * 0.965, height: 0.03 }, this.scene);
-    cap.position = new Vector3(0, h / 2 + 0.001, 0);
+    cap.position = new Vector3(0, bodyH / 2 + 0.001, 0);
     cap.material = topMat;
     cap.parent = body;
     return body;
+  }
+
+  /** v33: soft blob drop shadow floating in the void beneath a tile. One flat
+   *  translucent quad per tile, slightly offset toward the light's opposite,
+   *  merged visually into a single island shadow by overlap. */
+  private addDropShadow(parentTile: Mesh, x: number, z: number, terrain: string) {
+    const isWater = terrain === "water" || terrain === "ocean";
+    const sh = MeshBuilder.CreatePlane("tshadow", { size: TILE * (isWater ? 1.02 : 1.12) }, this.scene);
+    sh.rotation.x = Math.PI / 2;
+    // world position: parent to the tile so disposal is automatic, but undo the
+    // tile's own y so the shadow sits on the fixed void plane
+    sh.parent = parentTile;
+    const invY = SHADOW_Y - parentTile.position.y;
+    sh.position = new Vector3(0.09, invY, -0.09);
+    let m = this.mats.get("tile-shadow");
+    if (!m) {
+      m = new StandardMaterial("tile-shadow", this.scene);
+      m.emissiveColor = Color3.FromHexString("#08081c");
+      m.diffuseColor = Color3.Black();
+      m.specularColor = Color3.Black();
+      m.disableLighting = true;
+      m.alpha = 0.42;
+      this.mats.set("tile-shadow", m);
+    }
+    sh.material = m;
+    sh.isPickable = false;
   }
 
   center(size: number) {
@@ -379,8 +415,10 @@ export class BoardRenderer {
   /** unexplored tile: low dark slab + soft mist puff — clearly "fog", clearly there */
   private buildFogTile(s: GameState, t: Tile, c: number) {
     const key = idx(t.x, t.y, s.size);
-    const box = MeshBuilder.CreateBox("t" + key, { width: TILE * 0.96, depth: TILE * 0.96, height: 0.2 }, this.scene);
-    box.position = new Vector3(t.x - c, 0.1 - 0.4, t.y - c);
+    // v33: fog bank sits LOWER and reads darker than any explored tile, so the
+    // island silhouette pops instead of blending into a flat purple carpet.
+    const box = MeshBuilder.CreateBox("t" + key, { width: TILE * 0.96, depth: TILE * 0.96, height: 0.14 }, this.scene);
+    box.position = new Vector3(t.x - c, 0.07 - 0.92, t.y - c);
     let fogMat = this.mats.get("fog-cloud");
     if (!fogMat) {
       fogMat = new StandardMaterial("fog-cloud", this.scene);
@@ -396,9 +434,9 @@ export class BoardRenderer {
     this.tileMeshes.set(key, box);
     // deterministic mist puff so the fog bank looks organic, not gridded
     const j = ((t.x * 31 + t.y * 17) % 7) / 7;
-    const puff = MeshBuilder.CreateIcoSphere("mist", { radius: 0.34 + j * 0.18, subdivisions: 2 }, this.scene);
-    puff.position = new Vector3(t.x - c + (j - 0.5) * 0.34, -0.2, t.y - c + (0.5 - j) * 0.34);
-    puff.scaling.y = 0.22;
+    const puff = MeshBuilder.CreateIcoSphere("mist", { radius: 0.26 + j * 0.14, subdivisions: 2 }, this.scene);
+    puff.position = new Vector3(t.x - c + (j - 0.5) * 0.4, -0.74, t.y - c + (0.5 - j) * 0.4);
+    puff.scaling.y = 0.18;
     let mistMat = this.mats.get("fog-mist");
     if (!mistMat) {
       mistMat = new StandardMaterial("fog-mist", this.scene);
@@ -406,7 +444,7 @@ export class BoardRenderer {
       mistMat.diffuseColor = Color3.Black();
       mistMat.specularColor = Color3.Black();
       mistMat.disableLighting = true;
-      mistMat.alpha = 0.4;
+      mistMat.alpha = 0.3;
       this.mats.set("fog-mist", mistMat);
     }
     puff.material = mistMat;
@@ -463,6 +501,8 @@ export class BoardRenderer {
     box.metadata = { tile: true, x: t.x, y: t.y };
     box.getChildMeshes().forEach((m) => { m.metadata = { tile: true, x: t.x, y: t.y }; });
     box.parent = this.root;
+    // v33 diorama: soft blob drop shadow floating in the void beneath the tile
+    this.addDropShadow(box, t.x - c, t.y - c, t.terrain);
     // fog of war depth: explored but not currently visible → dimmed
     if (!visible) {
       box.visibility = 0.75;
@@ -1143,7 +1183,54 @@ export class BoardRenderer {
       { frame: 22, value: new Vector3(1, 1, 1) },
     ]);
     node.animations = [anim, sq];
-    this.scene.beginAnimation(node, 0, 22, false);
+    this.scene.beginAnimation(node, 0, 22, false, 1, () => {
+      // v33: landing dust puff — three tiny discs that expand and fade fast
+      if (this.disposed) return;
+      this.spawnDustPuff(target);
+    });
+  }
+
+  /** v33: small dust puff at a landing position — expands + fades ~250ms */
+  private spawnDustPuff(at: Vector3) {
+    let m = this.mats.get("dust-puff");
+    if (!m) {
+      m = new StandardMaterial("dust-puff", this.scene);
+      m.emissiveColor = Color3.FromHexString("#d8d2c0");
+      m.diffuseColor = Color3.Black();
+      m.specularColor = Color3.Black();
+      m.disableLighting = true;
+      m.alpha = 0.5;
+      this.mats.set("dust-puff", m);
+    }
+    const puffs: Mesh[] = [];
+    for (let i = 0; i < 3; i++) {
+      const ang = (i / 3) * Math.PI * 2 + 0.6;
+      const p = MeshBuilder.CreateIcoSphere("dust", { radius: 0.05, subdivisions: 1 }, this.scene);
+      p.position = new Vector3(at.x + Math.cos(ang) * 0.12, at.y + 0.04, at.z + Math.sin(ang) * 0.12);
+      p.scaling.y = 0.5;
+      p.material = m;
+      p.isPickable = false;
+      p.parent = this.root;
+      puffs.push(p);
+      const drift = new Animation("dustDrift", "position", 60, Animation.ANIMATIONTYPE_VECTOR3, Animation.ANIMATIONLOOPMODE_CONSTANT);
+      drift.setKeys([
+        { frame: 0, value: p.position.clone() },
+        { frame: 15, value: p.position.add(new Vector3(Math.cos(ang) * 0.16, 0.05, Math.sin(ang) * 0.16)) },
+      ]);
+      const grow = new Animation("dustGrow", "scaling", 60, Animation.ANIMATIONTYPE_VECTOR3, Animation.ANIMATIONLOOPMODE_CONSTANT);
+      grow.setKeys([
+        { frame: 0, value: new Vector3(1, 0.5, 1) },
+        { frame: 15, value: new Vector3(2.2, 1.1, 2.2) },
+      ]);
+      const fade = new Animation("dustFade", "visibility", 60, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CONSTANT);
+      fade.setKeys([
+        { frame: 0, value: 0.9 },
+        { frame: 15, value: 0 },
+      ]);
+      p.animations = [drift, grow, fade];
+      this.scene.beginAnimation(p, 0, 15, false);
+    }
+    setTimeout(() => puffs.forEach((p) => p.dispose()), 320);
   }
 
   /** highlight reachable tiles / attackable enemies for the selected unit */

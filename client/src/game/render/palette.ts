@@ -16,9 +16,12 @@ export interface TerrainSwatch {
 
 export const PALETTE = {
   terrain: {
-    grass: { top: "#8fd45c", side: "#4f8f38" },
+    // v33 unification: one tight ramp per hue family, tuned against the
+    // indigo void (#141433). Grass slightly desaturated from neon lime;
+    // mountain top pulled toward mossy slate so peaks (not plates) read gray.
+    grass: { top: "#84c95e", side: "#47823a" },
     forest: { top: "#4a9e4e", side: "#2c6b34" }, // forest floor under trees
-    mountain: { top: "#a8b4c6", side: "#6b7a92" },
+    mountain: { top: "#9aad8f", side: "#47823a" }, // mossy slate top, land-family side
     water: { top: "#3fa0e8", side: "#2b6fb0" }, // shallow / coastal
     ocean: { top: "#2458b8", side: "#193f8a" }, // deep
   } as Record<string, TerrainSwatch>,
@@ -35,7 +38,8 @@ export const PALETTE = {
   ruin: { stone: "#8f93b8", stoneDark: "#767a9e", glow: "#ffd76a", glowEmissive: "#c79a34" },
   city: { house: "#efe9db", houseSide: "#cfc7b4", neutral: "#c9b896", spire: "#ffd76a", wall: "#a8a5b8" },
   port: { pier: "#a97c50", sail: "#f2ead8" },
-  fog: { cloud: "#20204a", mist: "#2b2b5c" },
+  // v33: fog bank darkened toward the void so the island silhouette pops
+  fog: { cloud: "#191940", mist: "#232350" },
   unit: { skin: "#f5e6cf", wood: "#8a6a42", steel: "#c9cbd8", bone: "#e6e0d2", dark: "#3a3450" },
 } as const;
 

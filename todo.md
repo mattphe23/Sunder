@@ -367,3 +367,21 @@ below was checked against the actual codebase before being marked.
 
 ### v32 wrap-up
 - [x] Tests + tsc green (103 tests); visual verification via temp dev-preview (removed); checkpoint + deliver
+
+## v33 — Visual polish milestone (Polytopia-grade diorama look)
+
+### Extruded diorama tiles
+- [x] Give terrain tiles extruded side walls (darker shade of top color) so the board reads as a chunky diorama (LAND_SKIRT +0.34 below waterline; mountain slabs share the land side tone)
+- [x] Add soft drop shadow beneath the island/tile cluster to sell the floating-world look (per-tile blob shadows on a void plane; fog bank lowered + darkened so the silhouette pops)
+- [x] Coastline/water treatment: shore band or depth shading where land meets water (pre-existing shore bands kept; verified with the deeper cliffs)
+
+### Palette unification pass
+- [x] Consolidate terrain colors into a tight ramp (≤2 shades per hue family), harmonized with the indigo void background (grass desaturated, mountain top → mossy slate, fog → #191940)
+- [x] Ensure tribe accent colors stay readable against the unified terrain (verified in-game: Auren blue, owned-territory tint read clearly)
+
+### Unit hop/squash animation
+- [x] Units hop between tiles with squash-and-stretch on takeoff/landing (already implemented in animateMove — arc hop + stretch/squash keys, ~370ms)
+- [x] Polish pass: landing dust puff FX + idle "settle" so movement reads even better (spawnDustPuff: 3 discs expand+fade ~250ms on landing)
+
+### Wrap-up
+- [x] Visual before/after verification in-game; tests + tsc green; checkpoint + deliver (before/after shots compared; warrior move verified live; 103 tests, tsc clean)
