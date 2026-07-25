@@ -13,15 +13,17 @@ describe("v28 tuning constants", () => {
     expect(TECHS.find((t) => t.id === "riding")!.baseCost).toBe(6);
   });
 
-  it("scholars tribes start with 7 stars, others with 5", () => {
+  it("v41: scholars head start reverted — all tribes start from base 5 (+slot comp)", () => {
     game.newGame({ size: 9, humanTribe: 0, difficulty: "normal", seed: 777, roster: [0, 1, 2, 3] });
     const s = game.state;
     expect(TRIBE_DEFS[0].passive).toBe("scholars");
-    // tribe 0 has already collected its first-turn income inside newGame's
-    // beginTurn(0); the scholars bump shows as +2 over the base 5 plus income.
-    expect(s.tribes[0].stars).toBeGreaterThanOrEqual(9); // 5 + 2 (scholars) + income ≥ 2
-    // v40 staggered start: slot 1 carries +1 compensation star on top of base 5
-    expect(s.tribes[1].stars).toBe(6); // hasn't taken a turn yet — base 5 + slot 1
+    // v41: no scholars star bump; a tribe that hasn't acted yet holds exactly
+    // base 5 + its one-time slot compensation (+index).
+    const first = s.turnOrder![0];
+    for (let i = 0; i < 4; i++) {
+      if (i === first) continue; // first actor already collected income
+      expect(s.tribes[i].stars).toBe(5 + i);
+    }
   });
 });
 

@@ -255,15 +255,17 @@ class GameStore {
         passive: d.passive,
         passiveDesc: d.passiveDesc,
         isHuman: humans.includes(i),
-        // v28 balance: Scholars tribes start +2 stars — playtests showed the tech
-        // discount pays off too late against early aggression/plunder economies.
+        // v41 balance: the v28 scholars +2 starting stars is REVERTED — with the
+        // v40 stagger compensation in place, Auren's rotated win rate crept to
+        // 60% (extra stars + tech discount stack too well). The 20% discount
+        // stays; the head start goes.
         // v40 balance: staggered-start compensation — 160-game batch testing
         // showed slot 0 winning 40% vs 12% for the last slot (first pick of
         // ruins/villages/aggression windows compounds). Later slots start
         // +1 star per slot, and additionally draw +1 star per slot at the top
         // of each of the first STAGGER_COMP_TURNS turns (see beginTurn) — a
         // one-time bump alone proved too small against ~15★/turn economies.
-        stars: (d.passive === "scholars" ? 7 : 5) + i,
+        stars: 5 + i,
         techs: [d.startTech as TechId],
         alive: true,
         score: 0,
@@ -313,6 +315,11 @@ class GameStore {
       handoff: humans.length > 1 ? humans[0] : null,
       currentTribe: 0,
     };
+    // v41: randomized acting order each round — batch testing showed the fixed
+    // first slot winning 52% of games (first-strike tempo compounds; stars
+    // couldn't buy it back). Seeded per round for determinism.
+    this.state.turnOrder = this.rollTurnOrder(0);
+    this.state.orderPos = 0;
     this.state.stats = tribes.map(() => emptyStats());
     this.state.peaceUntil = {};
     this.state.diploUsed = [];
@@ -328,8 +335,19 @@ class GameStore {
     this.state.campsRazedByHuman = 0;
     this.state.winPath = null;
     this.exploreAround();
-    this.beginTurn(0);
+    this.beginTurn(this.state.turnOrder[0]);
     this.emit({ type: "changed" });
+  }
+  /** v41: seeded shuffle of tribe indices for one game round */
+  private rollTurnOrder(round: number): number[] {
+    const s = this.state;
+    const order = s.tribes.map((_, i) => i);
+    const roll = rng(s.seed * 7919 + round * 104729 + 17);
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(roll() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    return order;
   }
 
   toMenu() {
@@ -354,8 +372,10 @@ class GameStore {
       s.recap = []; // recaps are cross-player info leaks in hot-seat
       s.showRecap = false;
     }
-    // score history: snapshot all tribes once per game turn (when tribe 0 begins)
-    if (tribeIdx === 0) {
+    // score history: snapshot all tribes once per game round (v41: keyed to the
+    // FIRST ACTOR of the shuffled round order, not tribe index 0)
+    const roundStart = s.turnOrder ? (s.orderPos ?? 0) === 0 && s.turnOrder[0] === tribeIdx : tribeIdx === 0;
+    if (roundStart) {
       for (const t of s.tribes) this.updateScore(t.index);
       s.scoreHistory[s.turn] = s.tribes.map((t) => (t.alive ? t.score : 0));
       this.recordReplay({ tribe: 0, kind: "turn", text: `Turn ${s.turn + 1} begins` });
@@ -372,12 +392,14 @@ class GameStore {
     const income = starIncome(s, tribeIdx) + this.aiBonus(tribeIdx);
     tribe.stars += income;
     this.bumpStat(tribeIdx, "starsEarned", income);
-    // v40 staggered-start compensation, recurring part: later turn slots draw
-    // +1 star per slot for the first few turns to offset the compounding
-    // first-mover advantage (slot 0 sees ruins/villages/fights first).
-    if (s.turn < STAGGER_COMP_TURNS && tribeIdx > 0) {
-      tribe.stars += tribeIdx;
-      this.bumpStat(tribeIdx, "starsEarned", tribeIdx);
+    // v40 staggered-start compensation, recurring part: later ACTORS in the
+    // round draw +1 star per position for the first few turns to offset the
+    // compounding first-mover advantage. v41: keyed to acting position in the
+    // shuffled order (whoever happens to act later this round gets the comp).
+    const actPos = s.turnOrder ? s.turnOrder.indexOf(tribeIdx) : tribeIdx;
+    if (s.turn < STAGGER_COMP_TURNS && actPos > 0) {
+      tribe.stars += actPos;
+      this.bumpStat(tribeIdx, "starsEarned", actPos);
     }
     // v29 siege visibility: tell the owner which cities produced nothing
     if (tribe.isHuman) {
@@ -489,12 +511,21 @@ class GameStore {
 
   private nextTribe() {
     const s = this.state;
-    let next = s.currentTribe + 1;
-    if (next >= s.tribes.length) {
-      next = 0;
+    // v41: advance along the shuffled round order; reshuffle at each new round.
+    // Legacy saves without turnOrder fall back to sequential indices.
+    if (!s.turnOrder || s.turnOrder.length !== s.tribes.length) {
+      s.turnOrder = s.tribes.map((_, i) => i);
+      s.orderPos = s.turnOrder.indexOf(s.currentTribe);
+    }
+    let pos = (s.orderPos ?? s.turnOrder.indexOf(s.currentTribe)) + 1;
+    if (pos >= s.turnOrder.length) {
       s.turn++;
       if (s.turn >= s.maxTurns) { this.endByScore(); return; }
+      s.turnOrder = this.rollTurnOrder(s.turn);
+      pos = 0;
     }
+    s.orderPos = pos;
+    const next = s.turnOrder[pos];
     this.beginTurn(next);
     const tribe = s.tribes[next];
     if (!tribe.isHuman && tribe.alive && s.phase === "playing") {

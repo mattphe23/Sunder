@@ -4,51 +4,79 @@
 // lowered Plunder King treasury target (2 wins in 160 finding).
 import { describe, it, expect } from "vitest";
 import { game, STAGGER_COMP_TURNS } from "../client/src/game/core/state";
-import { starIncome } from "../client/src/game/core/rules";
+import { starIncome, techCost } from "../client/src/game/core/rules";
 import { VICTORY_PATHS, victoryProgress } from "../client/src/game/core/victory";
-import { TRIBE_DEFS, idx } from "../client/src/game/core/types";
+import { TRIBE_DEFS, TECHS, idx } from "../client/src/game/core/types";
 
 describe("v40 staggered-start star compensation", () => {
   it("later slots start with +1 star per slot (before their first income)", () => {
     game.newGame({ size: 9, humanTribe: 0, difficulty: "normal", seed: 4040, roster: [1, 2, 3, 5] });
     const s = game.state;
-    // tribe 0 already collected turn-1 income inside newGame's beginTurn(0);
-    // slots 1..3 are untouched: base 5 (none of these defs are scholars) + slot.
-    expect(s.tribes[1].stars).toBe(5 + 1);
-    expect(s.tribes[2].stars).toBe(5 + 2);
-    expect(s.tribes[3].stars).toBe(5 + 3);
+    // v41: the round's first actor (turnOrder[0]) already collected income in
+    // newGame; every other tribe is untouched: base 5 + one-time slot comp.
+    const first = s.turnOrder![0];
+    for (let i = 0; i < 4; i++) {
+      if (i === first) continue;
+      expect(s.tribes[i].stars).toBe(5 + i);
+    }
   });
 
-  it("stacks with the scholars bump when Auren sits in a later slot", () => {
+  it("v41: scholars bump reverted — Auren in a later slot gets only the slot comp", () => {
     game.newGame({ size: 9, humanTribe: 0, difficulty: "normal", seed: 4041, roster: [1, 0, 2, 3] });
     const s = game.state;
     expect(TRIBE_DEFS[0].passive).toBe("scholars");
-    expect(s.tribes[1].stars).toBe(7 + 1); // scholars base 7 + slot 1
+    if (s.turnOrder![0] !== 1) {
+      expect(s.tribes[1].stars).toBe(5 + 1); // base 5 + slot 1, no scholars stars
+    }
   });
 
   it("pays later slots +slot stars at turn start during the opening window only", () => {
     game.newGame({ size: 9, humanTribe: 0, difficulty: "normal", seed: 4046, roster: [1, 2, 3, 5] });
     const s = game.state;
-    // slot 3, turn 0: opening window active
+    // v41: compensation keys to acting POSITION in the shuffled order. Force a
+    // known order so the test is deterministic.
+    s.turnOrder = [0, 1, 2, 3];
+    s.orderPos = 3;
     const before = s.tribes[3].stars;
     s.turn = 0;
     game.beginTurn(3);
     const income = starIncome(s, 3);
-    // AI on normal difficulty also draws its +1 aiBonus alongside income
-    expect(s.tribes[3].stars).toBe(before + income + 1 + 3); // income + aiBonus + slot comp
+    // AI on normal difficulty also draws its +1 aiBonus alongside income;
+    // acting position 3 → +3 comp during the opening window.
+    expect(s.tribes[3].stars).toBe(before + income + 1 + 3);
     // after the window closes: no compensation
     for (const u of s.units) if (u.tribe === 3) { u.moved = true; u.attacked = true; }
     const later = s.tribes[3].stars;
     s.turn = STAGGER_COMP_TURNS;
+    s.turnOrder = [0, 1, 2, 3];
+    s.orderPos = 3;
     game.beginTurn(3);
     expect(s.tribes[3].stars).toBe(later + starIncome(s, 3) + 1); // income + aiBonus, no comp
   });
 
-  it("slot 0 never receives compensation", () => {
+  it("the round's first actor never receives compensation", () => {
     game.newGame({ size: 9, humanTribe: 1, difficulty: "normal", seed: 4047, roster: [1, 2, 3, 5] });
     const s = game.state;
-    // slot 0 (an AI on normal) collected base + income + aiBonus — no comp term
-    expect(s.tribes[0].stars).toBe(5 + starIncome(s, 0) + 1);
+    // v41: the first actor in the shuffled order collected base + slot comp +
+    // income (+1 aiBonus if AI) — but NO per-turn stagger comp term.
+    const first = s.turnOrder![0];
+    const bonus = s.tribes[first].isHuman ? 0 : 1;
+    expect(s.tribes[first].stars).toBe(5 + first + starIncome(s, first) + bonus);
+  });
+
+  it("v41: turn order reshuffles per round, deterministically by seed", () => {
+    game.newGame({ size: 9, humanTribe: 0, difficulty: "normal", seed: 4048, roster: [1, 2, 3, 5] });
+    const s = game.state;
+    expect([...s.turnOrder!].sort()).toEqual([0, 1, 2, 3]);
+    const round0 = [...s.turnOrder!];
+    // drive to the next round
+    let guard = 0;
+    const startTurn = s.turn;
+    while (s.turn === startTurn && guard++ < 10) game.endTurn();
+    expect([...s.turnOrder!].sort()).toEqual([0, 1, 2, 3]);
+    // same seed reproduces the same opening order
+    game.newGame({ size: 9, humanTribe: 0, difficulty: "normal", seed: 4048, roster: [1, 2, 3, 5] });
+    expect(game.state.turnOrder).toEqual(round0);
   });
 });
 
@@ -112,5 +140,22 @@ describe("v40 Plunder King threshold", () => {
     expect(p.target).toBe(35);
     s.tribes[0].stars = 35;
     expect(victoryProgress(s, 0)!.done).toBe(true);
+  });
+});
+
+describe("v41.1 scholars tech discount", () => {
+  it("is 10% (was 20%) — Enlightenment landed on turn ~17 vs 22+ for other paths", () => {
+    // Auren (def 0, scholars) in slot 0; Kharzul in slot 1 as the control
+    game.newGame({ size: 9, humanTribe: 0, difficulty: "normal", seed: 4111, roster: [0, 1, 2, 3] });
+    const s = game.state;
+    expect(s.tribes[0].passive).toBe("scholars");
+    expect(s.tribes[1].passive).not.toBe("scholars");
+    for (const tech of TECHS) {
+      const full = techCost(s, 1, tech.id);
+      const discounted = techCost(s, 0, tech.id);
+      // both tribes hold exactly 1 city at game start, so the empire-size term
+      // is identical; only the passive differs
+      expect(discounted).toBe(Math.round(full * 0.9));
+    }
   });
 });

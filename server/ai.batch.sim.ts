@@ -65,6 +65,12 @@ function simulate(seed: number, difficulty: Difficulty, preset: Preset, size: nu
   const t0 = Date.now();
   game.newGame({ size, seed, difficulty, preset, humanTribe: seed % 4, roster });
   game.state.showIntro = false;
+  // v41 measurement fix: newGame requires a "human" tribe, but on normal/hard
+  // that tribe skips the AI's per-turn star bonus — silently handicapping one
+  // slot (its win rate was ~10% vs 25% expected) and contaminating every
+  // slot/tribe statistic in earlier batches. Flip it to AI so all four tribes
+  // play under identical rules.
+  for (const t of game.state.tribes) t.isHuman = false;
   let guard = 0;
   while (game.state.phase === "playing" && guard < 800) {
     guard++;

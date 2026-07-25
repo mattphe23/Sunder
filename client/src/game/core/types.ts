@@ -349,7 +349,7 @@ export interface Tribe {
 }
 
 export const TRIBE_DEFS = [
-  { name: "Auren", color: "#3d7bff", colorName: "Imperial Blue", passive: "scholars" as FactionPassive, passiveDesc: "Scholars — technologies cost 20% less", startTech: "organization" as TechId },
+  { name: "Auren", color: "#3d7bff", colorName: "Imperial Blue", passive: "scholars" as FactionPassive, passiveDesc: "Scholars — technologies cost 10% less", startTech: "organization" as TechId },
   { name: "Kharzul", color: "#e04747", colorName: "Crimson", passive: "forgeborn" as FactionPassive, passiveDesc: "Forgeborn — units deal +15% attack damage", startTech: "hunting" as TechId },
   { name: "Sunwei", color: "#ffb938", colorName: "Amber", passive: "harvesters" as FactionPassive, passiveDesc: "Harvesters — harvesting resources costs 1 less star", startTech: "climbing" as TechId },
   { name: "Vessari", color: "#9d5ce8", colorName: "Violet", passive: "outriders" as FactionPassive, passiveDesc: "Outriders — all units gain +1 movement on grass", startTech: "riding" as TechId },
@@ -415,6 +415,11 @@ export interface GameState {
   maxTurns: number;
   difficulty: Difficulty;
   currentTribe: number; // index into tribes
+  /** v41: acting order for the current game round (tribe indices, seeded shuffle
+   *  each round). Undefined in pre-v41 saves → sequential order. */
+  turnOrder?: number[];
+  /** v41: position within turnOrder of the tribe currently acting */
+  orderPos?: number;
   tribes: Tribe[];
   tiles: Tile[]; // size*size, index = y*size+x
   cities: City[];

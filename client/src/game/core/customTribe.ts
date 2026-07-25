@@ -17,7 +17,7 @@ export interface CustomTribeConfig {
 
 /** balanced building blocks the forge offers (all already tuned in live play) */
 export const FORGE_PASSIVES: { id: FactionPassive; label: string; desc: string }[] = [
-  { id: "scholars", label: "Scholars", desc: "Technologies cost 20% less" },
+  { id: "scholars", label: "Scholars", desc: "Technologies cost 10% less" },
   { id: "forgeborn", label: "Forgeborn", desc: "Units deal +15% attack damage" },
   { id: "harvesters", label: "Harvesters", desc: "Harvesting resources costs 1 less star" },
   { id: "outriders", label: "Outriders", desc: "All units gain +1 movement on grass" },

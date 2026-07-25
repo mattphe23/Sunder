@@ -500,3 +500,12 @@ below was checked against the actual codebase before being marked.
 - [x] Re-run 160-game batches (default + rotated) and compare slot spread / tribe win rates (two iterations: +1★ once → +slot★ for 5 turns)
 - [x] Archipelago-only batch (80 games) — Nerivane 20% on archipelago vs 8% continents post-buff
 - [x] Before/after verification report delivered; checkpoint saved
+
+# v41 — Tempo & Auren pass (user-approved fixes)
+- [x] Randomized turn order: seeded shuffle of acting order each game round (attacks slot 0's structural first-strike tempo)
+- [x] Auren nerf: reverted v28 +2 scholars starting stars (20% tech discount stays)
+- [x] Vitest coverage for both changes; 158 tests + tsc green
+- [x] Re-run verification batches (default, rotated, archipelago) and compare slot spread / Auren win rate
+- [x] Batch harness fix: nominal "human" slot flipped to AI after newGame — previous batches had one rotating slot playing without aiBonus, contaminating all slot statistics (sim-only change)
+- [x] v41.1 follow-up: scholars tech discount 20% → 10% (starting-stars revert alone left Auren at 72%; Enlightenment landed turn ~17 vs 22+ for other paths); UI copy + roster doc updated; 159 tests + tsc green
+- [ ] v41 report delivered; checkpoint saved

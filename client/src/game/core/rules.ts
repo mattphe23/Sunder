@@ -491,7 +491,10 @@ export function techCost(s: GameState, tribe: number, tech: TechId): number {
   const cityCount = s.cities.filter((c) => c.tribe === tribe).length;
   // Late-game fix: cost scales with empire size
   let cost = def.baseCost + def.tier * Math.max(0, cityCount - 1) * 1.5;
-  if (s.tribes[tribe].passive === "scholars") cost *= 0.8;
+  // v41.1: 20% → 10%. The discount double-dips Auren's own Enlightenment path
+  // ("research all techs"): unbiased 160-game batch showed 72% Auren win rate
+  // with Enlightenment landing on turn ~17 vs turn 22+ for every other path.
+  if (s.tribes[tribe].passive === "scholars") cost *= 0.9;
   return Math.round(cost);
 }
 

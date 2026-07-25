@@ -22,6 +22,8 @@ import type { Unit, UnitType } from "../client/src/game/core/types";
 function fresh() {
   game.newGame({ size: 11, seed: 42, difficulty: "normal", preset: "pangaea", humanTribe: 0 });
   game.state.showIntro = false;
+  // v41 randomizes acting order; these tests act directly as tribe 0.
+  game.state.currentTribe = 0;
 }
 
 function put(type: UnitType, tribe: number, x: number, y: number): Unit {
