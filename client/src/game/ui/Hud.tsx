@@ -5,10 +5,10 @@ import { UNIT_STATS, TECHS, HERO_PERKS, HERO_XP_THRESHOLDS, HERO_MAX_LEVEL, BUIL
 import {
   techCost, canResearch, trainableUnits, starIncome, cityAt, canHarvest,
   harvestCost, canBuildPort, portCost, wallCost, canBuild, unitCapacity, unitCount,
-  adjacencyPop,
+  adjacencyPop, canQuake, quakeVictims, quakeWallTargets, QUAKE_DAMAGE,
 } from "../core/rules";
 import { Button } from "@/components/ui/button";
-import { Star, Swords, FlaskConical, X, ChevronRight, Anchor, Ship, Skull, Shield, Flag, Landmark, ScrollText, Undo2, Bird, Crown, Sparkles, SkipForward } from "lucide-react";
+import { Star, Swords, FlaskConical, X, ChevronRight, Anchor, Ship, Skull, Shield, Flag, Landmark, ScrollText, Undo2, Bird, Crown, Sparkles, SkipForward, Zap } from "lucide-react";
 import { useState, useEffect } from "react";
 import { MuteButton } from "./MuteButton";
 import { sound } from "../sound";
@@ -449,6 +449,25 @@ export function SelectionPanel() {
           <Button size="sm" className="mt-2 w-full bg-amber-400 font-bold text-[#1b1b3f] hover:bg-amber-300" onClick={() => g.captureCity(unit.id)}>
             <Swords className="h-4 w-4" /> Capture {here!.name}
           </Button>
+        )}
+        {unit.type === "colossus" && unit.tribe === s.humanTribe && !unit.quakeUsed && (
+          canQuake(s, unit) ? (
+            <Button
+              size="sm"
+              className="mt-2 w-full bg-orange-500 font-bold text-[#1b1b3f] hover:bg-orange-400"
+              onClick={() => { sound.play("click"); g.quake(unit.id); }}
+              title={`Once per game: hit every adjacent enemy for ${QUAKE_DAMAGE} HP and shatter adjacent enemy walls`}
+            >
+              <Zap className="h-4 w-4" /> Quake ({quakeVictims(s, unit).length} hit{quakeWallTargets(s, unit).length > 0 ? " · walls" : ""})
+            </Button>
+          ) : (
+            <p className="mt-2 text-center text-[10px] text-orange-300/70" title="Move beside enemies or a walled enemy city, before attacking">
+              Quake ready — needs adjacent enemies (once per game)
+            </p>
+          )
+        )}
+        {unit.type === "colossus" && unit.quakeUsed && (
+          <p className="mt-2 text-center text-[10px] text-slate-500">Quake spent — the earth remembers.</p>
         )}
         {unit.moved && unit.attacked && <p className="mt-2 text-center text-[11px] text-slate-400">Done for this turn</p>}
       </div>

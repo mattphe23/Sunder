@@ -309,6 +309,35 @@ export function knockbackDestination(s: GameState, attacker: Unit, defender: Uni
   return { x: nx, y: ny };
 }
 
+/* ------------------------------ v37 Colossus Quake ------------------------------ */
+
+/** flat damage the once-per-game Quake deals to every adjacent enemy */
+export const QUAKE_DAMAGE = 5;
+
+/** enemy units standing on the 8 tiles around the colossus (peace treaties respected) */
+export function quakeVictims(s: GameState, u: Unit): Unit[] {
+  return s.units.filter((q) => {
+    if (q.id === u.id || q.tribe === u.tribe) return false;
+    if (q.tribe >= 0 && u.tribe >= 0 && (s.peaceUntil?.[u.tribe]?.[q.tribe] ?? 0) > s.turn) return false;
+    return Math.max(Math.abs(q.x - u.x), Math.abs(q.y - u.y)) === 1;
+  });
+}
+
+/** adjacent enemy walled cities whose walls a Quake would shatter */
+export function quakeWallTargets(s: GameState, u: Unit): City[] {
+  return s.cities.filter(
+    (c) =>
+      !!c.walls && c.tribe !== null && c.tribe >= 0 && c.tribe !== u.tribe &&
+      Math.max(Math.abs(c.x - u.x), Math.abs(c.y - u.y)) === 1,
+  );
+}
+
+/** a Colossus may Quake once per game, in place of its attack, with something to hit */
+export function canQuake(s: GameState, u: Unit): boolean {
+  if (u.type !== "colossus" || u.quakeUsed || u.attacked || u.boat) return false;
+  return quakeVictims(s, u).length > 0 || quakeWallTargets(s, u).length > 0;
+}
+
 export function techCost(s: GameState, tribe: number, tech: TechId): number {
   const def = TECHS.find((t) => t.id === tech)!;
   const cityCount = s.cities.filter((c) => c.tribe === tribe).length;

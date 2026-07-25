@@ -12,6 +12,7 @@ import {
   reachableTiles, attackableUnits, previewCombat, canResearch, canHarvest,
   trainableUnits, techCost, cityAt, unitAt, canBuildPort, tileAt, uniqueUnitOf,
   starIncome, harvestCost, portCost, wallCost, canBuild, adjacencyPop,
+  canQuake, quakeVictims, quakeWallTargets, QUAKE_DAMAGE,
 } from "./rules";
 import { GameState, TECHS, UNIT_STATS, UnitType, Unit, TechId, idx, BuildingType, BUILDINGS } from "./types";
 import { atPeace, setPeace, aiWantsPeaceWith, markDiploUsed, diploUsed, strengthOf, PEACE_TREATY_TURNS } from "./diplomacy";
@@ -29,6 +30,7 @@ interface StoreLike {
   captureCity(id: number): void;
   buildPort(x: number, y: number): void;
   buildWalls(cityId: number): void;
+  quake(id: number): void;
 }
 
 const cheb = (ax: number, ay: number, bx: number, by: number) => Math.max(Math.abs(ax - bx), Math.abs(ay - by));
@@ -307,6 +309,18 @@ function proUnitAction(store: StoreLike, u: Unit, tribeIdx: number, target: { x:
 
   // attack selection with threat-adjusted scoring
   const targets = attackableUnits(s, u);
+  // v37 colossus: once-per-game Quake — the pro brain holds it for a decisive
+  // moment: multiple kills, a kill plus shattered walls, or a big crowd caught
+  if (u.type === "colossus" && canQuake(s, u)) {
+    const victims = quakeVictims(s, u);
+    const kills = victims.filter((v) => v.hp <= QUAKE_DAMAGE).length;
+    const walls = quakeWallTargets(s, u).length;
+    const quakeValue = victims.length * QUAKE_DAMAGE + kills * 16 + walls * 16;
+    if (kills >= 2 || (kills >= 1 && walls >= 1) || quakeValue >= 26) {
+      store.quake(u.id);
+      return;
+    }
+  }
   if (targets.length > 0) {
     let best = targets[0], bestScore = -Infinity;
     for (const t of targets) {

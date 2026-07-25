@@ -5,6 +5,7 @@
 import {
   reachableTiles, attackableUnits, previewCombat, canResearch, canHarvest,
   trainableUnits, techCost, cityAt, unitAt, canBuildPort, tileAt, uniqueUnitOf, canBuild, adjacencyPop,
+  canQuake, quakeVictims, quakeWallTargets, QUAKE_DAMAGE,
 } from "./rules";
 import { GameState, TECHS, UNIT_STATS, UnitType, Unit, TechId, PORT_COST, WALL_COST, BuildingType, BUILDINGS } from "./types";
 import { atPeace, setPeace, aiWantsPeaceWith, markDiploUsed, diploUsed, strengthOf, PEACE_TREATY_TURNS } from "./diplomacy";
@@ -24,6 +25,7 @@ interface StoreLike {
   captureCity(id: number): void;
   buildPort(x: number, y: number): void;
   buildWalls(cityId: number): void;
+  quake(id: number): void;
 }
 
 export function runAiTurn(store: StoreLike, tribeIdx: number) {
@@ -212,6 +214,17 @@ function aiUnitAction(store: StoreLike, u: Unit, tribeIdx: number, warTarget: { 
 
   // attack best target if favorable or if we outnumber
   const targets = attackableUnits(s, u);
+  // v37 colossus: the once-per-game Quake — spend it only for a real payoff:
+  // multiple victims, a guaranteed kill, or adjacent enemy walls to shatter
+  if (u.type === "colossus" && canQuake(s, u)) {
+    const victims = quakeVictims(s, u);
+    const kills = victims.filter((v) => v.hp <= QUAKE_DAMAGE).length;
+    const walls = quakeWallTargets(s, u).length;
+    if (victims.length >= 2 || kills > 0 || walls > 0) {
+      store.quake(u.id);
+      return;
+    }
+  }
   if (targets.length > 0) {
     let best = targets[0], bestScore = -Infinity;
     for (const t of targets) {

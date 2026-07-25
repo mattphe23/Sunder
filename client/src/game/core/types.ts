@@ -211,6 +211,8 @@ export interface Unit {
   xp?: number;
   level?: number;
   perks?: HeroPerkId[];
+  /** v37 Colossus signature — the once-per-game Quake has been spent */
+  quakeUsed?: boolean;
 }
 
 /** pseudo-tribe index for neutral guardian units (not a real tribe) */

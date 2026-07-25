@@ -1602,6 +1602,50 @@ export class BoardRenderer {
     ps.start();
   }
 
+  /** v37 Colossus Quake: camera shake + expanding shockwave ring at the epicenter */
+  quakeFx(s: GameState, x: number, y: number) {
+    if (this.disposed) return;
+    const c = this.center(s.size);
+    const h = TERRAIN_H[s.tiles[idx(x, y, s.size)].terrain];
+    // shockwave ring — a flat torus scaling outward while fading
+    const ring = MeshBuilder.CreateTorus("quakering", { diameter: 0.6, thickness: 0.09, tessellation: 48 }, this.scene);
+    ring.position = new Vector3(x - c, h - 0.4 + 0.06, y - c);
+    const rm = new StandardMaterial("quakeringmat", this.scene);
+    rm.emissiveColor = new Color3(1.0, 0.62, 0.25);
+    rm.disableLighting = true;
+    rm.alpha = 0.95;
+    ring.material = rm;
+    ring.isPickable = false;
+    const start = performance.now();
+    const dur = 620;
+    const obs = this.scene.onBeforeRenderObservable.add(() => {
+      const t = Math.min(1, (performance.now() - start) / dur);
+      const e = 1 - Math.pow(1 - t, 3);
+      const sc = 1 + e * 5.5;
+      ring.scaling.set(sc, 1, sc);
+      rm.alpha = 0.95 * (1 - e);
+      if (t >= 1) {
+        this.scene.onBeforeRenderObservable.remove(obs);
+        rm.dispose();
+        ring.dispose();
+      }
+    });
+    // camera shake — quick decaying jitter on the camera target
+    const cam = this.camera;
+    const baseTarget = cam.target.clone();
+    const shakeStart = performance.now();
+    const shakeDur = 480;
+    const shakeObs = this.scene.onBeforeRenderObservable.add(() => {
+      const t = Math.min(1, (performance.now() - shakeStart) / shakeDur);
+      const amp = 0.14 * (1 - t);
+      cam.target = baseTarget.add(new Vector3((Math.random() - 0.5) * amp, 0, (Math.random() - 0.5) * amp));
+      if (t >= 1) {
+        this.scene.onBeforeRenderObservable.remove(shakeObs);
+        cam.target = baseTarget;
+      }
+    });
+  }
+
   /** v34: shatter death — clone the unit's pieces, burst them with impulse + spin + gravity + fade */
   shatterUnit(unitId: number, fromX?: number, fromY?: number, toX?: number, toY?: number) {
     const node = this.unitMeshes.get(unitId);

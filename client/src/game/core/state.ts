@@ -13,7 +13,7 @@ import {
   reachableTiles, attackableUnits, previewCombat, combatModifiers, techCost, canResearch,
   canHarvest, harvestCost, starIncome, tileAt, unitAt, cityAt, trainableUnits,
   POP_PER_LEVEL, canBuildPort, portCost, wallCost, canBuild, atUnitCapacity,
-  knockbackDestination, adjacencyPop,
+  knockbackDestination, adjacencyPop, canQuake, quakeVictims, quakeWallTargets, QUAKE_DAMAGE,
 } from "./rules";
 import { runAiTurn } from "./ai";
 import { evaluateAchievements, AchievementDef } from "./achievements";
@@ -31,6 +31,7 @@ export type GameEvent =
   | { type: "changed" }
   | { type: "unitMoved"; unitId: number; fromX: number; fromY: number; toX: number; toY: number }
   | { type: "combat"; attackerId: number; defenderId: number; dmg: number; retaliation: number; defenderDied: boolean; attackerDied: boolean; ax: number; ay: number; dx: number; dy: number; knockback?: { x: number; y: number }; wallCrushed?: { x: number; y: number } }
+  | { type: "quake"; unitId: number; x: number; y: number; victims: { id: number; x: number; y: number; died: boolean }[]; wallsBroken: { x: number; y: number }[] }
   | { type: "captured"; cityId: number; tribe: number }
   | { type: "turnStarted"; tribe: number }
   | { type: "focusTile"; x: number; y: number }
@@ -1222,6 +1223,68 @@ class GameStore {
       const outcome = defenderDied ? "destroyed" : `hit (−${dmgOut})`;
       this.recordRecap({ kind: "combat", text: `${aTribeName} ${aName} ${outcome} ${target}`, tribe: a.tribe >= 0 ? a.tribe : d.tribe });
     }
+    this.checkElimination();
+    this.emit({ type: "changed" });
+  }
+
+  /** v37 Colossus signature — once-per-game Quake: slams the ground, hitting every
+   * adjacent enemy for flat damage and shattering the walls of adjacent enemy cities.
+   * Spends the unit's attack (and move) for the turn. */
+  quake(unitId: number) {
+    const s = this.state;
+    const u = s.units.find((q) => q.id === unitId);
+    this.lastMove = null;
+    if (!u || !canQuake(s, u)) return;
+    const victims = quakeVictims(s, u);
+    const wallCities = quakeWallTargets(s, u);
+    u.quakeUsed = true;
+    u.attacked = true;
+    u.moved = true;
+    const tn = s.tribes[u.tribe]?.name ?? "A";
+    const results: { id: number; x: number; y: number; died: boolean }[] = [];
+    for (const v of victims) {
+      v.hp -= QUAKE_DAMAGE;
+      const died = v.hp <= 0;
+      results.push({ id: v.id, x: v.x, y: v.y, died });
+      if (died) {
+        s.units = s.units.filter((q) => q.id !== v.id);
+        u.kills++;
+        this.bumpStat(u.tribe, "battlesWon");
+        this.bumpStat(v.tribe, "unitsLost");
+        if (v.hero && v.tribe >= 0) {
+          const vn = this.heroName(v);
+          s.tribes[v.tribe].heroFell = true;
+          s.log.unshift(`${vn}, commander of ${s.tribes[v.tribe].name}, was crushed by the Quake!`);
+          this.recordRecap({ kind: "fallen", text: `${s.tribes[v.tribe].name}'s commander ${vn} fell to a Quake`, tribe: u.tribe });
+          this.recordReplay({ tribe: v.tribe, kind: "combat", text: `Commander ${vn} of ${s.tribes[v.tribe].name} was crushed by a Quake` });
+          this.stageHeroFallen(v, u);
+        }
+      }
+    }
+    // veterancy can trigger off quake kills too
+    if (!u.veteran && !u.guardian && u.kills >= 3) {
+      u.veteran = true;
+      u.maxHp += 5;
+      u.hp = u.maxHp;
+      s.log.unshift(`${tn} colossus was promoted to Veteran! (+5 max HP)`);
+      if (u.tribe === s.humanTribe) this.emit({ type: "sfx", name: "promote" });
+    }
+    const wallsBroken: { x: number; y: number }[] = [];
+    for (const c of wallCities) {
+      c.walls = false;
+      wallsBroken.push({ x: c.x, y: c.y });
+      const owner = c.tribe !== null && c.tribe >= 0 ? s.tribes[c.tribe]?.name ?? "the enemy" : "the enemy";
+      s.log.unshift(`The Quake shattered the walls of ${owner}'s ${c.name}!`);
+    }
+    const killed = results.filter((r) => r.died).length;
+    s.log.unshift(
+      `${tn} Colossus unleashed a QUAKE — ${victims.length} enem${victims.length === 1 ? "y" : "ies"} struck (−${QUAKE_DAMAGE} HP each)${killed > 0 ? `, ${killed} destroyed` : ""}${wallsBroken.length > 0 ? `, walls shattered` : ""}!`,
+    );
+    if (u.tribe !== s.humanTribe) {
+      this.recordRecap({ kind: "combat", text: `${tn}'s Colossus unleashed a Quake (${victims.length} hit${killed > 0 ? `, ${killed} slain` : ""})`, tribe: u.tribe });
+    }
+    this.recordReplay({ tribe: u.tribe, kind: "combat", text: `${tn} Colossus unleashed a Quake — ${victims.length} struck${killed > 0 ? `, ${killed} destroyed` : ""}` });
+    this.emit({ type: "quake", unitId: u.id, x: u.x, y: u.y, victims: results, wallsBroken });
     this.checkElimination();
     this.emit({ type: "changed" });
   }

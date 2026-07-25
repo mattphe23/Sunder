@@ -74,6 +74,22 @@ export default function GameCanvas() {
         r.starBurst(s, city.x, city.y, s.tribes[e.tribe].color);
         if (e.tribe === s.humanTribe) sound.play("capture");
       }
+      if (e.type === "quake") {
+        // v37 Colossus Quake: shockwave + shake at the epicenter, then impact FX per victim
+        r.quakeFx(s, e.x, e.y);
+        sound.play("catapult");
+        setTimeout(() => {
+          for (const v of e.victims) {
+            if (v.died) r.shatterUnit(v.id, e.x, e.y, v.x, v.y);
+            else {
+              r.hitFlash(v.id);
+              r.knockback(v.id, e.x, e.y, v.x, v.y);
+            }
+            r.showDamageNumber(s, v.x, v.y, 5, "#ff9b4a");
+          }
+          for (const w of e.wallsBroken) r.wallCrushBurst(s, w.x, w.y);
+        }, 160);
+      }
       if (e.type === "turnStarted" && e.tribe === s.humanTribe && s.turn > 0) sound.play("turn");
       if (e.type === "focusTile") r.focusTile(s, e.x, e.y);
       if (e.type === "sfx") {
