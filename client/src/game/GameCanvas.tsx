@@ -48,8 +48,17 @@ export default function GameCanvas() {
         sound.play(atk?.type === "catapult" ? "catapult" : "attack");
         // slight delay so numbers appear at impact
         setTimeout(() => {
-          r.hitFlash(e.defenderId);
-          if (e.retaliation > 0) r.hitFlash(e.attackerId);
+          // v34 impact FX: survivors flash + recoil; kills shatter into pieces
+          if (e.defenderDied) {
+            r.shatterUnit(e.defenderId, e.ax, e.ay, e.dx, e.dy);
+          } else {
+            r.hitFlash(e.defenderId);
+            r.knockback(e.defenderId, e.ax, e.ay, e.dx, e.dy);
+          }
+          if (e.retaliation > 0) {
+            if (e.attackerDied) r.shatterUnit(e.attackerId, e.dx, e.dy, e.ax, e.ay);
+            else r.hitFlash(e.attackerId);
+          }
           r.showDamageNumber(s, e.dx, e.dy, e.dmg, "#ff6b6b");
           if (e.retaliation > 0) r.showDamageNumber(s, e.ax, e.ay, e.retaliation, "#ffd76a");
         }, 120);

@@ -98,6 +98,10 @@ export class BoardRenderer {
   private lowQuality = false;
   private waterMats: StandardMaterial[] = [];
   private shimmerT = 0;
+  private ambientMeshes: Mesh[] = [];
+  private ambientObs: any = null;
+  private forestSpots: { x: number; z: number }[] = [];
+  private boardHalf = 5; // half-extent of the board in world units (set in buildBoard)
   onPick: ((p: PickInfo) => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -410,6 +414,115 @@ export class BoardRenderer {
         this.cameraGameSig = sig;
       }
     }
+
+    // ambient life: rebuild cloud shadows + bird spawn spots for this board
+    this.boardHalf = s.size / 2 + 1;
+    this.forestSpots = s.tiles
+      .filter((t) => t.explored[human] && t.terrain === "forest")
+      .map((t) => ({ x: t.x - c, z: t.y - c }));
+    this.setupAmbientLife();
+  }
+
+  /** ambient micro-motion: drifting cloud shadows + occasional birds over forests.
+   *  Deliberately sparse — stillness should feel intentional, not dead. */
+  private setupAmbientLife() {
+    for (const m of this.ambientMeshes) m.dispose();
+    this.ambientMeshes = [];
+    if (this.ambientObs) { this.scene.onBeforeRenderObservable.remove(this.ambientObs); this.ambientObs = null; }
+    if (this.lowQuality) return; // skip ambient extras on struggling devices
+
+    // --- drifting cloud shadows: 3 soft dark discs sliding slowly across tile tops
+    let cloudMat = this.mats.get("cloud-shadow");
+    if (!cloudMat) {
+      cloudMat = new StandardMaterial("cloud-shadow", this.scene);
+      cloudMat.emissiveColor = Color3.FromHexString("#0c0c26");
+      cloudMat.diffuseColor = Color3.Black();
+      cloudMat.specularColor = Color3.Black();
+      cloudMat.disableLighting = true;
+      cloudMat.alpha = 0.1;
+      this.mats.set("cloud-shadow", cloudMat);
+    }
+    const clouds: { mesh: Mesh; speed: number; drift: number; offset: number }[] = [];
+    for (let i = 0; i < 3; i++) {
+      const disc = MeshBuilder.CreateDisc(`cloudshadow${i}`, { radius: 1.6 + i * 0.5, tessellation: 10 }, this.scene);
+      disc.rotation.x = Math.PI / 2;
+      disc.scaling.x = 1.5; // elongated blob
+      disc.position.y = 0.62; // just above tile tops, below units' heads
+      disc.material = cloudMat;
+      disc.isPickable = false;
+      disc.parent = this.root;
+      clouds.push({ mesh: disc, speed: 0.14 + i * 0.05, drift: 0.05 + i * 0.02, offset: i * 7.3 });
+      this.ambientMeshes.push(disc);
+    }
+
+    // --- occasional birds: tiny dark chevrons that glide across, then despawn.
+    // A flock spawns every ~14-24s only if forest tiles exist.
+    let birdMat = this.mats.get("bird");
+    if (!birdMat) {
+      birdMat = new StandardMaterial("bird", this.scene);
+      birdMat.emissiveColor = Color3.FromHexString("#2c2c52");
+      birdMat.diffuseColor = Color3.Black();
+      birdMat.specularColor = Color3.Black();
+      birdMat.disableLighting = true;
+      this.mats.set("bird", birdMat);
+    }
+    type Bird = { mesh: Mesh; vx: number; vz: number; t: number; flap: number };
+    let birds: Bird[] = [];
+    let nextFlock = 6 + Math.random() * 8;
+    let aT = 0;
+
+    this.ambientObs = this.scene.onBeforeRenderObservable.add(() => {
+      const dt = this.engine.getDeltaTime() / 1000;
+      aT += dt;
+      const half = this.boardHalf;
+      // clouds: slow diagonal drift, wrapping around the board bounds
+      for (const cl of clouds) {
+        if (cl.mesh.isDisposed()) continue;
+        const range = half + 4;
+        const px = ((aT * cl.speed + cl.offset) % (range * 2)) - range;
+        cl.mesh.position.x = px;
+        cl.mesh.position.z = Math.sin(aT * cl.drift + cl.offset) * half * 0.7;
+      }
+      // birds: spawn a flock of 2-3 over a random forest tile, glide off-board
+      nextFlock -= dt;
+      if (nextFlock <= 0 && this.forestSpots.length > 0 && birds.length === 0) {
+        nextFlock = 14 + Math.random() * 10;
+        const spot = this.forestSpots[(Math.random() * this.forestSpots.length) | 0];
+        const ang = Math.random() * Math.PI * 2;
+        const n = 2 + ((Math.random() * 2) | 0);
+        for (let i = 0; i < n; i++) {
+          // chevron = two thin boxes joined at an angle
+          const wing = MeshBuilder.CreateBox(`bird${i}`, { width: 0.16, depth: 0.03, height: 0.015 }, this.scene);
+          wing.material = birdMat!;
+          wing.isPickable = false;
+          wing.parent = this.root;
+          wing.position = new Vector3(spot.x + (i - 1) * 0.25, 1.7 + i * 0.08, spot.z + (i % 2) * 0.2 - 0.1);
+          wing.rotation.y = ang;
+          birds.push({ mesh: wing, vx: Math.cos(ang) * 0.9, vz: Math.sin(ang) * 0.9, t: 0, flap: Math.random() * 6 });
+          this.ambientMeshes.push(wing);
+        }
+      }
+      // move birds; despawn once well off the board
+      if (birds.length) {
+        const alive: Bird[] = [];
+        for (const b of birds) {
+          if (b.mesh.isDisposed()) continue;
+          b.t += dt;
+          b.mesh.position.x += b.vx * dt;
+          b.mesh.position.z += b.vz * dt;
+          // wing flap: scale pulse + slight bob
+          b.mesh.scaling.z = 1 + Math.sin(b.t * 14 + b.flap) * 0.5;
+          b.mesh.position.y += Math.sin(b.t * 14 + b.flap) * 0.003;
+          const off = Math.abs(b.mesh.position.x) > half + 5 || Math.abs(b.mesh.position.z) > half + 5;
+          if (off || b.t > 30) {
+            b.mesh.dispose();
+          } else {
+            alive.push(b);
+          }
+        }
+        birds = alive;
+      }
+    });
   }
 
   /** unexplored tile: low dark slab + soft mist puff — clearly "fog", clearly there */
@@ -477,6 +590,10 @@ export class BoardRenderer {
       box = this.buildSlab("t" + key, t.x - c, t.y - c, h, topHex, sideHex, fogged);
       // shallow-water shore band: pale trim on land edges that touch water
       const shoreMat = fogged ? this.foggedMat(PALETTE.shore) : this.mat(PALETTE.shore);
+      // v34 coastal variation: sandy band + stepped rock ledge on cliff faces
+      const sandMat = fogged ? this.foggedMat("#d9c58f") : this.mat("#d9c58f");
+      const ledgeHex = darken(darken(this.tileColor(s, t)));
+      const ledgeMat = fogged ? this.foggedMat(ledgeHex) : this.mat(ledgeHex);
       const dirs: [number, number, number][] = [[1, 0, 0], [-1, 0, Math.PI], [0, 1, Math.PI / 2], [0, -1, -Math.PI / 2]];
       for (const [dx, dy] of dirs) {
         const nx = t.x + dx, ny = t.y + dy;
@@ -496,6 +613,39 @@ export class BoardRenderer {
         band.material = shoreMat;
         band.isPickable = false;
         band.parent = box;
+        // sandy band: a warm strip on the cliff face just under the waterline —
+        // reads as a beach line where the island meets the sea
+        const sand = MeshBuilder.CreateBox("sand", {
+          width: dx !== 0 ? 0.045 : TILE * 0.975,
+          depth: dy !== 0 ? 0.045 : TILE * 0.975,
+          height: 0.09,
+        }, this.scene);
+        sand.position = new Vector3(
+          dx * (TILE * 0.96) / 2 + dx * 0.005,
+          -h / 2 + TERRAIN_H[nb.terrain] - 0.1,
+          dy * (TILE * 0.96) / 2 + dy * 0.005
+        );
+        sand.material = sandMat;
+        sand.isPickable = false;
+        sand.parent = box;
+        // stepped cliff: on roughly half the coastal faces (seeded), a rock
+        // ledge juts out below the sand line for silhouette variety
+        const stepSeed = (t.x * 13 + t.y * 7 + dx * 3 + dy * 5) & 3;
+        if (stepSeed < 2) {
+          const ledge = MeshBuilder.CreateBox("ledge", {
+            width: dx !== 0 ? 0.1 : TILE * (0.5 + stepSeed * 0.2),
+            depth: dy !== 0 ? 0.1 : TILE * (0.5 + stepSeed * 0.2),
+            height: 0.12,
+          }, this.scene);
+          ledge.position = new Vector3(
+            dx * ((TILE * 0.96) / 2 + 0.03) + (dy !== 0 ? (stepSeed - 0.5) * 0.3 : 0),
+            -h / 2 + TERRAIN_H[nb.terrain] - 0.26,
+            dy * ((TILE * 0.96) / 2 + 0.03) + (dx !== 0 ? (stepSeed - 0.5) * 0.3 : 0)
+          );
+          ledge.material = ledgeMat;
+          ledge.isPickable = false;
+          ledge.parent = box;
+        }
       }
     }
     box.metadata = { tile: true, x: t.x, y: t.y };
@@ -556,28 +706,45 @@ export class BoardRenderer {
       }
     }
     if (t.terrain === "mountain") {
-      // gray rock peak with a white snow cap (was one pale cone that read as "ice cube")
-      const rock = MeshBuilder.CreateCylinder("pk", { diameterTop: 0.14, diameterBottom: 0.6, height: 0.42, tessellation: 5 }, this.scene);
-      rock.position = new Vector3(t.x - c, top + 0.21, t.y - c);
-      rock.rotation.y = ((t.x + t.y) % 4) * 0.4;
+      // Mountain massif: a wide rocky base skirt blends the rock into the tile
+      // (fixes "cone sitting on a flat square") + main peak, snow cap, shoulder,
+      // and a couple of scree boulders scattered at the foot.
+      const seed = (t.x * 31 + t.y * 17) % 7;
+      const yaw = seed * 0.37;
+      const md = { tile: true, x: t.x, y: t.y };
+      // 1. base skirt: broad, low frustum nearly spanning the tile — its rim
+      //    sinks slightly INTO the tile top so there is no hard 90° seam
+      const skirt = MeshBuilder.CreateCylinder("pkbase", { diameterTop: 0.55, diameterBottom: 0.98, height: 0.2, tessellation: 7 }, this.scene);
+      skirt.position = new Vector3(t.x - c, top + 0.06, t.y - c);
+      skirt.rotation.y = yaw;
+      skirt.material = this.mat(PALETTE.rock.shadow);
+      skirt.metadata = md; skirt.parent = this.root; decor.push(skirt);
+      // 2. main peak rising out of the skirt
+      const rock = MeshBuilder.CreateCylinder("pk", { diameterTop: 0.1, diameterBottom: 0.58, height: 0.46, tessellation: 6 }, this.scene);
+      rock.position = new Vector3(t.x - c, top + 0.34, t.y - c);
+      rock.rotation.y = yaw + 0.3;
       rock.material = this.mat(PALETTE.rock.body);
-      rock.metadata = { tile: true, x: t.x, y: t.y };
-      rock.parent = this.root;
-      decor.push(rock);
-      const snow = MeshBuilder.CreateCylinder("snow", { diameterTop: 0, diameterBottom: 0.22, height: 0.24, tessellation: 5 }, this.scene);
-      snow.position = new Vector3(t.x - c, top + 0.52, t.y - c);
+      rock.metadata = md; rock.parent = this.root; decor.push(rock);
+      const snow = MeshBuilder.CreateCylinder("snow", { diameterTop: 0, diameterBottom: 0.2, height: 0.22, tessellation: 6 }, this.scene);
+      snow.position = new Vector3(t.x - c, top + 0.66, t.y - c);
       snow.rotation.y = rock.rotation.y;
       snow.material = this.mat(PALETTE.rock.snow);
-      snow.metadata = { tile: true, x: t.x, y: t.y };
-      snow.parent = this.root;
-      decor.push(snow);
-      // small secondary shoulder peak for a mountain silhouette
-      const shoulder = MeshBuilder.CreateCylinder("pk2", { diameterTop: 0, diameterBottom: 0.3, height: 0.3, tessellation: 5 }, this.scene);
-      shoulder.position = new Vector3(t.x - c + 0.24, top + 0.15, t.y - c - 0.18);
-      shoulder.material = this.mat(PALETTE.rock.shadow);
-      shoulder.metadata = { tile: true, x: t.x, y: t.y };
-      shoulder.parent = this.root;
-      decor.push(shoulder);
+      snow.metadata = md; snow.parent = this.root; decor.push(snow);
+      // 3. shoulder peak growing out of the skirt edge (not floating beside it)
+      const shx = 0.22 - (seed % 2) * 0.44, shz = -0.16 + (seed % 3) * 0.14;
+      const shoulder = MeshBuilder.CreateCylinder("pk2", { diameterTop: 0, diameterBottom: 0.34, height: 0.34, tessellation: 5 }, this.scene);
+      shoulder.position = new Vector3(t.x - c + shx, top + 0.24, t.y - c + shz);
+      shoulder.rotation.y = yaw + 1.1;
+      shoulder.material = this.mat(PALETTE.rock.body);
+      shoulder.metadata = md; shoulder.parent = this.root; decor.push(shoulder);
+      // 4. scree boulders at the foot for a natural transition
+      for (const [bx, bz, br] of [[0.34, 0.3, 0.07], [-0.32, 0.26, 0.055]] as const) {
+        const boulder = MeshBuilder.CreateIcoSphere("scree", { radius: br, subdivisions: 1 }, this.scene);
+        boulder.position = new Vector3(t.x - c + bx, top + br * 0.7, t.y - c + bz);
+        boulder.scaling.y = 0.75;
+        boulder.material = this.mat(PALETTE.rock.shadow);
+        boulder.metadata = md; boulder.parent = this.root; decor.push(boulder);
+      }
     }
     if (t.resource) {
       // distinct silhouettes per resource type (was one tiny ambiguous orb)
@@ -634,16 +801,56 @@ export class BoardRenderer {
       }
     }
     if (t.ruin) {
-      // ancient ruin: weathered obelisk with a glowing amber capstone
-      const obelisk = MeshBuilder.CreateCylinder("ruin", { diameterTop: 0.12, diameterBottom: 0.26, height: 0.55, tessellation: 4 }, this.scene);
-      obelisk.position = new Vector3(t.x - c, top + 0.28, t.y - c);
+      // Ancient ruin: a weathered temple remnant — cracked stone plinth, a ring
+      // of broken columns at varying heights, a leaning obelisk, scattered
+      // rubble, and a glowing amber relic hovering at the center.
+      const md = { tile: true, x: t.x, y: t.y };
+      const stoneA = "#8f93b8", stoneB = "#767a9e", stoneC = "#5f6386";
+      // cracked plinth: two offset slabs read as broken paving
+      const slabA = MeshBuilder.CreateBox("ruinplinth", { width: 0.55, depth: 0.4, height: 0.07 }, this.scene);
+      slabA.position = new Vector3(t.x - c - 0.06, top + 0.035, t.y - c + 0.04);
+      slabA.rotation.y = 0.12;
+      slabA.material = this.mat(stoneB);
+      slabA.metadata = md; slabA.parent = this.root; decor.push(slabA);
+      const slabB = MeshBuilder.CreateBox("ruinplinth2", { width: 0.34, depth: 0.3, height: 0.06 }, this.scene);
+      slabB.position = new Vector3(t.x - c + 0.22, top + 0.03, t.y - c - 0.16);
+      slabB.rotation.y = -0.3;
+      slabB.material = this.mat(stoneC);
+      slabB.metadata = md; slabB.parent = this.root; decor.push(slabB);
+      // broken column ring: three stumps of differing heights, slightly tilted
+      for (const [px, pz, h, tilt] of [[-0.24, -0.14, 0.34, 0.1], [0.2, 0.18, 0.22, -0.14], [-0.1, 0.26, 0.14, 0.08]] as const) {
+        const col = MeshBuilder.CreateCylinder("ruincol", { diameterTop: 0.11, diameterBottom: 0.13, height: h, tessellation: 6 }, this.scene);
+        col.position = new Vector3(t.x - c + px, top + 0.07 + h / 2, t.y - c + pz);
+        col.rotation.z = tilt;
+        col.material = this.mat(stoneA);
+        col.metadata = md; col.parent = this.root; decor.push(col);
+        // broken top: small angled cap slab on the tallest stump
+        if (h > 0.3) {
+          const cap2 = MeshBuilder.CreateBox("ruincap2", { width: 0.16, depth: 0.16, height: 0.05 }, this.scene);
+          cap2.position = new Vector3(t.x - c + px, top + 0.1 + h, t.y - c + pz);
+          cap2.rotation.y = 0.4; cap2.rotation.x = 0.12;
+          cap2.material = this.mat(stoneB);
+          cap2.metadata = md; cap2.parent = this.root; decor.push(cap2);
+        }
+      }
+      // leaning obelisk — the ruin's landmark silhouette
+      const obelisk = MeshBuilder.CreateCylinder("ruin", { diameterTop: 0.07, diameterBottom: 0.17, height: 0.5, tessellation: 4 }, this.scene);
+      obelisk.position = new Vector3(t.x - c + 0.08, top + 0.3, t.y - c - 0.02);
       obelisk.rotation.y = Math.PI / 5;
-      obelisk.material = this.mat("#8f93b8");
-      obelisk.metadata = { tile: true, x: t.x, y: t.y };
-      obelisk.parent = this.root;
-      decor.push(obelisk);
-      const cap = MeshBuilder.CreateIcoSphere("ruincap", { radius: 0.09, subdivisions: 1 }, this.scene);
-      cap.position = new Vector3(t.x - c, top + 0.62, t.y - c);
+      obelisk.rotation.z = -0.18;
+      obelisk.material = this.mat(stoneA);
+      obelisk.metadata = md; obelisk.parent = this.root; decor.push(obelisk);
+      // scattered rubble stones
+      for (const [rx2, rz2, rr] of [[0.3, -0.28, 0.05], [-0.32, 0.08, 0.045], [0.02, -0.3, 0.04]] as const) {
+        const rub = MeshBuilder.CreateIcoSphere("rubble", { radius: rr, subdivisions: 1 }, this.scene);
+        rub.position = new Vector3(t.x - c + rx2, top + rr * 0.6, t.y - c + rz2);
+        rub.scaling.y = 0.6;
+        rub.material = this.mat(stoneC);
+        rub.metadata = md; rub.parent = this.root; decor.push(rub);
+      }
+      // glowing relic hovering over the plinth center
+      const cap = MeshBuilder.CreateIcoSphere("ruincap", { radius: 0.075, subdivisions: 1 }, this.scene);
+      cap.position = new Vector3(t.x - c - 0.06, top + 0.3, t.y - c + 0.04);
       let capMat = this.mats.get("ruin-glow");
       if (!capMat) {
         capMat = new StandardMaterial("ruin-glow", this.scene);
@@ -656,14 +863,6 @@ export class BoardRenderer {
       cap.metadata = { tile: true, x: t.x, y: t.y };
       cap.parent = this.root;
       decor.push(cap);
-      // low broken pillar beside it
-      const stump = MeshBuilder.CreateCylinder("ruinstump", { diameterTop: 0.14, diameterBottom: 0.18, height: 0.18, tessellation: 4 }, this.scene);
-      stump.position = new Vector3(t.x - c + 0.26, top + 0.09, t.y - c - 0.2);
-      stump.rotation.y = Math.PI / 7;
-      stump.material = this.mat("#767a9e");
-      stump.metadata = { tile: true, x: t.x, y: t.y };
-      stump.parent = this.root;
-      decor.push(stump);
     }
     if (t.greatRuin) {
       // GREAT RUIN: golden twin obelisks flanking a floating radiant core
@@ -1231,6 +1430,99 @@ export class BoardRenderer {
       this.scene.beginAnimation(p, 0, 15, false);
     }
     setTimeout(() => puffs.forEach((p) => p.dispose()), 320);
+  }
+
+  /** v34: directional knockback nudge — the struck unit recoils away from the attacker and snaps back */
+  knockback(unitId: number, fromX: number, fromY: number, toX: number, toY: number) {
+    const node = this.unitMeshes.get(unitId);
+    if (!node) return;
+    const dirX = toX - fromX, dirZ = toY - fromY;
+    const len = Math.hypot(dirX, dirZ) || 1;
+    const push = 0.18;
+    const base = node.position.clone();
+    const shoved = base.add(new Vector3((dirX / len) * push, 0.02, (dirZ / len) * push));
+    const anim = new Animation("kb", "position", 60, Animation.ANIMATIONTYPE_VECTOR3, Animation.ANIMATIONLOOPMODE_CONSTANT);
+    anim.setKeys([
+      { frame: 0, value: base },
+      { frame: 4, value: shoved },
+      { frame: 12, value: base },
+    ]);
+    const ease = new CubicEase();
+    ease.setEasingMode(EasingFunction.EASINGMODE_EASEOUT);
+    anim.setEasingFunction(ease);
+    node.animations = [anim];
+    this.scene.beginAnimation(node, 0, 12, false);
+  }
+
+  /** v34: shatter death — clone the unit's pieces, burst them with impulse + spin + gravity + fade */
+  shatterUnit(unitId: number, fromX?: number, fromY?: number, toX?: number, toY?: number) {
+    const node = this.unitMeshes.get(unitId);
+    if (!node || this.disposed) return;
+    // push direction: away from the attacker when known, else pure radial burst
+    let pushX = 0, pushZ = 0;
+    if (fromX !== undefined && fromY !== undefined && toX !== undefined && toY !== undefined) {
+      const dx = toX - fromX, dz = toY - fromY;
+      const l = Math.hypot(dx, dz) || 1;
+      pushX = dx / l; pushZ = dz / l;
+    }
+    const pieces: { m: Mesh; vel: Vector3; spin: Vector3 }[] = [];
+    for (const child of node.getChildMeshes()) {
+      const src = child as Mesh;
+      if (!src.geometry) continue;
+      const shard = src.clone(src.name + "-shard", null);
+      if (!shard) continue;
+      shard.setParent(null);
+      shard.position = src.getAbsolutePosition().clone();
+      shard.rotationQuaternion = null;
+      shard.isPickable = false;
+      // clone the material so fading never leaks into the shared cache
+      const srcMat = src.material as StandardMaterial | null;
+      if (srcMat) {
+        const pm = srcMat.clone(srcMat.name + "-shardmat");
+        pm.alpha = 1;
+        shard.material = pm;
+      }
+      const ang = Math.random() * Math.PI * 2;
+      const speed = 0.5 + Math.random() * 0.8;
+      pieces.push({
+        m: shard,
+        vel: new Vector3(
+          Math.cos(ang) * speed * 0.6 + pushX * 1.0,
+          1.5 + Math.random() * 1.1,
+          Math.sin(ang) * speed * 0.6 + pushZ * 1.0,
+        ),
+        spin: new Vector3((Math.random() - 0.5) * 9, (Math.random() - 0.5) * 9, (Math.random() - 0.5) * 9),
+      });
+    }
+    if (pieces.length === 0) return;
+    // hide the source immediately; the next engine sync disposes it for real
+    node.setEnabled(false);
+    const groundY = node.position.y;
+    const start = performance.now();
+    const DURATION = 700;
+    const obs = this.scene.onBeforeRenderObservable.add(() => {
+      const dt = Math.min(0.05, this.scene.getEngine().getDeltaTime() / 1000);
+      const t = (performance.now() - start) / DURATION;
+      for (const p of pieces) {
+        p.vel.y -= 6.5 * dt; // gravity
+        p.m.position.addInPlace(p.vel.scale(dt));
+        if (p.m.position.y < groundY && p.vel.y < 0) {
+          p.m.position.y = groundY;
+          p.vel.y *= -0.35; // small bounce, heavy damping
+          p.vel.x *= 0.6; p.vel.z *= 0.6;
+        }
+        p.m.rotation.addInPlace(p.spin.scale(dt));
+        const pm = p.m.material as StandardMaterial | null;
+        if (pm && t > 0.5) pm.alpha = Math.max(0, 1 - (t - 0.5) * 2);
+      }
+      if (t >= 1 || this.disposed) {
+        this.scene.onBeforeRenderObservable.remove(obs);
+        for (const p of pieces) {
+          p.m.material?.dispose();
+          p.m.dispose();
+        }
+      }
+    });
   }
 
   /** highlight reachable tiles / attackable enemies for the selected unit */

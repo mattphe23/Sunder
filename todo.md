@@ -385,3 +385,46 @@ below was checked against the actual codebase before being marked.
 
 ### Wrap-up
 - [x] Visual before/after verification in-game; tests + tsc green; checkpoint + deliver (before/after shots compared; warrior move verified live; 103 tests, tsc clean)
+
+## v34 — Visual polish round two (user feedback + ambient life)
+
+### Mountain & ruins fixes (user feedback)
+- [x] Blend mountain bases into the tile top (rocky base skirt / wider footprint) so peaks don't sit as cones on a flat square (broad low skirt frustum + shoulder growing from it + scree boulders, seeded per tile)
+- [x] Redesign ruins: broken columns + rubble + subtle glow instead of the plain purple cone (cracked plinth slabs, 3-column broken ring, leaning obelisk, rubble, hovering amber relic)
+
+### Ambient micro-motion
+- [x] Water shimmer (subtle animated sparkle/opacity ripple on water tiles) — pre-existing emissive pulse kept and verified
+- [x] Drifting cloud shadows across the board (slow, sparse) — 3 soft alpha discs, diagonal wrap drift, skipped in low-quality mode
+- [x] Occasional birds flying over forests (rare, small, despawning) — flock of 2-3 chevrons every ~14-24s from a random forest tile, glide off-board and despawn
+
+### Coastal cliff variation
+- [x] Sandy band on shoreline tile skirts (coast tiles get a sand-colored upper skirt strip)
+- [x] Stepped/varied cliff profile on some coastal tiles for silhouette variety
+
+### Attack impact FX
+- [x] Brief hit flash on the defender (white/red material flash) — pre-existing, kept and paired with new knockback
+- [x] Directional knockback nudge on the defender matching attack direction (recoil away from attacker, snap back)
+- [x] Shatter death FX: killed unit's geometric pieces burst apart, tumble with gravity, and fade out (per-piece impulse + spin + bounce + fade; wired into combat event for both defender and retaliation kills)
+
+### Wrap-up
+- [x] Visual verification in-game (mountains, ruins, coast band, cloud shadows confirmed live; combat FX exercised via engine console — no errors); tests 103 green + tsc clean; checkpoint + deliver
+
+## Interlude — Polytopia feature-gap analysis (user request; v34 visual work paused mid-flight)
+
+- [x] Research Polytopia's complete feature set (economy/city leveling, tech, units, tribes, modes, multiplayer, monetization)
+- [x] Research player sentiment: praise, criticism, most-requested features (reviews, Reddit, Steam)
+- [x] Audit Sunder's current feature set from the codebase
+- [x] Write gap-analysis document: Polytopia-only features, shared features, Sunder-only additions, recommendations (incl. city population/leveling question) — docs/feature-gap-analysis.md
+- [x] Deliver document for review
+
+## v35 — Economy depth (user-approved Tier 1 from gap analysis; starts after v34 ships)
+
+### Core loop
+- [ ] City level-up reward choice (2 options per level, Polytopia-style: workshop/explorer, wall/stars, pop growth/border growth, park/super unit — tuned to Sunder)
+- [ ] Unit capacity per city (level + 1); training blocked at cap with clear UI
+- [ ] Scoped building set: Lumber Hut (forest), Farm (grass), Mine (mountain) + 1 adjacency building (Sawmill) — population per build, placement UI
+- [ ] Interactive ruins: examine action with random rewards (stars/tech/population/veteran unit)
+- [ ] Tech cost scales with city count (anti-snowball)
+### Support
+- [ ] AI (both brains) understands rewards, buildings, capacity, ruins
+- [ ] Balance validation run via playtest harness; vitest coverage; visual verification
