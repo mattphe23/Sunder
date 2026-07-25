@@ -284,6 +284,14 @@ function aiUnitAction(store: StoreLike, u: Unit, tribeIdx: number, warTarget: { 
         const dc = cityAt(s, t.x, t.y);
         if (dc && dc.walls && dc.tribe === t.tribe) score += 14;
       }
+      // v39 road raiding: raiders squatting on our roads choke the trade
+      // network — clearing them restores +1★/turn per severed city
+      {
+        const rt = tileAt(s, t.x, t.y);
+        if (rt.road && rt.ownerCityId !== null && s.cities[rt.ownerCityId]?.tribe === tribeIdx) {
+          score += r.defenderDies ? 10 : 5;
+        }
+      }
       // berserkers finish wounded prey; raiders chase kills for plunder
       if (u.type === "berserker" && t.hp < t.maxHp) score += 6;
       if (u.type === "raider" && r.defenderDies) score += 6;

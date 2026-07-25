@@ -478,3 +478,15 @@ below was checked against the actual codebase before being marked.
 - [x] Live planner mode: overlay stays open while building; chips update after each placement; build clicks work through planner
 - [x] Vitest coverage for roads/trade network + score breakdown; type-check + full suite green (140/140)
 - [x] In-browser verification (roads render, trade income, game-over breakdown, live planner); checkpoint + deliver
+
+## v39 — Road raiding, trade pulse, Hall of Conquest breakdowns
+
+- [x] Road raiding: enemy units standing on a road tile block it as a trade node (connectedCityIds treats occupied roads as severed); severed cities lose the +1★ trade bonus until the raider is cleared
+- [x] Raid feedback: log entry when a route is newly severed, raided-road visual cue on the map, and a severed indicator in the city panel trade badge
+- [x] AI awareness: both brains value attacking raiders on their roads / consider parking units on enemy roads
+- [x] Trade-route glow: animated gold pulse flowing along connected road paths toward the capital
+- [x] Hall of Conquest: persist each finished match's score breakdown and show it in the history screen (expandable per past match)
+- [x] Vitest coverage for road raiding + breakdown persistence; type-check + full suite green
+- [x] In-browser verification (raid severs income, pulse renders, hall shows breakdowns); checkpoint + deliver
+- [ ] v40-prep: headless AI-vs-AI batch simulation script with score collection
+- [ ] v40-prep: balance report from AI match batch results

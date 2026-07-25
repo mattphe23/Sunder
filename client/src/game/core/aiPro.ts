@@ -367,6 +367,14 @@ function proUnitAction(store: StoreLike, u: Unit, tribeIdx: number, target: { x:
         const dc = cityAt(s, t.x, t.y);
         if (dc && dc.walls && dc.tribe === t.tribe) score += 16;
       }
+      // v39 road raiding: clear raiders off our trade roads — each severed
+      // city costs +1★/turn until the highway is reopened
+      {
+        const rt = tileAt(s, t.x, t.y);
+        if (rt.road && rt.ownerCityId !== null && s.cities[rt.ownerCityId]?.tribe === tribeIdx) {
+          score += r.defenderDies ? 12 : 6;
+        }
+      }
       if (u.type === "berserker" && t.hp < t.maxHp) score += 6;
       if (u.type === "raider" && r.defenderDies) score += 6;
       if (u.type === "tidecaller" && tileAt(s, u.x, u.y).terrain === "water") score += 4;

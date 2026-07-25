@@ -185,6 +185,8 @@ export function MainMenu() {
   const [preset, setPreset] = useState<MapPreset>("continents");
   const [hallOpen, setHallOpen] = useState(false);
   const [hallTab, setHallTab] = useState<Difficulty>("normal");
+  // v39: which Hall entry's score breakdown is expanded (index within the tab)
+  const [hallExpanded, setHallExpanded] = useState<number | null>(null);
   const [hall] = useState(() => loadHall());
   const [achOpen, setAchOpen] = useState(false);
   const [achievements] = useState(() => loadAchievements());
@@ -651,17 +653,38 @@ export function MainMenu() {
               ) : (
                 <div className="space-y-1">
                   {hall[hallTab]!.map((e: HallEntry, i: number) => (
-                    <div key={i} className="flex items-center justify-between rounded-md bg-white/5 px-2.5 py-1.5 text-[11px]" style={{ boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.06)" }}>
-                      <span className="flex items-center gap-2">
-                        <span className={`font-mono text-[10px] ${i === 0 ? "text-amber-400" : "text-slate-500"}`}>#{i + 1}</span>
-                        <span className="font-display font-bold text-slate-200">{e.faction}</span>
-                        <span className="text-slate-500">{e.mapSize}×{e.mapSize}</span>
-                      </span>
-                      <span className="flex items-center gap-2.5 font-mono text-slate-300">
-                        <span className="text-emerald-300">T{e.turns}</span>
-                        <span>{e.score}</span>
-                        <span className="text-[9px] text-slate-500">{e.date}</span>
-                      </span>
+                    <div key={i} className="rounded-md bg-white/5 text-[11px]" style={{ boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.06)" }}>
+                      <button
+                        onClick={() => e.breakdown && setHallExpanded(hallExpanded === i ? null : i)}
+                        className={`flex w-full items-center justify-between px-2.5 py-1.5 text-left ${e.breakdown ? "cursor-pointer hover:bg-white/5" : "cursor-default"}`}
+                      >
+                        <span className="flex items-center gap-2">
+                          <span className={`font-mono text-[10px] ${i === 0 ? "text-amber-400" : "text-slate-500"}`}>#{i + 1}</span>
+                          <span className="font-display font-bold text-slate-200">{e.faction}</span>
+                          <span className="text-slate-500">{e.mapSize}×{e.mapSize}</span>
+                          {e.breakdown && (
+                            <ChevronDown className={`h-3 w-3 text-slate-500 transition-transform duration-200 ${hallExpanded === i ? "rotate-180" : ""}`} />
+                          )}
+                        </span>
+                        <span className="flex items-center gap-2.5 font-mono text-slate-300">
+                          <span className="text-emerald-300">T{e.turns}</span>
+                          <span>{e.score}</span>
+                          <span className="text-[9px] text-slate-500">{e.date}</span>
+                        </span>
+                      </button>
+                      {e.breakdown && hallExpanded === i && (
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 border-t border-white/10 px-2.5 py-2 font-mono text-[10px] text-slate-400 sm:grid-cols-3">
+                          <span>Cities <span className="text-slate-200">{e.breakdown.cities}</span></span>
+                          <span>City levels <span className="text-slate-200">{e.breakdown.cityLevels}</span></span>
+                          <span>Techs <span className="text-slate-200">{e.breakdown.techs}</span></span>
+                          <span>Army <span className="text-slate-200">{e.breakdown.units}</span></span>
+                          <span>Battles <span className="text-slate-200">{e.breakdown.battles}</span></span>
+                          <span>Hero <span className="text-slate-200">{e.breakdown.hero}</span></span>
+                          {e.breakdown.heroFell !== 0 && (
+                            <span>Hero fell <span className="text-rose-300">{e.breakdown.heroFell}</span></span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

@@ -50,7 +50,7 @@ import { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator"
 import "@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent";
 import { GameState, Tile, Unit, idx } from "../core/types";
 import { game } from "../core/state";
-import { reachableTiles, attackableUnits, cityAt, isVisibleTo, plannerSites } from "../core/rules";
+import { reachableTiles, attackableUnits, cityAt, isVisibleTo, plannerSites, tradeRouteTiles, raidedRoadTiles } from "../core/rules";
 import { PALETTE, darken } from "./palette";
 
 const TILE = 1.02;
@@ -88,6 +88,8 @@ export class BoardRenderer {
   private campMeshes = new Map<number, TransformNode>();
   private stormMeshes = new Map<number, TransformNode>();
   private highlightMeshes: Mesh[] = [];
+  private pulseMeshes: Mesh[] = [];
+  private pulseObs: any = null;
   private mats = new Map<string, StandardMaterial>();
   private fxMeshes: Mesh[] = [];
   private disposed = false;
@@ -421,6 +423,76 @@ export class BoardRenderer {
       .filter((t) => t.explored[human] && t.terrain === "forest")
       .map((t) => ({ x: t.x - c, z: t.y - c }));
     this.setupAmbientLife();
+    // v39 trade pulse: gold flecks drifting along live trade routes toward the
+    // capital, plus a rose warning glow on raided road links
+    this.rebuildTradePulse(s);
+  }
+
+  /** v39: animated gold pulse on connected roads + rose halo on raided links */
+  private rebuildTradePulse(s: GameState) {
+    for (const m of this.pulseMeshes) { if (m.material?.name.startsWith("trade-pulse-i") || m.material?.name === "raidedm") m.material.dispose(); m.dispose(); }
+    this.pulseMeshes = [];
+    if (this.pulseObs) { this.scene.onBeforeRenderObservable.remove(this.pulseObs); this.pulseObs = null; }
+    const human = s.humanTribe;
+    const c = this.center(s.size);
+    // raided links: a rose halo over any road tile squatted by a hostile —
+    // reads as "this link is cut" at a glance
+    for (const r of raidedRoadTiles(s, human)) {
+      const t = s.tiles[idx(r.x, r.y, s.size)];
+      if (!t.explored[human] || !isVisibleTo(s, human, r.x, r.y)) continue;
+      const h = TERRAIN_H[t.terrain];
+      const halo = MeshBuilder.CreateTorus("raided", { diameter: 0.62, thickness: 0.05, tessellation: 18 }, this.scene);
+      halo.position = new Vector3(r.x - c, h - 0.4 + 0.09, r.y - c);
+      const hm = new StandardMaterial("raidedm", this.scene);
+      hm.emissiveColor = Color3.FromHexString("#f43f5e");
+      hm.diffuseColor = Color3.Black();
+      hm.specularColor = Color3.Black();
+      hm.disableLighting = true;
+      hm.alpha = 0.85;
+      halo.material = hm;
+      halo.isPickable = false;
+      halo.parent = this.root;
+      this.pulseMeshes.push(halo);
+    }
+    // live routes: one small gold coin per road tile, sliding toward the capital
+    const routes = tradeRouteTiles(s, human).filter((r) => s.tiles[idx(r.x, r.y, s.size)].explored[human]);
+    if (routes.length === 0 || this.lowQuality) return;
+    const coins: { mesh: Mesh; x: number; z: number; dx: number; dz: number; y: number; offset: number }[] = [];
+    for (const r of routes) {
+      const t = s.tiles[idx(r.x, r.y, s.size)];
+      const h = TERRAIN_H[t.terrain];
+      const coin = MeshBuilder.CreateCylinder("pulse", { diameter: 0.11, height: 0.03, tessellation: 8 }, this.scene);
+      const mat = new StandardMaterial("trade-pulse-i", this.scene);
+      mat.emissiveColor = Color3.FromHexString("#ffd76a");
+      mat.diffuseColor = Color3.Black();
+      mat.specularColor = Color3.Black();
+      mat.disableLighting = true;
+      coin.material = mat;
+      coin.isPickable = false;
+      coin.parent = this.root;
+      coins.push({
+        mesh: coin,
+        x: r.x - c, z: r.y - c,
+        dx: r.dx, dz: r.dy,
+        y: h - 0.4 + 0.075,
+        offset: ((r.x * 7 + r.y * 13) % 10) / 10, // desync neighboring coins
+      });
+      this.pulseMeshes.push(coin);
+    }
+    let t0 = 0;
+    this.pulseObs = this.scene.onBeforeRenderObservable.add(() => {
+      t0 += this.engine.getDeltaTime() / 1000;
+      for (const p of coins) {
+        if (p.mesh.isDisposed()) continue;
+        // each coin loops from tile center toward the capital-side edge (~2.2s cycle)
+        const phase = (t0 * 0.45 + p.offset) % 1;
+        const slide = phase * 0.5; // half a tile of travel per loop
+        p.mesh.position.set(p.x + p.dx * slide, p.y, p.z + p.dz * slide);
+        // fade in at the start of the run, fade out at the end
+        const alpha = phase < 0.15 ? phase / 0.15 : phase > 0.8 ? (1 - phase) / 0.2 : 1;
+        (p.mesh.material as StandardMaterial).alpha = alpha * 0.9;
+      }
+    });
   }
 
   /** ambient micro-motion: drifting cloud shadows + occasional birds over forests.

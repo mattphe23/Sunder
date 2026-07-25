@@ -6,7 +6,7 @@ import {
   techCost, canResearch, trainableUnits, starIncome, cityAt, canHarvest,
   harvestCost, canBuildPort, portCost, wallCost, canBuild, unitCapacity, unitCount,
   adjacencyPop, marketStars, canQuake, quakeVictims, quakeWallTargets, QUAKE_DAMAGE,
-  canBuildRoad, roadCost, connectedCityIds,
+  canBuildRoad, roadCost, connectedCityIds, severedCityIds,
 } from "../core/rules";
 import { Button } from "@/components/ui/button";
 import { Star, Swords, FlaskConical, X, ChevronRight, Anchor, Ship, Skull, Shield, Flag, Landmark, ScrollText, Undo2, Bird, Crown, Sparkles, SkipForward, Zap, Grid3x3, Route } from "lucide-react";
@@ -491,6 +491,7 @@ export function SelectionPanel() {
     // v38 roads: sites inside this city's borders where a road can be laid
     const roadSites = s.tiles.filter((t) => t.ownerCityId === city.id && canBuildRoad(s, s.humanTribe, t));
     const connected = connectedCityIds(s, s.humanTribe);
+    const severed = severedCityIds(s, s.humanTribe);
     const cap = unitCapacity(s, s.humanTribe);
     const count = unitCount(s, s.humanTribe);
     const atCap = count >= cap;
@@ -515,6 +516,11 @@ export function SelectionPanel() {
         {!city.isCapital && connected.has(city.id) && (
           <p className="mb-2 flex items-center gap-1 text-[11px] font-semibold text-amber-200">
             <Route className="h-3 w-3 text-amber-300" /> Trade route to the capital — +1★/turn
+          </p>
+        )}
+        {!city.isCapital && severed.has(city.id) && (
+          <p className="mb-2 flex items-center gap-1 text-[11px] font-semibold text-rose-300">
+            <Route className="h-3 w-3 text-rose-400" /> Trade route severed — raiders on the road!
           </p>
         )}
         <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">

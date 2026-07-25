@@ -110,8 +110,16 @@ export function connectedCityIds(s: GameState, tribe: number): Set<number> {
   const out = new Set<number>();
   const capital = s.cities.find((c) => c.tribe === tribe && c.isCapital);
   if (!capital) return out;
+  // v39 road raiding: a non-friendly unit standing on a road tile severs it as
+  // a trade node — raiders choke commerce until cleared (wild beasts included:
+  // a monster on the highway scares the caravans off just the same).
+  const raided = new Set<number>();
+  for (const u of s.units) {
+    if (u.tribe === tribe) continue;
+    if (tileAt(s, u.x, u.y).road) raided.add(idx(u.x, u.y, s.size));
+  }
   const isNode = (t: Tile): boolean => {
-    if (t.road) return true;
+    if (t.road) return !raided.has(idx(t.x, t.y, s.size));
     // a city tile of the same tribe acts as a road node
     if (t.cityId !== null && s.cities[t.cityId]?.tribe === tribe) return true;
     return false;
@@ -136,6 +144,86 @@ export function connectedCityIds(s: GameState, tribe: number): Set<number> {
     }
   }
   out.delete(capital.id); // the capital itself doesn't pay itself a trade bonus
+  return out;
+}
+
+/**
+ * v39: road tiles currently occupied by a unit hostile to this tribe — the
+ * raided links choking its trade network. Drives the raided-road visual cue
+ * and the severed badge in the city panel.
+ */
+export function raidedRoadTiles(s: GameState, tribe: number): { x: number; y: number }[] {
+  const out: { x: number; y: number }[] = [];
+  for (const u of s.units) {
+    if (u.tribe === tribe) continue;
+    if (tileAt(s, u.x, u.y).road) out.push({ x: u.x, y: u.y });
+  }
+  return out;
+}
+
+/**
+ * v39 trade pulse: every road tile on a live (unraided) route to the capital,
+ * with the direction commerce flows — one step along the BFS parent chain
+ * toward the capital. Feeds the animated gold pulse in the renderer.
+ */
+export function tradeRouteTiles(s: GameState, tribe: number): { x: number; y: number; dx: number; dy: number }[] {
+  const capital = s.cities.find((c) => c.tribe === tribe && c.isCapital);
+  if (!capital) return [];
+  const raided = new Set<number>();
+  for (const u of s.units) {
+    if (u.tribe === tribe) continue;
+    if (tileAt(s, u.x, u.y).road) raided.add(idx(u.x, u.y, s.size));
+  }
+  const isNode = (t: Tile): boolean => {
+    if (t.road) return !raided.has(idx(t.x, t.y, s.size));
+    if (t.cityId !== null && s.cities[t.cityId]?.tribe === tribe) return true;
+    return false;
+  };
+  // BFS from the capital, remembering each node's parent (the next hop toward home)
+  const parent = new Map<number, { x: number; y: number }>();
+  const seen = new Set<number>([idx(capital.x, capital.y, s.size)]);
+  const queue: [number, number][] = [[capital.x, capital.y]];
+  while (queue.length) {
+    const [cx, cy] = queue.shift()!;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      const nx = cx + dx, ny = cy + dy;
+      if (!inBounds(nx, ny, s.size)) continue;
+      const key = idx(nx, ny, s.size);
+      if (seen.has(key)) continue;
+      const nb = tileAt(s, nx, ny);
+      if (!isNode(nb)) continue;
+      seen.add(key);
+      parent.set(key, { x: cx, y: cy });
+      queue.push([nx, ny]);
+    }
+  }
+  // any reached road tile shimmers (dead-end spurs included — reads fine, cheap)
+  const out: { x: number; y: number; dx: number; dy: number }[] = [];
+  for (const key of Array.from(parent.keys())) {
+    const x = key % s.size, y = Math.floor(key / s.size);
+    const t = tileAt(s, x, y);
+    if (!t.road) continue;
+    const p = parent.get(key)!;
+    out.push({ x, y, dx: p.x - x, dy: p.y - y });
+  }
+  return out;
+}
+
+/**
+ * v39: cities whose trade route exists on paper but is currently severed by
+ * raiders — connected when raided roads are ignored, disconnected when they
+ * are honored. Drives the "route severed" badge.
+ */
+export function severedCityIds(s: GameState, tribe: number): Set<number> {
+  const withRaiders = connectedCityIds(s, tribe);
+  if (raidedRoadTiles(s, tribe).length === 0) return new Set();
+  // recompute pretending no raiders: temporarily treat all units as friendly
+  const units = s.units;
+  const ghost = units.map((u) => (u.tribe === tribe ? u : { ...u, tribe }));
+  const sPeace = { ...s, units: ghost } as GameState;
+  const without = connectedCityIds(sPeace, tribe);
+  const out = new Set<number>();
+  for (const id of Array.from(without)) if (!withRaiders.has(id)) out.add(id);
   return out;
 }
 

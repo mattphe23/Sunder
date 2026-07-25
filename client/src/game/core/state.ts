@@ -14,7 +14,7 @@ import {
   canHarvest, harvestCost, starIncome, tileAt, unitAt, cityAt, trainableUnits,
   POP_PER_LEVEL, canBuildPort, portCost, wallCost, canBuild, atUnitCapacity,
   knockbackDestination, adjacencyPop, marketStars, canQuake, quakeVictims, quakeWallTargets, QUAKE_DAMAGE,
-  canBuildRoad, roadCost, connectedCityIds,
+  canBuildRoad, roadCost, connectedCityIds, severedCityIds, scoreBreakdown, type ScoreParts,
 } from "./rules";
 import { runAiTurn } from "./ai";
 import { evaluateAchievements, AchievementDef } from "./achievements";
@@ -370,6 +370,11 @@ class GameStore {
         if (c.tribe !== tribeIdx) continue;
         const occ = s.units.find((q) => q.x === c.x && q.y === c.y && q.tribe !== tribeIdx && q.tribe >= 0);
         if (occ) s.log.unshift(`${c.name} is under siege — it produced no stars this turn!`);
+      }
+      // v39 road raiding visibility: name the cities whose routes raiders are choking
+      for (const id of Array.from(severedCityIds(s, tribeIdx))) {
+        const c = s.cities[id];
+        if (c) s.log.unshift(`Raiders on the road — ${c.name}'s trade route to the capital is severed!`);
       }
     }
     for (const u of s.units) {
@@ -1721,6 +1726,9 @@ class GameStore {
       score: s.tribes[s.humanTribe].score,
       mapSize: s.size,
       date: new Date().toISOString().slice(0, 10),
+      // v39: freeze the component breakdown at the moment of victory so the
+      // Hall can show WHAT won this game, not just the final total
+      breakdown: scoreBreakdown(s, s.humanTribe),
     };
     try {
       const hall = loadHall();
@@ -1743,6 +1751,8 @@ export interface HallEntry {
   score: number;
   mapSize: number;
   date: string;
+  /** v39: per-component score breakdown; absent on entries recorded before v39 */
+  breakdown?: ScoreParts;
 }
 
 const HALL_KEY = "polyforge-hall";
