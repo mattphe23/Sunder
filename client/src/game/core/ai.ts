@@ -100,7 +100,7 @@ export function runAiTurn(store: StoreLike, tribeIdx: number) {
 
   // 2. harvest affordable resources in own borders
   for (const t of s.tiles) {
-    // plunderking (Vessari): hoard toward the 45★ target once past halfway
+    // plunderking (Vessari): hoard toward the treasury target once past halfway
     if (pathId === "plunderking" && path && path.current > path.target * 0.55) break;
     if (canHarvest(s, tribeIdx, t)) store.harvest(t.x, t.y);
   }

@@ -704,6 +704,27 @@ export function starIncome(s: GameState, tribe: number): number {
       income += marketStars(s, t.x, t.y, marketDef);
     }
   }
+  // v40 Tideborn land-side buff: coastal cities trade with the tide — each
+  // Tideborn city standing beside shallow water earns +1 star. Batch testing
+  // showed the pure-naval passive winning only 8% on continents maps; this
+  // gives the Tidecourts an economy that works before any boat launches.
+  if (s.tribes[tribe]?.passive === "tideborn") {
+    for (const c of s.cities) {
+      if (c.tribe !== tribe) continue;
+      const occupier = s.units.find((u) => u.x === c.x && u.y === c.y && u.tribe !== tribe && u.tribe >= 0);
+      if (occupier) continue;
+      let coastal = false;
+      for (let dy = -1; dy <= 1 && !coastal; dy++) {
+        for (let dx = -1; dx <= 1 && !coastal; dx++) {
+          if (dx === 0 && dy === 0) continue;
+          const nx = c.x + dx, ny = c.y + dy;
+          if (!inBounds(nx, ny, s.size)) continue;
+          if (s.tiles[idx(nx, ny, s.size)].terrain === "water") coastal = true;
+        }
+      }
+      if (coastal) income += 1;
+    }
+  }
   return income;
 }
 

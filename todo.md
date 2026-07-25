@@ -491,3 +491,12 @@ below was checked against the actual codebase before being marked.
 - [x] v40-prep: headless AI-vs-AI batch simulation script with score collection
 - [x] v40-prep: balance report from AI match batch results
 - [x] Tribe & character roster document with Polytopia-style visual descriptions for external art mockups
+
+# v40 — Balance pass from batch findings (user-approved fixes 1+2)
+- [x] Staggered-start star compensation: later turn slots get +1 star per slot on turn 1
+- [x] Nerivane Tideborn land-side buff: coastal cities earn +1 star (starIncome)
+- [x] Plunder King victory threshold lowered 45 → 35
+- [x] Vitest coverage for all three changes (balance.v40.test.ts); 155 tests + tsc green
+- [x] Re-run 160-game batches (default + rotated) and compare slot spread / tribe win rates (two iterations: +1★ once → +slot★ for 5 turns)
+- [x] Archipelago-only batch (80 games) — Nerivane 20% on archipelago vs 8% continents post-buff
+- [x] Before/after verification report delivered; checkpoint saved

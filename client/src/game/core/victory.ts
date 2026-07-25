@@ -18,7 +18,9 @@ export const VICTORY_PATHS: VictoryPathDef[] = [
   { id: "enlightenment", name: "Enlightenment", goal: `Research all ${TECHS.length} technologies`, flavor: "The Auren archives are complete — knowledge itself has conquered the Shatterlands." },
   { id: "bloodforge", name: "Bloodforge", goal: "Win 18 battles", flavor: "Kharzul's forges run red — no army dares stand against the Bloodforge." },
   { id: "greatharvest", name: "Great Harvest", goal: "Reach 12 total city levels", flavor: "Sunwei's terraces feed a golden empire — the Great Harvest is gathered." },
-  { id: "plunderking", name: "Plunder King", goal: "Amass 45 stars in the treasury", flavor: "Vessari's saddlebags overflow — the Shatterlands' wealth rides with the Plunder King." },
+  // v40: 45 → 35 — Plunder King fired only twice across 160 batch games; the
+  // treasury target was too demanding vs the tempo cost of raiding.
+  { id: "plunderking", name: "Plunder King", goal: "Amass 35 stars in the treasury", flavor: "Vessari's saddlebags overflow — the Shatterlands' wealth rides with the Plunder King." },
   { id: "tidemastery", name: "Tide Mastery", goal: "Hold 4 ports on the open water", flavor: "Every current answers Nerivane — the tides themselves have chosen a master." },
   { id: "unbrokenwall", name: "Unbroken Wall", goal: "Hold 3 walled cities", flavor: "Dravok's ramparts blot out the horizon — the Unbroken Wall stands eternal." },
   { id: "stormlegend", name: "Storm Legend", goal: "Field 4 veteran units at once", flavor: "Valkyra's thunder never fades — an army of storm-tempered legends darkens the sky." },
@@ -48,7 +50,7 @@ export function victoryProgress(s: GameState, tribeIdx: number): VictoryProgress
     case "greatharvest":
       current = s.cities.filter((c) => c.tribe === tribeIdx).reduce((a, c) => a + c.level, 0); target = 12; break;
     case "plunderking":
-      current = t.stars; target = 45; break;
+      current = t.stars; target = 35; break;
     case "tidemastery":
       current = s.tiles.filter((tl) => tl.port === tribeIdx).length; target = 4; break;
     case "unbrokenwall":

@@ -40,6 +40,8 @@ export type GameEvent =
 
 type Listener = (e: GameEvent) => void;
 const SAVE_KEY = "polyforge-save-v1";
+/** v40: number of opening game turns during which later slots draw +1★/slot */
+export const STAGGER_COMP_TURNS = 5;
 const SLOT_KEY = "polyforge-active-slot";
 export type SaveSlot = 1 | 2 | 3;
 const slotKey = (slot: SaveSlot) => (slot === 1 ? SAVE_KEY : `${SAVE_KEY}:slot${slot}`);
@@ -255,7 +257,13 @@ class GameStore {
         isHuman: humans.includes(i),
         // v28 balance: Scholars tribes start +2 stars — playtests showed the tech
         // discount pays off too late against early aggression/plunder economies.
-        stars: d.passive === "scholars" ? 7 : 5,
+        // v40 balance: staggered-start compensation — 160-game batch testing
+        // showed slot 0 winning 40% vs 12% for the last slot (first pick of
+        // ruins/villages/aggression windows compounds). Later slots start
+        // +1 star per slot, and additionally draw +1 star per slot at the top
+        // of each of the first STAGGER_COMP_TURNS turns (see beginTurn) — a
+        // one-time bump alone proved too small against ~15★/turn economies.
+        stars: (d.passive === "scholars" ? 7 : 5) + i,
         techs: [d.startTech as TechId],
         alive: true,
         score: 0,
@@ -364,6 +372,13 @@ class GameStore {
     const income = starIncome(s, tribeIdx) + this.aiBonus(tribeIdx);
     tribe.stars += income;
     this.bumpStat(tribeIdx, "starsEarned", income);
+    // v40 staggered-start compensation, recurring part: later turn slots draw
+    // +1 star per slot for the first few turns to offset the compounding
+    // first-mover advantage (slot 0 sees ruins/villages/fights first).
+    if (s.turn < STAGGER_COMP_TURNS && tribeIdx > 0) {
+      tribe.stars += tribeIdx;
+      this.bumpStat(tribeIdx, "starsEarned", tribeIdx);
+    }
     // v29 siege visibility: tell the owner which cities produced nothing
     if (tribe.isHuman) {
       for (const c of s.cities) {

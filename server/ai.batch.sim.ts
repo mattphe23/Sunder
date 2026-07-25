@@ -118,7 +118,7 @@ function simulate(seed: number, difficulty: Difficulty, preset: Preset, size: nu
 const OUT_DIR = "/home/ubuntu/ai-sim";
 fs.mkdirSync(OUT_DIR, { recursive: true });
 const outFile = path.join(OUT_DIR, "results.jsonl");
-if (!process.argv.includes("--rotate")) fs.writeFileSync(outFile, "");
+if (!process.argv.includes("--rotate") && !process.argv.includes("--archi")) fs.writeFileSync(outFile, "");
 
 const difficulties: Difficulty[] = ["easy", "normal", "hard", "impossible"];
 const presets: Preset[] = ["continents", "pangaea"];
@@ -129,8 +129,41 @@ const size = 11;
 // Phase B (--rotate): rotated rosters so every tribe def visits every slot —
 // separates tribe strength from slot/turn-order advantage. All 6 defs play.
 const rotate = process.argv.includes("--rotate");
+// Phase C (--archi): v40 Nerivane verification — Nerivane (def 4) placed in
+// every slot, run on BOTH archipelago (home turf) and continents (the map
+// class where it won 8% pre-v40), so the coastal-income buff's map dependence
+// is measurable.
+const archi = process.argv.includes("--archi");
 
 let done = 0;
+if (archi) {
+  const rosters: number[][] = [
+    [4, 0, 1, 2], [0, 4, 1, 3], [1, 2, 4, 5], [0, 3, 5, 4],
+  ];
+  const archSeeds = [3, 7, 11, 19, 23, 31, 42, 57, 71, 99];
+  const archPresets: Preset[] = ["archipelago", "continents"];
+  const totalC = rosters.length * archSeeds.length * archPresets.length;
+  const outC = path.join(OUT_DIR, "results-archi.jsonl");
+  fs.writeFileSync(outC, "");
+  for (const preset of archPresets) {
+    for (const roster of rosters) {
+      for (const seed of archSeeds) {
+        try {
+          const rec = simulate(seed, "hard", preset, size, roster);
+          (rec as unknown as { roster: number[] }).roster = roster;
+          fs.appendFileSync(outC, JSON.stringify(rec) + "\n");
+          done++;
+          console.log(`[${done}/${totalC}] ${preset} roster=[${roster}] seed=${seed} → ${rec.phase} t${rec.turns} winner=${rec.winnerName ?? "-"}`);
+        } catch (err) {
+          done++;
+          console.error(`[${done}/${totalC}] ${preset} roster=[${roster}] seed=${seed} FAILED:`, (err as Error).message);
+        }
+      }
+    }
+  }
+  console.log(`\nArchipelago batch complete: ${done}/${totalC} games → ${outC}`);
+  process.exit(0);
+}
 if (rotate) {
   const rosters: number[][] = [
     [0, 1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 0],

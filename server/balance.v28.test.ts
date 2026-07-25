@@ -20,7 +20,8 @@ describe("v28 tuning constants", () => {
     // tribe 0 has already collected its first-turn income inside newGame's
     // beginTurn(0); the scholars bump shows as +2 over the base 5 plus income.
     expect(s.tribes[0].stars).toBeGreaterThanOrEqual(9); // 5 + 2 (scholars) + income ≥ 2
-    expect(s.tribes[1].stars).toBe(5); // hasn't taken a turn yet — untouched base
+    // v40 staggered start: slot 1 carries +1 compensation star on top of base 5
+    expect(s.tribes[1].stars).toBe(6); // hasn't taken a turn yet — base 5 + slot 1
   });
 });
 

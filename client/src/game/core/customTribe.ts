@@ -21,7 +21,7 @@ export const FORGE_PASSIVES: { id: FactionPassive; label: string; desc: string }
   { id: "forgeborn", label: "Forgeborn", desc: "Units deal +15% attack damage" },
   { id: "harvesters", label: "Harvesters", desc: "Harvesting resources costs 1 less star" },
   { id: "outriders", label: "Outriders", desc: "All units gain +1 movement on grass" },
-  { id: "tideborn", label: "Tideborn", desc: "Ports cost 1 star and boats move +1" },
+  { id: "tideborn", label: "Tideborn", desc: "Ports cost 1 star, boats move +1, coastal cities earn +1 star" },
   { id: "stonebound", label: "Stonebound", desc: "Walls cost 2 less; city defenders +10% defense" },
 ];
 
