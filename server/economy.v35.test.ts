@@ -125,7 +125,9 @@ describe("v35 buildings", () => {
   it("BUILDINGS defs are well-formed", () => {
     for (const b of BUILDINGS) {
       expect(b.cost).toBeGreaterThan(0);
-      expect(b.pop).toBeGreaterThan(0);
+      // v36 adjacency buildings have base pop 0 — their value comes from neighbors
+      if (b.adjacentTo) expect(b.pop).toBe(0);
+      else expect(b.pop).toBeGreaterThan(0);
       expect(b.terrain.length).toBeGreaterThan(0);
     }
   });

@@ -27,7 +27,7 @@ export interface Tile {
 /* ---------------------------------- v35 economy ---------------------------------- */
 
 /** buildings convert stars into city population (Polytopia-style) */
-export type BuildingType = "hut" | "farm" | "mine";
+export type BuildingType = "hut" | "farm" | "mine" | "sawmill" | "windmill";
 export interface BuildingDef {
   id: BuildingType;
   name: string;
@@ -36,11 +36,16 @@ export interface BuildingDef {
   pop: number;
   tech: TechId;
   desc: string;
+  /** v36 adjacency building: +1 pop per (8-way) neighboring building of this type; one per city */
+  adjacentTo?: BuildingType;
 }
 export const BUILDINGS: BuildingDef[] = [
   { id: "hut", name: "Lumber Hut", terrain: "forest", cost: 2, pop: 1, tech: "forestry", desc: "A woodcutter's hut among the pines. +1 population." },
   { id: "farm", name: "Farm", terrain: "grass", cost: 4, pop: 2, tech: "organization", desc: "Terraced fields feed the city. +2 population." },
   { id: "mine", name: "Mine", terrain: "mountain", cost: 4, pop: 2, tech: "mining", desc: "Deep shafts of ore and gems. +2 population." },
+  // v36 adjacency buildings — the placement-puzzle layer: value scales with neighbors
+  { id: "sawmill", name: "Sawmill", terrain: "grass", cost: 5, pop: 0, tech: "forestry", adjacentTo: "hut", desc: "+1 population per adjacent Lumber Hut. One per city." },
+  { id: "windmill", name: "Windmill", terrain: "grass", cost: 5, pop: 0, tech: "organization", adjacentTo: "farm", desc: "+1 population per adjacent Farm. One per city." },
 ];
 
 /** rewards chosen at each city level-up (2 offered, pick 1) */

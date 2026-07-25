@@ -844,6 +844,47 @@ export class BoardRenderer {
           beam.material = this.mat("#6e4f31");
           beam.metadata = md; beam.parent = this.root; decor.push(beam);
         }
+      } else if (t.building === "sawmill") {
+        // v36 sawmill: open timber frame + big circular saw blade + log pile
+        const frame = MeshBuilder.CreateBox("bld", { width: 0.36, depth: 0.24, height: 0.16 }, this.scene);
+        frame.position = new Vector3(bx, top + 0.08, bz);
+        frame.material = this.mat("#8a6642");
+        frame.metadata = md; frame.parent = this.root; decor.push(frame);
+        const roof = MeshBuilder.CreateBox("bldroof", { width: 0.42, depth: 0.3, height: 0.05 }, this.scene);
+        roof.position = new Vector3(bx, top + 0.2, bz);
+        roof.rotation.z = 0.12;
+        roof.material = this.mat("#6e4f31");
+        roof.metadata = md; roof.parent = this.root; decor.push(roof);
+        const blade = MeshBuilder.CreateCylinder("bldblade", { diameter: 0.18, height: 0.02, tessellation: 12 }, this.scene);
+        blade.position = new Vector3(bx + 0.16, top + 0.14, bz + 0.14);
+        blade.rotation.x = Math.PI / 2;
+        blade.material = this.mat("#b9bdd4");
+        blade.metadata = md; blade.parent = this.root; decor.push(blade);
+        for (let i = 0; i < 3; i++) {
+          const log = MeshBuilder.CreateCylinder("bldlog", { diameter: 0.07, height: 0.26, tessellation: 6 }, this.scene);
+          log.position = new Vector3(bx - 0.22, top + 0.04 + (i === 2 ? 0.06 : 0), bz - 0.12 + (i % 2) * 0.08);
+          log.rotation.z = Math.PI / 2;
+          log.material = this.mat("#a07a4e");
+          log.metadata = md; log.parent = this.root; decor.push(log);
+        }
+      } else if (t.building === "windmill") {
+        // v36 windmill: tapered tower + four cream sails on a hub
+        const tower = MeshBuilder.CreateCylinder("bld", { diameterBottom: 0.24, diameterTop: 0.16, height: 0.36, tessellation: 6 }, this.scene);
+        tower.position = new Vector3(bx, top + 0.18, bz);
+        tower.material = this.mat("#a89a86");
+        tower.metadata = md; tower.parent = this.root; decor.push(tower);
+        const cap = MeshBuilder.CreateCylinder("bldcap", { diameterTop: 0, diameterBottom: 0.2, height: 0.1, tessellation: 6 }, this.scene);
+        cap.position = new Vector3(bx, top + 0.41, bz);
+        cap.material = this.mat("#6e4f31");
+        cap.metadata = md; cap.parent = this.root; decor.push(cap);
+        for (let i = 0; i < 4; i++) {
+          const sail = MeshBuilder.CreateBox("bldsail", { width: 0.05, depth: 0.015, height: 0.2 }, this.scene);
+          const ang = (Math.PI / 2) * i + Math.PI / 4;
+          sail.position = new Vector3(bx + Math.cos(ang) * 0.11, top + 0.34 + Math.sin(ang) * 0.11, bz + 0.13);
+          sail.rotation.z = ang;
+          sail.material = this.mat("#efe6d2");
+          sail.metadata = md; sail.parent = this.root; decor.push(sail);
+        }
       }
     }
     if (t.ruin) {
@@ -1498,6 +1539,67 @@ export class BoardRenderer {
     anim.setEasingFunction(ease);
     node.animations = [anim];
     this.scene.beginAnimation(node, 0, 12, false);
+  }
+
+  /** v36 colossus knockback: hurl the surviving defender a full tile — arc slide to its new home */
+  slideUnit(s: GameState, unitId: number, fromX: number, fromY: number, toX: number, toY: number) {
+    const node = this.unitMeshes.get(unitId);
+    if (!node) return;
+    const c = this.center(s.size);
+    const hFrom = TERRAIN_H[s.tiles[idx(fromX, fromY, s.size)].terrain];
+    const hTo = TERRAIN_H[s.tiles[idx(toX, toY, s.size)].terrain];
+    const start = new Vector3(fromX - c, node.position.y, fromY - c);
+    const end = new Vector3(toX - c, node.position.y + (hTo - hFrom), toY - c);
+    const mid = Vector3.Lerp(start, end, 0.5).add(new Vector3(0, 0.45, 0));
+    const anim = new Animation("hurl", "position", 60, Animation.ANIMATIONTYPE_VECTOR3, Animation.ANIMATIONLOOPMODE_CONSTANT);
+    anim.setKeys([
+      { frame: 0, value: start },
+      { frame: 8, value: mid },
+      { frame: 16, value: end },
+    ]);
+    const ease = new CubicEase();
+    ease.setEasingMode(EasingFunction.EASINGMODE_EASEOUT);
+    anim.setEasingFunction(ease);
+    node.animations = [anim];
+    this.scene.beginAnimation(node, 0, 16, false);
+  }
+
+  /** v36 colossus wall-crush: grey masonry burst as the ramparts shatter */
+  wallCrushBurst(s: GameState, x: number, y: number) {
+    const c = this.center(s.size);
+    const h = TERRAIN_H[s.tiles[idx(x, y, s.size)].terrain];
+    const emitter = new Vector3(x - c, h - 0.4 + 0.35, y - c);
+    const ps = new ParticleSystem("wallcrush", 80, this.scene);
+    const size = 64;
+    const dt = new DynamicTexture("rubble", { width: size, height: size }, this.scene, false);
+    dt.hasAlpha = true;
+    const ctx = dt.getContext() as CanvasRenderingContext2D;
+    ctx.clearRect(0, 0, size, size);
+    const grad = ctx.createRadialGradient(32, 32, 2, 32, 32, 30);
+    grad.addColorStop(0, "rgba(235,230,220,1)");
+    grad.addColorStop(0.5, "rgba(168,160,150,0.9)");
+    grad.addColorStop(1, "rgba(110,104,96,0)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, size, size);
+    dt.update();
+    ps.particleTexture = dt as unknown as Texture;
+    ps.emitter = emitter;
+    ps.minEmitBox = new Vector3(-0.35, 0, -0.35);
+    ps.maxEmitBox = new Vector3(0.35, 0.25, 0.35);
+    ps.minSize = 0.1; ps.maxSize = 0.28;
+    ps.minLifeTime = 0.4; ps.maxLifeTime = 0.85;
+    ps.emitRate = 320;
+    ps.direction1 = new Vector3(-1.2, 1.0, -1.2);
+    ps.direction2 = new Vector3(1.2, 2.2, 1.2);
+    ps.minEmitPower = 1.0; ps.maxEmitPower = 2.4;
+    ps.gravity = new Vector3(0, -6, 0);
+    ps.color1 = new Color4(0.85, 0.82, 0.76, 1);
+    ps.color2 = new Color4(0.6, 0.57, 0.52, 1);
+    ps.colorDead = new Color4(0.45, 0.42, 0.38, 0);
+    ps.blendMode = ParticleSystem.BLENDMODE_STANDARD;
+    ps.targetStopDuration = 0.3;
+    ps.disposeOnStop = true;
+    ps.start();
   }
 
   /** v34: shatter death — clone the unit's pieces, burst them with impulse + spin + gravity + fade */

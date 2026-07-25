@@ -3,9 +3,12 @@
 // player's real actions, skippable, and never shown again once completed.
 import { useEffect, useRef, useState } from "react";
 import { useGame } from "@/game/useGame";
-import { X, MousePointerClick, Move3D, Flag, FlaskConical, Hourglass, Sparkles } from "lucide-react";
+import { X, MousePointerClick, Move3D, Flag, FlaskConical, Hourglass, Sparkles, Apple, Landmark, Gift } from "lucide-react";
 
 const DONE_KEY = "polyforge-tutorial-done";
+// v36: economy beats appended after the original flow — bump so existing players
+// who finished the old tutorial still see the new steps once (keyed separately)
+const ECON_DONE_KEY = "polyforge-tutorial-econ-done";
 
 interface Step {
   id: string;
@@ -53,6 +56,27 @@ const STEPS: Step[] = [
     anchor: "top",
   },
   {
+    id: "harvest",
+    icon: <Apple size={18} />,
+    title: "Feed your cities",
+    body: "Stars win battles; population wins the long game. Click your capital and use Harvest to gather fruit, game, or minerals around it — each adds population, and every 3 population levels the city up for more income.",
+    anchor: "bottom",
+  },
+  {
+    id: "build",
+    icon: <Landmark size={18} />,
+    title: "Build for position",
+    body: "The city panel also offers buildings: Lumber Huts on forest, Farms on grass, Mines on mountains. Sawmills and Windmills gain +1 population per adjacent Hut or Farm — placement is a puzzle, so cluster before you crown.",
+    anchor: "bottom",
+  },
+  {
+    id: "reward",
+    icon: <Gift size={18} />,
+    title: "Level-up rewards",
+    body: "Each city level offers a choice of two rewards — Workshop income, walls, border growth, and at level 5 the big one: a Park worth 15 score, or a Colossus that crushes city walls and hurls defenders back. Choose for the war you're fighting.",
+    anchor: "center",
+  },
+  {
     id: "endturn",
     icon: <Hourglass size={18} />,
     title: "End your turn",
@@ -65,16 +89,33 @@ export function isTutorialDone(): boolean {
   try { return localStorage.getItem(DONE_KEY) === "1"; } catch { return true; }
 }
 
+/** v36: players who completed the pre-economy tutorial see only the new beats once */
+function econOnlyStart(): number {
+  try {
+    if (localStorage.getItem(DONE_KEY) === "1" && localStorage.getItem(ECON_DONE_KEY) !== "1") {
+      return STEPS.findIndex((st) => st.id === "harvest");
+    }
+  } catch { /* private mode */ }
+  return 0;
+}
+
 export function Tutorial() {
   const g = useGame();
   const s = g.state;
-  const [step, setStep] = useState(0);
-  const [active, setActive] = useState(() => !isTutorialDone());
+  const [step, setStep] = useState(() => econOnlyStart());
+  const [active, setActive] = useState(() => {
+    try {
+      return localStorage.getItem(DONE_KEY) !== "1" || localStorage.getItem(ECON_DONE_KEY) !== "1";
+    } catch { return false; }
+  });
   // remember warrior position at select-time to detect the move
   const posRef = useRef<{ id: number; x: number; y: number } | null>(null);
 
   const finish = () => {
-    try { localStorage.setItem(DONE_KEY, "1"); } catch { /* private mode */ }
+    try {
+      localStorage.setItem(DONE_KEY, "1");
+      localStorage.setItem(ECON_DONE_KEY, "1");
+    } catch { /* private mode */ }
     setActive(false);
   };
 
@@ -94,6 +135,9 @@ export function Tutorial() {
     } else if (cur === "research" && s.tribes[s.humanTribe]?.techs.length > 1) {
       // started with 1 tech; a second means research happened
       setStep(step + 1);
+    } else if (cur === "harvest") {
+      // advance when the player opens a city panel (they can see Harvest there)
+      if (s.selectedCityId !== null) setStep(step + 1);
     } else if (cur === "endturn" && s.turn > 1) {
       finish();
     }
@@ -151,6 +195,14 @@ export function Tutorial() {
                 className="rounded bg-amber-400 px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#141433] transition-transform active:scale-95"
               >
                 {cur.id === "welcome" ? "Let's go" : "Got it"}
+              </button>
+            )}
+            {(cur.id === "harvest" || cur.id === "build" || cur.id === "reward") && (
+              <button
+                onClick={() => setStep(step + 1)}
+                className="rounded bg-amber-400 px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#141433] transition-transform active:scale-95"
+              >
+                Got it
               </button>
             )}
           </div>

@@ -51,10 +51,16 @@ export default function GameCanvas() {
           // v34 impact FX: survivors flash + recoil; kills shatter into pieces
           if (e.defenderDied) {
             r.shatterUnit(e.defenderId, e.ax, e.ay, e.dx, e.dy);
+          } else if (e.knockback) {
+            // v36 colossus: the survivor is hurled a full tile — slide the rig to its new home
+            r.hitFlash(e.defenderId);
+            r.slideUnit(s, e.defenderId, e.dx, e.dy, e.knockback.x, e.knockback.y);
           } else {
             r.hitFlash(e.defenderId);
             r.knockback(e.defenderId, e.ax, e.ay, e.dx, e.dy);
           }
+          // v36 colossus: masonry burst when the walls come down
+          if (e.wallCrushed) r.wallCrushBurst(s, e.wallCrushed.x, e.wallCrushed.y);
           if (e.retaliation > 0) {
             if (e.attackerDied) r.shatterUnit(e.attackerId, e.dx, e.dy, e.ax, e.ay);
             else r.hitFlash(e.attackerId);

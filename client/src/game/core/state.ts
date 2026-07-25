@@ -13,6 +13,7 @@ import {
   reachableTiles, attackableUnits, previewCombat, combatModifiers, techCost, canResearch,
   canHarvest, harvestCost, starIncome, tileAt, unitAt, cityAt, trainableUnits,
   POP_PER_LEVEL, canBuildPort, portCost, wallCost, canBuild, atUnitCapacity,
+  knockbackDestination, adjacencyPop,
 } from "./rules";
 import { runAiTurn } from "./ai";
 import { evaluateAchievements, AchievementDef } from "./achievements";
@@ -29,7 +30,7 @@ import { evaluateMission, markMissionDone, computeMissionStars, recordMissionSta
 export type GameEvent =
   | { type: "changed" }
   | { type: "unitMoved"; unitId: number; fromX: number; fromY: number; toX: number; toY: number }
-  | { type: "combat"; attackerId: number; defenderId: number; dmg: number; retaliation: number; defenderDied: boolean; attackerDied: boolean; ax: number; ay: number; dx: number; dy: number }
+  | { type: "combat"; attackerId: number; defenderId: number; dmg: number; retaliation: number; defenderDied: boolean; attackerDied: boolean; ax: number; ay: number; dx: number; dy: number; knockback?: { x: number; y: number }; wallCrushed?: { x: number; y: number } }
   | { type: "captured"; cityId: number; tribe: number }
   | { type: "turnStarted"; tribe: number }
   | { type: "focusTile"; x: number; y: number }
@@ -1076,11 +1077,41 @@ class GameStore {
     if (!attackableUnits(s, a).some((e) => e.id === defenderId)) return;
     const result = previewCombat(s, a, d);
     const ax = a.x, ay = a.y, dxp = d.x, dyp = d.y;
-    d.hp -= result.damageToDefender;
+    let dmgOut = result.damageToDefender;
+    // v36 Colossus signature — knockback: a surviving defender in melee is hurled
+    // 1 tile along the attack direction; a blocked push (edge/terrain/occupied)
+    // becomes +2 bonus damage as the giant grinds them into the obstacle.
+    let kbDest: { x: number; y: number } | null = null;
+    let kbBlockedBonus = 0;
+    const melee = Math.max(Math.abs(ax - dxp), Math.abs(ay - dyp)) === 1;
+    if (a.type === "colossus" && melee && d.hp - dmgOut > 0) {
+      kbDest = knockbackDestination(s, a, d);
+      if (!kbDest) {
+        kbBlockedBonus = 2;
+        dmgOut += kbBlockedBonus;
+      }
+    }
+    d.hp -= dmgOut;
     a.hp -= result.damageToAttacker;
     a.attacked = true;
     a.moved = true;
     let defenderDied = false, attackerDied = false;
+    // v36 Colossus signature — wall-crush: striking a defender garrisoned behind
+    // walls tears the fortifications down, whether or not the defender survives.
+    let wallCrushed: { x: number; y: number } | undefined;
+    if (a.type === "colossus") {
+      const dc = cityAt(s, dxp, dyp);
+      if (dc && dc.walls && dc.tribe === d.tribe && d.tribe >= 0) {
+        dc.walls = false;
+        wallCrushed = { x: dc.x, y: dc.y };
+        const owner = s.tribes[d.tribe]?.name ?? "the enemy";
+        s.log.unshift(`The Colossus crushed the walls of ${owner}'s ${dc.name}!`);
+        if (a.tribe !== s.humanTribe || d.tribe === s.humanTribe) {
+          this.recordRecap({ kind: "combat", text: `A Colossus crushed the walls of ${dc.name}`, tribe: a.tribe >= 0 ? a.tribe : d.tribe });
+        }
+        this.recordReplay({ tribe: a.tribe, kind: "combat", text: `${s.tribes[a.tribe]?.name ?? "A"} Colossus crushed the walls of ${dc.name}` });
+      }
+    }
     if (d.hp <= 0) {
       s.units = s.units.filter((q) => q.id !== d.id);
       a.kills++;
@@ -1168,17 +1199,27 @@ class GameStore {
         this.stageHeroFallen(a, d);
       }
     }
+    // apply the knockback after death bookkeeping — only if the defender survived
+    let kbApplied: { x: number; y: number } | undefined;
+    if (kbDest && !defenderDied) {
+      d.x = kbDest.x; d.y = kbDest.y;
+      kbApplied = kbDest;
+      s.log.unshift(`The Colossus hurled the ${UNIT_STATS[d.type].name} back!`);
+    } else if (kbBlockedBonus > 0 && a.type === "colossus") {
+      s.log.unshift(`The ${UNIT_STATS[d.type].name} was slammed against the terrain (+${kbBlockedBonus} damage).`);
+    }
     this.emit({
       type: "combat", attackerId, defenderId,
-      dmg: result.damageToDefender, retaliation: result.damageToAttacker,
+      dmg: dmgOut, retaliation: result.damageToAttacker,
       defenderDied, attackerDied, ax, ay, dx: dxp, dy: dyp,
+      knockback: kbApplied, wallCrushed,
     });
     // recap: rival combat involving the player or visible to them
     if (a.tribe !== s.humanTribe && d.tribe !== GUARDIAN_TRIBE) {
       const aName = UNIT_STATS[a.type].name, dName = UNIT_STATS[d.type].name;
       const aTribeName = a.tribe >= 0 ? s.tribes[a.tribe].name : (a.raider ? "Barbarian" : "Guardian");
       const target = d.tribe === s.humanTribe ? `your ${dName}` : `${s.tribes[d.tribe].name}'s ${dName}`;
-      const outcome = defenderDied ? "destroyed" : `hit (−${result.damageToDefender})`;
+      const outcome = defenderDied ? "destroyed" : `hit (−${dmgOut})`;
       this.recordRecap({ kind: "combat", text: `${aTribeName} ${aName} ${outcome} ${target}`, tribe: a.tribe >= 0 ? a.tribe : d.tribe });
     }
     this.checkElimination();
@@ -1376,8 +1417,29 @@ class GameStore {
     s.tribes[tribeIdx].stars -= def.cost;
     t.building = type;
     const city = s.cities[t.ownerCityId!];
-    s.log.unshift(`${s.tribes[tribeIdx].name} built a ${def.name} near ${city.name}.`);
-    this.addPopulation(city, def.pop);
+    // v36 adjacency buildings: pop scales with partner neighbors at build time
+    const pop = adjacencyPop(s, x, y, def);
+    s.log.unshift(`${s.tribes[tribeIdx].name} built a ${def.name} near ${city.name}${def.adjacentTo ? ` (+${pop} pop)` : ""}.`);
+    if (pop > 0) this.addPopulation(city, pop);
+    // ...and existing adjacency buildings nearby grow when a new partner arrives
+    if (!def.adjacentTo) {
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (dx === 0 && dy === 0) continue;
+          const nx = x + dx, ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= s.size || ny >= s.size) continue;
+          const nb = tileAt(s, nx, ny);
+          const nbDef = nb.building ? BUILDINGS.find((b) => b.id === nb.building) : undefined;
+          if (nbDef?.adjacentTo === type && nb.ownerCityId !== null) {
+            const nbCity = s.cities[nb.ownerCityId];
+            if (nbCity && nbCity.tribe === tribeIdx) {
+              this.addPopulation(nbCity, 1);
+              s.log.unshift(`${nbDef.name} near ${nbCity.name} grew stronger (+1 pop).`);
+            }
+          }
+        }
+      }
+    }
     this.emit({ type: "changed" });
   }
 

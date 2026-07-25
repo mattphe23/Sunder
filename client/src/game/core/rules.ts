@@ -176,7 +176,8 @@ function defenseBonus(s: GameState, defender: Unit, attacker?: Unit): number {
   if (heroHasPerk(defender, "relic")) heroMult *= 1.15; // v18 Guardian's Relic
   if (city && city.tribe === defender.tribe) {
     // siege: catapults hurl boulders straight over ramparts — walls give no benefit
-    const siege = attacker?.type === "catapult";
+    // colossus: the juggernaut simply walks through masonry — walls give no benefit
+    const siege = attacker?.type === "catapult" || attacker?.type === "colossus";
     if (city.walls && !siege) return WALL_DEFENSE_BONUS * heroMult; // fortified — strongest static bonus
     let base = hasTech(s, defender.tribe, "freeSpirit") ? 1.6 : 1.3;
     // Dravok Stonebound: defenders in cities gain +10% defense
@@ -263,9 +264,9 @@ export function combatModifiers(s: GameState, attacker: Unit, defender: Unit): {
   if (defender.tribe < 0) return out;
   const city = cityAt(s, defender.x, defender.y);
   if (city && city.tribe === defender.tribe) {
-    const siege = attacker.type === "catapult";
+    const siege = attacker.type === "catapult" || attacker.type === "colossus";
     if (city.walls && !siege) out.push({ text: `Walls ×${WALL_DEFENSE_BONUS} defense`, side: "def" });
-    else if (city.walls && siege) out.push({ text: "Catapult ignores walls", side: "atk" });
+    else if (city.walls && siege) out.push({ text: attacker.type === "colossus" ? "Colossus crushes walls" : "Catapult ignores walls", side: "atk" });
     else out.push({ text: hasTech(s, defender.tribe, "freeSpirit") ? "City + Free Spirit +60% defense" : "City +30% defense", side: "def" });
   } else if (t.terrain === "forest" && hasTech(s, defender.tribe, "archery")) {
     out.push({ text: "Forest + Archery +30% defense", side: "def" });
@@ -274,8 +275,38 @@ export function combatModifiers(s: GameState, attacker: Unit, defender: Unit): {
   } else if (t.terrain === "mountain") {
     out.push({ text: "Mountain +30% defense", side: "def" });
   }
+  // v36 Colossus signature: survivors are hurled back a tile (blocked = +2 damage)
+  if (attacker.type === "colossus") {
+    const dist = Math.max(Math.abs(attacker.x - defender.x), Math.abs(attacker.y - defender.y));
+    if (dist === 1) out.push({ text: "Colossus — knockback on hit", side: "atk" });
+  }
   if (defender.hp < defender.maxHp) out.push({ text: "Wounded — defense force reduced", side: "def" });
   return out;
+}
+
+/**
+ * v36 Colossus knockback: where a surviving defender gets hurled.
+ * The push continues along the attack direction one tile. Returns the landing
+ * tile, or null when the push is blocked (map edge, impassable terrain for the
+ * defender, or an occupied tile) — a blocked push deals bonus damage instead.
+ */
+export function knockbackDestination(s: GameState, attacker: Unit, defender: Unit): { x: number; y: number } | null {
+  const dx = Math.sign(defender.x - attacker.x);
+  const dy = Math.sign(defender.y - attacker.y);
+  if (dx === 0 && dy === 0) return null;
+  const nx = defender.x + dx, ny = defender.y + dy;
+  if (nx < 0 || ny < 0 || nx >= s.size || ny >= s.size) return null;
+  if (unitAt(s, nx, ny)) return null;
+  const t = tileAt(s, nx, ny);
+  // embarked defenders may be pushed across water; land units need standable ground
+  if (defender.boat) {
+    if (t.terrain !== "water" && t.terrain !== "ocean") return null;
+  } else {
+    if (t.terrain === "ocean") return null;
+    if (t.terrain === "water" && defender.type !== "tidecaller") return null;
+    if (t.terrain === "mountain" && defender.type !== "warden" && !hasTech(s, defender.tribe, "climbing")) return null;
+  }
+  return { x: nx, y: ny };
 }
 
 export function techCost(s: GameState, tribe: number, tech: TechId): number {
@@ -377,7 +408,28 @@ export function canBuild(s: GameState, tribe: number, t: Tile | undefined, b: Bu
   const city = s.cities[t.ownerCityId];
   if (!city || city.tribe !== tribe) return false;
   if (!hasTech(s, tribe, b.tech)) return false;
+  // v36 adjacency buildings are unique per city — a second sawmill adds nothing
+  if (b.adjacentTo && s.tiles.some((q) => q.ownerCityId === t.ownerCityId && q.building === b.id)) return false;
   return s.tribes[tribe].stars >= b.cost;
+}
+
+/**
+ * v36: population an adjacency building would generate at tile (x,y) —
+ * +1 per neighboring (8-way) tile holding the partner building. Used both for
+ * the build action and the projected-gain hint in the build UI.
+ */
+export function adjacencyPop(s: GameState, x: number, y: number, b: BuildingDef): number {
+  if (!b.adjacentTo) return b.pop;
+  let pop = 0;
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= s.size || ny >= s.size) continue;
+      if (tileAt(s, nx, ny).building === b.adjacentTo) pop++;
+    }
+  }
+  return pop;
 }
 
 export function starIncome(s: GameState, tribe: number): number {

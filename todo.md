@@ -429,3 +429,25 @@ below was checked against the actual codebase before being marked.
 - [x] AI (both brains) understands rewards (auto-pick heuristic), buildings (places when resources run dry), capacity (train gated), ruins (pre-existing interactive rewards)
 - [x] Vitest coverage: economy.v35.test.ts (9 tests) + sim harness fixes — 112 tests green, tsc clean
 - [x] Balance validation run via playtest harness; visual verification in browser (4-seed probe: rewards through superUnit picked, up to 13 buildings placed, city level 5 reached, no stalls; in-browser: reward modal choice→wall applied, capacity display "1/5 units", research→harvest→build hut loop verified end-to-end with correct gating)
+
+## v36 — Colossus ability + adjacency buildings + economy tutorial (user-approved)
+
+### Colossus signature ability
+- [x] Wall-crush: Colossus attacks vs walled cities ignore the fortified defense bonus, and a hit on a walled city tile breaks the walls (with log/FX)
+- [x] Knockback: surviving defenders are pushed 1 tile away from the Colossus (blocked push = extra damage instead, Polytopia-style)
+- [x] Battle forecast shows the ability; AI (both brains) values Colossus vs walled targets appropriately
+- [x] Colossus visual/FX feedback for wall-break and knockback (slideUnit hurl arc + masonry burst; in-browser check in phase 4)
+
+### Adjacency buildings
+- [x] Sawmill (grass, unlocked with forestry): +1 pop per adjacent Lumber Hut; existing sawmills also grow +1 when a new hut lands next door
+- [x] Windmill (grass, unlocked with organization): +1 pop per adjacent Farm; same retro-growth on new farms
+- [x] One per city limit; build UI shows projected pop gain per site (+N chip); sawmill/windmill tile meshes rendered
+- [x] AI places adjacency buildings when 2+ neighbors present (both brains, best-site pick)
+
+### Economy tutorial beat
+- [x] Extend tutorial with steps for harvesting, buildings/adjacency, and the level-up reward choice (incl. Park vs Colossus dilemma)
+- [x] Harvest step advances contextually on opening a city panel; veterans who finished the old tutorial see only the new economy beats once (separate econ-done key)
+
+### Wrap-up
+- [x] Vitest coverage for all mechanics (server/v36.features.test.ts, 8 tests); full suite 120/120 green
+- [x] Type-check clean + in-browser verification (tutorial beats, city panel +N chips); checkpoint + deliver

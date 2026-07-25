@@ -11,7 +11,7 @@
 import {
   reachableTiles, attackableUnits, previewCombat, canResearch, canHarvest,
   trainableUnits, techCost, cityAt, unitAt, canBuildPort, tileAt, uniqueUnitOf,
-  starIncome, harvestCost, portCost, wallCost, canBuild,
+  starIncome, harvestCost, portCost, wallCost, canBuild, adjacencyPop,
 } from "./rules";
 import { GameState, TECHS, UNIT_STATS, UnitType, Unit, TechId, idx, BuildingType, BUILDINGS } from "./types";
 import { atPeace, setPeace, aiWantsPeaceWith, markDiploUsed, diploUsed, strengthOf, PEACE_TREATY_TURNS } from "./diplomacy";
@@ -184,8 +184,22 @@ export function runProAiTurn(store: StoreLike, tribeIdx: number) {
   // v35 buildings: convert surplus stars into population once resources thin out
   if (me.stars > 9) {
     const harvestables = s.tiles.filter((t) => canHarvest(s, tribeIdx, t)).length;
-    if (harvestables === 0) {
+    // v36 adjacency buildings are pure value with 2+ partners — take them even
+    // while harvests remain (pop-per-star beats a 2★ harvest at that point)
+    let placed = false;
+    for (const b of BUILDINGS) {
+      if (!b.adjacentTo) continue;
+      const sites = s.tiles.filter((t) => canBuild(s, tribeIdx, t, b));
+      let best: { x: number; y: number } | null = null, bestPop = 0;
+      for (const t of sites) {
+        const p = adjacencyPop(s, t.x, t.y, b);
+        if (p > bestPop) { bestPop = p; best = { x: t.x, y: t.y }; }
+      }
+      if (best && bestPop >= 2) { store.build(best.x, best.y, b.id); placed = true; break; }
+    }
+    if (!placed && harvestables === 0) {
       for (const b of BUILDINGS) {
+        if (b.adjacentTo) continue;
         const site = s.tiles.find((t) => canBuild(s, tribeIdx, t, b));
         if (site) { store.build(site.x, site.y, b.id); break; }
       }
@@ -305,6 +319,11 @@ function proUnitAction(store: StoreLike, u: Unit, tribeIdx: number, target: { x:
       if (u.type === "catapult") {
         const dc = cityAt(s, t.x, t.y);
         if (dc && dc.walls && dc.tribe === t.tribe) score += 12;
+      }
+      // v36 colossus: tearing down walls opens the city for the whole task force
+      if (u.type === "colossus") {
+        const dc = cityAt(s, t.x, t.y);
+        if (dc && dc.walls && dc.tribe === t.tribe) score += 16;
       }
       if (u.type === "berserker" && t.hp < t.maxHp) score += 6;
       if (u.type === "raider" && r.defenderDies) score += 6;

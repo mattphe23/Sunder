@@ -4,7 +4,7 @@
 
 import {
   reachableTiles, attackableUnits, previewCombat, canResearch, canHarvest,
-  trainableUnits, techCost, cityAt, unitAt, canBuildPort, tileAt, uniqueUnitOf, canBuild,
+  trainableUnits, techCost, cityAt, unitAt, canBuildPort, tileAt, uniqueUnitOf, canBuild, adjacencyPop,
 } from "./rules";
 import { GameState, TECHS, UNIT_STATS, UnitType, Unit, TechId, PORT_COST, WALL_COST, BuildingType, BUILDINGS } from "./types";
 import { atPeace, setPeace, aiWantsPeaceWith, markDiploUsed, diploUsed, strengthOf, PEACE_TREATY_TURNS } from "./diplomacy";
@@ -104,6 +104,17 @@ export function runAiTurn(store: StoreLike, tribeIdx: number) {
   // 2a. v35 economy: once spare stars accumulate, place a production building
   if (s.tribes[tribeIdx].stars > 8) {
     for (const b of BUILDINGS) {
+      // v36 adjacency buildings: only worth it with 2+ partner neighbors — pick the best site
+      if (b.adjacentTo) {
+        const sites = s.tiles.filter((t) => canBuild(s, tribeIdx, t, b));
+        let best: { x: number; y: number } | null = null, bestPop = 0;
+        for (const t of sites) {
+          const p = adjacencyPop(s, t.x, t.y, b);
+          if (p > bestPop) { bestPop = p; best = { x: t.x, y: t.y }; }
+        }
+        if (best && bestPop >= 2 && Math.random() < 0.7) { store.build(best.x, best.y, b.id); break; }
+        continue;
+      }
       const site = s.tiles.find((t) => canBuild(s, tribeIdx, t, b));
       if (site && Math.random() < 0.6) { store.build(site.x, site.y, b.id); break; }
     }
@@ -216,6 +227,11 @@ function aiUnitAction(store: StoreLike, u: Unit, tribeIdx: number, warTarget: { 
       if (u.type === "catapult") {
         const dc = cityAt(s, t.x, t.y);
         if (dc && dc.walls && dc.tribe === t.tribe) score += 10;
+      }
+      // v36 colossus: crushing walls is worth more than the raw damage
+      if (u.type === "colossus") {
+        const dc = cityAt(s, t.x, t.y);
+        if (dc && dc.walls && dc.tribe === t.tribe) score += 14;
       }
       // berserkers finish wounded prey; raiders chase kills for plunder
       if (u.type === "berserker" && t.hp < t.maxHp) score += 6;
