@@ -381,6 +381,29 @@ function nerivaneArcherV3(spec: CharacterSpec, node: TransformNode, glowMat?: Ma
   return { headY: rig.headY, shoulderY: rig.shoulderY };
 }
 
+/** Defender v3: shared skeleton + broad heater shield (~half the projected
+ *  body area) — steel rim, dark inner field, tribal wave mark. */
+function nerivaneDefenderV3(spec: CharacterSpec, node: TransformNode, glowMat?: Material): { headY: number; shoulderY: number } {
+  const rig = nerivaneBodyV3(spec, node, glowMat);
+  // arms tuck behind the shield; hands brace its inner edge
+  nerivaneArmsV3(spec, node, rig.deep, 0.14, 0.28, 0.1);
+
+  // steel rim layer: plate + down-pointing apex give the heater outline.
+  // Planted forward of the base fissure's front reach so the glowing crack
+  // stays behind the shield instead of crossing its foot.
+  box(spec, "prop", 0.32, 0.36, 0.03, STEEL, node, 0, 0.27, 0.2);
+  const rimTip = wedge(spec, "prop", 0.32, 0.08, 0.03, STEEL, node, 0, 0.1, 0.2);
+  rimTip.rotation.x = Math.PI;
+  // dark inner field, inset from the rim
+  box(spec, "prop", 0.26, 0.3, 0.028, rig.deeper, node, 0, 0.28, 0.215);
+  const fieldTip = wedge(spec, "prop", 0.26, 0.07, 0.028, rig.deeper, node, 0, 0.12, 0.215);
+  fieldTip.rotation.x = Math.PI;
+  // tribal wave mark carried on the shield, scaled up for board reads
+  nerivaneWaveEmblem(spec, node, 0.28, 0.235, 1.25, glowMat);
+
+  return { headY: rig.headY, shoulderY: rig.shoulderY };
+}
+
 /* ---------- the shared rig ---------- */
 
 interface RigOptions {
@@ -721,17 +744,11 @@ export function buildCharacter(spec: CharacterSpec, node: TransformNode, opts?: 
       return rig;
     }
     case "defender": {
-      const rig = buildRig(spec, node, { bulk: 1.1, mask: NERI });
-      if (NERI) {
-        wedgeFinCrest(spec, node, rig.headY);
-        // shield ~half the projected body area (locked cue): full-height tower shield
-        box(spec, "prop", 0.3, 0.4, 0.035, STEEL_DARK, node, 0, rig.shoulderY - 0.12, 0.17);
-        // raised droplet sigil ON the shield (raised geometry, not texture)
-        dropletSigil(spec, node, rig.shoulderY - 0.12, 0.192, 1.6);
-      } else {
-        buildHeadgear(spec, node, rig.headY);
-        shield(spec, node, rig.shoulderY, true);
-      }
+      // v3: Nerivane defender on the shared locked skeleton
+      if (NERI) return nerivaneDefenderV3(spec, node, opts?.finMat);
+      const rig = buildRig(spec, node, { bulk: 1.1 });
+      buildHeadgear(spec, node, rig.headY);
+      shield(spec, node, rig.shoulderY, true);
       return rig;
     }
     case "swordsman": {
