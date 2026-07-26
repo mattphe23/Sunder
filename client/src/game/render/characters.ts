@@ -249,14 +249,13 @@ function crystalCrest(spec: CharacterSpec, parent: TransformNode, topY: number, 
  *  Reads at 40px on value contrast alone (accent-on-dark), glow optional. */
 function nerivaneWaveEmblem(spec: CharacterSpec, parent: TransformNode, y: number, z: number, s = 1, glowMat?: Material) {
   const c = costumeFor(spec.defIndex);
-  // primary crest: broad wedge leaning right — a rising swept fin. A leaning
-  // wedge keeps a clean triangular silhouette from the front at any angle.
-  const crest = wedge(spec, "sigil", 0.105 * s, 0.1 * s, 0.026, c.accent, parent, 0.008 * s, y + 0.012 * s, z);
-  crest.rotation.z = -0.3;
-  // returning wave: smaller inverted wedge tucked low-left, counter-leaning
-  const under = wedge(spec, "sigil", 0.06 * s, 0.05 * s, 0.024, c.accent, parent, -0.036 * s, y - 0.038 * s, z - 0.002);
-  under.rotation.x = Math.PI; // apex down
-  under.rotation.z = -0.25;
+  // primary: one broad swept fin — a leaning wedge keeps a clean triangular
+  // silhouette from the front at any angle. Sized to dominate the chest plate.
+  const crest = wedge(spec, "sigil", 0.125 * s, 0.115 * s, 0.028, c.accent, parent, 0.006 * s, y + 0.02 * s, z);
+  crest.rotation.z = -0.4;
+  // one shorter returning wave below, counter-leaning — reads as backwash
+  const under = wedge(spec, "sigil", 0.078 * s, 0.05 * s, 0.026, c.accent, parent, -0.014 * s, y - 0.042 * s, z - 0.002);
+  under.rotation.z = 0.35;
   if (glowMat) {
     crest.material = glowMat;
     under.material = glowMat;
@@ -316,10 +315,10 @@ function nerivaneWarriorV2(spec: CharacterSpec, node: TransformNode, glowMat?: M
   cyl(spec, "prop", 0.036, 0.036, 0.52, 5, SHAFT, node, 0.205, 0.285, 0.04);
   const gem = box(spec, "prop", 0.042, 0.036, 0.042, "#9ffaef", node, 0.205, 0.562, 0.04);
   if (glowMat) gem.material = glowMat;
-  const blade = wedge(spec, "prop", 0.082, 0.145, 0.048, STEEL, node, 0.208, 0.648, 0.04);
-  blade.rotation.z = -0.12; // slight lean = wave motion, not a symmetric pike
-  const barb = wedge(spec, "prop", 0.042, 0.075, 0.04, STEEL_DARK, node, 0.168, 0.607, 0.04);
-  barb.rotation.z = 0.95; //   rear barb curls off the blade like a wave trough
+  const blade = wedge(spec, "prop", 0.082, 0.145, 0.048, STEEL, node, 0.209, 0.648, 0.04);
+  blade.rotation.z = -0.17; // stronger lean = wave motion, not a symmetric pike
+  const barb = wedge(spec, "prop", 0.05, 0.085, 0.042, STEEL_DARK, node, 0.164, 0.605, 0.04);
+  barb.rotation.z = 1.05; //   rear barb curls harder off the blade, wave trough
   const collar = wedge(spec, "prop", 0.05, 0.055, 0.042, STEEL_DARK, node, 0.205, 0.592, 0.04);
   collar.rotation.x = Math.PI; // point down against the gem
 
