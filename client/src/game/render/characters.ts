@@ -125,6 +125,43 @@ function ball(spec: CharacterSpec, name: string, r: number, hex: string, parent:
   return m;
 }
 
+/* ---------- v42 locked-spec primitives (designer production standard) ----------
+ * The board-model standard allows wedge, box, cone, prism, and low-sided
+ * cylinder geometry only — no tori, capsules, or smooth spheres on v42 units.
+ * These helpers are shared; the Nerivane set is the first tribe to adopt them.
+ */
+
+/** wedge — a box tapered to an edge along its top (triangular prism), the spec's core shape */
+function wedge(spec: CharacterSpec, name: string, w: number, h: number, d: number, hex: string, parent: TransformNode, x = 0, y = 0, z = 0): Mesh {
+  // 3-tessellation cylinder rotated so one flat face aims forward = clean prism
+  const m = MeshBuilder.CreateCylinder(name, { diameterTop: 0, diameterBottom: w, height: h, tessellation: 3 }, spec.scene);
+  m.position.set(x, y, z);
+  m.scaling.z = d / w;
+  m.material = spec.mat(hex);
+  m.parent = parent;
+  m.isPickable = false;
+  return m;
+}
+
+/** faceted mask-head: low-poly angular head shared across all tribes per the locked spec.
+ *  A 6-sided low cylinder slightly tapered = faceted "mask" with a flat face plane. */
+function maskHead(spec: CharacterSpec, parent: TransformNode, headY: number, r = 0.095): Mesh {
+  const head = cyl(spec, "head", r * 1.35, r * 1.75, r * 1.55, 6, SKIN, parent, 0, headY, 0);
+  head.rotation.y = Math.PI / 6; // flat facet faces forward — reads as a mask
+  // shallow brow wedge shades the face at board scale without texture work
+  const brow = wedge(spec, "head", r * 1.4, r * 0.45, r * 1.1, SKIN_SHADE, parent, 0, headY + r * 0.6, r * 0.4);
+  brow.rotation.x = Math.PI; // point down over the face
+  return head;
+}
+
+/** raised-geometry tribe sigil (Nerivane droplet): bone wedge + tip, no textures */
+function dropletSigil(spec: CharacterSpec, parent: TransformNode, y: number, z: number, s = 1) {
+  // teardrop = down-pointing wedge + small cap box; bone-on-teal for contrast
+  const body = wedge(spec, "sigil", 0.075 * s, 0.09 * s, 0.03, BONE, parent, 0, y, z);
+  body.rotation.x = Math.PI; // point down
+  box(spec, "sigil", 0.05 * s, 0.035 * s, 0.028, BONE, parent, 0, y + 0.05 * s, z);
+}
+
 /* ---------- the shared rig ---------- */
 
 interface RigOptions {
@@ -134,6 +171,8 @@ interface RigOptions {
   robe?: boolean;
   /** override torso color (default tribe color) */
   torso?: string;
+  /** v42 locked spec: faceted mask head instead of icosphere (Nerivane first) */
+  mask?: boolean;
 }
 
 /** builds base puck + legs/robe + torso + head; returns the node and key heights */
@@ -159,7 +198,8 @@ function buildRig(spec: CharacterSpec, parent: TransformNode, opts: RigOptions =
   const shoulderY = 0.15 + torsoH;
   // head
   const headY = shoulderY + 0.09;
-  ball(spec, "head", 0.095, SKIN, parent, 0, headY, 0);
+  if (opts.mask) maskHead(spec, parent, headY);
+  else ball(spec, "head", 0.095, SKIN, parent, 0, headY, 0);
   return { shoulderY, headY };
 }
 
@@ -292,6 +332,99 @@ function mount(spec: CharacterSpec, parent: TransformNode): number {
   return 0.24; // rider seat height offset
 }
 
+/* ---------- v42 Nerivane locked set (designer spec) ----------
+ * Locked board-scale cues:
+ *   Warrior    — vertical spear, short wedge-fin crest
+ *   Archer     — bow spanning ~0.7H, visible swept quiver
+ *   Defender   — shield ~half the projected body area
+ *   Rider      — abstract aquatic mount: low body, dorsal fin, tail wedge
+ *   Tidecaller — flared robe, tall crest, trident to ~1.3H
+ *   Nereth     — 1.08H, thick crown, cape, banner-spear, aqua rim accent
+ * Foot units stand ~0.58 local units tall (1.0H); all sizes derive from that.
+ */
+const H = 0.58; // 1.0H in local rig units (head top of a standard foot unit)
+
+/** short crest: 2 large wedge planes (regular units) — spec forbids crystalline complexity */
+function wedgeFinCrest(spec: CharacterSpec, parent: TransformNode, headY: number, tall = false, glowMat?: Material) {
+  const c = costumeFor(spec.defIndex);
+  const h1 = tall ? 0.2 : 0.11;
+  const fin1 = wedge(spec, "gear", 0.04, h1, tall ? 0.16 : 0.11, c.accent, parent, 0, headY + 0.09 + h1 / 2 - 0.02, 0);
+  fin1.rotation.x = -0.18; // swept back
+  if (glowMat) fin1.material = glowMat;
+  const h2 = h1 * 0.6;
+  const fin2 = wedge(spec, "gear", 0.035, h2, (tall ? 0.16 : 0.11) * 0.7, darken(c.accent, 0.8), parent, 0, headY + 0.08 + h2 / 2 - 0.02, -0.055);
+  fin2.rotation.x = -0.32;
+  if (tall && glowMat) {
+    // Tidecaller/Nereth only: third plane for the elaborate tall version
+    const fin3 = wedge(spec, "gear", 0.03, h2 * 0.7, 0.09, c.accent, parent, 0, headY + 0.07, -0.1);
+    fin3.rotation.x = -0.5;
+    fin3.material = glowMat;
+  }
+}
+
+/** v42 bow: prism arc from 3 angled box segments spanning ~0.7H + swept quiver */
+function prismBow(spec: CharacterSpec, parent: TransformNode, shoulderY: number) {
+  const span = 0.7 * H; // ≈0.41
+  const segH = span / 2.6;
+  const cx = 0.17;
+  const cy = shoulderY - 0.02;
+  const mid = box(spec, "prop", 0.024, segH, 0.03, WOOD_DARK, parent, cx, cy, 0);
+  mid.rotation.x = 0; // vertical center segment
+  for (const sy of [-1, 1]) {
+    const limb = box(spec, "prop", 0.022, segH, 0.028, WOOD_DARK, parent, cx, cy + sy * segH * 0.82, sy * 0.035);
+    limb.rotation.x = sy * 0.55; // angled limbs form the arc silhouette
+  }
+  // bowstring: thin box closing the arc (reads at 40px, cheap)
+  box(spec, "prop", 0.008, span * 0.92, 0.008, BONE, parent, cx, cy, 0.052);
+  // swept quiver on the back, clearly visible from side/rear angles
+  const q = box(spec, "prop", 0.07, 0.2, 0.06, darken(spec.color, 0.65), parent, -0.06, shoulderY - 0.01, -0.13);
+  q.rotation.x = 0.4;
+  q.rotation.z = -0.15;
+  // arrow fletching tips poking out
+  const tips = wedge(spec, "prop", 0.06, 0.05, 0.05, BONE, parent, -0.085, shoulderY + 0.11, -0.175);
+  tips.rotation.x = 0.4;
+}
+
+/** v42 trident extending to ~1.3H with wedge prongs */
+function longTrident(spec: CharacterSpec, parent: TransformNode, glowMat?: Material) {
+  const total = 1.3 * H; // ≈0.75
+  const pole = cyl(spec, "prop", 0.024, 0.028, total, 5, BONE, parent, 0.16, total / 2 + 0.02, 0);
+  void pole;
+  const forkY = total - 0.06;
+  // center prong
+  const mid = wedge(spec, "prop", 0.035, 0.12, 0.03, STEEL, parent, 0.16, forkY + 0.08, 0);
+  if (glowMat) mid.material = glowMat;
+  // side prongs on a crossbar
+  box(spec, "prop", 0.11, 0.022, 0.026, STEEL_DARK, parent, 0.16, forkY, 0);
+  for (const sx of [-0.045, 0.045]) {
+    const prong = wedge(spec, "prop", 0.03, 0.09, 0.026, STEEL, parent, 0.16 + sx, forkY + 0.06, 0);
+    if (glowMat) prong.material = glowMat;
+  }
+}
+
+/** v42 abstract aquatic mount: low wedge body + dorsal fin + tail wedge (no capsule, no legs) */
+function aquaticMount(spec: CharacterSpec, parent: TransformNode, glowMat?: Material): number {
+  const bodyHex = darken(spec.color, 0.75);
+  const c = costumeFor(spec.defIndex);
+  // low streamlined body: long box with chamfered nose wedge
+  box(spec, "mount", 0.2, 0.13, 0.42, bodyHex, parent, 0, 0.13, 0);
+  const nose = wedge(spec, "mount", 0.13, 0.16, 0.18, bodyHex, parent, 0, 0.13, 0.27);
+  nose.rotation.x = Math.PI / 2; // point forward
+  // dorsal fin — the silhouette cue, glowing accent
+  const dorsal = wedge(spec, "mount", 0.035, 0.14, 0.14, c.accent, parent, 0, 0.26, -0.02);
+  dorsal.rotation.x = -0.25;
+  if (glowMat) dorsal.material = glowMat;
+  // tail wedge, swept up
+  const tail = wedge(spec, "mount", 0.1, 0.14, 0.03, darken(bodyHex, 0.8), parent, 0, 0.17, -0.27);
+  tail.rotation.x = 0.9;
+  // side fins — small, keep under the 40px detail floor but help 3/4 view
+  for (const sx of [-0.12, 0.12]) {
+    const finM = wedge(spec, "mount", 0.08, 0.1, 0.025, darken(bodyHex, 0.85), parent, sx, 0.1, 0.08);
+    finM.rotation.z = sx > 0 ? -1.2 : 1.2;
+  }
+  return 0.2; // rider seat height offset (low body = lower seat than land mount)
+}
+
 /* ---------- public entry: build a full character ---------- */
 
 /**
@@ -302,6 +435,10 @@ function mount(spec: CharacterSpec, parent: TransformNode): number {
 export function buildCharacter(spec: CharacterSpec, node: TransformNode, opts?: { orbMat?: Material; finMat?: Material }): { headY: number; shoulderY: number; orb?: Mesh } {
   const t = spec.type;
   const c = costumeFor(spec.defIndex);
+  // v42 designer production standard: Nerivane is the first tribe rebuilt to the
+  // locked board-model spec (faceted mask head, wedge crests, raised droplet
+  // sigil, budgeted geometry). Other tribes keep the legacy rig until their pass.
+  const NERI = spec.defIndex === 4;
 
   // ----- non-humanoid: catapult keeps its siege-engine build (tribe-colored frame)
   if (t === "catapult") {
@@ -321,13 +458,15 @@ export function buildCharacter(spec: CharacterSpec, node: TransformNode, opts?: 
 
   // ----- mounted classes: rider/knight/raider sit on a mount
   if (t === "rider" || t === "knight" || t === "raider") {
-    const seat = mount(spec, node);
+    // Nerivane rider: abstract aquatic mount per the locked spec
+    const seat = NERI && t === "rider" ? aquaticMount(spec, node, opts?.finMat) : mount(spec, node);
     const riderRoot = new TransformNode("rider", spec.scene);
     riderRoot.position.y = seat;
     riderRoot.scaling.setAll(0.82);
     riderRoot.parent = node;
-    const rig = buildRig(spec, riderRoot, { bulk: 0.9 });
-    buildHeadgear(spec, riderRoot, rig.headY);
+    const rig = buildRig(spec, riderRoot, { bulk: 0.9, mask: NERI });
+    if (NERI) wedgeFinCrest(spec, riderRoot, rig.headY);
+    else buildHeadgear(spec, riderRoot, rig.headY);
     if (t === "knight") {
       spear(spec, riderRoot, rig.shoulderY);
       shield(spec, riderRoot, rig.shoulderY);
@@ -338,6 +477,7 @@ export function buildCharacter(spec: CharacterSpec, node: TransformNode, opts?: 
       flag.rotation.x = 0.1;
     } else {
       spear(spec, riderRoot, rig.shoulderY);
+      if (NERI) dropletSigil(spec, riderRoot, rig.shoulderY - 0.08, 0.11, 0.85);
     }
     // scale-compensated: puck under the mount instead of rig's own
     return { headY: seat + rig.headY * 0.82, shoulderY: seat + rig.shoulderY * 0.82 };
@@ -346,21 +486,38 @@ export function buildCharacter(spec: CharacterSpec, node: TransformNode, opts?: 
   // ----- humanoid classes on foot
   switch (t) {
     case "warrior": {
-      const rig = buildRig(spec, node);
-      buildHeadgear(spec, node, rig.headY);
+      const rig = buildRig(spec, node, { mask: NERI });
+      if (NERI) {
+        wedgeFinCrest(spec, node, rig.headY); // short wedge-fin crest (locked cue)
+        dropletSigil(spec, node, rig.shoulderY - 0.08, 0.115);
+      } else buildHeadgear(spec, node, rig.headY);
       spear(spec, node, rig.shoulderY);
       return rig;
     }
     case "archer": {
-      const rig = buildRig(spec, node);
-      buildHeadgear(spec, node, rig.headY);
-      bow(spec, node, rig.shoulderY);
+      const rig = buildRig(spec, node, { mask: NERI });
+      if (NERI) {
+        wedgeFinCrest(spec, node, rig.headY);
+        dropletSigil(spec, node, rig.shoulderY - 0.08, 0.115);
+        prismBow(spec, node, rig.shoulderY); // ~0.7H span + swept quiver (locked cue)
+      } else {
+        buildHeadgear(spec, node, rig.headY);
+        bow(spec, node, rig.shoulderY);
+      }
       return rig;
     }
     case "defender": {
-      const rig = buildRig(spec, node, { bulk: 1.1 });
-      buildHeadgear(spec, node, rig.headY);
-      shield(spec, node, rig.shoulderY, true);
+      const rig = buildRig(spec, node, { bulk: 1.1, mask: NERI });
+      if (NERI) {
+        wedgeFinCrest(spec, node, rig.headY);
+        // shield ~half the projected body area (locked cue): full-height tower shield
+        box(spec, "prop", 0.3, 0.4, 0.035, STEEL_DARK, node, 0, rig.shoulderY - 0.12, 0.17);
+        // raised droplet sigil ON the shield (raised geometry, not texture)
+        dropletSigil(spec, node, rig.shoulderY - 0.12, 0.192, 1.6);
+      } else {
+        buildHeadgear(spec, node, rig.headY);
+        shield(spec, node, rig.shoulderY, true);
+      }
       return rig;
     }
     case "swordsman": {
@@ -391,12 +548,13 @@ export function buildCharacter(spec: CharacterSpec, node: TransformNode, opts?: 
       return rig;
     }
     case "tidecaller": {
-      const rig = buildRig(spec, node, { robe: true });
-      // glowing fin crest (material supplied by renderer for bloom)
-      const fin = cyl(spec, "fin", 0, 0.14, 0.16, 3, c.accent, node, 0, rig.headY + 0.1, 0.01);
-      fin.rotation.x = -0.3;
-      if (opts?.finMat) fin.material = opts.finMat;
-      trident(spec, node, rig.shoulderY);
+      // v42 locked cue: flared robe, tall crest, trident to ~1.3H
+      const rig = buildRig(spec, node, { robe: true, bulk: 1.05, mask: true });
+      // extra flare skirt under the rig's robe cone — silhouette widens at the base
+      cyl(spec, "robe", 0.3, 0.42, 0.1, 8, darken(spec.color, 0.7), node, 0, 0.06, 0);
+      wedgeFinCrest(spec, node, rig.headY, true, opts?.finMat); // tall 3-plane crest (unique-unit privilege)
+      dropletSigil(spec, node, rig.shoulderY - 0.07, 0.13, 1.2);
+      longTrident(spec, node, opts?.finMat); // extends to ~1.3H
       return rig;
     }
     case "bulwark": {
@@ -411,11 +569,25 @@ export function buildCharacter(spec: CharacterSpec, node: TransformNode, opts?: 
     }
     case "hero": {
       // regal: caped rig + banner spear; crown/pips handled by the renderer
-      const rig = buildRig(spec, node, { bulk: 1.05 });
+      const rig = buildRig(spec, node, { bulk: 1.05, mask: NERI });
       // cape: flattened cone behind the torso
       const cape = cyl(spec, "prop", 0.1, 0.3, 0.3, 6, darken(spec.color, 0.7), node, 0, 0.26, -0.09);
       cape.scaling.z = 0.45;
-      buildHeadgear(spec, node, rig.headY);
+      if (NERI) {
+        // Nereth — locked cue: 1.08H max (hierarchy from crown/cape/banner, not height),
+        // thick geometric crown, tall crest, raised sigil, restrained aqua accent
+        wedgeFinCrest(spec, node, rig.headY, true, opts?.finMat);
+        // thick crown: 6-sided band with three wedge points (raised geometry)
+        cyl(spec, "gear", 0.17, 0.18, 0.05, 6, "#e7b552", node, 0, rig.headY + 0.075, 0);
+        for (const a of [-0.6, 0, 0.6]) {
+          wedge(spec, "gear", 0.05, 0.06, 0.03, "#e7b552", node, Math.sin(a) * 0.08, rig.headY + 0.125, Math.cos(a) * 0.08);
+        }
+        dropletSigil(spec, node, rig.shoulderY - 0.08, 0.12, 1.1);
+        // clamp total height to 1.08H: crest+crown top out around 0.63 ≈ 1.08 * 0.58
+        node.scaling.y = Math.min(1, (1.08 * H) / 0.66) * (node.scaling.y || 1);
+      } else {
+        buildHeadgear(spec, node, rig.headY);
+      }
       // banner spear with tribe pennant
       cyl(spec, "prop", 0.03, 0.03, 0.6, 5, "#d9cfc0", node, 0.18, rig.shoulderY, 0);
       box(spec, "flag", 0.02, 0.12, 0.18, spec.color, node, 0.18, rig.shoulderY + 0.22, 0.1);

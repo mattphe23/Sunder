@@ -508,4 +508,15 @@ below was checked against the actual codebase before being marked.
 - [x] Re-run verification batches (default, rotated, archipelago) and compare slot spread / Auren win rate
 - [x] Batch harness fix: nominal "human" slot flipped to AI after newGame — previous batches had one rotating slot playing without aiBonus, contaminating all slot statistics (sim-only change)
 - [x] v41.1 follow-up: scholars tech discount 20% → 10% (starting-stars revert alone left Auren at 72%; Enlightenment landed turn ~17 vs 22+ for other paths); UI copy + roster doc updated; 159 tests + tsc green
-- [ ] v41 report delivered; checkpoint saved
+- [x] v41 report delivered; checkpoint saved (6dcf442e)
+
+# v42 — Designer production standard: Nerivane board-model + portrait pipeline
+- [x] Audit characters.ts + palette/material helpers against the locked spec (heights, tri/mesh budgets, material caching, raised-geometry sigils)
+- [x] Path 1: Nerivane board pass — warrior (spear + wedge-fin crest), archer (0.7H bow + swept quiver), defender (half-area shield), rider (abstract aquatic mount: low body, dorsal fin, tail wedge), Tidecaller (flared robe, tall crest, 1.3H trident), Nereth hero (1.08H, thick crown, cape, banner-spear, aqua rim glow)
+- [x] Path 1: shared cached materials / vertex colors + single emissive accent material; budgets ≤900 tris foot / 1200 hero / 1500 mounted; ~12 mesh groups common, ~16 hero/mounted
+- [x] Fissure moved off units: tile-level glowing-fissure overlay for selection/active-unit state
+- [x] Path 2: automated portrait renderer — orthographic 3/4 camera, transparent 1024px PNG masters, 80% frame fill, shared feet baseline, WebP exports at 512/256/128/64
+- [x] 40px acceptance test: color, grayscale, eight rotational views for all six Nerivane units (/model-lab dev page)
+- [x] Engine bug fix found during verification: randomized opening order stalled solo games when an AI acted first (newGame never kicked the AI chain) — fixed + kept turn flow verified in-browser
+- [x] Engine hardening: legacy saves (pre-v41, no turnOrder/orderPos) backfilled on continueGame/loadOnlineSnapshot
+- [x] Tests + type-check green (159/159); browser verify (select → fissure overlay → move → Undo); checkpoint + deliver for designer review

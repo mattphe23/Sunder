@@ -144,6 +144,14 @@ class GameStore {
       s.selectedCityId = null;
       s.aiThinking = false;
       s.humanTribe = myTribe;
+      // v41: backfill turn order for snapshots from pre-v41 clients
+      if (!Array.isArray(s.turnOrder) || s.turnOrder.length !== s.tribes.length) {
+        s.turnOrder = s.tribes.map((_, i) => i);
+      }
+      if (typeof s.orderPos !== "number" || s.orderPos < 0 || s.orderPos >= s.turnOrder.length) {
+        const pos = s.turnOrder.indexOf(s.currentTribe);
+        s.orderPos = pos >= 0 ? pos : 0;
+      }
       // the remote player's pending hand-off is not ours to dismiss visually
       if (s.handoff !== null && s.handoff !== undefined && s.handoff === myTribe) s.handoff = null;
       this.state = s;
@@ -336,6 +344,21 @@ class GameStore {
     this.state.winPath = null;
     this.exploreAround();
     this.beginTurn(this.state.turnOrder[0]);
+    // v41: with randomized opening order the first actor may be an AI —
+    // kick off its turn chain here (endTurn keeps the chain going after).
+    // Pre-v41 the human (tribe 0 in solo) always opened, so no kick existed.
+    {
+      const s = this.state;
+      const first = s.tribes[s.currentTribe];
+      if (first && !first.isHuman && first.alive && s.phase === "playing") {
+        s.aiThinking = true;
+        setTimeout(() => {
+          runAiTurn(this, this.state.currentTribe);
+          this.state.aiThinking = false;
+          if (this.state.phase === "playing") this.endTurn();
+        }, 150);
+      }
+    }
     this.emit({ type: "changed" });
   }
   /** v41: seeded shuffle of tribe indices for one game round */

@@ -1502,8 +1502,6 @@ export class BoardRenderer {
     // hero: floating molten crown + level pips above the rig's head
     if (u.type === "hero") {
       const crownY = rig.headY + 0.16;
-      const crown = MeshBuilder.CreateTorus("crown", { diameter: 0.2, thickness: 0.04, tessellation: 6 }, this.scene);
-      crown.position.y = crownY;
       let hm = this.mats.get("hero-crown");
       if (!hm) {
         hm = new StandardMaterial("hero-crown", this.scene);
@@ -1512,13 +1510,19 @@ export class BoardRenderer {
         (hm as StandardMaterial).disableLighting = true;
         this.mats.set("hero-crown", hm);
       }
-      crown.material = hm;
-      crown.isPickable = false;
-      crown.parent = node;
-      const spin = new Animation("crownSpin", "rotation.y", 30, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CYCLE);
-      spin.setKeys([{ frame: 0, value: 0 }, { frame: 120, value: Math.PI * 2 }]);
-      crown.animations = [spin];
-      this.scene.beginAnimation(crown, 0, 120, true);
+      // v42: Nerivane's Nereth wears a built geometric crown (locked spec — no
+      // floating torus); other tribes keep the legacy floating crown until their pass.
+      if (defIndex !== 4) {
+        const crown = MeshBuilder.CreateTorus("crown", { diameter: 0.2, thickness: 0.04, tessellation: 6 }, this.scene);
+        crown.position.y = crownY;
+        crown.material = hm;
+        crown.isPickable = false;
+        crown.parent = node;
+        const spin = new Animation("crownSpin", "rotation.y", 30, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CYCLE);
+        spin.setKeys([{ frame: 0, value: 0 }, { frame: 120, value: Math.PI * 2 }]);
+        crown.animations = [spin];
+        this.scene.beginAnimation(crown, 0, 120, true);
+      }
       const lvl = Math.min(4, u.level ?? 1);
       for (let i = 1; i < lvl; i++) {
         const pip = MeshBuilder.CreatePolyhedron("pip", { type: 1, size: 0.035 }, this.scene);
@@ -1891,15 +1895,55 @@ export class BoardRenderer {
     }
     // selected marker
     const h = TERRAIN_H[s.tiles[idx(u.x, u.y, s.size)].terrain];
-    const sel = MeshBuilder.CreateTorus("sel", { diameter: 0.8, thickness: 0.05, tessellation: 24 }, this.scene);
-    sel.position = new Vector3(u.x - c, h - 0.4 + 0.08, u.y - c);
+    // v42 designer spec: the glowing fissure is a TILE-LEVEL overlay (selection /
+    // active-unit state), not part of any unit. Jagged crack segments in the
+    // acting tribe's accent color radiate across the selected tile.
+    const accent = u.tribe >= 0 ? "#9ffaef" : "#ffd76a";
     const sm = new StandardMaterial("selm", this.scene);
-    sm.emissiveColor = Color3.FromHexString("#ffd76a");
-    sm.diffuseColor = Color3.FromHexString("#ffd76a");
-    sel.material = sm;
-    sel.isPickable = false;
-    sel.parent = this.root;
-    this.highlightMeshes.push(sel);
+    sm.emissiveColor = Color3.FromHexString(accent);
+    sm.diffuseColor = Color3.Black();
+    sm.disableLighting = true;
+    // deterministic per-tile crack layout so the fissure doesn't jitter between frames
+    let rnd = (u.x * 73 + u.y * 151) % 97;
+    const rand = () => ((rnd = (rnd * 61 + 17) % 97) / 97);
+    const segs = 5;
+    let px = -0.32, pz = (rand() - 0.5) * 0.3;
+    for (let i = 0; i < segs; i++) {
+      const nx = px + 0.64 / segs;
+      const nz = Math.max(-0.34, Math.min(0.34, pz + (rand() - 0.5) * 0.3));
+      const len = Math.hypot(nx - px, nz - pz);
+      const seg = MeshBuilder.CreateBox("sel", { width: len * 1.1, height: 0.015, depth: 0.045 - i * 0.004 }, this.scene);
+      seg.position = new Vector3(u.x - c + (px + nx) / 2, h - 0.4 + 0.085, u.y - c + (pz + nz) / 2);
+      seg.rotation.y = -Math.atan2(nz - pz, nx - px);
+      seg.material = sm;
+      seg.isPickable = false;
+      seg.parent = this.root;
+      this.highlightMeshes.push(seg);
+      // small branch crack every other segment
+      if (i % 2 === 1) {
+        const b = MeshBuilder.CreateBox("sel", { width: 0.16, height: 0.014, depth: 0.03 }, this.scene);
+        b.position = new Vector3(u.x - c + nx, h - 0.4 + 0.083, u.y - c + nz);
+        b.rotation.y = -Math.atan2(nz - pz, nx - px) + (rand() > 0.5 ? 0.9 : -0.9);
+        b.material = sm;
+        b.isPickable = false;
+        b.parent = this.root;
+        this.highlightMeshes.push(b);
+      }
+      px = nx; pz = nz;
+    }
+    // faint tile edge glow keeps the "which tile" read unambiguous at any zoom
+    const rim = MeshBuilder.CreateBox("sel", { width: TILE * 0.92, depth: TILE * 0.92, height: 0.012 }, this.scene);
+    rim.position = new Vector3(u.x - c, h - 0.4 + 0.078, u.y - c);
+    const rimM = new StandardMaterial("selrim", this.scene);
+    rimM.emissiveColor = Color3.FromHexString(accent);
+    rimM.diffuseColor = Color3.Black();
+    rimM.disableLighting = true;
+    rimM.alpha = 0.18;
+    rimM.disableDepthWrite = true;
+    rim.material = rimM;
+    rim.isPickable = false;
+    rim.parent = this.root;
+    this.highlightMeshes.push(rim);
   }
 
   /**
