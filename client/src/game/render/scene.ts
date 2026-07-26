@@ -21,7 +21,7 @@ import { EasingFunction, CubicEase } from "@babylonjs/core/Animations/easing";
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTexture";
-import { buildCharacter, skinFor } from "./characters";
+import { buildCharacter, skinFor, tribeGlow } from "./characters";
 // side-effect registrations the barrel used to pull in implicitly
 import "@babylonjs/core/Animations/animatable";
 import "@babylonjs/core/Culling/ray";
@@ -1478,13 +1478,16 @@ export class BoardRenderer {
       (orbMat as StandardMaterial).disableLighting = true;
       this.mats.set("arcanist-orb", orbMat);
     }
-    let finMat = this.mats.get("tide-fin");
+    // per-tribe emissive accent (was a single fixed tide-fin aqua)
+    const glowHex = tribeGlow(defIndex);
+    const glowKey = "tribe-glow-" + glowHex;
+    let finMat = this.mats.get(glowKey);
     if (!finMat) {
-      finMat = new StandardMaterial("tide-fin", this.scene);
-      (finMat as StandardMaterial).emissiveColor = Color3.FromHexString("#9ffaef");
+      finMat = new StandardMaterial(glowKey, this.scene);
+      (finMat as StandardMaterial).emissiveColor = Color3.FromHexString(glowHex);
       (finMat as StandardMaterial).diffuseColor = Color3.Black();
       (finMat as StandardMaterial).disableLighting = true;
-      this.mats.set("tide-fin", finMat);
+      this.mats.set(glowKey, finMat);
     }
     const rig = buildCharacter(
       { scene: this.scene, mat: (hex) => this.mat(hex), color: col, defIndex, type: u.type },

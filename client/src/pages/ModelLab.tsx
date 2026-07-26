@@ -11,8 +11,15 @@ import type { UnitType } from "@/game/core/types";
 
 const LABELS: Record<string, string> = {
   warrior: "Warrior", archer: "Archer", defender: "Defender",
-  rider: "Rider", tidecaller: "Tidecaller", hero: "Nereth (Hero)",
+  rider: "Rider", tidecaller: "Tidecaller", berserker: "Berserker", hero: "Hero",
 };
+// dev harness: ?tribe=<TRIBE_DEFS index> renders another tribe's set (default Nerivane)
+const TRIBE = (() => {
+  const t = parseInt(new URLSearchParams(window.location.search).get("tribe") ?? "4", 10);
+  return Number.isFinite(t) && t >= 0 && t <= 7 ? t : 4;
+})();
+// unique unit per tribe index (acceptance set swaps the fifth slot)
+const UNIQUES: Record<number, UnitType> = { 0: "arcanist", 1: "berserker", 2: "warrior", 3: "raider", 4: "tidecaller", 5: "bulwark" };
 const ANGLES = Array.from({ length: 8 }, (_, i) => (i / 8) * Math.PI * 2);
 
 interface Row {
@@ -34,15 +41,16 @@ export default function ModelLab() {
       if (!session) { setFailed(true); return; }
       // throwaway warm-up capture: compiles the pipeline so every real
       // capture (including the first class's angle sweep) reads back solid
-      await session.capture(4, "warrior", { sizes: [64] });
+      await session.capture(TRIBE, "warrior", { sizes: [64] });
       const out: Row[] = [];
-      for (const type of NERIVANE_PORTRAIT_SET) {
+      const setForTribe: UnitType[] = NERIVANE_PORTRAIT_SET.map((t) => (t === "tidecaller" ? (UNIQUES[TRIBE] ?? "tidecaller") : t));
+      for (const type of setForTribe) {
         await new Promise((r) => setTimeout(r, 10));
         if (cancelled) { session.dispose(); return; }
-        const master = await session.capture(4, type);
+        const master = await session.capture(TRIBE, type);
         const angles: string[] = [];
         for (const yaw of ANGLES) {
-          const p = await session.capture(4, type, { yaw, sizes: [128] });
+          const p = await session.capture(TRIBE, type, { yaw, sizes: [128] });
           angles.push(p.webp[128] ?? "");
         }
         out.push({ type, master: master.masterPng, angles, exports: master.webp });
@@ -58,7 +66,7 @@ export default function ModelLab() {
   return (
     <div className="min-h-screen bg-[#141433] text-slate-100 p-6 space-y-8">
       <header className="space-y-1">
-        <h1 className="text-2xl font-bold">Model Lab — Nerivane v42 acceptance</h1>
+        <h1 className="text-2xl font-bold">Model Lab — tribe {TRIBE} acceptance</h1>
         <p className="text-sm text-slate-400">
           Rendered live from the board meshes via the portrait pipeline (orthographic 3/4, transparent,
           shared feet baseline). Pass criteria: class identity must survive at 40px in color, grayscale,
@@ -69,7 +77,7 @@ export default function ModelLab() {
       {rows?.map((r) => (
         <section key={r.type} className="rounded-xl bg-[#1c1c46] p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">{LABELS[r.type]}</h2>
+            <h2 className="text-lg font-semibold">{LABELS[r.type] ?? r.type}</h2>
             <div className="flex gap-2">
               {PORTRAIT_EXPORT_SIZES.map((s) => (
                 <a key={s} href={r.exports[s]} download={`nerivane-${r.type}-${s}.webp`}>

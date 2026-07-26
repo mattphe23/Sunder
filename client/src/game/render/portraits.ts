@@ -17,7 +17,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
-import { buildCharacter } from "./characters";
+import { buildCharacter, tribeGlow } from "./characters";
 import { TRIBE_DEFS, type UnitType } from "../core/types";
 
 export const PORTRAIT_MASTER_SIZE = 1024;
@@ -82,11 +82,20 @@ export function createPortraitSession() {
     }
     return m;
   };
-  // single shared emissive accent material (rune/glow), per the material budget
-  const glow = new StandardMaterial("glow", scene);
-  glow.emissiveColor = Color3.FromHexString("#9ffaef");
-  glow.diffuseColor = Color3.Black();
-  glow.disableLighting = true;
+  // one emissive accent material per tribe glow color (cached)
+  const glows = new Map<string, StandardMaterial>();
+  const glowFor = (defIndex: number) => {
+    const hex = tribeGlow(defIndex);
+    let g = glows.get(hex);
+    if (!g) {
+      g = new StandardMaterial("glow" + hex, scene);
+      g.emissiveColor = Color3.FromHexString(hex);
+      g.diffuseColor = Color3.Black();
+      g.disableLighting = true;
+      glows.set(hex, g);
+    }
+    return g;
+  };
 
   let root: TransformNode | null = null;
   let warmedUp = false;
@@ -97,6 +106,7 @@ export function createPortraitSession() {
     root?.dispose(false, false);
     root = new TransformNode("root", scene);
     const color = opts?.color ?? TRIBE_DEFS[defIndex]?.color ?? "#888888";
+    const glow = glowFor(defIndex);
     buildCharacter({ scene, mat, color, defIndex, type }, root, { finMat: glow, orbMat: glow });
     root.rotation.y = opts?.yaw ?? Math.PI / 5; // 3/4 pose
     // readiness barrier on every capture: newly created meshes may still be
