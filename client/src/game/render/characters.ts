@@ -230,16 +230,27 @@ function boneMaskHead(spec: CharacterSpec, parent: TransformNode, headY: number)
 }
 
 /** dorsal fin crest — v3: materially shorter than the v1 blade, swept hard
- *  backward, thick enough to survive 40px. Two shards total, nothing added. */
-function crystalCrest(spec: CharacterSpec, parent: TransformNode, topY: number, glowMat?: Material) {
+ *  backward, thick enough to survive 40px. Two shards total, nothing added.
+ *  `tall` is the unique/hero privilege: larger shards + a third front shard
+ *  (crest hierarchy rule — common units stay short). */
+function crystalCrest(spec: CharacterSpec, parent: TransformNode, topY: number, glowMat?: Material, tall = false) {
   const c = costumeFor(spec.defIndex);
-  const main = wedge(spec, "gear", 0.05, 0.17, 0.22, c.accent, parent, 0, topY + 0.03, -0.085);
-  main.rotation.x = -0.55;
-  const back = wedge(spec, "gear", 0.035, 0.09, 0.1, c.accent, parent, 0, topY - 0.015, -0.16);
-  back.rotation.x = -0.8;
+  const main = tall
+    ? wedge(spec, "gear", 0.055, 0.27, 0.26, c.accent, parent, 0, topY + 0.06, -0.08)
+    : wedge(spec, "gear", 0.05, 0.17, 0.22, c.accent, parent, 0, topY + 0.03, -0.085);
+  main.rotation.x = tall ? -0.42 : -0.55;
+  const back = tall
+    ? wedge(spec, "gear", 0.04, 0.14, 0.13, c.accent, parent, 0, topY, -0.16)
+    : wedge(spec, "gear", 0.035, 0.09, 0.1, c.accent, parent, 0, topY - 0.015, -0.16);
+  back.rotation.x = tall ? -0.7 : -0.8;
   if (glowMat) {
     main.material = glowMat;
     back.material = glowMat;
+  }
+  if (tall) {
+    const front = wedge(spec, "gear", 0.035, 0.11, 0.08, c.accent, parent, 0, topY + 0.025, -0.005);
+    front.rotation.x = -0.15;
+    if (glowMat) front.material = glowMat;
   }
 }
 
@@ -492,6 +503,94 @@ function nerivaneRiderV3(spec: CharacterSpec, node: TransformNode, glowMat?: Mat
   barb.rotation.z = 1.05;
 
   return { headY: 0.2 + 0.315 * 0.78, shoulderY: 0.2 + 0.23 * 0.78 };
+}
+
+/** shared upper body for robed/caped classes: chest block, plate + emblem,
+ *  pauldrons, head — same locked values as nerivaneBodyV3 from the waist up */
+function nerivaneUpperV3(spec: CharacterSpec, node: TransformNode, glowMat?: Material, tallCrest = false): { headY: number; shoulderY: number; deep: string; deeper: string } {
+  const deep = darken(spec.color, 0.45);
+  const deeper = darken(spec.color, 0.32);
+  const chestBlock = box(spec, "torso", 0.22, 0.14, 0.135, deep, node, 0, 0.355, 0);
+  chestBlock.rotation.x = 0.09;
+  const shoulderY = 0.425;
+  const plate = box(spec, "torso", 0.14, 0.14, 0.028, spec.color, node, 0, 0.35, 0.072);
+  plate.rotation.x = 0.14;
+  nerivaneWaveEmblem(spec, node, 0.345, 0.098, 1, glowMat);
+  for (const sx of [-0.135, 0.135]) {
+    const pad = box(spec, "gear", 0.085, 0.042, 0.105, deeper, node, sx, shoulderY + 0.005, 0);
+    pad.rotation.z = sx > 0 ? -0.3 : 0.3;
+  }
+  const headY = 0.485;
+  boneMaskHead(spec, node, headY);
+  crystalCrest(spec, node, headY + 0.075, glowMat, tallCrest);
+  return { headY, shoulderY, deep, deeper };
+}
+
+/** Tidecaller v3: flared robe, tall three-shard crest, trident to ~1.3H. */
+function nerivaneTidecallerV3(spec: CharacterSpec, node: TransformNode, glowMat?: Material): { headY: number; shoulderY: number } {
+  const deep = darken(spec.color, 0.45);
+  const deeper = darken(spec.color, 0.32);
+  fracturedStoneBase(spec, node, glowMat);
+  // flared robe: wide ground flare + tapered skirt instead of legs
+  const flare = cyl(spec, "robe", 0.27, 0.33, 0.08, 6, deeper, node, 0, 0.09, 0);
+  flare.rotation.y = Math.PI / 6;
+  const skirt = cyl(spec, "robe", 0.14, 0.27, 0.27, 6, deep, node, 0, 0.245, 0);
+  skirt.rotation.y = Math.PI / 6;
+  const rig = nerivaneUpperV3(spec, node, glowMat, true);
+  nerivaneArmsV3(spec, node, rig.deep, 0.205, 0.265, 0.04);
+  // trident to ~1.3H: dark shaft, glow gem, crossbar, three prongs
+  cyl(spec, "prop", 0.036, 0.036, 0.56, 5, GRIP, node, 0.205, 0.3, 0.04);
+  const gem = box(spec, "prop", 0.042, 0.036, 0.042, "#9ffaef", node, 0.205, 0.598, 0.04);
+  if (glowMat) gem.material = glowMat;
+  box(spec, "prop", 0.125, 0.024, 0.036, STEEL_DARK, node, 0.205, 0.625, 0.04);
+  const mid = wedge(spec, "prop", 0.045, 0.11, 0.04, STEEL, node, 0.205, 0.678, 0.04);
+  if (glowMat) mid.material = glowMat;
+  for (const sx of [-0.052, 0.052]) {
+    wedge(spec, "prop", 0.036, 0.082, 0.034, STEEL, node, 0.205 + sx, 0.662, 0.04);
+  }
+  return { headY: rig.headY, shoulderY: rig.shoulderY };
+}
+
+/** Nereth (hero) v3: shared skeleton + cape, gold crown, tall crest, and the
+ *  wave-spear carried as a banner standard with a tribe pennant. */
+function nerivaneHeroV3(spec: CharacterSpec, node: TransformNode, glowMat?: Material): { headY: number; shoulderY: number } {
+  const deep = darken(spec.color, 0.45);
+  const deeper = darken(spec.color, 0.32);
+  const GOLD = "#e7b552";
+  fracturedStoneBase(spec, node, glowMat);
+  // legs/boots + waist identical to the locked skeleton
+  for (const sx of [-0.07, 0.07]) {
+    box(spec, "leg", 0.085, 0.13, 0.095, deep, node, sx, 0.115, 0);
+    const boot = box(spec, "leg", 0.078, 0.045, 0.115, deeper, node, sx, 0.068, 0.018);
+    boot.rotation.y = sx > 0 ? -0.12 : 0.12;
+  }
+  box(spec, "belt", 0.21, 0.06, 0.13, deeper, node, 0, 0.19, 0);
+  box(spec, "torso", 0.165, 0.1, 0.115, deep, node, 0, 0.245, 0);
+  // cape: flattened tapered cone falling from the shoulders
+  const cape = cyl(spec, "prop", 0.14, 0.34, 0.33, 6, deeper, node, 0, 0.265, -0.085);
+  cape.scaling.z = 0.45;
+  const rig = nerivaneUpperV3(spec, node, glowMat, true);
+  nerivaneArmsV3(spec, node, rig.deep, 0.205, 0.265, 0.04);
+  // gold crown seated on the cowl, three raised points (regal cue vs crest)
+  const band = cyl(spec, "gear", 0.15, 0.16, 0.045, 6, GOLD, node, 0, rig.headY + 0.062, -0.005);
+  band.rotation.y = Math.PI / 6;
+  for (const [px, pz] of [[0, 0.062], [-0.062, -0.01], [0.062, -0.01]] as const) {
+    wedge(spec, "gear", 0.042, 0.05, 0.035, GOLD, node, px, rig.headY + 0.1, pz);
+  }
+  // banner standard: the wave-spear with a hanging tribe pennant
+  cyl(spec, "prop", 0.036, 0.036, 0.52, 5, GRIP, node, 0.205, 0.285, 0.04);
+  const gem = box(spec, "prop", 0.042, 0.036, 0.042, "#9ffaef", node, 0.205, 0.562, 0.04);
+  if (glowMat) gem.material = glowMat;
+  const blade = wedge(spec, "prop", 0.082, 0.145, 0.048, STEEL, node, 0.209, 0.648, 0.04);
+  blade.rotation.z = -0.17;
+  const barb = wedge(spec, "prop", 0.05, 0.085, 0.042, STEEL_DARK, node, 0.164, 0.605, 0.04);
+  barb.rotation.z = 1.05;
+  box(spec, "flag", 0.13, 0.1, 0.018, spec.color, node, 0.275, 0.505, 0.04);
+  const flagTip = wedge(spec, "flag", 0.06, 0.05, 0.018, spec.color, node, 0.305, 0.43, 0.04);
+  flagTip.rotation.x = Math.PI; //  pennant tail point
+  const trim = box(spec, "flag", 0.13, 0.018, 0.02, "#9ffaef", node, 0.275, 0.448, 0.04);
+  if (glowMat) trim.material = glowMat;
+  return { headY: rig.headY, shoulderY: rig.shoulderY };
 }
 
 /* ---------- the shared rig ---------- */
@@ -870,13 +969,13 @@ export function buildCharacter(spec: CharacterSpec, node: TransformNode, opts?: 
       return rig;
     }
     case "tidecaller": {
-      // v42 locked cue: flared robe, tall crest, trident to ~1.3H
+      // v3: Nerivane tidecaller on the shared v3 system (robed lower body)
+      if (NERI) return nerivaneTidecallerV3(spec, node, opts?.finMat);
       const rig = buildRig(spec, node, { robe: true, bulk: 1.05, mask: true });
-      // extra flare skirt under the rig's robe cone — silhouette widens at the base
       cyl(spec, "robe", 0.3, 0.42, 0.1, 8, darken(spec.color, 0.7), node, 0, 0.06, 0);
-      wedgeFinCrest(spec, node, rig.headY, true, opts?.finMat); // tall 3-plane crest (unique-unit privilege)
+      wedgeFinCrest(spec, node, rig.headY, true, opts?.finMat);
       dropletSigil(spec, node, rig.shoulderY - 0.07, 0.13, 1.2);
-      longTrident(spec, node, opts?.finMat); // extends to ~1.3H
+      longTrident(spec, node, opts?.finMat);
       return rig;
     }
     case "bulwark": {
@@ -890,6 +989,8 @@ export function buildCharacter(spec: CharacterSpec, node: TransformNode, opts?: 
       return rig;
     }
     case "hero": {
+      // v3: Nereth on the shared v3 system (cape, crown, tall crest, banner)
+      if (NERI) return nerivaneHeroV3(spec, node, opts?.finMat);
       // regal: caped rig + banner spear; crown/pips handled by the renderer
       const rig = buildRig(spec, node, { bulk: 1.05, mask: NERI });
       // cape: flattened cone behind the torso
