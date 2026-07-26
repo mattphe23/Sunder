@@ -209,33 +209,47 @@ function fracturedStoneBase(spec: CharacterSpec, parent: TransformNode, glowMat?
   }
 }
 
-/** faceted bone mask tucked into a dark cowl. */
+/** faceted bone mask tucked into a dark cowl, floating above a dark neck gap. */
 function boneMaskHead(spec: CharacterSpec, parent: TransformNode, headY: number) {
   const cowlHex = darken(spec.color, 0.32);
+  // dark neck stub — separates the mask from the torso so it can't read as a beard
+  cyl(spec, "head", 0.07, 0.08, 0.06, 6, darken(spec.color, 0.24), parent, 0, headY - 0.075, -0.005);
   // dark cowl shell behind/around the mask — makes the bone plate pop
-  const cowl = cyl(spec, "head", 0.125, 0.155, 0.115, 6, cowlHex, parent, 0, headY + 0.015, -0.028);
+  const cowl = cyl(spec, "head", 0.115, 0.145, 0.105, 6, cowlHex, parent, 0, headY + 0.015, -0.026);
   cowl.rotation.y = Math.PI / 6;
-  // bone mask: bulged 5-sided shell, flat facet forward, recessed low in the
-  // cowl so a dark brow band stays visible above the face plate
-  const shell = cyl(spec, "head", 0.09, 0.12, 0.088, 5, BONE, parent, 0, headY - 0.008, 0.024);
+  // bone mask: compact 5-sided face plate, flat facet forward, recessed in the
+  // cowl so a dark brow band stays visible above it
+  const shell = cyl(spec, "head", 0.075, 0.1, 0.068, 5, BONE, parent, 0, headY - 0.002, 0.026);
   shell.rotation.y = Math.PI / 5;
-  // chin: down-pointing wedge (the mockup's faceted teardrop point)
-  const chin = wedge(spec, "head", 0.09, 0.06, 0.08, BONE, parent, 0, headY - 0.075, 0.03);
+  // chin: sharp down-pointing wedge (faceted teardrop point)
+  const chin = wedge(spec, "head", 0.075, 0.048, 0.065, BONE, parent, 0, headY - 0.058, 0.032);
   chin.rotation.x = Math.PI;
 }
 
-/** swept crystal crest — glowing shards rising clear of the cowl, back-swept */
+/** aquatic fin crest — low, long, hard-swept back; peak rises mid-skull */
 function crystalCrest(spec: CharacterSpec, parent: TransformNode, topY: number, glowMat?: Material) {
   const c = costumeFor(spec.defIndex);
-  // fin blade: a pyramid stretched along z = a long low fin whose peak rises
-  // mid-skull and sweeps back — reads as the mockup's crescent crest
-  const main = wedge(spec, "gear", 0.04, 0.26, 0.2, c.accent, parent, 0, topY + 0.055, -0.09);
-  main.rotation.x = -0.45;
-  const back = wedge(spec, "gear", 0.03, 0.13, 0.1, c.accent, parent, 0, topY + 0.015, -0.16);
-  back.rotation.x = -0.7;
+  const main = wedge(spec, "gear", 0.036, 0.24, 0.26, c.accent, parent, 0, topY + 0.06, -0.07);
+  main.rotation.x = -0.46;
+  const back = wedge(spec, "gear", 0.028, 0.11, 0.14, c.accent, parent, 0, topY - 0.005, -0.155);
+  back.rotation.x = -0.75;
   if (glowMat) {
     main.material = glowMat;
     back.material = glowMat;
+  }
+}
+
+/** wide wave-fin chest glyph: flat triangular prism leaning like a cresting
+ *  wave over a short baseline bar — simpler and wider than the droplet */
+function waveFinGlyph(spec: CharacterSpec, parent: TransformNode, y: number, z: number, glowMat?: Material) {
+  const c = costumeFor(spec.defIndex);
+  const fin = cyl(spec, "sigil", 0.07, 0.07, 0.018, 3, c.accent, parent, 0.008, y + 0.008, z);
+  fin.rotation.x = Math.PI / 2; // prism axis forward → flat triangle faces the camera
+  fin.rotation.y = Math.PI - 0.35; // in-plane spin: apex up-right, cresting wave
+  const bar = box(spec, "sigil", 0.085, 0.014, 0.018, c.accent, parent, 0, y - 0.026, z);
+  if (glowMat) {
+    fin.material = glowMat;
+    bar.material = glowMat;
   }
 }
 
@@ -248,47 +262,58 @@ function nerivaneWarriorV2(spec: CharacterSpec, node: TransformNode, glowMat?: M
   // fractured stone base with tribe-glow fissure (lineup mockup convention)
   fracturedStoneBase(spec, node, glowMat);
 
-  // stocky legs + fauld skirt
-  for (const sx of [-0.07, 0.07]) {
-    box(spec, "leg", 0.085, 0.13, 0.095, deep, node, sx, 0.115, 0);
+  // legs with real feet: toes forward, slightly turned out — alive, not planted
+  for (const sx of [-0.075, 0.075]) {
+    box(spec, "leg", 0.08, 0.1, 0.09, deep, node, sx, 0.115, 0);
+    const foot = box(spec, "leg", 0.075, 0.04, 0.12, deeper, node, sx, 0.07, 0.025);
+    foot.rotation.y = sx > 0 ? -0.15 : 0.15;
   }
-  box(spec, "belt", 0.21, 0.06, 0.13, deeper, node, 0, 0.19, 0);
+  // hips + belt
+  box(spec, "torso", 0.18, 0.07, 0.115, deep, node, 0, 0.2, 0);
+  box(spec, "belt", 0.19, 0.03, 0.12, deeper, node, 0, 0.24, 0);
 
-  // torso: belly + broader chest block (boxy armor, not a robe cone)
-  box(spec, "torso", 0.19, 0.1, 0.12, deep, node, 0, 0.245, 0);
-  box(spec, "torso", 0.22, 0.14, 0.135, deep, node, 0, 0.355, 0);
-  const shoulderY = 0.425;
+  // torso: V-tapered chest prism (4-tess cylinder, corners at the shoulders) —
+  // wide shoulders, narrow waist, angled front planes
+  const chest = cyl(spec, "torso", 0.25, 0.14, 0.16, 4, deep, node, 0, 0.33, 0);
+  chest.rotation.y = Math.PI / 4; // flat face forward, sharp corners sideways
+  chest.scaling.z = 0.55; //         slab depth, not a diamond block
+  const shoulderY = 0.415;
 
-  // mid-teal chest plate with the glowing droplet sigil (raised geometry)
-  box(spec, "torso", 0.14, 0.14, 0.028, spec.color, node, 0, 0.345, 0.075);
-  dropletSigil(spec, node, 0.325, 0.095, 0.8, glowMat);
+  // mid-teal chest plate following the V lean, carrying the wave-fin glyph
+  const plate = box(spec, "torso", 0.105, 0.105, 0.02, spec.color, node, 0, 0.345, 0.06);
+  plate.rotation.x = 0.15;
+  waveFinGlyph(spec, node, 0.348, 0.078, glowMat);
 
-  // pauldrons: compact plates capping the shoulders
-  for (const sx of [-0.135, 0.135]) {
-    const pad = box(spec, "gear", 0.085, 0.042, 0.105, deeper, node, sx, shoulderY + 0.005, 0);
-    pad.rotation.z = sx > 0 ? -0.3 : 0.3;
+  // pauldrons: compact plates capping the shoulder corners
+  for (const sx of [-0.132, 0.132]) {
+    const pad = box(spec, "gear", 0.08, 0.042, 0.1, deeper, node, sx, shoulderY - 0.005, 0);
+    pad.rotation.z = sx > 0 ? -0.25 : 0.25;
   }
 
   // left arm hangs; right arm angles to the spear shaft. Bone hands.
-  const armL = box(spec, "arm", 0.055, 0.16, 0.065, deep, node, -0.155, 0.32, 0.01);
-  armL.rotation.z = 0.1;
-  box(spec, "hand", 0.05, 0.05, 0.055, BONE, node, -0.148, 0.235, 0.015);
-  const armR = box(spec, "arm", 0.055, 0.15, 0.065, deep, node, 0.165, 0.335, 0.025);
-  armR.rotation.z = -0.24;
-  box(spec, "hand", 0.052, 0.058, 0.058, BONE, node, 0.205, 0.265, 0.04);
+  const armL = box(spec, "arm", 0.045, 0.15, 0.055, deep, node, -0.16, 0.325, 0.01);
+  armL.rotation.z = 0.12;
+  box(spec, "hand", 0.048, 0.048, 0.052, BONE, node, -0.15, 0.243, 0.015);
+  const armR = box(spec, "arm", 0.045, 0.15, 0.055, deep, node, 0.172, 0.335, 0.03);
+  armR.rotation.z = -0.22;
+  box(spec, "hand", 0.05, 0.056, 0.056, BONE, node, 0.212, 0.258, 0.045);
 
-  // head: faceted bone mask in a dark cowl + swept glowing crest
-  const headY = 0.485;
+  // head: compact bone mask over a dark neck gap + swept fin crest
+  const headY = 0.5;
   boneMaskHead(spec, node, headY);
-  crystalCrest(spec, node, headY + 0.075, glowMat);
+  crystalCrest(spec, node, headY + 0.06, glowMat);
 
-  // oversized spear in the right hand: dark shaft, glow gem, faceted steel head
-  cyl(spec, "prop", 0.03, 0.03, 0.52, 5, SHAFT, node, 0.205, 0.285, 0.04);
-  const gem = box(spec, "prop", 0.04, 0.035, 0.04, "#9ffaef", node, 0.205, 0.562, 0.04);
+  // spear beefed to weapon-of-a-warrior scale: thick shaft, bone grip band,
+  // glow gem, partisan head — broad steel blade with two swept side barbs
+  cyl(spec, "prop", 0.042, 0.042, 0.52, 5, SHAFT, node, 0.215, 0.28, 0.045);
+  cyl(spec, "prop", 0.056, 0.056, 0.035, 5, BONE, node, 0.215, 0.265, 0.045);
+  const gem = box(spec, "prop", 0.042, 0.038, 0.042, "#9ffaef", node, 0.215, 0.557, 0.045);
   if (glowMat) gem.material = glowMat;
-  wedge(spec, "prop", 0.072, 0.115, 0.045, STEEL, node, 0.205, 0.635, 0.04);
-  const collar = wedge(spec, "prop", 0.05, 0.055, 0.042, STEEL_DARK, node, 0.205, 0.592, 0.04);
-  collar.rotation.x = Math.PI; // point down against the gem
+  for (const bx of [-0.045, 0.045]) {
+    const barb = wedge(spec, "prop", 0.038, 0.07, 0.036, STEEL_DARK, node, 0.215 + bx, 0.59, 0.045);
+    barb.rotation.z = bx > 0 ? -0.55 : 0.55;
+  }
+  wedge(spec, "prop", 0.09, 0.15, 0.05, STEEL, node, 0.215, 0.648, 0.045);
 
   return { headY, shoulderY };
 }

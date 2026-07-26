@@ -517,6 +517,11 @@ below was checked against the actual codebase before being marked.
 - [x] Fractured stone hex base with connected tribe-glow fissure (lineup mockup convention;
       replaces the flat tribe puck on v2 units, helper is tribe-agnostic for later lineups)
 - [x] Verified in Model Lab (40px color/gray + 8 angles) and on-board; 159 tests + tsc green
+- [x] Feedback pass 2 (designer notes): V-tapered chest with angled planes + narrow waist,
+      smaller angular mask floating over a dark neck gap, shorter back-swept fin crest,
+      thick partisan spear (grip band, glow gem, side barbs), feet with turned-out stance,
+      droplet sigil replaced by the wider wave-fin glyph; all 7 tribe lineup mockups archived
+      as the reference set (Polytopia unit/terrain clarity as the bar, not the look)
 - [ ] Roll the v2 skeleton out to the rest of the Nerivane set (archer/defender/rider/tidecaller/hero)
 - [ ] Per-tribe v2 lineups from the remaining mockups (Kharzul horns, Auren arcs, Vessari hood,
       Mycelon cap) — needs per-tribe accent glow materials
