@@ -244,6 +244,8 @@ function crystalCrest(spec: CharacterSpec, parent: TransformNode, topY: number, 
 }
 
 /** Nerivane tribal mark — bold cresting-wave glyph in raised geometry.
+ *  NOTE: temporary placeholder. All tribal emblems get a unified design pass
+ *  once the six-unit visual system is complete; only this helper changes.
  *  Reusable across the Nerivane set: a broad rising swept fin plus a smaller
  *  returning-wave plane below it, thick flat prisms proud of the chest plate.
  *  Reads at 40px on value contrast alone (accent-on-dark), glow optional. */
@@ -262,11 +264,17 @@ function nerivaneWaveEmblem(spec: CharacterSpec, parent: TransformNode, y: numbe
   }
 }
 
-/** Warrior v2: full mockup-driven figure. Replaces buildRig for this class. */
-function nerivaneWarriorV2(spec: CharacterSpec, node: TransformNode, glowMat?: Material): { headY: number; shoulderY: number } {
+// near-black weapon grip wood (mockup weapon shafts)
+const GRIP = "#4d4741";
+
+/* ---------- Nerivane v3 shared skeleton (locked with the Warrior) ----------
+ * Base, legs/boots, torso, chest plate + emblem, pauldrons, head, crest.
+ * Per-class builders add arms and equipment on top. Values are LOCKED — the
+ * Warrior is the approved reference; do not retune here for other classes.
+ */
+function nerivaneBodyV3(spec: CharacterSpec, node: TransformNode, glowMat?: Material): { headY: number; shoulderY: number; deep: string; deeper: string } {
   const deep = darken(spec.color, 0.45); // dark sea-armor plates
   const deeper = darken(spec.color, 0.32); // shadow step (fauld, trim)
-  const SHAFT = "#4d4741"; // near-black spear grip (mockup weapon wood)
 
   // fractured stone base with tribe-glow fissure (lineup mockup convention)
   fracturedStoneBase(spec, node, glowMat);
@@ -297,22 +305,32 @@ function nerivaneWarriorV2(spec: CharacterSpec, node: TransformNode, glowMat?: M
     pad.rotation.z = sx > 0 ? -0.3 : 0.3;
   }
 
-  // left arm hangs; right arm angles to the spear shaft. Bone hands.
-  const armL = box(spec, "arm", 0.055, 0.16, 0.065, deep, node, -0.155, 0.32, 0.01);
-  armL.rotation.z = 0.1;
-  box(spec, "hand", 0.05, 0.05, 0.055, BONE, node, -0.148, 0.235, 0.015);
-  const armR = box(spec, "arm", 0.055, 0.15, 0.065, deep, node, 0.165, 0.335, 0.025);
-  armR.rotation.z = -0.24;
-  box(spec, "hand", 0.052, 0.058, 0.058, BONE, node, 0.205, 0.265, 0.04);
-
   // head: faceted bone mask in a dark cowl + swept glowing crest
   const headY = 0.485;
   boneMaskHead(spec, node, headY);
   crystalCrest(spec, node, headY + 0.075, glowMat);
 
+  return { headY, shoulderY, deep, deeper };
+}
+
+/** standard v3 arms: left arm hangs, right arm angles to grip at (gx,gy,gz) */
+function nerivaneArmsV3(spec: CharacterSpec, node: TransformNode, deep: string, gx: number, gy: number, gz: number) {
+  const armL = box(spec, "arm", 0.055, 0.16, 0.065, deep, node, -0.155, 0.32, 0.01);
+  armL.rotation.z = 0.1;
+  box(spec, "hand", 0.05, 0.05, 0.055, BONE, node, -0.148, 0.235, 0.015);
+  const armR = box(spec, "arm", 0.055, 0.15, 0.065, deep, node, 0.165, gy + 0.07, gz - 0.015);
+  armR.rotation.z = -0.24;
+  box(spec, "hand", 0.052, 0.058, 0.058, BONE, node, gx, gy, gz);
+}
+
+/** Warrior v3 (locked): shared skeleton + wave-blade spear. */
+function nerivaneWarriorV3(spec: CharacterSpec, node: TransformNode, glowMat?: Material): { headY: number; shoulderY: number } {
+  const rig = nerivaneBodyV3(spec, node, glowMat);
+  nerivaneArmsV3(spec, node, rig.deep, 0.205, 0.265, 0.04);
+
   // spear: slightly thicker shaft, wave-blade head — a broad leaning steel
   // blade with one swept rear barb, still an unmistakable vertical spear
-  cyl(spec, "prop", 0.036, 0.036, 0.52, 5, SHAFT, node, 0.205, 0.285, 0.04);
+  cyl(spec, "prop", 0.036, 0.036, 0.52, 5, GRIP, node, 0.205, 0.285, 0.04);
   const gem = box(spec, "prop", 0.042, 0.036, 0.042, "#9ffaef", node, 0.205, 0.562, 0.04);
   if (glowMat) gem.material = glowMat;
   const blade = wedge(spec, "prop", 0.082, 0.145, 0.048, STEEL, node, 0.209, 0.648, 0.04);
@@ -322,7 +340,45 @@ function nerivaneWarriorV2(spec: CharacterSpec, node: TransformNode, glowMat?: M
   const collar = wedge(spec, "prop", 0.05, 0.055, 0.042, STEEL_DARK, node, 0.205, 0.592, 0.04);
   collar.rotation.x = Math.PI; // point down against the gem
 
-  return { headY, shoulderY };
+  return { headY: rig.headY, shoulderY: rig.shoulderY };
+}
+
+/** Archer v3: shared skeleton + vertical recurve bow and swept back quiver. */
+function nerivaneArcherV3(spec: CharacterSpec, node: TransformNode, glowMat?: Material): { headY: number; shoulderY: number } {
+  const rig = nerivaneBodyV3(spec, node, glowMat);
+  nerivaneArmsV3(spec, node, rig.deep, 0.2, 0.27, 0.04);
+
+  // bow: vertical, ~0.7H span, built under a yawed pivot so the arc's sweep
+  // plane faces the camera instead of hiding in depth
+  const bowPivot = new TransformNode("prop", spec.scene);
+  bowPivot.position.set(0.2, 0.3, 0.04);
+  bowPivot.rotation.y = -0.85;
+  bowPivot.parent = node;
+  box(spec, "prop", 0.034, 0.1, 0.042, GRIP, bowPivot, 0, 0, 0);
+  const upper = box(spec, "prop", 0.03, 0.18, 0.036, GRIP, bowPivot, 0, 0.1, 0.014);
+  upper.rotation.x = -0.45; //  top limb sweeps toward the string side
+  const lower = box(spec, "prop", 0.03, 0.18, 0.036, GRIP, bowPivot, 0, -0.1, 0.014);
+  lower.rotation.x = 0.45; //   bottom limb mirrors it
+  box(spec, "prop", 0.009, 0.37, 0.009, BONE, bowPivot, 0, 0, 0.055);
+  // recurve tips: accent wedges continuing each limb's curve
+  const tipT = wedge(spec, "prop", 0.028, 0.055, 0.026, spec.color, bowPivot, 0, 0.19, 0.048);
+  tipT.rotation.x = -1.0;
+  const tipB = wedge(spec, "prop", 0.028, 0.055, 0.026, spec.color, bowPivot, 0, -0.19, 0.048);
+  tipB.rotation.x = Math.PI + 1.0;
+
+  // swept quiver high on the back, tilted out past the pauldron so the
+  // fletchings clear the head silhouette; fletchings parented to the quiver
+  const quiver = box(spec, "prop", 0.065, 0.2, 0.06, rig.deeper, node, -0.085, 0.4, -0.1);
+  quiver.rotation.x = 0.3;
+  quiver.rotation.z = 0.38;
+  const f1 = wedge(spec, "prop", 0.034, 0.055, 0.032, BONE, quiver, -0.014, 0.125, 0.008);
+  void f1;
+  const f2 = wedge(spec, "prop", 0.03, 0.05, 0.028, BONE, quiver, 0.016, 0.118, -0.01);
+  void f2;
+  const f3 = wedge(spec, "prop", 0.03, 0.052, 0.028, spec.color, quiver, 0.002, 0.132, 0.014);
+  if (glowMat) f3.material = glowMat;
+
+  return { headY: rig.headY, shoulderY: rig.shoulderY };
 }
 
 /* ---------- the shared rig ---------- */
@@ -649,23 +705,19 @@ export function buildCharacter(spec: CharacterSpec, node: TransformNode, opts?: 
   // ----- humanoid classes on foot
   switch (t) {
     case "warrior": {
-      // v43 pilot: Nerivane warrior rebuilt to the painted lineup mockup
-      if (NERI) return nerivaneWarriorV2(spec, node, opts?.finMat);
+      // v3: Nerivane warrior locked to the approved mockup-driven build
+      if (NERI) return nerivaneWarriorV3(spec, node, opts?.finMat);
       const rig = buildRig(spec, node);
       buildHeadgear(spec, node, rig.headY);
       spear(spec, node, rig.shoulderY);
       return rig;
     }
     case "archer": {
-      const rig = buildRig(spec, node, { mask: NERI });
-      if (NERI) {
-        wedgeFinCrest(spec, node, rig.headY);
-        dropletSigil(spec, node, rig.shoulderY - 0.08, 0.115);
-        prismBow(spec, node, rig.shoulderY); // ~0.7H span + swept quiver (locked cue)
-      } else {
-        buildHeadgear(spec, node, rig.headY);
-        bow(spec, node, rig.shoulderY);
-      }
+      // v3: Nerivane archer on the shared locked skeleton
+      if (NERI) return nerivaneArcherV3(spec, node, opts?.finMat);
+      const rig = buildRig(spec, node);
+      buildHeadgear(spec, node, rig.headY);
+      bow(spec, node, rig.shoulderY);
       return rig;
     }
     case "defender": {
