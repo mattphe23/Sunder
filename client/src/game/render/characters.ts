@@ -209,33 +209,57 @@ function fracturedStoneBase(spec: CharacterSpec, parent: TransformNode, glowMat?
   }
 }
 
-/** faceted bone mask tucked into a dark cowl. */
+/** faceted bone mask tucked into a dark cowl — v3: smaller, diamond-like,
+ *  with a visible dark neck stub so the mask never merges into the torso. */
 function boneMaskHead(spec: CharacterSpec, parent: TransformNode, headY: number) {
   const cowlHex = darken(spec.color, 0.32);
-  // dark cowl shell behind/around the mask — makes the bone plate pop
-  const cowl = cyl(spec, "head", 0.125, 0.155, 0.115, 6, cowlHex, parent, 0, headY + 0.015, -0.028);
+  // dark neck stub under the cowl — reads as a shadow gap at the chin
+  cyl(spec, "head", 0.07, 0.082, 0.05, 6, darken(spec.color, 0.24), parent, 0, headY - 0.085, -0.005);
+  // dark cowl shell behind/around the mask — a clear border on every side
+  const cowl = cyl(spec, "head", 0.115, 0.148, 0.112, 6, cowlHex, parent, 0, headY + 0.012, -0.03);
   cowl.rotation.y = Math.PI / 6;
-  // bone mask: bulged 5-sided shell, flat facet forward, recessed low in the
-  // cowl so a dark brow band stays visible above the face plate
-  const shell = cyl(spec, "head", 0.09, 0.12, 0.088, 5, BONE, parent, 0, headY - 0.008, 0.024);
+  // bone mask: compact 5-sided plate, flat facet forward, recessed in the cowl
+  const shell = cyl(spec, "head", 0.075, 0.1, 0.06, 5, BONE, parent, 0, headY - 0.008, 0.026);
   shell.rotation.y = Math.PI / 5;
-  // chin: down-pointing wedge (the mockup's faceted teardrop point)
-  const chin = wedge(spec, "head", 0.09, 0.06, 0.08, BONE, parent, 0, headY - 0.075, 0.03);
+  // diamond point up + chin point down complete the faceted-gem outline —
+  // both stay below the cowl brow line so the dark border reads all around
+  const peak = wedge(spec, "head", 0.07, 0.028, 0.055, BONE, parent, 0, headY + 0.036, 0.028);
+  void peak;
+  const chin = wedge(spec, "head", 0.072, 0.045, 0.058, BONE, parent, 0, headY - 0.056, 0.03);
   chin.rotation.x = Math.PI;
 }
 
-/** swept crystal crest — glowing shards rising clear of the cowl, back-swept */
+/** dorsal fin crest — v3: materially shorter than the v1 blade, swept hard
+ *  backward, thick enough to survive 40px. Two shards total, nothing added. */
 function crystalCrest(spec: CharacterSpec, parent: TransformNode, topY: number, glowMat?: Material) {
   const c = costumeFor(spec.defIndex);
-  // fin blade: a pyramid stretched along z = a long low fin whose peak rises
-  // mid-skull and sweeps back — reads as the mockup's crescent crest
-  const main = wedge(spec, "gear", 0.04, 0.26, 0.2, c.accent, parent, 0, topY + 0.055, -0.09);
-  main.rotation.x = -0.45;
-  const back = wedge(spec, "gear", 0.03, 0.13, 0.1, c.accent, parent, 0, topY + 0.015, -0.16);
-  back.rotation.x = -0.7;
+  const main = wedge(spec, "gear", 0.05, 0.17, 0.22, c.accent, parent, 0, topY + 0.03, -0.085);
+  main.rotation.x = -0.55;
+  const back = wedge(spec, "gear", 0.035, 0.09, 0.1, c.accent, parent, 0, topY - 0.015, -0.16);
+  back.rotation.x = -0.8;
   if (glowMat) {
     main.material = glowMat;
     back.material = glowMat;
+  }
+}
+
+/** Nerivane tribal mark — bold cresting-wave glyph in raised geometry.
+ *  Reusable across the Nerivane set: a broad rising swept fin plus a smaller
+ *  returning-wave plane below it, thick flat prisms proud of the chest plate.
+ *  Reads at 40px on value contrast alone (accent-on-dark), glow optional. */
+function nerivaneWaveEmblem(spec: CharacterSpec, parent: TransformNode, y: number, z: number, s = 1, glowMat?: Material) {
+  const c = costumeFor(spec.defIndex);
+  // primary crest: broad wedge leaning right — a rising swept fin. A leaning
+  // wedge keeps a clean triangular silhouette from the front at any angle.
+  const crest = wedge(spec, "sigil", 0.105 * s, 0.1 * s, 0.026, c.accent, parent, 0.008 * s, y + 0.012 * s, z);
+  crest.rotation.z = -0.3;
+  // returning wave: smaller inverted wedge tucked low-left, counter-leaning
+  const under = wedge(spec, "sigil", 0.06 * s, 0.05 * s, 0.024, c.accent, parent, -0.036 * s, y - 0.038 * s, z - 0.002);
+  under.rotation.x = Math.PI; // apex down
+  under.rotation.z = -0.25;
+  if (glowMat) {
+    crest.material = glowMat;
+    under.material = glowMat;
   }
 }
 
@@ -248,20 +272,25 @@ function nerivaneWarriorV2(spec: CharacterSpec, node: TransformNode, glowMat?: M
   // fractured stone base with tribe-glow fissure (lineup mockup convention)
   fracturedStoneBase(spec, node, glowMat);
 
-  // stocky legs + fauld skirt
+  // stocky legs + angled boots (toes forward, slightly turned out)
   for (const sx of [-0.07, 0.07]) {
     box(spec, "leg", 0.085, 0.13, 0.095, deep, node, sx, 0.115, 0);
+    const boot = box(spec, "leg", 0.078, 0.045, 0.115, deeper, node, sx, 0.068, 0.018);
+    boot.rotation.y = sx > 0 ? -0.12 : 0.12;
   }
   box(spec, "belt", 0.21, 0.06, 0.13, deeper, node, 0, 0.19, 0);
 
-  // torso: belly + broader chest block (boxy armor, not a robe cone)
-  box(spec, "torso", 0.19, 0.1, 0.12, deep, node, 0, 0.245, 0);
-  box(spec, "torso", 0.22, 0.14, 0.135, deep, node, 0, 0.355, 0);
+  // torso: narrowed waist under the same broad chest block; the chest gets a
+  // slight forward lean so its front plane reads angled instead of flat
+  box(spec, "torso", 0.165, 0.1, 0.115, deep, node, 0, 0.245, 0);
+  const chestBlock = box(spec, "torso", 0.22, 0.14, 0.135, deep, node, 0, 0.355, 0);
+  chestBlock.rotation.x = 0.09;
   const shoulderY = 0.425;
 
-  // mid-teal chest plate with the glowing droplet sigil (raised geometry)
-  box(spec, "torso", 0.14, 0.14, 0.028, spec.color, node, 0, 0.345, 0.075);
-  dropletSigil(spec, node, 0.325, 0.095, 0.8, glowMat);
+  // mid-teal chest plate (tilted with the chest) carrying the wave emblem
+  const plate = box(spec, "torso", 0.14, 0.14, 0.028, spec.color, node, 0, 0.35, 0.072);
+  plate.rotation.x = 0.14;
+  nerivaneWaveEmblem(spec, node, 0.345, 0.098, 1, glowMat);
 
   // pauldrons: compact plates capping the shoulders
   for (const sx of [-0.135, 0.135]) {
@@ -282,11 +311,15 @@ function nerivaneWarriorV2(spec: CharacterSpec, node: TransformNode, glowMat?: M
   boneMaskHead(spec, node, headY);
   crystalCrest(spec, node, headY + 0.075, glowMat);
 
-  // oversized spear in the right hand: dark shaft, glow gem, faceted steel head
-  cyl(spec, "prop", 0.03, 0.03, 0.52, 5, SHAFT, node, 0.205, 0.285, 0.04);
-  const gem = box(spec, "prop", 0.04, 0.035, 0.04, "#9ffaef", node, 0.205, 0.562, 0.04);
+  // spear: slightly thicker shaft, wave-blade head — a broad leaning steel
+  // blade with one swept rear barb, still an unmistakable vertical spear
+  cyl(spec, "prop", 0.036, 0.036, 0.52, 5, SHAFT, node, 0.205, 0.285, 0.04);
+  const gem = box(spec, "prop", 0.042, 0.036, 0.042, "#9ffaef", node, 0.205, 0.562, 0.04);
   if (glowMat) gem.material = glowMat;
-  wedge(spec, "prop", 0.072, 0.115, 0.045, STEEL, node, 0.205, 0.635, 0.04);
+  const blade = wedge(spec, "prop", 0.082, 0.145, 0.048, STEEL, node, 0.208, 0.648, 0.04);
+  blade.rotation.z = -0.12; // slight lean = wave motion, not a symmetric pike
+  const barb = wedge(spec, "prop", 0.042, 0.075, 0.04, STEEL_DARK, node, 0.168, 0.607, 0.04);
+  barb.rotation.z = 0.95; //   rear barb curls off the blade like a wave trough
   const collar = wedge(spec, "prop", 0.05, 0.055, 0.042, STEEL_DARK, node, 0.205, 0.592, 0.04);
   collar.rotation.x = Math.PI; // point down against the gem
 
