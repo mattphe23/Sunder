@@ -510,6 +510,17 @@ below was checked against the actual codebase before being marked.
 - [x] v41.1 follow-up: scholars tech discount 20% → 10% (starting-stars revert alone left Auren at 72%; Enlightenment landed turn ~17 vs 22+ for other paths); UI copy + roster doc updated; 159 tests + tsc green
 - [x] v41 report delivered; checkpoint saved (6dcf442e)
 
+# v43 — Mockup-driven character upgrade (pilot: Nerivane Warrior)
+- [x] Warrior v2 rebuilt against the painted lineup mockups: faceted bone mask recessed in a
+      dark cowl, back-swept glowing crystal fin crest, two-value armor (dark plates + mid-teal
+      chest plate), glowing droplet sigil, full arms with bone hands gripping an oversized spear
+- [x] Fractured stone hex base with connected tribe-glow fissure (lineup mockup convention;
+      replaces the flat tribe puck on v2 units, helper is tribe-agnostic for later lineups)
+- [x] Verified in Model Lab (40px color/gray + 8 angles) and on-board; 159 tests + tsc green
+- [ ] Roll the v2 skeleton out to the rest of the Nerivane set (archer/defender/rider/tidecaller/hero)
+- [ ] Per-tribe v2 lineups from the remaining mockups (Kharzul horns, Auren arcs, Vessari hood,
+      Mycelon cap) — needs per-tribe accent glow materials
+
 # v42 — Designer production standard: Nerivane board-model + portrait pipeline
 - [x] Audit characters.ts + palette/material helpers against the locked spec (heights, tri/mesh budgets, material caching, raised-geometry sigils)
 - [x] Path 1: Nerivane board pass — warrior (spear + wedge-fin crest), archer (0.7H bow + swept quiver), defender (half-area shield), rider (abstract aquatic mount: low body, dorsal fin, tail wedge), Tidecaller (flared robe, tall crest, 1.3H trident), Nereth hero (1.08H, thick crown, cape, banner-spear, aqua rim glow)

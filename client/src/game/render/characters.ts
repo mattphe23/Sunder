@@ -155,11 +155,142 @@ function maskHead(spec: CharacterSpec, parent: TransformNode, headY: number, r =
 }
 
 /** raised-geometry tribe sigil (Nerivane droplet): bone wedge + tip, no textures */
-function dropletSigil(spec: CharacterSpec, parent: TransformNode, y: number, z: number, s = 1) {
+function dropletSigil(spec: CharacterSpec, parent: TransformNode, y: number, z: number, s = 1, glowMat?: Material) {
   // teardrop = down-pointing wedge + small cap box; bone-on-teal for contrast
   const body = wedge(spec, "sigil", 0.075 * s, 0.09 * s, 0.03, BONE, parent, 0, y, z);
   body.rotation.x = Math.PI; // point down
-  box(spec, "sigil", 0.05 * s, 0.035 * s, 0.028, BONE, parent, 0, y + 0.05 * s, z);
+  const cap = box(spec, "sigil", 0.05 * s, 0.035 * s, 0.028, BONE, parent, 0, y + 0.05 * s, z);
+  if (glowMat) {
+    body.material = glowMat;
+    cap.material = glowMat;
+  }
+}
+
+/* ---------- v43 Nerivane Warrior v2 (mockup pilot) ----------
+ * First character rebuilt against the painted lineup mockup: faceted bone
+ * mask under a dark cowl, swept glowing crystal crest, two-value armor with
+ * a glowing chest sigil, full arms with bone hands gripping an oversized
+ * spear. Same primitive vocabulary (wedge / box / low-tess cylinder), shared
+ * cached materials + the one emissive accent material; ~28 meshes, well
+ * inside the 900-tri foot-unit budget.
+ */
+
+// fractured-stone base grays (shared across all tribes per the lineup mockups)
+const STONE_TOP = "#8f8c96";
+const STONE_SIDE = "#6b6873";
+
+/** fractured stone hex base with a tribe-glow fissure — replaces the flat
+ *  color puck on v2 units. Ownership reads from the glowing crack + armor. */
+function fracturedStoneBase(spec: CharacterSpec, parent: TransformNode, glowMat?: Material) {
+  const c = costumeFor(spec.defIndex);
+  const base = cyl(spec, "puck", 0.42, 0.47, 0.05, 6, STONE_TOP, parent, 0, 0.025, 0);
+  base.rotation.y = Math.PI / 6;
+  // darker underside step reads as stacked stone
+  const under = cyl(spec, "puck", 0.47, 0.44, 0.022, 6, STONE_SIDE, parent, 0, 0.011, 0);
+  under.rotation.y = Math.PI / 6;
+  // zigzag fissure: three thin glowing strips inset into the top face
+  // one connected zigzag crack from the front rim to the right rim; each strip
+  // spans consecutive waypoints so the segments visibly join
+  const pts: Array<[number, number]> = [
+    [0.0, 0.2],
+    [0.05, 0.11],
+    [0.14, 0.08],
+    [0.21, -0.02],
+  ];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [x1, z1] = pts[i];
+    const [x2, z2] = pts[i + 1];
+    const dx = x2 - x1;
+    const dz = z2 - z1;
+    const len = Math.hypot(dx, dz) + 0.025; // slight overlap at the joints
+    const strip = box(spec, "puck", 0.03, 0.008, len, c.accent, parent, (x1 + x2) / 2, 0.052, (z1 + z2) / 2);
+    strip.rotation.y = Math.atan2(dx, dz);
+    if (glowMat) strip.material = glowMat;
+  }
+}
+
+/** faceted bone mask tucked into a dark cowl. */
+function boneMaskHead(spec: CharacterSpec, parent: TransformNode, headY: number) {
+  const cowlHex = darken(spec.color, 0.32);
+  // dark cowl shell behind/around the mask — makes the bone plate pop
+  const cowl = cyl(spec, "head", 0.125, 0.155, 0.115, 6, cowlHex, parent, 0, headY + 0.015, -0.028);
+  cowl.rotation.y = Math.PI / 6;
+  // bone mask: bulged 5-sided shell, flat facet forward, recessed low in the
+  // cowl so a dark brow band stays visible above the face plate
+  const shell = cyl(spec, "head", 0.09, 0.12, 0.088, 5, BONE, parent, 0, headY - 0.008, 0.024);
+  shell.rotation.y = Math.PI / 5;
+  // chin: down-pointing wedge (the mockup's faceted teardrop point)
+  const chin = wedge(spec, "head", 0.09, 0.06, 0.08, BONE, parent, 0, headY - 0.075, 0.03);
+  chin.rotation.x = Math.PI;
+}
+
+/** swept crystal crest — glowing shards rising clear of the cowl, back-swept */
+function crystalCrest(spec: CharacterSpec, parent: TransformNode, topY: number, glowMat?: Material) {
+  const c = costumeFor(spec.defIndex);
+  // fin blade: a pyramid stretched along z = a long low fin whose peak rises
+  // mid-skull and sweeps back — reads as the mockup's crescent crest
+  const main = wedge(spec, "gear", 0.04, 0.26, 0.2, c.accent, parent, 0, topY + 0.055, -0.09);
+  main.rotation.x = -0.45;
+  const back = wedge(spec, "gear", 0.03, 0.13, 0.1, c.accent, parent, 0, topY + 0.015, -0.16);
+  back.rotation.x = -0.7;
+  if (glowMat) {
+    main.material = glowMat;
+    back.material = glowMat;
+  }
+}
+
+/** Warrior v2: full mockup-driven figure. Replaces buildRig for this class. */
+function nerivaneWarriorV2(spec: CharacterSpec, node: TransformNode, glowMat?: Material): { headY: number; shoulderY: number } {
+  const deep = darken(spec.color, 0.45); // dark sea-armor plates
+  const deeper = darken(spec.color, 0.32); // shadow step (fauld, trim)
+  const SHAFT = "#4d4741"; // near-black spear grip (mockup weapon wood)
+
+  // fractured stone base with tribe-glow fissure (lineup mockup convention)
+  fracturedStoneBase(spec, node, glowMat);
+
+  // stocky legs + fauld skirt
+  for (const sx of [-0.07, 0.07]) {
+    box(spec, "leg", 0.085, 0.13, 0.095, deep, node, sx, 0.115, 0);
+  }
+  box(spec, "belt", 0.21, 0.06, 0.13, deeper, node, 0, 0.19, 0);
+
+  // torso: belly + broader chest block (boxy armor, not a robe cone)
+  box(spec, "torso", 0.19, 0.1, 0.12, deep, node, 0, 0.245, 0);
+  box(spec, "torso", 0.22, 0.14, 0.135, deep, node, 0, 0.355, 0);
+  const shoulderY = 0.425;
+
+  // mid-teal chest plate with the glowing droplet sigil (raised geometry)
+  box(spec, "torso", 0.14, 0.14, 0.028, spec.color, node, 0, 0.345, 0.075);
+  dropletSigil(spec, node, 0.325, 0.095, 0.8, glowMat);
+
+  // pauldrons: compact plates capping the shoulders
+  for (const sx of [-0.135, 0.135]) {
+    const pad = box(spec, "gear", 0.085, 0.042, 0.105, deeper, node, sx, shoulderY + 0.005, 0);
+    pad.rotation.z = sx > 0 ? -0.3 : 0.3;
+  }
+
+  // left arm hangs; right arm angles to the spear shaft. Bone hands.
+  const armL = box(spec, "arm", 0.055, 0.16, 0.065, deep, node, -0.155, 0.32, 0.01);
+  armL.rotation.z = 0.1;
+  box(spec, "hand", 0.05, 0.05, 0.055, BONE, node, -0.148, 0.235, 0.015);
+  const armR = box(spec, "arm", 0.055, 0.15, 0.065, deep, node, 0.165, 0.335, 0.025);
+  armR.rotation.z = -0.24;
+  box(spec, "hand", 0.052, 0.058, 0.058, BONE, node, 0.205, 0.265, 0.04);
+
+  // head: faceted bone mask in a dark cowl + swept glowing crest
+  const headY = 0.485;
+  boneMaskHead(spec, node, headY);
+  crystalCrest(spec, node, headY + 0.075, glowMat);
+
+  // oversized spear in the right hand: dark shaft, glow gem, faceted steel head
+  cyl(spec, "prop", 0.03, 0.03, 0.52, 5, SHAFT, node, 0.205, 0.285, 0.04);
+  const gem = box(spec, "prop", 0.04, 0.035, 0.04, "#9ffaef", node, 0.205, 0.562, 0.04);
+  if (glowMat) gem.material = glowMat;
+  wedge(spec, "prop", 0.072, 0.115, 0.045, STEEL, node, 0.205, 0.635, 0.04);
+  const collar = wedge(spec, "prop", 0.05, 0.055, 0.042, STEEL_DARK, node, 0.205, 0.592, 0.04);
+  collar.rotation.x = Math.PI; // point down against the gem
+
+  return { headY, shoulderY };
 }
 
 /* ---------- the shared rig ---------- */
@@ -486,11 +617,10 @@ export function buildCharacter(spec: CharacterSpec, node: TransformNode, opts?: 
   // ----- humanoid classes on foot
   switch (t) {
     case "warrior": {
-      const rig = buildRig(spec, node, { mask: NERI });
-      if (NERI) {
-        wedgeFinCrest(spec, node, rig.headY); // short wedge-fin crest (locked cue)
-        dropletSigil(spec, node, rig.shoulderY - 0.08, 0.115);
-      } else buildHeadgear(spec, node, rig.headY);
+      // v43 pilot: Nerivane warrior rebuilt to the painted lineup mockup
+      if (NERI) return nerivaneWarriorV2(spec, node, opts?.finMat);
+      const rig = buildRig(spec, node);
+      buildHeadgear(spec, node, rig.headY);
       spear(spec, node, rig.shoulderY);
       return rig;
     }
