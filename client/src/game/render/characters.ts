@@ -420,38 +420,48 @@ function nerivaneRiderV3(spec: CharacterSpec, node: TransformNode, glowMat?: Mat
   unit.rotation.y = 1.45;
   unit.parent = node;
 
-  // ── mount: low streamlined fish, kept inside the base footprint ──
-  box(spec, "mount", 0.21, 0.13, 0.3, deep, unit, 0, 0.15, 0);
-  box(spec, "mount", 0.16, 0.05, 0.24, deeper, unit, 0, 0.075, 0); // belly shadow
-  const nose = wedge(spec, "mount", 0.16, 0.11, 0.12, deep, unit, 0, 0.15, 0.18);
-  nose.rotation.x = Math.PI / 2; // blunt faceted head, point forward
-  // dorsal fin behind the saddle — glowing accent, the mount's silhouette cue
-  const dorsal = wedge(spec, "mount", 0.04, 0.15, 0.13, c.accent, unit, 0, 0.26, -0.15);
+  // ── mount: long, low fish in darker teals than the rider's armor so the
+  // two bodies separate at a glance; recognizable without the rider ──
+  const mDeep = darken(spec.color, 0.34); //  mount hide
+  const mDark = darken(spec.color, 0.24); //  mount belly/fin shadow
+  box(spec, "mount", 0.17, 0.11, 0.3, mDeep, unit, 0, 0.12, -0.03);
+  box(spec, "mount", 0.13, 0.04, 0.24, mDark, unit, 0, 0.065, -0.03); // belly
+  // distinct head block + tapered snout off the front
+  box(spec, "mount", 0.15, 0.09, 0.08, mDeep, unit, 0, 0.13, 0.16);
+  const snout = wedge(spec, "mount", 0.11, 0.09, 0.08, mDeep, unit, 0, 0.115, 0.235);
+  snout.rotation.x = Math.PI / 2; // taper forward
+  // dorsal fin on the spine behind the saddle — glowing accent silhouette cue
+  const dorsal = wedge(spec, "mount", 0.04, 0.15, 0.12, c.accent, unit, 0, 0.22, -0.14);
   dorsal.rotation.x = -0.45;
   if (glowMat) dorsal.material = glowMat;
+  // stern taper narrows the body into the tail root
+  const stern = wedge(spec, "mount", 0.12, 0.09, 0.09, mDeep, unit, 0, 0.11, -0.21);
+  stern.rotation.x = -Math.PI / 2; // taper backward
   // vertical tail crescent: upper + lower wedge off the stern
-  const tailUp = wedge(spec, "mount", 0.035, 0.12, 0.08, deeper, unit, 0, 0.24, -0.18);
+  const tailUp = wedge(spec, "mount", 0.035, 0.13, 0.08, mDark, unit, 0, 0.2, -0.27);
   tailUp.rotation.x = -0.25;
-  const tailDn = wedge(spec, "mount", 0.035, 0.09, 0.07, deeper, unit, 0, 0.13, -0.18);
+  const tailDn = wedge(spec, "mount", 0.035, 0.09, 0.07, mDark, unit, 0, 0.1, -0.27);
   tailDn.rotation.x = Math.PI - 0.25;
-  // pectoral fins
-  for (const sx of [-0.115, 0.115]) {
-    const fin = wedge(spec, "mount", 0.08, 0.1, 0.028, deeper, unit, sx, 0.14, 0.1);
-    fin.rotation.z = sx > 0 ? -0.9 : 0.9;
+  // two planted side fins — apex-down wedges reaching the stone like forelimbs
+  for (const sx of [-0.095, 0.095]) {
+    const fin = box(spec, "mount", 0.055, 0.11, 0.035, mDark, unit, sx * 1.15, 0.1, 0.14);
+    fin.rotation.z = sx > 0 ? -0.45 : 0.45;
   }
   // saddle strap + pad in tribe mid-teal
-  box(spec, "mount", 0.22, 0.03, 0.09, spec.color, unit, 0, 0.215, 0);
-  box(spec, "mount", 0.13, 0.04, 0.13, deeper, unit, 0, 0.235, 0);
+  box(spec, "mount", 0.22, 0.028, 0.085, spec.color, unit, 0, 0.165, -0.02);
+  box(spec, "mount", 0.13, 0.035, 0.13, deeper, unit, 0, 0.18, -0.02);
 
   // ── compact seated rider ──
   const rider = new TransformNode("rider", spec.scene);
-  rider.position.set(0, 0.255, 0);
+  rider.position.set(0, 0.2, 0);
   rider.scaling.setAll(0.78);
   rider.parent = node;
-  // thighs astride the saddle
+  // straddling legs: thighs over the saddle, shins + boots down the flanks
   for (const sx of [-0.1, 0.1]) {
-    const thigh = box(spec, "leg", 0.06, 0.055, 0.11, deep, rider, sx, 0.02, 0.02);
+    const thigh = box(spec, "leg", 0.06, 0.055, 0.11, deep, rider, sx, 0.025, 0.02);
     thigh.rotation.z = sx > 0 ? -0.35 : 0.35;
+    box(spec, "leg", 0.048, 0.1, 0.055, deep, rider, sx * 1.38, -0.035, 0.03);
+    box(spec, "leg", 0.05, 0.035, 0.08, deeper, rider, sx * 1.42, -0.09, 0.045);
   }
   box(spec, "torso", 0.15, 0.08, 0.105, deep, rider, 0, 0.06, 0);
   const chest = box(spec, "torso", 0.2, 0.13, 0.125, deep, rider, 0, 0.16, 0);
@@ -481,7 +491,7 @@ function nerivaneRiderV3(spec: CharacterSpec, node: TransformNode, glowMat?: Mat
   const barb = wedge(spec, "prop", 0.045, 0.075, 0.04, STEEL_DARK, rider, 0.148, 0.4, 0.035);
   barb.rotation.z = 1.05;
 
-  return { headY: 0.255 + 0.315 * 0.78, shoulderY: 0.255 + 0.23 * 0.78 };
+  return { headY: 0.2 + 0.315 * 0.78, shoulderY: 0.2 + 0.23 * 0.78 };
 }
 
 /* ---------- the shared rig ---------- */
