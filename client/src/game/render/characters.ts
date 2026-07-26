@@ -404,6 +404,86 @@ function nerivaneDefenderV3(spec: CharacterSpec, node: TransformNode, glowMat?: 
   return { headY: rig.headY, shoulderY: rig.shoulderY };
 }
 
+/** Rider v3: fractured base + abstract aquatic mount + compact seated rider.
+ *  The mount is the class identity (low fish body, faceted nose, glowing
+ *  dorsal fin, vertical tail crescent); the rider reuses the shared head,
+ *  crest, and emblem helpers at reduced scale. */
+function nerivaneRiderV3(spec: CharacterSpec, node: TransformNode, glowMat?: Material): { headY: number; shoulderY: number } {
+  const deep = darken(spec.color, 0.45);
+  const deeper = darken(spec.color, 0.32);
+  const c = costumeFor(spec.defIndex);
+  fracturedStoneBase(spec, node, glowMat);
+
+  // whole mount + rider under a yawed root: the fish reads in near-profile
+  // from the standard camera (a long box seen corner-on is just a slab)
+  const unit = new TransformNode("mount", spec.scene);
+  unit.rotation.y = 1.45;
+  unit.parent = node;
+
+  // ── mount: low streamlined fish, kept inside the base footprint ──
+  box(spec, "mount", 0.21, 0.13, 0.3, deep, unit, 0, 0.15, 0);
+  box(spec, "mount", 0.16, 0.05, 0.24, deeper, unit, 0, 0.075, 0); // belly shadow
+  const nose = wedge(spec, "mount", 0.16, 0.11, 0.12, deep, unit, 0, 0.15, 0.18);
+  nose.rotation.x = Math.PI / 2; // blunt faceted head, point forward
+  // dorsal fin behind the saddle — glowing accent, the mount's silhouette cue
+  const dorsal = wedge(spec, "mount", 0.04, 0.15, 0.13, c.accent, unit, 0, 0.26, -0.15);
+  dorsal.rotation.x = -0.45;
+  if (glowMat) dorsal.material = glowMat;
+  // vertical tail crescent: upper + lower wedge off the stern
+  const tailUp = wedge(spec, "mount", 0.035, 0.12, 0.08, deeper, unit, 0, 0.24, -0.18);
+  tailUp.rotation.x = -0.25;
+  const tailDn = wedge(spec, "mount", 0.035, 0.09, 0.07, deeper, unit, 0, 0.13, -0.18);
+  tailDn.rotation.x = Math.PI - 0.25;
+  // pectoral fins
+  for (const sx of [-0.115, 0.115]) {
+    const fin = wedge(spec, "mount", 0.08, 0.1, 0.028, deeper, unit, sx, 0.14, 0.1);
+    fin.rotation.z = sx > 0 ? -0.9 : 0.9;
+  }
+  // saddle strap + pad in tribe mid-teal
+  box(spec, "mount", 0.22, 0.03, 0.09, spec.color, unit, 0, 0.215, 0);
+  box(spec, "mount", 0.13, 0.04, 0.13, deeper, unit, 0, 0.235, 0);
+
+  // ── compact seated rider ──
+  const rider = new TransformNode("rider", spec.scene);
+  rider.position.set(0, 0.255, 0);
+  rider.scaling.setAll(0.78);
+  rider.parent = node;
+  // thighs astride the saddle
+  for (const sx of [-0.1, 0.1]) {
+    const thigh = box(spec, "leg", 0.06, 0.055, 0.11, deep, rider, sx, 0.02, 0.02);
+    thigh.rotation.z = sx > 0 ? -0.35 : 0.35;
+  }
+  box(spec, "torso", 0.15, 0.08, 0.105, deep, rider, 0, 0.06, 0);
+  const chest = box(spec, "torso", 0.2, 0.13, 0.125, deep, rider, 0, 0.16, 0);
+  chest.rotation.x = 0.09;
+  const plate = box(spec, "torso", 0.125, 0.12, 0.026, spec.color, rider, 0, 0.155, 0.066);
+  plate.rotation.x = 0.14;
+  nerivaneWaveEmblem(spec, rider, 0.15, 0.088, 0.85, glowMat);
+  for (const sx of [-0.12, 0.12]) {
+    const pad = box(spec, "gear", 0.078, 0.04, 0.095, deeper, rider, sx, 0.23, 0);
+    pad.rotation.z = sx > 0 ? -0.3 : 0.3;
+  }
+  const armL = box(spec, "arm", 0.05, 0.13, 0.06, deep, rider, -0.14, 0.15, 0.01);
+  armL.rotation.z = 0.12;
+  box(spec, "hand", 0.046, 0.046, 0.05, BONE, rider, -0.132, 0.083, 0.015);
+  const armR = box(spec, "arm", 0.05, 0.13, 0.06, deep, rider, 0.15, 0.16, 0.02);
+  armR.rotation.z = -0.24;
+  box(spec, "hand", 0.048, 0.052, 0.052, BONE, rider, 0.185, 0.09, 0.035);
+  // shared head + crest
+  boneMaskHead(spec, rider, 0.315);
+  crystalCrest(spec, rider, 0.39, glowMat);
+  // shortened wave-spear, vertical in the right hand
+  cyl(spec, "prop", 0.034, 0.034, 0.42, 5, GRIP, rider, 0.185, 0.14, 0.035);
+  const gem = box(spec, "prop", 0.04, 0.034, 0.04, "#9ffaef", rider, 0.185, 0.365, 0.035);
+  if (glowMat) gem.material = glowMat;
+  const blade = wedge(spec, "prop", 0.075, 0.13, 0.045, STEEL, rider, 0.188, 0.44, 0.035);
+  blade.rotation.z = -0.17;
+  const barb = wedge(spec, "prop", 0.045, 0.075, 0.04, STEEL_DARK, rider, 0.148, 0.4, 0.035);
+  barb.rotation.z = 1.05;
+
+  return { headY: 0.255 + 0.315 * 0.78, shoulderY: 0.255 + 0.23 * 0.78 };
+}
+
 /* ---------- the shared rig ---------- */
 
 interface RigOptions {
@@ -700,8 +780,9 @@ export function buildCharacter(spec: CharacterSpec, node: TransformNode, opts?: 
 
   // ----- mounted classes: rider/knight/raider sit on a mount
   if (t === "rider" || t === "knight" || t === "raider") {
-    // Nerivane rider: abstract aquatic mount per the locked spec
-    const seat = NERI && t === "rider" ? aquaticMount(spec, node, opts?.finMat) : mount(spec, node);
+    // v3: Nerivane rider gets the full mount + seated-rider build
+    if (NERI && t === "rider") return nerivaneRiderV3(spec, node, opts?.finMat);
+    const seat = mount(spec, node);
     const riderRoot = new TransformNode("rider", spec.scene);
     riderRoot.position.y = seat;
     riderRoot.scaling.setAll(0.82);
