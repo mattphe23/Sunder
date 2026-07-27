@@ -10,8 +10,9 @@ import { Button } from "@/components/ui/button";
 import type { UnitType } from "@/game/core/types";
 
 const LABELS: Record<string, string> = {
-  warrior: "Warrior", archer: "Archer", defender: "Defender",
-  rider: "Rider", tidecaller: "Tidecaller", berserker: "Berserker", hero: "Hero",
+  warrior: "Warrior", archer: "Archer", defender: "Defender", rider: "Rider",
+  tidecaller: "Tidecaller", berserker: "Berserker", arcanist: "Arcanist",
+  warden: "Warden", raider: "Raider", bulwark: "Bulwark", hero: "Hero",
 };
 // dev harness: ?tribe=<TRIBE_DEFS index> renders another tribe's set (default Nerivane)
 const TRIBE = (() => {
@@ -19,7 +20,7 @@ const TRIBE = (() => {
   return Number.isFinite(t) && t >= 0 && t <= 7 ? t : 4;
 })();
 // unique unit per tribe index (acceptance set swaps the fifth slot)
-const UNIQUES: Record<number, UnitType> = { 0: "arcanist", 1: "berserker", 2: "warrior", 3: "raider", 4: "tidecaller", 5: "bulwark" };
+const UNIQUES: Record<number, UnitType> = { 0: "arcanist", 1: "berserker", 2: "warden", 3: "raider", 4: "tidecaller", 5: "bulwark" };
 const ANGLES = Array.from({ length: 8 }, (_, i) => (i / 8) * Math.PI * 2);
 
 interface Row {
@@ -43,7 +44,9 @@ export default function ModelLab() {
       // capture (including the first class's angle sweep) reads back solid
       await session.capture(TRIBE, "warrior", { sizes: [64] });
       const out: Row[] = [];
-      const setForTribe: UnitType[] = NERIVANE_PORTRAIT_SET.map((t) => (t === "tidecaller" ? (UNIQUES[TRIBE] ?? "tidecaller") : t));
+      const setForTribe: UnitType[] = NERIVANE_PORTRAIT_SET
+        .map((t) => (t === "tidecaller" ? UNIQUES[TRIBE] : t))
+        .filter((t): t is UnitType => !!t);
       for (const type of setForTribe) {
         await new Promise((r) => setTimeout(r, 10));
         if (cancelled) { session.dispose(); return; }
