@@ -452,27 +452,34 @@ function nerivaneRiderV3(spec: CharacterSpec, node: TransformNode, glowMat?: Mat
   const mDeep = darken(spec.color, 0.34); //  mount hide
   const mDark = darken(spec.color, 0.24); //  mount belly/fin shadow
   if (spec.defIndex === 1) {
-    // Kharzul war-boar: stocky body on four planted legs, tusked snout,
-    // bristle ridge along the spine, stub tail
-    box(spec, "mount", 0.19, 0.13, 0.3, mDeep, unit, 0, 0.14, -0.02);
-    box(spec, "mount", 0.14, 0.04, 0.24, mDark, unit, 0, 0.075, -0.02);
-    box(spec, "mount", 0.15, 0.11, 0.1, mDeep, unit, 0, 0.15, 0.16);
-    box(spec, "mount", 0.09, 0.07, 0.07, mDark, unit, 0, 0.12, 0.235);
-    for (const sx of [-0.052, 0.052]) {
-      const tusk = wedge(spec, "mount", 0.032, 0.085, 0.026, BONE, unit, sx, 0.15, 0.26);
+    // Kharzul war-boar: mid body + raised rump, head lifted clear of the
+    // shoulders with ears/snout/tusks, four legs planted OUTSIDE the body
+    // silhouette so it reads as an animal, not a platform
+    box(spec, "mount", 0.18, 0.12, 0.22, mDeep, unit, 0, 0.15, 0.02);
+    box(spec, "mount", 0.16, 0.13, 0.12, mDeep, unit, 0, 0.155, -0.15); // rump
+    box(spec, "mount", 0.13, 0.04, 0.2, mDark, unit, 0, 0.085, 0.02); // belly
+    // head raised above the body line, distinct snout + ears
+    box(spec, "mount", 0.14, 0.12, 0.09, mDeep, unit, 0, 0.17, 0.17);
+    box(spec, "mount", 0.08, 0.06, 0.06, mDark, unit, 0, 0.145, 0.235);
+    for (const sx of [-0.05, 0.05]) {
+      const ear = wedge(spec, "mount", 0.032, 0.05, 0.026, mDark, unit, sx, 0.25, 0.15);
+      ear.rotation.z = sx > 0 ? -0.25 : 0.25;
+      const tusk = wedge(spec, "mount", 0.032, 0.085, 0.026, BONE, unit, sx, 0.155, 0.25);
       tusk.rotation.x = -0.4;
     }
-    for (const bz of [-0.02, -0.09, -0.15]) {
+    // bristle ridge from crown to rump
+    for (const bz of [0.05, -0.03, -0.11]) {
       const bristle = wedge(spec, "mount", 0.04, 0.06, 0.05, mDark, unit, 0, 0.225, bz);
       bristle.rotation.x = -0.3;
     }
-    for (const [lx, lz] of [[-0.065, 0.1], [0.065, 0.1], [-0.065, -0.11], [0.065, -0.11]] as const) {
-      box(spec, "mount", 0.05, 0.09, 0.05, mDark, unit, lx, 0.09, lz);
+    // legs planted outside the body width, hooves on the stone
+    for (const [lx, lz] of [[-0.1, 0.12], [0.1, 0.12], [-0.1, -0.16], [0.1, -0.16]] as const) {
+      box(spec, "mount", 0.055, 0.1, 0.055, mDark, unit, lx, 0.095, lz);
     }
-    const bTail = wedge(spec, "mount", 0.03, 0.05, 0.024, mDark, unit, 0, 0.17, -0.17);
+    const bTail = wedge(spec, "mount", 0.03, 0.05, 0.024, mDark, unit, 0, 0.19, -0.23);
     bTail.rotation.x = Math.PI - 0.4;
-    box(spec, "mount", 0.21, 0.028, 0.085, spec.color, unit, 0, 0.2, -0.02);
-    box(spec, "mount", 0.13, 0.035, 0.13, deeper, unit, 0, 0.215, -0.02);
+    box(spec, "mount", 0.2, 0.028, 0.085, spec.color, unit, 0, 0.218, 0.01);
+    box(spec, "mount", 0.13, 0.035, 0.13, deeper, unit, 0, 0.233, 0.01);
   } else {
   box(spec, "mount", 0.17, 0.11, 0.3, mDeep, unit, 0, 0.12, -0.03);
   box(spec, "mount", 0.13, 0.04, 0.24, mDark, unit, 0, 0.065, -0.03); // belly
@@ -504,7 +511,7 @@ function nerivaneRiderV3(spec: CharacterSpec, node: TransformNode, glowMat?: Mat
 
   // ── compact seated rider ──
   const rider = new TransformNode("rider", spec.scene);
-  rider.position.set(0, spec.defIndex === 1 ? 0.235 : 0.2, 0);
+  rider.position.set(0, spec.defIndex === 1 ? 0.253 : 0.2, 0);
   rider.scaling.setAll(0.78);
   rider.parent = node;
   // straddling legs: thighs over the saddle, shins + boots down the flanks
@@ -648,10 +655,16 @@ function nerivaneHeroV3(spec: CharacterSpec, node: TransformNode, glowMat?: Mate
   }
   box(spec, "belt", 0.21, 0.06, 0.13, deeper, node, 0, 0.19, 0);
   box(spec, "torso", 0.165, 0.1, 0.115, deep, node, 0, 0.245, 0);
-  // cape: flattened tapered cone falling from the shoulders
-  const cape = cyl(spec, "prop", 0.14, 0.34, 0.33, 6, deeper, node, 0, 0.265, -0.085);
-  cape.scaling.z = 0.45;
+  // cape: broader mantle rising to shoulder height — the hero's silhouette
+  // reads wider and heavier than any common unit
+  const cape = cyl(spec, "prop", 0.18, 0.4, 0.37, 6, deeper, node, 0, 0.275, -0.09);
+  cape.scaling.z = 0.5;
   const rig = nerivaneUpperV3(spec, node, glowMat, true);
+  // oversized hero pauldrons layered over the standard plates (~10% broader)
+  for (const sx of [-0.158, 0.158]) {
+    const heroPad = box(spec, "gear", 0.105, 0.05, 0.12, deeper, node, sx, rig.shoulderY + 0.018, 0);
+    heroPad.rotation.z = sx > 0 ? -0.34 : 0.34;
+  }
   nerivaneArmsV3(spec, node, rig.deep, 0.205, 0.265, 0.04);
   // gold crown seated on the cowl, three raised points (regal cue vs crest)
   const band = cyl(spec, "gear", 0.15, 0.16, 0.045, 6, GOLD, node, 0, rig.headY + 0.062, -0.005);
@@ -663,9 +676,9 @@ function nerivaneHeroV3(spec: CharacterSpec, node: TransformNode, glowMat?: Mate
   cyl(spec, "prop", 0.036, 0.036, 0.52, 5, GRIP, node, 0.205, 0.285, 0.04);
   const gem = box(spec, "prop", 0.042, 0.036, 0.042, "#9ffaef", node, 0.205, 0.562, 0.04);
   if (glowMat) gem.material = glowMat;
-  const blade = wedge(spec, "prop", 0.082, 0.145, 0.048, STEEL, node, 0.209, 0.648, 0.04);
+  const blade = wedge(spec, "prop", 0.105, 0.185, 0.055, STEEL, node, 0.211, 0.66, 0.04);
   blade.rotation.z = -0.17;
-  const barb = wedge(spec, "prop", 0.05, 0.085, 0.042, STEEL_DARK, node, 0.164, 0.605, 0.04);
+  const barb = wedge(spec, "prop", 0.065, 0.105, 0.048, STEEL_DARK, node, 0.157, 0.6, 0.04);
   barb.rotation.z = 1.05;
   box(spec, "flag", 0.13, 0.1, 0.018, spec.color, node, 0.275, 0.505, 0.04);
   const flagTip = wedge(spec, "flag", 0.06, 0.05, 0.018, spec.color, node, 0.305, 0.43, 0.04);
