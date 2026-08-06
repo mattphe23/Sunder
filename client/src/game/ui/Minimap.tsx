@@ -6,13 +6,7 @@ import { idx } from "../core/types";
 import { isVisibleTo } from "../core/rules";
 import { Map as MapIcon, X } from "lucide-react";
 
-const TERRAIN_COLORS: Record<string, string> = {
-  grass: "#7ec850",
-  forest: "#3e9142",
-  mountain: "#b8c4d4",
-  water: "#3f8fd4",
-  ocean: "#20509c",
-};
+import { biomeFor } from "../render/palette";
 
 export function Minimap() {
   const g = useGame();
@@ -45,7 +39,7 @@ export function Minimap() {
       if (!t.explored[s.humanTribe]) continue;
       const vis = isVisibleTo(s, s.humanTribe, t.x, t.y);
       ctx.globalAlpha = vis ? 1 : 0.42;
-      ctx.fillStyle = TERRAIN_COLORS[t.terrain];
+      ctx.fillStyle = biomeFor(s.preset).terrain[t.terrain].top;
       ctx.fillRect(t.x * px, t.y * px, px, px);
       if (t.port !== null) {
         ctx.fillStyle = "#a97c50";
