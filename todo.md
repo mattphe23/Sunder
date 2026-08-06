@@ -527,7 +527,13 @@ below was checked against the actual codebase before being marked.
       shared cached materials + single emissive accent, ~28 meshes (inside the 900-tri foot
       budget), non-Nerivane classes untouched; 159 tests + tsc green; Warrior v2 verified in
       Model Lab (40px color/gray + 8 angles); pushed to both remotes and checkpointed for publish
-- [ ] Roll the v2 skeleton out to the rest of the Nerivane set (archer/defender/rider/tidecaller/hero)
+- [x] Roll the v2 skeleton out to the rest of the Nerivane set (archer/defender/rider/tidecaller/hero):
+      extracted the pilot body into a shared `v2Body()` (mask, neck gap, V-taper chest, pauldrons,
+      stone base, per-class arm poses) so proportions stay identical across the lineup; archer gets
+      a pale recurve bow arc + nocked arrow + swept quiver, defender a narrow tower shield with
+      pointed foot and shield-mounted glyph, rider the aquatic mount + wide accent tail fin,
+      Tidecaller a robed body with tall crest and wide 3-tine trident, Nereth the crown/cape/banner
+      hierarchy capped at 1.08H; crest hierarchy enforced (tall crest only for unique unit + hero)
 - [ ] Per-tribe v2 lineups from the remaining mockups (Kharzul horns, Auren arcs, Vessari hood,
       Mycelon cap) — needs per-tribe accent glow materials
 

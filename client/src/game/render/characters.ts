@@ -253,69 +253,230 @@ function waveFinGlyph(spec: CharacterSpec, parent: TransformNode, y: number, z: 
   }
 }
 
-/** Warrior v2: full mockup-driven figure. Replaces buildRig for this class. */
-function nerivaneWarriorV2(spec: CharacterSpec, node: TransformNode, glowMat?: Material): { headY: number; shoulderY: number } {
+const SHAFT = "#4d4741"; // near-black weapon grip (mockup weapon wood)
+
+/** v2 body options — how the shared mockup-driven skeleton is dressed per class */
+interface V2BodyOptions {
+  /** torso bulk multiplier (defender wider, robed classes narrower) */
+  bulk?: number;
+  /** robed lower body (flared cone) instead of legs — Tidecaller / casters */
+  robe?: boolean;
+  /** tall three-plane crest instead of the short swept fin (unique unit + hero) */
+  tallCrest?: boolean;
+  /** skip the fractured stone base (mounted riders get it under the mount) */
+  noBase?: boolean;
+  /** chest glyph scale; 0 disables (defender carries it on the shield instead) */
+  glyph?: number;
+  /** right arm angle: "spear" grips high, "bow" reaches across, "free" hangs */
+  rightArm?: "spear" | "bow" | "free";
+}
+
+/**
+ * v2 shared body: the mockup-driven skeleton extracted from the Warrior pilot.
+ * Every v2 class is built from this so proportions, mask, neck gap, pauldrons,
+ * and the stone base stay identical across the lineup — only crests, armor
+ * geometry, and equipment vary (the locked cross-tribe convention).
+ */
+function v2Body(
+  spec: CharacterSpec,
+  node: TransformNode,
+  glowMat?: Material,
+  o: V2BodyOptions = {}
+): { headY: number; shoulderY: number } {
+  const bulk = o.bulk ?? 1;
   const deep = darken(spec.color, 0.45); // dark sea-armor plates
   const deeper = darken(spec.color, 0.32); // shadow step (fauld, trim)
-  const SHAFT = "#4d4741"; // near-black spear grip (mockup weapon wood)
 
-  // fractured stone base with tribe-glow fissure (lineup mockup convention)
-  fracturedStoneBase(spec, node, glowMat);
+  if (!o.noBase) fracturedStoneBase(spec, node, glowMat);
 
-  // legs with real feet: toes forward, slightly turned out — alive, not planted
-  for (const sx of [-0.075, 0.075]) {
-    box(spec, "leg", 0.08, 0.1, 0.09, deep, node, sx, 0.115, 0);
-    const foot = box(spec, "leg", 0.075, 0.04, 0.12, deeper, node, sx, 0.07, 0.025);
-    foot.rotation.y = sx > 0 ? -0.15 : 0.15;
+  if (o.robe) {
+    // robed lower body: stacked flared cones (silhouette widens at the base)
+    cyl(spec, "robe", 0.3, 0.42, 0.1, 8, deeper, node, 0, 0.06, 0);
+    cyl(spec, "robe", 0.2, 0.32, 0.16, 8, deep, node, 0, 0.17, 0);
+  } else {
+    // legs with real feet: toes forward, slightly turned out — alive, not planted
+    for (const sx of [-0.075 * bulk, 0.075 * bulk]) {
+      box(spec, "leg", 0.08, 0.1, 0.09, deep, node, sx, 0.115, 0);
+      const foot = box(spec, "leg", 0.075, 0.04, 0.12, deeper, node, sx, 0.07, 0.025);
+      foot.rotation.y = sx > 0 ? -0.15 : 0.15;
+    }
+    // hips + belt
+    box(spec, "torso", 0.18 * bulk, 0.07, 0.115, deep, node, 0, 0.2, 0);
+    box(spec, "belt", 0.19 * bulk, 0.03, 0.12, deeper, node, 0, 0.24, 0);
   }
-  // hips + belt
-  box(spec, "torso", 0.18, 0.07, 0.115, deep, node, 0, 0.2, 0);
-  box(spec, "belt", 0.19, 0.03, 0.12, deeper, node, 0, 0.24, 0);
 
   // torso: V-tapered chest prism (4-tess cylinder, corners at the shoulders) —
   // wide shoulders, narrow waist, angled front planes
-  const chest = cyl(spec, "torso", 0.25, 0.14, 0.16, 4, deep, node, 0, 0.33, 0);
+  const chest = cyl(spec, "torso", 0.25 * bulk, 0.14 * bulk, 0.16, 4, deep, node, 0, 0.33, 0);
   chest.rotation.y = Math.PI / 4; // flat face forward, sharp corners sideways
   chest.scaling.z = 0.55; //         slab depth, not a diamond block
   const shoulderY = 0.415;
 
-  // mid-teal chest plate following the V lean, carrying the wave-fin glyph
-  const plate = box(spec, "torso", 0.105, 0.105, 0.02, spec.color, node, 0, 0.345, 0.06);
+  // mid-tone chest plate following the V lean, carrying the tribe glyph
+  const plate = box(spec, "torso", 0.105 * bulk, 0.105, 0.02, spec.color, node, 0, 0.345, 0.06);
   plate.rotation.x = 0.15;
-  waveFinGlyph(spec, node, 0.348, 0.078, glowMat);
+  if ((o.glyph ?? 1) > 0) waveFinGlyph(spec, node, 0.348, 0.078, glowMat);
 
   // pauldrons: compact plates capping the shoulder corners
-  for (const sx of [-0.132, 0.132]) {
+  for (const sx of [-0.132 * bulk, 0.132 * bulk]) {
     const pad = box(spec, "gear", 0.08, 0.042, 0.1, deeper, node, sx, shoulderY - 0.005, 0);
     pad.rotation.z = sx > 0 ? -0.25 : 0.25;
   }
 
-  // left arm hangs; right arm angles to the spear shaft. Bone hands.
-  const armL = box(spec, "arm", 0.045, 0.15, 0.055, deep, node, -0.16, 0.325, 0.01);
+  // left arm hangs; right arm posed per class. Bone hands.
+  const armL = box(spec, "arm", 0.045, 0.15, 0.055, deep, node, -0.16 * bulk, 0.325, 0.01);
   armL.rotation.z = 0.12;
-  box(spec, "hand", 0.048, 0.048, 0.052, BONE, node, -0.15, 0.243, 0.015);
-  const armR = box(spec, "arm", 0.045, 0.15, 0.055, deep, node, 0.172, 0.335, 0.03);
-  armR.rotation.z = -0.22;
-  box(spec, "hand", 0.05, 0.056, 0.056, BONE, node, 0.212, 0.258, 0.045);
+  box(spec, "hand", 0.048, 0.048, 0.052, BONE, node, -0.15 * bulk, 0.243, 0.015);
+  const mode = o.rightArm ?? "spear";
+  if (mode === "bow") {
+    // reaches forward across the chest to the bowstring
+    const armR = box(spec, "arm", 0.045, 0.15, 0.055, deep, node, 0.15 * bulk, 0.33, 0.05);
+    armR.rotation.x = -0.5;
+    box(spec, "hand", 0.05, 0.05, 0.052, BONE, node, 0.15 * bulk, 0.3, 0.12);
+  } else {
+    const armR = box(spec, "arm", 0.045, 0.15, 0.055, deep, node, 0.172 * bulk, 0.335, 0.03);
+    armR.rotation.z = -0.22;
+    box(spec, "hand", 0.05, 0.056, 0.056, BONE, node, 0.212 * bulk, 0.258, 0.045);
+  }
 
-  // head: compact bone mask over a dark neck gap + swept fin crest
+  // head: compact bone mask over a dark neck gap + crest per hierarchy
   const headY = 0.5;
   boneMaskHead(spec, node, headY);
-  crystalCrest(spec, node, headY + 0.06, glowMat);
-
-  // spear beefed to weapon-of-a-warrior scale: thick shaft, bone grip band,
-  // glow gem, partisan head — broad steel blade with two swept side barbs
-  cyl(spec, "prop", 0.042, 0.042, 0.52, 5, SHAFT, node, 0.215, 0.28, 0.045);
-  cyl(spec, "prop", 0.056, 0.056, 0.035, 5, BONE, node, 0.215, 0.265, 0.045);
-  const gem = box(spec, "prop", 0.042, 0.038, 0.042, "#9ffaef", node, 0.215, 0.557, 0.045);
-  if (glowMat) gem.material = glowMat;
-  for (const bx of [-0.045, 0.045]) {
-    const barb = wedge(spec, "prop", 0.038, 0.07, 0.036, STEEL_DARK, node, 0.215 + bx, 0.59, 0.045);
-    barb.rotation.z = bx > 0 ? -0.55 : 0.55;
-  }
-  wedge(spec, "prop", 0.09, 0.15, 0.05, STEEL, node, 0.215, 0.648, 0.045);
+  if (o.tallCrest) tallCrystalCrest(spec, node, headY + 0.06, glowMat);
+  else crystalCrest(spec, node, headY + 0.06, glowMat);
 
   return { headY, shoulderY };
+}
+
+/** tall three-plane crest — reserved for the unique unit and the hero */
+function tallCrystalCrest(spec: CharacterSpec, parent: TransformNode, topY: number, glowMat?: Material) {
+  const c = costumeFor(spec.defIndex);
+  const main = wedge(spec, "gear", 0.042, 0.4, 0.16, c.accent, parent, 0, topY + 0.16, -0.03);
+  main.rotation.x = -0.16;
+  const midL = wedge(spec, "gear", 0.032, 0.24, 0.11, c.accent, parent, -0.055, topY + 0.1, -0.05);
+  midL.rotation.x = -0.3;
+  midL.rotation.z = 0.24;
+  const midR = wedge(spec, "gear", 0.032, 0.24, 0.11, c.accent, parent, 0.055, topY + 0.1, -0.05);
+  midR.rotation.x = -0.3;
+  midR.rotation.z = -0.24;
+  if (glowMat) {
+    main.material = glowMat;
+    midL.material = glowMat;
+    midR.material = glowMat;
+  }
+}
+
+/** partisan spear: thick shaft, bone grip band, glow gem, barbed steel head */
+function v2Spear(spec: CharacterSpec, node: TransformNode, glowMat?: Material, x = 0.215) {
+  cyl(spec, "prop", 0.042, 0.042, 0.52, 5, SHAFT, node, x, 0.28, 0.045);
+  cyl(spec, "prop", 0.056, 0.056, 0.035, 5, BONE, node, x, 0.265, 0.045);
+  const gem = box(spec, "prop", 0.042, 0.038, 0.042, "#9ffaef", node, x, 0.557, 0.045);
+  if (glowMat) gem.material = glowMat;
+  for (const bx of [-0.045, 0.045]) {
+    const barb = wedge(spec, "prop", 0.038, 0.07, 0.036, STEEL_DARK, node, x + bx, 0.59, 0.045);
+    barb.rotation.z = bx > 0 ? -0.55 : 0.55;
+  }
+  wedge(spec, "prop", 0.09, 0.15, 0.05, STEEL, node, x, 0.648, 0.045);
+}
+
+/** Warrior v2: full mockup-driven figure. Replaces buildRig for this class. */
+function nerivaneWarriorV2(spec: CharacterSpec, node: TransformNode, glowMat?: Material): { headY: number; shoulderY: number } {
+  const rig = v2Body(spec, node, glowMat);
+  v2Spear(spec, node, glowMat);
+  return rig;
+}
+
+/** Archer v2: recurve prism bow held across the body + swept back quiver */
+function nerivaneArcherV2(spec: CharacterSpec, node: TransformNode, glowMat?: Material): { headY: number; shoulderY: number } {
+  const rig = v2Body(spec, node, glowMat, { rightArm: "bow", bulk: 0.94 });
+  // Bow held ACROSS the body in the picture plane so the D-shape reads at 40px:
+  // two swept limbs angled toward the camera-right, joined by a bone grip.
+  // Limbs use BONE (pale) so the D-arc separates from the dark body at 40px.
+  const limbT = wedge(spec, "prop", 0.034, 0.24, 0.034, BONE, node, 0.2, 0.48, 0.12);
+  limbT.rotation.z = -0.42;
+  const limbB = wedge(spec, "prop", 0.034, 0.24, 0.034, BONE, node, 0.2, 0.22, 0.12);
+  limbB.rotation.z = Math.PI + 0.42;
+  // recurve tips flick outward — silhouette cue that separates bow from spear
+  const tipT = wedge(spec, "prop", 0.028, 0.085, 0.03, BONE, node, 0.138, 0.6, 0.12);
+  tipT.rotation.z = 0.5;
+  const tipB = wedge(spec, "prop", 0.028, 0.085, 0.03, BONE, node, 0.138, 0.1, 0.12);
+  tipB.rotation.z = Math.PI - 0.5;
+  cyl(spec, "prop", 0.042, 0.042, 0.1, 5, SHAFT, node, 0.222, 0.35, 0.12);
+  // string: thin dark line on the inside of the limbs (a line, not a plank)
+  box(spec, "prop", 0.006, 0.42, 0.006, SHAFT, node, 0.156, 0.35, 0.12);
+  // nocked arrow crossing the chest — instantly reads "ranged"
+  const arrow = box(spec, "prop", 0.17, 0.01, 0.01, SHAFT, node, 0.075, 0.35, 0.12);
+  const ahead = wedge(spec, "prop", 0.026, 0.042, 0.022, STEEL, node, 0.172, 0.35, 0.12);
+  ahead.rotation.z = -Math.PI / 2;
+  // quiver swept behind the left shoulder, arrows fletched in the accent
+  const quiver = cyl(spec, "prop", 0.058, 0.07, 0.2, 6, darken(spec.color, 0.3), node, -0.15, 0.36, -0.11);
+  quiver.rotation.x = -0.42;
+  quiver.rotation.z = 0.22;
+  for (const ax of [-0.022, 0.016]) {
+    const shaftM = box(spec, "prop", 0.012, 0.13, 0.012, BONE, node, -0.15 + ax, 0.49, -0.15);
+    shaftM.rotation.x = -0.42;
+    const fletch = wedge(spec, "prop", 0.032, 0.05, 0.014, costumeFor(spec.defIndex).accent, node, -0.15 + ax, 0.55, -0.172);
+    fletch.rotation.x = -0.42;
+    if (glowMat) fletch.material = glowMat;
+  }
+  return rig;
+}
+
+/** Defender v2: bulkier plates + tower shield carrying the wave-fin glyph */
+function nerivaneDefenderV2(spec: CharacterSpec, node: TransformNode, glowMat?: Material): { headY: number; shoulderY: number } {
+  const rig = v2Body(spec, node, glowMat, { bulk: 1.14, glyph: 0, rightArm: "free" });
+  // Tower shield: tall + narrow with a pointed foot, held off-centre so the
+  // head, crest and far shoulder still read. ~half the projected body area
+  // (locked cue) — NOT a slab that swallows the figure.
+  const shY = rig.shoulderY - 0.15;
+  box(spec, "prop", 0.19, 0.28, 0.036, STEEL_DARK, node, -0.055, shY, 0.185);
+  const point = wedge(spec, "prop", 0.19, 0.085, 0.036, STEEL_DARK, node, -0.055, shY - 0.18, 0.185);
+  point.rotation.x = Math.PI;
+  // pale steel border strips define the edges against the dark armor
+  box(spec, "prop", 0.21, 0.024, 0.026, STEEL, node, -0.055, shY + 0.142, 0.178);
+  for (const sx of [-0.095, 0.095]) box(spec, "prop", 0.02, 0.29, 0.026, STEEL, node, -0.055 + sx, shY, 0.178);
+  // glyph raised on the shield face so ownership reads at 40px
+  waveFinGlyph(spec, node, shY + 0.02, 0.206, glowMat);
+  return rig;
+}
+
+/** Tidecaller v2: robed caster, tall crest, oversized bone trident (~1.3H) */
+function nerivaneTidecallerV2(spec: CharacterSpec, node: TransformNode, glowMat?: Material): { headY: number; shoulderY: number } {
+  const rig = v2Body(spec, node, glowMat, { robe: true, bulk: 0.96, tallCrest: true });
+  // bone haft running the full figure height, gripped at chest level
+  cyl(spec, "prop", 0.038, 0.042, 0.78, 5, BONE, node, 0.215, 0.39, 0.045);
+  cyl(spec, "prop", 0.052, 0.052, 0.035, 5, darken(spec.color, 0.3), node, 0.215, 0.3, 0.045);
+  // trident head: wide crossbar + three tall tines — the widest, tallest
+  // silhouette in the lineup, which is the unique unit's read at 40px
+  box(spec, "prop", 0.24, 0.03, 0.036, BONE, node, 0.215, 0.72, 0.045);
+  for (const tx of [-0.105, 0, 0.105] as const) {
+    const tine = wedge(spec, "prop", 0.05, tx === 0 ? 0.24 : 0.18, 0.044, BONE, node, 0.215 + tx, tx === 0 ? 0.85 : 0.81, 0.045);
+    if (tx !== 0) tine.rotation.z = tx > 0 ? -0.13 : 0.13;
+  }
+  // glow gem where the tines meet the haft — the tribe accent focal point
+  const gem = box(spec, "prop", 0.055, 0.055, 0.046, costumeFor(spec.defIndex).accent, node, 0.215, 0.685, 0.045);
+  if (glowMat) gem.material = glowMat;
+  return rig;
+}
+
+/** Nereth (hero) v2: crowned, caped, banner-spear; capped at 1.08H */
+function nerivaneHeroV2(spec: CharacterSpec, node: TransformNode, glowMat?: Material): { headY: number; shoulderY: number } {
+  const rig = v2Body(spec, node, glowMat, { bulk: 1.04, tallCrest: true });
+  // cape: flattened cone behind the torso
+  const cape = cyl(spec, "prop", 0.12, 0.34, 0.32, 6, darken(spec.color, 0.7), node, 0, 0.27, -0.1);
+  cape.scaling.z = 0.42;
+  // thick geometric crown: 6-sided band + three wedge points (raised geometry)
+  cyl(spec, "gear", 0.19, 0.2, 0.055, 6, "#e7b552", node, 0, rig.headY + 0.075, 0);
+  for (const a of [-0.6, 0, 0.6]) {
+    wedge(spec, "gear", 0.055, 0.07, 0.032, "#e7b552", node, Math.sin(a) * 0.085, rig.headY + 0.13, Math.cos(a) * 0.085);
+  }
+  // banner spear: pale haft + tribe pennant, hero-scale
+  cyl(spec, "prop", 0.034, 0.034, 0.66, 5, "#d9cfc0", node, 0.215, 0.36, 0.045);
+  const flag = box(spec, "flag", 0.022, 0.15, 0.2, spec.color, node, 0.215, 0.6, 0.15);
+  flag.rotation.x = 0.08;
+  const trim = box(spec, "flag", 0.024, 0.03, 0.2, costumeFor(spec.defIndex).accent, node, 0.215, 0.53, 0.15);
+  if (glowMat) trim.material = glowMat;
+  return rig;
 }
 
 /* ---------- the shared rig ---------- */
@@ -614,6 +775,24 @@ export function buildCharacter(spec: CharacterSpec, node: TransformNode, opts?: 
 
   // ----- mounted classes: rider/knight/raider sit on a mount
   if (t === "rider" || t === "knight" || t === "raider") {
+    // v43: Nerivane rider — aquatic mount + the shared v2 skeleton on top
+    if (NERI && t === "rider") {
+      fracturedStoneBase(spec, node, opts?.finMat);
+      const seatY = aquaticMount(spec, node, opts?.finMat);
+      const riderRoot = new TransformNode("rider", spec.scene);
+      riderRoot.position.y = seatY;
+      riderRoot.scaling.setAll(0.8);
+      riderRoot.parent = node;
+      const r = v2Body(spec, riderRoot, opts?.finMat, { bulk: 0.92, noBase: true });
+      v2Spear(spec, riderRoot, opts?.finMat);
+      // wide swept tail fin behind the mount: the rider's 40px silhouette cue
+      // (a low horizontal mass no foot unit has)
+      const fin = wedge(spec, "prop", 0.05, 0.3, 0.22, costumeFor(spec.defIndex).accent, node, 0, seatY - 0.02, -0.28);
+      fin.rotation.x = -1.35;
+      fin.rotation.z = Math.PI / 2;
+      if (opts?.finMat) fin.material = opts.finMat;
+      return { headY: seatY + r.headY * 0.8, shoulderY: seatY + r.shoulderY * 0.8 };
+    }
     // Nerivane rider: abstract aquatic mount per the locked spec
     const seat = NERI && t === "rider" ? aquaticMount(spec, node, opts?.finMat) : mount(spec, node);
     const riderRoot = new TransformNode("rider", spec.scene);
@@ -650,6 +829,8 @@ export function buildCharacter(spec: CharacterSpec, node: TransformNode, opts?: 
       return rig;
     }
     case "archer": {
+      // v43: Nerivane archer on the shared v2 skeleton
+      if (NERI) return nerivaneArcherV2(spec, node, opts?.finMat);
       const rig = buildRig(spec, node, { mask: NERI });
       if (NERI) {
         wedgeFinCrest(spec, node, rig.headY);
@@ -662,6 +843,8 @@ export function buildCharacter(spec: CharacterSpec, node: TransformNode, opts?: 
       return rig;
     }
     case "defender": {
+      // v43: Nerivane defender on the shared v2 skeleton
+      if (NERI) return nerivaneDefenderV2(spec, node, opts?.finMat);
       const rig = buildRig(spec, node, { bulk: 1.1, mask: NERI });
       if (NERI) {
         wedgeFinCrest(spec, node, rig.headY);
@@ -703,6 +886,8 @@ export function buildCharacter(spec: CharacterSpec, node: TransformNode, opts?: 
       return rig;
     }
     case "tidecaller": {
+      // v43: Nerivane unique unit on the shared v2 skeleton (tall crest privilege)
+      if (NERI) return nerivaneTidecallerV2(spec, node, opts?.finMat);
       // v42 locked cue: flared robe, tall crest, trident to ~1.3H
       const rig = buildRig(spec, node, { robe: true, bulk: 1.05, mask: true });
       // extra flare skirt under the rig's robe cone — silhouette widens at the base
@@ -723,6 +908,12 @@ export function buildCharacter(spec: CharacterSpec, node: TransformNode, opts?: 
       return rig;
     }
     case "hero": {
+      // v43: Nereth on the shared v2 skeleton — crown/cape/banner hierarchy, 1.08H cap
+      if (NERI) {
+        const r = nerivaneHeroV2(spec, node, opts?.finMat);
+        node.scaling.y = Math.min(1, (1.08 * H) / 0.72) * (node.scaling.y || 1);
+        return r;
+      }
       // regal: caped rig + banner spear; crown/pips handled by the renderer
       const rig = buildRig(spec, node, { bulk: 1.05, mask: NERI });
       // cape: flattened cone behind the torso
