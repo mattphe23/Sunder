@@ -21,7 +21,7 @@ import { EasingFunction, CubicEase } from "@babylonjs/core/Animations/easing";
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTexture";
-import { buildCharacter, skinFor, accentFor } from "./characters";
+import { buildCharacter, skinFor, tribeGlow } from "./characters";
 // side-effect registrations the barrel used to pull in implicitly
 import "@babylonjs/core/Animations/animatable";
 import "@babylonjs/core/Culling/ray";
@@ -51,16 +51,9 @@ import "@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent";
 import { GameState, Tile, Unit, idx } from "../core/types";
 import { game } from "../core/state";
 import { reachableTiles, attackableUnits, cityAt, isVisibleTo, plannerSites, tradeRouteTiles, raidedRoadTiles } from "../core/rules";
-import { PALETTE, darken } from "./palette";
+import { PALETTE, darken, biomeFor, BiomePalette } from "./palette";
 
 const TILE = 1.02;
-const TERRAIN_COLORS: Record<string, string> = {
-  grass: PALETTE.terrain.grass.top,
-  forest: PALETTE.terrain.forest.top,
-  mountain: PALETTE.terrain.mountain.top,
-  water: PALETTE.terrain.water.top,
-  ocean: PALETTE.terrain.ocean.top,
-};
 const TERRAIN_H: Record<string, number> = {
   grass: 0.3, forest: 0.34, mountain: 0.85, water: 0.14, ocean: 0.08,
 };
@@ -104,6 +97,8 @@ export class BoardRenderer {
   private ambientObs: any = null;
   private forestSpots: { x: number; z: number }[] = [];
   private boardHalf = 5; // half-extent of the board in world units (set in buildBoard)
+  /** active biome palette — resolved from s.preset on every buildBoard */
+  private bio: BiomePalette = biomeFor("continents");
   onPick: ((p: PickInfo) => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -123,7 +118,7 @@ export class BoardRenderer {
         const deep = wm.name.includes("ocean");
         // Stage 1: flat unlit water — the whole color IS the emissive channel,
         // so shimmer is a gentle brightness pulse around the palette value.
-        const base = Color3.FromHexString(deep ? TERRAIN_COLORS.ocean : TERRAIN_COLORS.water);
+        const base = Color3.FromHexString(deep ? this.bio.terrain.ocean.top : this.bio.terrain.water.top);
         const amp = deep ? 0.05 : 0.08;
         const k = 1 + amp * (0.6 * p + 0.4 * q) - amp / 2;
         wm.emissiveColor.set(Math.min(1, base.r * k), Math.min(1, base.g * k), Math.min(1, base.b * k));
@@ -267,13 +262,13 @@ export class BoardRenderer {
 
   /** fog-of-war variant of a tile color: desaturated and washed toward deep indigo */
   private foggedMat(hex: string): StandardMaterial {
-    const key = "fog:" + hex;
+    const key = "fog:" + hex + this.bio.fogWash;
     let m = this.mats.get(key);
     if (!m) {
       const base = Color3.FromHexString(hex);
       const grey = (base.r + base.g + base.b) / 3;
       const desat = Color3.Lerp(base, new Color3(grey, grey, grey), 0.6);
-      const washed = Color3.Lerp(desat, Color3.FromHexString("#262650"), 0.55);
+      const washed = Color3.Lerp(desat, Color3.FromHexString(this.bio.fogWash), 0.55);
       m = new StandardMaterial("m" + key, this.scene);
       m.emissiveColor = washed;
       m.diffuseColor = Color3.Black();
@@ -286,7 +281,8 @@ export class BoardRenderer {
 
   /** dedicated animated material for water tiles (kept out of the shared cache) */
   private waterMat(deep: boolean): StandardMaterial {
-    const name = deep ? "water-ocean" : "water-shallow";
+    const hex = deep ? this.bio.terrain.ocean.top : this.bio.terrain.water.top;
+    const name = (deep ? "water-ocean" : "water-shallow") + hex;
     let m = this.mats.get(name);
     if (!m) {
       m = new StandardMaterial(name, this.scene);
@@ -295,7 +291,7 @@ export class BoardRenderer {
       m.diffuseColor = Color3.Black();
       m.specularColor = Color3.Black();
       m.disableLighting = true;
-      m.emissiveColor = Color3.FromHexString(deep ? TERRAIN_COLORS.ocean : TERRAIN_COLORS.water);
+      m.emissiveColor = Color3.FromHexString(hex);
       this.mats.set(name, m);
       this.waterMats.push(m);
     }
@@ -383,6 +379,7 @@ export class BoardRenderer {
 
   /** full rebuild of static board (called on new game / capture) */
   buildBoard(s: GameState) {
+    this.bio = biomeFor(s.preset);
     this.tileMeshes.forEach((m) => m.dispose());
     this.tileMeshes.clear();
     this.decorMeshes.forEach((arr) => arr.forEach((m: Mesh) => m.dispose()));
@@ -597,46 +594,37 @@ export class BoardRenderer {
     });
   }
 
-  /** unexplored tile: low dark slab + soft mist puff — clearly "fog", clearly there */
+  /** unexplored tile: Polytopia-style cloud bank — puffy blobs hovering at
+   *  land height over a shaded pick slab, instead of a dark hole in the map */
   private buildFogTile(s: GameState, t: Tile, c: number) {
     const key = idx(t.x, t.y, s.size);
-    // v33: fog bank sits LOWER and reads darker than any explored tile, so the
-    // island silhouette pops instead of blending into a flat purple carpet.
-    const box = MeshBuilder.CreateBox("t" + key, { width: TILE * 0.96, depth: TILE * 0.96, height: 0.14 }, this.scene);
-    box.position = new Vector3(t.x - c, 0.07 - 0.92, t.y - c);
-    let fogMat = this.mats.get("fog-cloud");
-    if (!fogMat) {
-      fogMat = new StandardMaterial("fog-cloud", this.scene);
-      fogMat.emissiveColor = Color3.FromHexString(PALETTE.fog.cloud);
-      fogMat.diffuseColor = Color3.Black();
-      fogMat.specularColor = Color3.Black();
-      fogMat.disableLighting = true;
-      this.mats.set("fog-cloud", fogMat);
-    }
-    box.material = fogMat;
+    // shaded underside slab: keeps the board footprint legible between puffs
+    // and gives clicks a reliable pick target
+    const box = MeshBuilder.CreateBox("t" + key, { width: TILE * 0.96, depth: TILE * 0.96, height: 0.1 }, this.scene);
+    box.position = new Vector3(t.x - c, -0.32, t.y - c);
+    box.material = this.mat(this.bio.cloudShade);
     box.metadata = { tile: true, x: t.x, y: t.y };
     box.parent = this.root;
     this.tileMeshes.set(key, box);
-    // deterministic mist puff so the fog bank looks organic, not gridded
+    // deterministic puff cluster so the bank looks organic, not gridded
     const j = ((t.x * 31 + t.y * 17) % 7) / 7;
-    const puff = MeshBuilder.CreateIcoSphere("mist", { radius: 0.26 + j * 0.14, subdivisions: 2 }, this.scene);
-    puff.position = new Vector3(t.x - c + (j - 0.5) * 0.4, -0.74, t.y - c + (0.5 - j) * 0.4);
-    puff.scaling.y = 0.18;
-    let mistMat = this.mats.get("fog-mist");
-    if (!mistMat) {
-      mistMat = new StandardMaterial("fog-mist", this.scene);
-      mistMat.emissiveColor = Color3.FromHexString(PALETTE.fog.mist);
-      mistMat.diffuseColor = Color3.Black();
-      mistMat.specularColor = Color3.Black();
-      mistMat.disableLighting = true;
-      mistMat.alpha = 0.3;
-      this.mats.set("fog-mist", mistMat);
+    const j2 = ((t.x * 13 + t.y * 29) % 5) / 5;
+    const decor: Mesh[] = [];
+    const puffs: [number, number, number][] = [
+      [(j - 0.5) * 0.3, (j2 - 0.5) * 0.3, 0.36 + j * 0.1],
+      [(0.5 - j2) * 0.38, (j - 0.5) * 0.3, 0.27 + j2 * 0.09],
+      [(j2 - 0.2) * 0.28, (0.42 - j) * 0.38, 0.2 + j * 0.07],
+    ];
+    for (const [ox, oz, r] of puffs) {
+      const puff = MeshBuilder.CreateIcoSphere("cloud", { radius: r, subdivisions: 1 }, this.scene);
+      puff.position = new Vector3(t.x - c + ox, -0.16 + r * 0.35, t.y - c + oz);
+      puff.scaling.y = 0.5;
+      puff.material = this.mat(this.bio.cloud);
+      puff.metadata = { tile: true, x: t.x, y: t.y };
+      puff.parent = this.root;
+      decor.push(puff);
     }
-    puff.material = mistMat;
-    puff.isPickable = false;
-    puff.metadata = { tile: true, x: t.x, y: t.y };
-    puff.parent = this.root;
-    this.decorMeshes.set(key, [puff]);
+    this.decorMeshes.set(key, decor);
   }
 
   private buildTile(s: GameState, t: Tile, c: number) {
@@ -651,19 +639,19 @@ export class BoardRenderer {
       box = MeshBuilder.CreateBox("t" + key, { width: TILE * 0.96, depth: TILE * 0.96, height: h }, this.scene);
       box.position = new Vector3(t.x - c, h / 2 - 0.4, t.y - c);
       box.material = fogged
-        ? this.foggedMat(deep ? TERRAIN_COLORS.ocean : TERRAIN_COLORS.water)
+        ? this.foggedMat(deep ? this.bio.terrain.ocean.top : this.bio.terrain.water.top)
         : this.waterMat(deep);
     } else {
       // land: top plate carries the palette top step, slab body the darker side step
       const topHex = this.tileColor(s, t);
-      const swatch = PALETTE.terrain[t.terrain];
+      const swatch = this.bio.terrain[t.terrain];
       // owned-border tint shifts the top; derive the side from the tinted top
       const sideHex = topHex === swatch?.top && swatch ? swatch.side : darken(topHex);
       box = this.buildSlab("t" + key, t.x - c, t.y - c, h, topHex, sideHex, fogged);
       // shallow-water shore band: pale trim on land edges that touch water
-      const shoreMat = fogged ? this.foggedMat(PALETTE.shore) : this.mat(PALETTE.shore);
+      const shoreMat = fogged ? this.foggedMat(this.bio.shore) : this.mat(this.bio.shore);
       // v34 coastal variation: sandy band + stepped rock ledge on cliff faces
-      const sandMat = fogged ? this.foggedMat("#d9c58f") : this.mat("#d9c58f");
+      const sandMat = fogged ? this.foggedMat(this.bio.sand) : this.mat(this.bio.sand);
       const ledgeHex = darken(darken(this.tileColor(s, t)));
       const ledgeMat = fogged ? this.foggedMat(ledgeHex) : this.mat(ledgeHex);
       const dirs: [number, number, number][] = [[1, 0, 0], [-1, 0, Math.PI], [0, 1, Math.PI / 2], [0, -1, -Math.PI / 2]];
@@ -783,22 +771,65 @@ export class BoardRenderer {
     }
     if (t.terrain === "forest") {
       // two-tone trees: brown trunk + layered canopy, varied heights — unmistakably a forest
-      for (let i = 0; i < 3; i++) {
-        const px = t.x - c + (i - 1) * 0.26;
-        const pz = t.y - c + ((i * 7) % 3 - 1) * 0.24;
+      const treeCount = 3 + ((t.x * 7 + t.y * 11) % 2); // seeded 3-4 per tile
+      for (let i = 0; i < treeCount; i++) {
+        const px = t.x - c + (i === 3 ? 0.08 : (i - 1) * 0.26);
+        const pz = t.y - c + (i === 3 ? -0.32 : ((i * 7) % 3 - 1) * 0.24);
         const th = 0.4 + ((i * 13 + t.x + t.y) % 3) * 0.09;
         const trunk = MeshBuilder.CreateCylinder("trk", { diameter: 0.09, height: 0.22, tessellation: 5 }, this.scene);
         trunk.position = new Vector3(px, top + 0.11, pz);
-        trunk.material = this.mat(PALETTE.tree.trunk);
+        trunk.material = this.mat(this.bio.tree.trunk);
         trunk.metadata = { tile: true, x: t.x, y: t.y };
         trunk.parent = this.root;
         decor.push(trunk);
         const canopy = MeshBuilder.CreateCylinder("tr", { diameterTop: 0, diameterBottom: 0.3, height: th, tessellation: 6 }, this.scene);
         canopy.position = new Vector3(px, top + 0.2 + th / 2, pz);
-        canopy.material = this.mat(i === 1 ? PALETTE.tree.canopyB : i === 0 ? PALETTE.tree.canopyA : PALETTE.tree.canopyLight);
+        canopy.material = this.mat(i === 1 ? this.bio.tree.canopyB : i === 0 ? this.bio.tree.canopyA : this.bio.tree.canopyLight);
         canopy.metadata = { tile: true, x: t.x, y: t.y };
         canopy.parent = this.root;
         decor.push(canopy);
+      }
+    }
+    if (t.terrain === "grass" && !t.resource && !t.building && !t.ruin && !t.greatRuin && !t.road && t.cityId === null) {
+      // micro-decor: seeded tufts + the odd pebble so bare plains aren't empty
+      const g = (t.x * 53 + t.y * 97) % 10;
+      if (g < 4) {
+        const md = { tile: true, x: t.x, y: t.y };
+        const spots: [number, number][] = [[0.28 - (g % 3) * 0.24, -0.3 + (g % 4) * 0.18], [-0.24 + (g % 2) * 0.4, 0.26 - (g % 3) * 0.14]];
+        for (let i = 0; i <= (g & 1); i++) {
+          const tuft = MeshBuilder.CreateCylinder("tuft", { diameterTop: 0, diameterBottom: 0.1, height: 0.1, tessellation: 4 }, this.scene);
+          tuft.position = new Vector3(t.x - c + spots[i][0], top + 0.05, t.y - c + spots[i][1]);
+          tuft.rotation.y = g * 0.7 + i;
+          tuft.material = this.mat(this.bio.tree.canopyLight);
+          tuft.metadata = md; tuft.parent = this.root; decor.push(tuft);
+        }
+        if (g === 3) {
+          const pebble = MeshBuilder.CreateIcoSphere("pebble", { radius: 0.045, subdivisions: 1 }, this.scene);
+          pebble.position = new Vector3(t.x - c - spots[0][0] * 0.7, top + 0.028, t.y - c - spots[0][1] * 0.7);
+          pebble.scaling.y = 0.6;
+          pebble.material = this.mat(this.bio.rock.shadow);
+          pebble.metadata = md; pebble.parent = this.root; decor.push(pebble);
+        }
+      }
+    }
+    if ((t.terrain === "water" || t.terrain === "ocean") && !fogged) {
+      // wave glints: thin pale dashes on ~1/3 of water tiles — the flat sea
+      // gets sparkle without any texture work
+      const w = (t.x * 23 + t.y * 41) % 9;
+      if (w < 3) {
+        const md = { tile: true, x: t.x, y: t.y };
+        const surf = TERRAIN_H[t.terrain] - 0.4 + 0.012;
+        for (let k = 0; k <= (w & 1); k++) {
+          const arc = MeshBuilder.CreateBox("waveglint", { width: 0.17 - k * 0.05, height: 0.014, depth: 0.022 }, this.scene);
+          arc.position = new Vector3(
+            t.x - c - 0.28 + ((w * 7 + k * 13) % 9) * 0.07,
+            surf,
+            t.y - c - 0.24 + ((w * 5 + k * 7) % 8) * 0.07
+          );
+          arc.rotation.y = (w + k) * 0.5;
+          arc.material = this.mat(this.bio.shore);
+          arc.metadata = md; arc.parent = this.root; decor.push(arc);
+        }
       }
     }
     if (t.terrain === "mountain") {
@@ -813,32 +844,32 @@ export class BoardRenderer {
       const skirt = MeshBuilder.CreateCylinder("pkbase", { diameterTop: 0.55, diameterBottom: 0.98, height: 0.2, tessellation: 7 }, this.scene);
       skirt.position = new Vector3(t.x - c, top + 0.06, t.y - c);
       skirt.rotation.y = yaw;
-      skirt.material = this.mat(PALETTE.rock.shadow);
+      skirt.material = this.mat(this.bio.rock.shadow);
       skirt.metadata = md; skirt.parent = this.root; decor.push(skirt);
       // 2. main peak rising out of the skirt
       const rock = MeshBuilder.CreateCylinder("pk", { diameterTop: 0.1, diameterBottom: 0.58, height: 0.46, tessellation: 6 }, this.scene);
       rock.position = new Vector3(t.x - c, top + 0.34, t.y - c);
       rock.rotation.y = yaw + 0.3;
-      rock.material = this.mat(PALETTE.rock.body);
+      rock.material = this.mat(this.bio.rock.body);
       rock.metadata = md; rock.parent = this.root; decor.push(rock);
       const snow = MeshBuilder.CreateCylinder("snow", { diameterTop: 0, diameterBottom: 0.2, height: 0.22, tessellation: 6 }, this.scene);
       snow.position = new Vector3(t.x - c, top + 0.66, t.y - c);
       snow.rotation.y = rock.rotation.y;
-      snow.material = this.mat(PALETTE.rock.snow);
+      snow.material = this.mat(this.bio.rock.snow);
       snow.metadata = md; snow.parent = this.root; decor.push(snow);
       // 3. shoulder peak growing out of the skirt edge (not floating beside it)
       const shx = 0.22 - (seed % 2) * 0.44, shz = -0.16 + (seed % 3) * 0.14;
       const shoulder = MeshBuilder.CreateCylinder("pk2", { diameterTop: 0, diameterBottom: 0.34, height: 0.34, tessellation: 5 }, this.scene);
       shoulder.position = new Vector3(t.x - c + shx, top + 0.24, t.y - c + shz);
       shoulder.rotation.y = yaw + 1.1;
-      shoulder.material = this.mat(PALETTE.rock.body);
+      shoulder.material = this.mat(this.bio.rock.body);
       shoulder.metadata = md; shoulder.parent = this.root; decor.push(shoulder);
       // 4. scree boulders at the foot for a natural transition
       for (const [bx, bz, br] of [[0.34, 0.3, 0.07], [-0.32, 0.26, 0.055]] as const) {
         const boulder = MeshBuilder.CreateIcoSphere("scree", { radius: br, subdivisions: 1 }, this.scene);
         boulder.position = new Vector3(t.x - c + bx, top + br * 0.7, t.y - c + bz);
         boulder.scaling.y = 0.75;
-        boulder.material = this.mat(PALETTE.rock.shadow);
+        boulder.material = this.mat(this.bio.rock.shadow);
         boulder.metadata = md; boulder.parent = this.root; decor.push(boulder);
       }
     }
@@ -1219,7 +1250,7 @@ export class BoardRenderer {
   }
 
   private tileColor(s: GameState, t: Tile): string {
-    let base = TERRAIN_COLORS[t.terrain];
+    let base = this.bio.terrain[t.terrain].top;
     // tint owned borders toward owner color
     if (t.ownerCityId !== null) {
       const owner = s.cities[t.ownerCityId];
@@ -1478,18 +1509,16 @@ export class BoardRenderer {
       (orbMat as StandardMaterial).disableLighting = true;
       this.mats.set("arcanist-orb", orbMat);
     }
-    // v44: the accent glow is now per-tribe — one cached emissive material per
-    // costume accent, so every tribe's crest/sigil/fissure glows in its own hue
-    // (the locked cross-tribe convention: same skeleton, tribe-specific accent).
-    const accentHex = accentFor(defIndex);
-    const finKey = `accent-glow-${accentHex}`;
-    let finMat = this.mats.get(finKey);
+    // per-tribe emissive accent (was a single fixed tide-fin aqua)
+    const glowHex = tribeGlow(defIndex);
+    const glowKey = "tribe-glow-" + glowHex;
+    let finMat = this.mats.get(glowKey);
     if (!finMat) {
-      finMat = new StandardMaterial(finKey, this.scene);
-      (finMat as StandardMaterial).emissiveColor = Color3.FromHexString(accentHex);
+      finMat = new StandardMaterial(glowKey, this.scene);
+      (finMat as StandardMaterial).emissiveColor = Color3.FromHexString(glowHex);
       (finMat as StandardMaterial).diffuseColor = Color3.Black();
       (finMat as StandardMaterial).disableLighting = true;
-      this.mats.set(finKey, finMat);
+      this.mats.set(glowKey, finMat);
     }
     const rig = buildCharacter(
       { scene: this.scene, mat: (hex) => this.mat(hex), color: col, defIndex, type: u.type },

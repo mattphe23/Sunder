@@ -537,6 +537,18 @@ below was checked against the actual codebase before being marked.
 - [x] Per-tribe v2 lineups from the remaining mockups (Kharzul horns, Auren arcs, Vessari hood,
       Mycelon cap) — see v44 below
 
+# v45 — Reconciliation: designer-locked v3 character system + biome maps
+- [x] Two parallel character implementations existed: the Manus-side v43/v44 checkpoints
+      (built on the v2 warrior) and the externally reviewed claude/nerivane-warrior-v3
+      lineage (per-unit designer sign-off: warrior v3/v3.1 locked, archer, defender,
+      rider + mount revision, tidecaller, hero, then all eight tribes). This merge
+      resolves render/lab files in favor of the reviewed v3 system; the parallel v2
+      rollout remains in git history (471b06b)
+- [x] Biome palettes per map preset (continents/archipelago/highlands/pangaea) with
+      per-biome water/shore/tree/rock/fog theming; minimap follows
+- [x] Polytopia-style cloud fog-of-war, seeded forest density, grass micro-decor,
+      wave glints — verified in-game across presets; 159 tests + tsc + build green
+
 # v44 — Cross-tribe rollout of the v2 board-model standard
 - [x] Per-tribe accent glow material: board renderer + portrait pipeline now key the emissive
       accent on the costume accent (`accentFor(defIndex)`), one cached material per hue, so every

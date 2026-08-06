@@ -17,7 +17,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
-import { buildCharacter, accentFor } from "./characters";
+import { buildCharacter, tribeGlow } from "./characters";
 import { TRIBE_DEFS, type UnitType } from "../core/types";
 
 export const PORTRAIT_MASTER_SIZE = 1024;
@@ -82,11 +82,10 @@ export function createPortraitSession() {
     }
     return m;
   };
-  // one cached emissive accent material per tribe hue (matches the board
-  // renderer, which keys the glow on the costume accent)
+  // one emissive accent material per tribe glow color (cached)
   const glows = new Map<string, StandardMaterial>();
   const glowFor = (defIndex: number) => {
-    const hex = accentFor(defIndex);
+    const hex = tribeGlow(defIndex);
     let g = glows.get(hex);
     if (!g) {
       g = new StandardMaterial("glow" + hex, scene);
