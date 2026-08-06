@@ -544,6 +544,17 @@ function nerivaneRiderV3(spec: CharacterSpec, node: TransformNode, glowMat?: Mat
   box(spec, "mount", 0.13, 0.035, 0.13, deeper, unit, 0, 0.18, -0.02);
   }
 
+  // land-tribe saddle pennant streaming aft — glowing accent, the mounted
+  // unit's low horizontal 40px cue (concept adopted from the parallel v44
+  // rollout; Nerivane's dorsal fin already serves this role)
+  if (spec.defIndex !== 4) {
+    const pole = cyl(spec, "mount", 0.015, 0.015, 0.17, 4, GRIP, unit, 0, 0.28, -0.17);
+    void pole;
+    const pennant = box(spec, "mount", 0.02, 0.09, 0.19, c.accent, unit, 0, 0.33, -0.27);
+    pennant.rotation.x = 0.35;
+    if (glowMat) pennant.material = glowMat;
+  }
+
   // ── compact seated rider ──
   const rider = new TransformNode("rider", spec.scene);
   rider.position.set(0, spec.defIndex === 1 ? 0.253 : spec.defIndex === 4 ? 0.2 : 0.253, 0);
