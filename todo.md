@@ -522,6 +522,11 @@ below was checked against the actual codebase before being marked.
       thick partisan spear (grip band, glow gem, side barbs), feet with turned-out stance,
       droplet sigil replaced by the wider wave-fin glyph; all 7 tribe lineup mockups archived
       as the reference set (Polytopia unit/terrain clarity as the bar, not the look)
+- [x] Merged external contributor branch `claude/warrior-v2-graphics` from GitHub into main
+      (fast-forward, no conflicts); reviewed against v42 conventions — same primitive vocabulary,
+      shared cached materials + single emissive accent, ~28 meshes (inside the 900-tri foot
+      budget), non-Nerivane classes untouched; 159 tests + tsc green; Warrior v2 verified in
+      Model Lab (40px color/gray + 8 angles); pushed to both remotes and checkpointed for publish
 - [ ] Roll the v2 skeleton out to the rest of the Nerivane set (archer/defender/rider/tidecaller/hero)
 - [ ] Per-tribe v2 lineups from the remaining mockups (Kharzul horns, Auren arcs, Vessari hood,
       Mycelon cap) — needs per-tribe accent glow materials
