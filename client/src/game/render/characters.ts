@@ -96,6 +96,12 @@ function costumeFor(defIndex: number): Costume {
   return skin ? { ...base, accent: skin.accent } : base;
 }
 
+/** the tribe's accent hue (skin-aware) — used by the renderer to build the
+ *  per-tribe emissive glow material for crests, sigils and base fissures */
+export function accentFor(defIndex: number): string {
+  return costumeFor(defIndex).accent;
+}
+
 /* ---------- primitive helpers (all meshes non-pickable, parented) ---------- */
 
 function box(spec: CharacterSpec, name: string, w: number, h: number, d: number, hex: string, parent: TransformNode, x = 0, y = 0, z = 0): Mesh {
@@ -315,7 +321,7 @@ function v2Body(
   // mid-tone chest plate following the V lean, carrying the tribe glyph
   const plate = box(spec, "torso", 0.105 * bulk, 0.105, 0.02, spec.color, node, 0, 0.345, 0.06);
   plate.rotation.x = 0.15;
-  if ((o.glyph ?? 1) > 0) waveFinGlyph(spec, node, 0.348, 0.078, glowMat);
+  if ((o.glyph ?? 1) > 0) tribeGlyph(spec, node, 0.348, 0.078, glowMat);
 
   // pauldrons: compact plates capping the shoulder corners
   for (const sx of [-0.132 * bulk, 0.132 * bulk]) {
@@ -342,8 +348,8 @@ function v2Body(
   // head: compact bone mask over a dark neck gap + crest per hierarchy
   const headY = 0.5;
   boneMaskHead(spec, node, headY);
-  if (o.tallCrest) tallCrystalCrest(spec, node, headY + 0.06, glowMat);
-  else crystalCrest(spec, node, headY + 0.06, glowMat);
+  if (o.tallCrest) tribeCrestTall(spec, node, headY + 0.06, glowMat);
+  else tribeCrest(spec, node, headY + 0.06, glowMat);
 
   return { headY, shoulderY };
 }
@@ -366,6 +372,188 @@ function tallCrystalCrest(spec: CharacterSpec, parent: TransformNode, topY: numb
   }
 }
 
+/* ---------- v44 per-tribe v2 vocabulary ----------
+ * The locked cross-tribe convention: every tribe shares the faceted mask face,
+ * proportions, camera, shading and fractured base. Crests, armor geometry,
+ * equipment and materials stay tribe-specific. These builders supply each
+ * tribe's crest + chest glyph so one shared skeleton yields eight readable
+ * lineups instead of eight recolors.
+ */
+
+/** short tribe crest — the "common unit" tier of the crest hierarchy */
+function tribeCrest(spec: CharacterSpec, parent: TransformNode, topY: number, glowMat?: Material) {
+  const c = costumeFor(spec.defIndex);
+  const set = (m: Mesh) => {
+    if (glowMat) m.material = glowMat;
+  };
+  switch (c.headgear) {
+    case "circlet": {
+      // Auren — thin arc band + a single upright shard (scholar's diadem)
+      const band = cyl(spec, "gear", 0.155, 0.165, 0.026, 8, c.accent, parent, 0, topY - 0.03, 0);
+      set(band);
+      const shard = wedge(spec, "gear", 0.03, 0.13, 0.03, c.accent, parent, 0, topY + 0.05, 0.02);
+      set(shard);
+      break;
+    }
+    case "horns": {
+      // Kharzul — forge horns sweeping out and up, bone with ember tips
+      for (const sx of [-0.085, 0.085]) {
+        const horn = wedge(spec, "gear", 0.05, 0.17, 0.05, BONE, parent, sx, topY + 0.02, -0.01);
+        horn.rotation.z = sx > 0 ? -0.6 : 0.6;
+        const tip = wedge(spec, "gear", 0.03, 0.055, 0.03, c.accent, parent, sx * 1.7, topY + 0.1, -0.01);
+        tip.rotation.z = sx > 0 ? -0.6 : 0.6;
+        set(tip);
+      }
+      break;
+    }
+    case "straw": {
+      // Sunwei — wide conical harvest hat; the widest head silhouette in the game
+      cyl(spec, "gear", 0.04, 0.34, 0.08, 8, c.accent, parent, 0, topY - 0.01, 0);
+      cyl(spec, "gear", 0.05, 0.05, 0.05, 6, BONE, parent, 0, topY + 0.045, 0);
+      break;
+    }
+    case "hood": {
+      // Vessari — pointed riding hood swept back, accent brow trim
+      const hood = cyl(spec, "gear", 0.02, 0.2, 0.19, 6, darken(spec.color, 0.72), parent, 0, topY - 0.01, -0.03);
+      hood.rotation.x = -0.3;
+      const trim = box(spec, "gear", 0.13, 0.02, 0.03, c.accent, parent, 0, topY - 0.07, 0.075);
+      set(trim);
+      break;
+    }
+    case "helm": {
+      // Dravok — heavy stone brow slab with a low centre ridge
+      box(spec, "gear", 0.2, 0.055, 0.16, "#8f8fa3", parent, 0, topY - 0.045, 0);
+      const ridge = wedge(spec, "gear", 0.05, 0.1, 0.17, "#8f8fa3", parent, 0, topY + 0.02, -0.01);
+      ridge.rotation.x = -0.1;
+      const spark = box(spec, "gear", 0.05, 0.02, 0.03, c.accent, parent, 0, topY - 0.05, 0.08);
+      set(spark);
+      break;
+    }
+    case "wings": {
+      // Valkyra — storm helm with two swept accent wings
+      ball(spec, "gear", 0.1, STEEL, parent, 0, topY - 0.05, 0).scaling.y = 0.65;
+      for (const sx of [-0.1, 0.1]) {
+        const wing = wedge(spec, "gear", 0.035, 0.19, 0.09, c.accent, parent, sx * 1.4, topY + 0.01, -0.03);
+        wing.rotation.z = sx > 0 ? -1.0 : 1.0;
+        wing.rotation.x = -0.2;
+        set(wing);
+      }
+      break;
+    }
+    case "cap": {
+      // Mycelon — broad spore cap with a pale gilled underside
+      const dome = ball(spec, "gear", 0.16, c.accent, parent, 0, topY - 0.015, 0);
+      dome.scaling.y = 0.5;
+      if (glowMat) dome.material = glowMat;
+      cyl(spec, "gear", 0.21, 0.21, 0.018, 10, BONE, parent, 0, topY - 0.055, 0);
+      break;
+    }
+    case "crest":
+    default:
+      crystalCrest(spec, parent, topY, glowMat);
+      break;
+  }
+}
+
+/** tall tribe crest — the unique-unit / hero tier of the crest hierarchy */
+function tribeCrestTall(spec: CharacterSpec, parent: TransformNode, topY: number, glowMat?: Material) {
+  const c = costumeFor(spec.defIndex);
+  if (c.headgear === "crest") {
+    tallCrystalCrest(spec, parent, topY, glowMat);
+    return;
+  }
+  // every other tribe: its own short crest plus a tall centre spire in the
+  // accent hue — height signals rank without breaking tribe identity
+  tribeCrest(spec, parent, topY, glowMat);
+  const spire = wedge(spec, "gear", 0.05, 0.34, 0.1, c.accent, parent, 0, topY + 0.17, -0.02);
+  spire.rotation.x = -0.1;
+  if (glowMat) spire.material = glowMat;
+  for (const sx of [-0.06, 0.06]) {
+    const side = wedge(spec, "gear", 0.032, 0.17, 0.075, c.accent, parent, sx, topY + 0.1, -0.04);
+    side.rotation.z = sx > 0 ? -0.28 : 0.28;
+    side.rotation.x = -0.22;
+    if (glowMat) side.material = glowMat;
+  }
+}
+
+/** per-tribe chest glyph — raised geometry, bone-or-accent, readable at 40px */
+function tribeGlyph(spec: CharacterSpec, parent: TransformNode, y: number, z: number, glowMat?: Material) {
+  const c = costumeFor(spec.defIndex);
+  const set = (m: Mesh) => {
+    if (glowMat) m.material = glowMat;
+  };
+  switch (c.headgear) {
+    case "circlet": {
+      // Auren — open book / tablet: two leaning plates
+      for (const sx of [-0.028, 0.028]) {
+        const leaf = box(spec, "sigil", 0.055, 0.075, 0.016, c.accent, parent, sx, y, z);
+        leaf.rotation.z = sx > 0 ? -0.18 : 0.18;
+        set(leaf);
+      }
+      break;
+    }
+    case "horns": {
+      // Kharzul — anvil: wide top bar over a narrow stem
+      const top = box(spec, "sigil", 0.1, 0.026, 0.018, c.accent, parent, 0, y + 0.025, z);
+      const stem = box(spec, "sigil", 0.042, 0.05, 0.018, c.accent, parent, 0, y - 0.015, z);
+      set(top);
+      set(stem);
+      break;
+    }
+    case "straw": {
+      // Sunwei — sun disc with a notch: hexagon plate
+      const disc = cyl(spec, "sigil", 0.085, 0.085, 0.016, 6, c.accent, parent, 0, y, z);
+      disc.rotation.x = Math.PI / 2;
+      set(disc);
+      break;
+    }
+    case "hood": {
+      // Vessari — chevron: two stacked forward arrows (speed)
+      for (const dy of [-0.024, 0.018]) {
+        const chev = cyl(spec, "sigil", 0.075, 0.075, 0.016, 3, c.accent, parent, 0, y + dy, z);
+        chev.rotation.x = Math.PI / 2;
+        chev.rotation.y = Math.PI;
+        chev.scaling.z = 0.5;
+        set(chev);
+      }
+      break;
+    }
+    case "helm": {
+      // Dravok — stone bastion: blocky crenellated bar
+      const wall = box(spec, "sigil", 0.1, 0.05, 0.018, c.accent, parent, 0, y - 0.012, z);
+      set(wall);
+      for (const sx of [-0.034, 0, 0.034]) {
+        const merlon = box(spec, "sigil", 0.026, 0.03, 0.018, c.accent, parent, sx, y + 0.028, z);
+        set(merlon);
+      }
+      break;
+    }
+    case "wings": {
+      // Valkyra — lightning bolt: two offset leaning bars
+      const upper = box(spec, "sigil", 0.03, 0.055, 0.018, c.accent, parent, 0.016, y + 0.024, z);
+      upper.rotation.z = 0.5;
+      const lower = box(spec, "sigil", 0.03, 0.055, 0.018, c.accent, parent, -0.016, y - 0.022, z);
+      lower.rotation.z = 0.5;
+      set(upper);
+      set(lower);
+      break;
+    }
+    case "cap": {
+      // Mycelon — spore trio: three dots in a triangle
+      for (const [gx, gy] of [[0, 0.03], [-0.032, -0.022], [0.032, -0.022]] as const) {
+        const dot = cyl(spec, "sigil", 0.038, 0.038, 0.016, 6, c.accent, parent, gx, y + gy, z);
+        dot.rotation.x = Math.PI / 2;
+        set(dot);
+      }
+      break;
+    }
+    case "crest":
+    default:
+      waveFinGlyph(spec, parent, y, z, glowMat);
+      break;
+  }
+}
+
 /** partisan spear: thick shaft, bone grip band, glow gem, barbed steel head */
 function v2Spear(spec: CharacterSpec, node: TransformNode, glowMat?: Material, x = 0.215) {
   cyl(spec, "prop", 0.042, 0.042, 0.52, 5, SHAFT, node, x, 0.28, 0.045);
@@ -380,14 +568,14 @@ function v2Spear(spec: CharacterSpec, node: TransformNode, glowMat?: Material, x
 }
 
 /** Warrior v2: full mockup-driven figure. Replaces buildRig for this class. */
-function nerivaneWarriorV2(spec: CharacterSpec, node: TransformNode, glowMat?: Material): { headY: number; shoulderY: number } {
+function warriorV2(spec: CharacterSpec, node: TransformNode, glowMat?: Material): { headY: number; shoulderY: number } {
   const rig = v2Body(spec, node, glowMat);
   v2Spear(spec, node, glowMat);
   return rig;
 }
 
 /** Archer v2: recurve prism bow held across the body + swept back quiver */
-function nerivaneArcherV2(spec: CharacterSpec, node: TransformNode, glowMat?: Material): { headY: number; shoulderY: number } {
+function archerV2(spec: CharacterSpec, node: TransformNode, glowMat?: Material): { headY: number; shoulderY: number } {
   const rig = v2Body(spec, node, glowMat, { rightArm: "bow", bulk: 0.94 });
   // Bow held ACROSS the body in the picture plane so the D-shape reads at 40px:
   // two swept limbs angled toward the camera-right, joined by a bone grip.
@@ -423,7 +611,7 @@ function nerivaneArcherV2(spec: CharacterSpec, node: TransformNode, glowMat?: Ma
 }
 
 /** Defender v2: bulkier plates + tower shield carrying the wave-fin glyph */
-function nerivaneDefenderV2(spec: CharacterSpec, node: TransformNode, glowMat?: Material): { headY: number; shoulderY: number } {
+function defenderV2(spec: CharacterSpec, node: TransformNode, glowMat?: Material): { headY: number; shoulderY: number } {
   const rig = v2Body(spec, node, glowMat, { bulk: 1.14, glyph: 0, rightArm: "free" });
   // Tower shield: tall + narrow with a pointed foot, held off-centre so the
   // head, crest and far shoulder still read. ~half the projected body area
@@ -436,12 +624,12 @@ function nerivaneDefenderV2(spec: CharacterSpec, node: TransformNode, glowMat?: 
   box(spec, "prop", 0.21, 0.024, 0.026, STEEL, node, -0.055, shY + 0.142, 0.178);
   for (const sx of [-0.095, 0.095]) box(spec, "prop", 0.02, 0.29, 0.026, STEEL, node, -0.055 + sx, shY, 0.178);
   // glyph raised on the shield face so ownership reads at 40px
-  waveFinGlyph(spec, node, shY + 0.02, 0.206, glowMat);
+  tribeGlyph(spec, node, shY + 0.02, 0.206, glowMat);
   return rig;
 }
 
 /** Tidecaller v2: robed caster, tall crest, oversized bone trident (~1.3H) */
-function nerivaneTidecallerV2(spec: CharacterSpec, node: TransformNode, glowMat?: Material): { headY: number; shoulderY: number } {
+function tidecallerV2(spec: CharacterSpec, node: TransformNode, glowMat?: Material): { headY: number; shoulderY: number } {
   const rig = v2Body(spec, node, glowMat, { robe: true, bulk: 0.96, tallCrest: true });
   // bone haft running the full figure height, gripped at chest level
   cyl(spec, "prop", 0.038, 0.042, 0.78, 5, BONE, node, 0.215, 0.39, 0.045);
@@ -460,7 +648,7 @@ function nerivaneTidecallerV2(spec: CharacterSpec, node: TransformNode, glowMat?
 }
 
 /** Nereth (hero) v2: crowned, caped, banner-spear; capped at 1.08H */
-function nerivaneHeroV2(spec: CharacterSpec, node: TransformNode, glowMat?: Material): { headY: number; shoulderY: number } {
+function heroV2(spec: CharacterSpec, node: TransformNode, glowMat?: Material): { headY: number; shoulderY: number } {
   const rig = v2Body(spec, node, glowMat, { bulk: 1.04, tallCrest: true });
   // cape: flattened cone behind the torso
   const cape = cyl(spec, "prop", 0.12, 0.34, 0.32, 6, darken(spec.color, 0.7), node, 0, 0.27, -0.1);
@@ -752,9 +940,12 @@ function aquaticMount(spec: CharacterSpec, parent: TransformNode, glowMat?: Mate
 export function buildCharacter(spec: CharacterSpec, node: TransformNode, opts?: { orbMat?: Material; finMat?: Material }): { headY: number; shoulderY: number; orb?: Mesh } {
   const t = spec.type;
   const c = costumeFor(spec.defIndex);
-  // v42 designer production standard: Nerivane is the first tribe rebuilt to the
-  // locked board-model spec (faceted mask head, wedge crests, raised droplet
-  // sigil, budgeted geometry). Other tribes keep the legacy rig until their pass.
+  // v42 designer production standard, generalized in v44: ALL tribes now build
+  // on the locked board-model spec (faceted mask head, tribe crest hierarchy,
+  // raised tribe glyph, fractured stone base, budgeted geometry). Crests, glyphs
+  // and equipment stay tribe-specific; the skeleton, camera and shading are shared.
+  // Tribeless camp raiders (defIndex -1) keep the legacy rig.
+  const V2 = spec.defIndex >= 0;
   const NERI = spec.defIndex === 4;
 
   // ----- non-humanoid: catapult keeps its siege-engine build (tribe-colored frame)
@@ -775,26 +966,33 @@ export function buildCharacter(spec: CharacterSpec, node: TransformNode, opts?: 
 
   // ----- mounted classes: rider/knight/raider sit on a mount
   if (t === "rider" || t === "knight" || t === "raider") {
-    // v43: Nerivane rider — aquatic mount + the shared v2 skeleton on top
-    if (NERI && t === "rider") {
+    // v44: all tribes — mount + the shared v2 skeleton on top. Nerivane rides the
+    // abstract aquatic form; other tribes keep the four-legged beast.
+    if (V2 && t === "rider") {
       fracturedStoneBase(spec, node, opts?.finMat);
-      const seatY = aquaticMount(spec, node, opts?.finMat);
+      const seatY = NERI ? aquaticMount(spec, node, opts?.finMat) : mount(spec, node);
       const riderRoot = new TransformNode("rider", spec.scene);
       riderRoot.position.y = seatY;
       riderRoot.scaling.setAll(0.8);
       riderRoot.parent = node;
       const r = v2Body(spec, riderRoot, opts?.finMat, { bulk: 0.92, noBase: true });
       v2Spear(spec, riderRoot, opts?.finMat);
-      // wide swept tail fin behind the mount: the rider's 40px silhouette cue
-      // (a low horizontal mass no foot unit has)
-      const fin = wedge(spec, "prop", 0.05, 0.3, 0.22, costumeFor(spec.defIndex).accent, node, 0, seatY - 0.02, -0.28);
-      fin.rotation.x = -1.35;
-      fin.rotation.z = Math.PI / 2;
-      if (opts?.finMat) fin.material = opts.finMat;
+      // wide swept rear mass behind the mount: the rider's 40px silhouette cue
+      // (a low horizontal shape no foot unit has). Fin for Nerivane, saddle
+      // pennant streaming back for the land tribes.
+      if (NERI) {
+        const fin = wedge(spec, "prop", 0.05, 0.3, 0.22, c.accent, node, 0, seatY - 0.02, -0.28);
+        fin.rotation.x = -1.35;
+        fin.rotation.z = Math.PI / 2;
+        if (opts?.finMat) fin.material = opts.finMat;
+      } else {
+        const banner = box(spec, "prop", 0.022, 0.14, 0.24, c.accent, node, 0, seatY + 0.16, -0.24);
+        banner.rotation.x = 0.22;
+        if (opts?.finMat) banner.material = opts.finMat;
+      }
       return { headY: seatY + r.headY * 0.8, shoulderY: seatY + r.shoulderY * 0.8 };
     }
-    // Nerivane rider: abstract aquatic mount per the locked spec
-    const seat = NERI && t === "rider" ? aquaticMount(spec, node, opts?.finMat) : mount(spec, node);
+    const seat = mount(spec, node);
     const riderRoot = new TransformNode("rider", spec.scene);
     riderRoot.position.y = seat;
     riderRoot.scaling.setAll(0.82);
@@ -821,16 +1019,15 @@ export function buildCharacter(spec: CharacterSpec, node: TransformNode, opts?: 
   // ----- humanoid classes on foot
   switch (t) {
     case "warrior": {
-      // v43 pilot: Nerivane warrior rebuilt to the painted lineup mockup
-      if (NERI) return nerivaneWarriorV2(spec, node, opts?.finMat);
+      // v44: all tribes on the mockup-driven v2 skeleton
+      if (V2) return warriorV2(spec, node, opts?.finMat);
       const rig = buildRig(spec, node);
       buildHeadgear(spec, node, rig.headY);
       spear(spec, node, rig.shoulderY);
       return rig;
     }
     case "archer": {
-      // v43: Nerivane archer on the shared v2 skeleton
-      if (NERI) return nerivaneArcherV2(spec, node, opts?.finMat);
+      if (V2) return archerV2(spec, node, opts?.finMat);
       const rig = buildRig(spec, node, { mask: NERI });
       if (NERI) {
         wedgeFinCrest(spec, node, rig.headY);
@@ -843,8 +1040,7 @@ export function buildCharacter(spec: CharacterSpec, node: TransformNode, opts?: 
       return rig;
     }
     case "defender": {
-      // v43: Nerivane defender on the shared v2 skeleton
-      if (NERI) return nerivaneDefenderV2(spec, node, opts?.finMat);
+      if (V2) return defenderV2(spec, node, opts?.finMat);
       const rig = buildRig(spec, node, { bulk: 1.1, mask: NERI });
       if (NERI) {
         wedgeFinCrest(spec, node, rig.headY);
@@ -886,8 +1082,8 @@ export function buildCharacter(spec: CharacterSpec, node: TransformNode, opts?: 
       return rig;
     }
     case "tidecaller": {
-      // v43: Nerivane unique unit on the shared v2 skeleton (tall crest privilege)
-      if (NERI) return nerivaneTidecallerV2(spec, node, opts?.finMat);
+      // unique unit — tall-crest privilege in the crest hierarchy
+      if (V2) return tidecallerV2(spec, node, opts?.finMat);
       // v42 locked cue: flared robe, tall crest, trident to ~1.3H
       const rig = buildRig(spec, node, { robe: true, bulk: 1.05, mask: true });
       // extra flare skirt under the rig's robe cone — silhouette widens at the base
@@ -908,9 +1104,9 @@ export function buildCharacter(spec: CharacterSpec, node: TransformNode, opts?: 
       return rig;
     }
     case "hero": {
-      // v43: Nereth on the shared v2 skeleton — crown/cape/banner hierarchy, 1.08H cap
-      if (NERI) {
-        const r = nerivaneHeroV2(spec, node, opts?.finMat);
+      // hero — crown/cape/banner hierarchy, capped at 1.08H (never tallest by height alone)
+      if (V2) {
+        const r = heroV2(spec, node, opts?.finMat);
         node.scaling.y = Math.min(1, (1.08 * H) / 0.72) * (node.scaling.y || 1);
         return r;
       }

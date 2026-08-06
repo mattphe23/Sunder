@@ -534,8 +534,27 @@ below was checked against the actual codebase before being marked.
       pointed foot and shield-mounted glyph, rider the aquatic mount + wide accent tail fin,
       Tidecaller a robed body with tall crest and wide 3-tine trident, Nereth the crown/cape/banner
       hierarchy capped at 1.08H; crest hierarchy enforced (tall crest only for unique unit + hero)
-- [ ] Per-tribe v2 lineups from the remaining mockups (Kharzul horns, Auren arcs, Vessari hood,
-      Mycelon cap) — needs per-tribe accent glow materials
+- [x] Per-tribe v2 lineups from the remaining mockups (Kharzul horns, Auren arcs, Vessari hood,
+      Mycelon cap) — see v44 below
+
+# v44 — Cross-tribe rollout of the v2 board-model standard
+- [x] Per-tribe accent glow material: board renderer + portrait pipeline now key the emissive
+      accent on the costume accent (`accentFor(defIndex)`), one cached material per hue, so every
+      tribe's crest/glyph/fissure glows in its own color instead of Nerivane teal
+- [x] Per-tribe crest hierarchy (`tribeCrest` / `tribeCrestTall`): Auren diadem arc + shard,
+      Kharzul forge horns with ember tips, Sunwei wide harvest cone, Vessari swept pointed hood,
+      Dravok stone brow slab + ridge, Valkyra storm helm with swept wings, Mycelon gilled spore cap,
+      Nerivane crystal fin; tall centre spire added only for unique units and heroes
+- [x] Per-tribe chest glyph (`tribeGlyph`): tablet (Auren), anvil (Kharzul), sun disc (Sunwei),
+      double chevron (Vessari), bastion (Dravok), lightning bolt (Valkyra), spore trio (Mycelon),
+      wave fin (Nerivane) — raised geometry, accent-hued, readable at 40px
+- [x] Extended the v2 skeleton to all 8 tribes (gate is now `defIndex >= 0`; tribeless camp
+      raiders keep the legacy rig) — warrior/archer/defender/rider/unique/hero share one body
+- [x] Land-tribe riders get a saddle pennant as their rear-mass silhouette cue; Nerivane keeps
+      the aquatic mount + tail fin
+- [x] Model Lab: tribe selector + `?tribe=<index>` deep link so any lineup can be reviewed or
+      screenshotted directly; export filenames now carry the tribe slug
+- [x] Verified all 8 lineups in Model Lab (40px color + grayscale + 8 angles); 159 tests + tsc green
 
 # v42 — Designer production standard: Nerivane board-model + portrait pipeline
 - [x] Audit characters.ts + palette/material helpers against the locked spec (heights, tri/mesh budgets, material caching, raised-geometry sigils)
