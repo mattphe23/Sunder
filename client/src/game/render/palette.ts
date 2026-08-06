@@ -56,6 +56,8 @@ export interface BiomePalette {
   tree: { trunk: string; canopyA: string; canopyB: string; canopyLight: string };
   rock: { body: string; shadow: string; snow: string };
   fogWash: string; // fog-of-war desaturation wash target
+  cloud: string; //   unexplored cloud-bank puffs
+  cloudShade: string; // cloud underside / pick slab
 }
 
 export const BIOMES: Record<string, BiomePalette> = {
@@ -73,6 +75,8 @@ export const BIOMES: Record<string, BiomePalette> = {
     tree: { trunk: "#6d4a2f", canopyA: "#2f8a3d", canopyB: "#256e31", canopyLight: "#3da34c" },
     rock: { body: "#8b98ac", shadow: "#71809a", snow: "#f6f9ff" },
     fogWash: "#262650",
+    cloud: "#6f74a4",
+    cloudShade: "#4e5384",
   },
   // tropics — turquoise shallows, azure deeps, white-gold beaches, vivid canopy
   archipelago: {
@@ -88,6 +92,8 @@ export const BIOMES: Record<string, BiomePalette> = {
     tree: { trunk: "#7a5a38", canopyA: "#3aa04c", canopyB: "#2c8440", canopyLight: "#52bc60" },
     rock: { body: "#98a08e", shadow: "#7c8474", snow: "#f4eed8" },
     fogWash: "#24304e",
+    cloud: "#7881b2",
+    cloudShade: "#565e92",
   },
   // alpine — sage meadows, dark pines, glacial water, bright snow on cold slate
   highlands: {
@@ -103,6 +109,8 @@ export const BIOMES: Record<string, BiomePalette> = {
     tree: { trunk: "#59412f", canopyA: "#226b3a", canopyB: "#1a5430", canopyLight: "#2f7f46" },
     rock: { body: "#a2adbd", shadow: "#7e8898", snow: "#ffffff" },
     fogWash: "#232a52",
+    cloud: "#7d88b8",
+    cloudShade: "#5a6494",
   },
   // savanna — olive-gold plains, acacia greens, ochre rock, sun-bleached caps
   pangaea: {
@@ -118,6 +126,8 @@ export const BIOMES: Record<string, BiomePalette> = {
     tree: { trunk: "#7a5636", canopyA: "#5c8a38", canopyB: "#48702c", canopyLight: "#71a044" },
     rock: { body: "#a89681", shadow: "#837360", snow: "#ecdfc0" },
     fogWash: "#292648",
+    cloud: "#77709f",
+    cloudShade: "#544e7e",
   },
 };
 

@@ -594,46 +594,37 @@ export class BoardRenderer {
     });
   }
 
-  /** unexplored tile: low dark slab + soft mist puff — clearly "fog", clearly there */
+  /** unexplored tile: Polytopia-style cloud bank — puffy blobs hovering at
+   *  land height over a shaded pick slab, instead of a dark hole in the map */
   private buildFogTile(s: GameState, t: Tile, c: number) {
     const key = idx(t.x, t.y, s.size);
-    // v33: fog bank sits LOWER and reads darker than any explored tile, so the
-    // island silhouette pops instead of blending into a flat purple carpet.
-    const box = MeshBuilder.CreateBox("t" + key, { width: TILE * 0.96, depth: TILE * 0.96, height: 0.14 }, this.scene);
-    box.position = new Vector3(t.x - c, 0.07 - 0.92, t.y - c);
-    let fogMat = this.mats.get("fog-cloud");
-    if (!fogMat) {
-      fogMat = new StandardMaterial("fog-cloud", this.scene);
-      fogMat.emissiveColor = Color3.FromHexString(PALETTE.fog.cloud);
-      fogMat.diffuseColor = Color3.Black();
-      fogMat.specularColor = Color3.Black();
-      fogMat.disableLighting = true;
-      this.mats.set("fog-cloud", fogMat);
-    }
-    box.material = fogMat;
+    // shaded underside slab: keeps the board footprint legible between puffs
+    // and gives clicks a reliable pick target
+    const box = MeshBuilder.CreateBox("t" + key, { width: TILE * 0.96, depth: TILE * 0.96, height: 0.1 }, this.scene);
+    box.position = new Vector3(t.x - c, -0.32, t.y - c);
+    box.material = this.mat(this.bio.cloudShade);
     box.metadata = { tile: true, x: t.x, y: t.y };
     box.parent = this.root;
     this.tileMeshes.set(key, box);
-    // deterministic mist puff so the fog bank looks organic, not gridded
+    // deterministic puff cluster so the bank looks organic, not gridded
     const j = ((t.x * 31 + t.y * 17) % 7) / 7;
-    const puff = MeshBuilder.CreateIcoSphere("mist", { radius: 0.26 + j * 0.14, subdivisions: 2 }, this.scene);
-    puff.position = new Vector3(t.x - c + (j - 0.5) * 0.4, -0.74, t.y - c + (0.5 - j) * 0.4);
-    puff.scaling.y = 0.18;
-    let mistMat = this.mats.get("fog-mist");
-    if (!mistMat) {
-      mistMat = new StandardMaterial("fog-mist", this.scene);
-      mistMat.emissiveColor = Color3.FromHexString(PALETTE.fog.mist);
-      mistMat.diffuseColor = Color3.Black();
-      mistMat.specularColor = Color3.Black();
-      mistMat.disableLighting = true;
-      mistMat.alpha = 0.3;
-      this.mats.set("fog-mist", mistMat);
+    const j2 = ((t.x * 13 + t.y * 29) % 5) / 5;
+    const decor: Mesh[] = [];
+    const puffs: [number, number, number][] = [
+      [(j - 0.5) * 0.3, (j2 - 0.5) * 0.3, 0.36 + j * 0.1],
+      [(0.5 - j2) * 0.38, (j - 0.5) * 0.3, 0.27 + j2 * 0.09],
+      [(j2 - 0.2) * 0.28, (0.42 - j) * 0.38, 0.2 + j * 0.07],
+    ];
+    for (const [ox, oz, r] of puffs) {
+      const puff = MeshBuilder.CreateIcoSphere("cloud", { radius: r, subdivisions: 1 }, this.scene);
+      puff.position = new Vector3(t.x - c + ox, -0.16 + r * 0.35, t.y - c + oz);
+      puff.scaling.y = 0.5;
+      puff.material = this.mat(this.bio.cloud);
+      puff.metadata = { tile: true, x: t.x, y: t.y };
+      puff.parent = this.root;
+      decor.push(puff);
     }
-    puff.material = mistMat;
-    puff.isPickable = false;
-    puff.metadata = { tile: true, x: t.x, y: t.y };
-    puff.parent = this.root;
-    this.decorMeshes.set(key, [puff]);
+    this.decorMeshes.set(key, decor);
   }
 
   private buildTile(s: GameState, t: Tile, c: number) {
@@ -780,9 +771,10 @@ export class BoardRenderer {
     }
     if (t.terrain === "forest") {
       // two-tone trees: brown trunk + layered canopy, varied heights — unmistakably a forest
-      for (let i = 0; i < 3; i++) {
-        const px = t.x - c + (i - 1) * 0.26;
-        const pz = t.y - c + ((i * 7) % 3 - 1) * 0.24;
+      const treeCount = 3 + ((t.x * 7 + t.y * 11) % 2); // seeded 3-4 per tile
+      for (let i = 0; i < treeCount; i++) {
+        const px = t.x - c + (i === 3 ? 0.08 : (i - 1) * 0.26);
+        const pz = t.y - c + (i === 3 ? -0.32 : ((i * 7) % 3 - 1) * 0.24);
         const th = 0.4 + ((i * 13 + t.x + t.y) % 3) * 0.09;
         const trunk = MeshBuilder.CreateCylinder("trk", { diameter: 0.09, height: 0.22, tessellation: 5 }, this.scene);
         trunk.position = new Vector3(px, top + 0.11, pz);
@@ -796,6 +788,48 @@ export class BoardRenderer {
         canopy.metadata = { tile: true, x: t.x, y: t.y };
         canopy.parent = this.root;
         decor.push(canopy);
+      }
+    }
+    if (t.terrain === "grass" && !t.resource && !t.building && !t.ruin && !t.greatRuin && !t.road && t.cityId === null) {
+      // micro-decor: seeded tufts + the odd pebble so bare plains aren't empty
+      const g = (t.x * 53 + t.y * 97) % 10;
+      if (g < 4) {
+        const md = { tile: true, x: t.x, y: t.y };
+        const spots: [number, number][] = [[0.28 - (g % 3) * 0.24, -0.3 + (g % 4) * 0.18], [-0.24 + (g % 2) * 0.4, 0.26 - (g % 3) * 0.14]];
+        for (let i = 0; i <= (g & 1); i++) {
+          const tuft = MeshBuilder.CreateCylinder("tuft", { diameterTop: 0, diameterBottom: 0.1, height: 0.1, tessellation: 4 }, this.scene);
+          tuft.position = new Vector3(t.x - c + spots[i][0], top + 0.05, t.y - c + spots[i][1]);
+          tuft.rotation.y = g * 0.7 + i;
+          tuft.material = this.mat(this.bio.tree.canopyLight);
+          tuft.metadata = md; tuft.parent = this.root; decor.push(tuft);
+        }
+        if (g === 3) {
+          const pebble = MeshBuilder.CreateIcoSphere("pebble", { radius: 0.045, subdivisions: 1 }, this.scene);
+          pebble.position = new Vector3(t.x - c - spots[0][0] * 0.7, top + 0.028, t.y - c - spots[0][1] * 0.7);
+          pebble.scaling.y = 0.6;
+          pebble.material = this.mat(this.bio.rock.shadow);
+          pebble.metadata = md; pebble.parent = this.root; decor.push(pebble);
+        }
+      }
+    }
+    if ((t.terrain === "water" || t.terrain === "ocean") && !fogged) {
+      // wave glints: thin pale dashes on ~1/3 of water tiles — the flat sea
+      // gets sparkle without any texture work
+      const w = (t.x * 23 + t.y * 41) % 9;
+      if (w < 3) {
+        const md = { tile: true, x: t.x, y: t.y };
+        const surf = TERRAIN_H[t.terrain] - 0.4 + 0.012;
+        for (let k = 0; k <= (w & 1); k++) {
+          const arc = MeshBuilder.CreateBox("waveglint", { width: 0.17 - k * 0.05, height: 0.014, depth: 0.022 }, this.scene);
+          arc.position = new Vector3(
+            t.x - c - 0.28 + ((w * 7 + k * 13) % 9) * 0.07,
+            surf,
+            t.y - c - 0.24 + ((w * 5 + k * 7) % 8) * 0.07
+          );
+          arc.rotation.y = (w + k) * 0.5;
+          arc.material = this.mat(this.bio.shore);
+          arc.metadata = md; arc.parent = this.root; decor.push(arc);
+        }
       }
     }
     if (t.terrain === "mountain") {
