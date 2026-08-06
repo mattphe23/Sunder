@@ -1156,44 +1156,56 @@ export class BoardRenderer {
     if (city) {
       const isNeutral = city.tribe === null;
       const col = isNeutral ? PALETTE.city.neutral : s.tribes[city.tribe!].color;
-      const n = isNeutral ? 1 : Math.min(4, city.level + 1);
-      // ownership plate: a flat colored disc under the city makes "whose city is this"
-      // readable at any zoom (neutral = sand ring)
-      const plate = MeshBuilder.CreateCylinder("cityplate", { diameter: 0.95, height: 0.05, tessellation: 12 }, this.scene);
-      plate.position = new Vector3(t.x - c, top + 0.03, t.y - c);
-      plate.material = this.mat(col);
-      plate.metadata = { tile: true, x: t.x, y: t.y };
-      plate.parent = this.root;
-      decor.push(plate);
-      for (let i = 0; i < n; i++) {
-        const house = MeshBuilder.CreateBox("cty", { width: 0.26, depth: 0.26, height: 0.3 + i * 0.05 }, this.scene);
-        const ang = (i / n) * Math.PI * 2;
-        house.position = new Vector3(
-          t.x - c + Math.cos(ang) * 0.22 * (n > 1 ? 1 : 0),
-          top + 0.16 + i * 0.02,
-          t.y - c + Math.sin(ang) * 0.22 * (n > 1 ? 1 : 0)
-        );
-        house.material = this.mat(PALETTE.city.house);
-        house.metadata = { tile: true, x: t.x, y: t.y };
-        house.parent = this.root;
-        decor.push(house);
-        // pitched roof in tribe color so buildings read as houses, not boxes
-        const roof = MeshBuilder.CreateCylinder("roof", { diameterTop: 0, diameterBottom: 0.3, height: 0.16, tessellation: 4 }, this.scene);
-        roof.position = house.position.clone();
-        roof.position.y = top + 0.16 + i * 0.02 + (0.3 + i * 0.05) / 2 + 0.08;
-        roof.rotation.y = Math.PI / 4;
-        roof.material = this.mat(col);
-        roof.metadata = { tile: true, x: t.x, y: t.y };
-        roof.parent = this.root;
-        decor.push(roof);
+      // Polytopia-style settlement: a paved town square with a tribe-color
+      // border frame, filled by a seeded building cluster that grows with
+      // city level. Villages are two modest huts on a smaller sand plaza.
+      const md = { tile: true, x: t.x, y: t.y };
+      const n = isNeutral ? 2 : Math.min(7, 2 + city.level + (city.isCapital ? 1 : 0));
+      const pw = isNeutral ? 0.72 : 0.9;
+      const plaza = MeshBuilder.CreateBox("cityplate", { width: pw, depth: pw, height: 0.06 }, this.scene);
+      plaza.position = new Vector3(t.x - c, top + 0.03, t.y - c);
+      plaza.material = this.mat(isNeutral ? "#cfc2a4" : "#cfc8b8");
+      plaza.metadata = md; plaza.parent = this.root; decor.push(plaza);
+      // border frame in the owner color — ownership reads at any zoom
+      const bh = pw / 2 - 0.02;
+      for (const [fx, fz, fw, fd] of [[0, -bh, pw, 0.05], [0, bh, pw, 0.05], [-bh, 0, 0.05, pw], [bh, 0, 0.05, pw]] as const) {
+        const edge = MeshBuilder.CreateBox("cityedge", { width: fw, depth: fd, height: 0.07 }, this.scene);
+        edge.position = new Vector3(t.x - c + fx, top + 0.045, t.y - c + fz);
+        edge.material = this.mat(col);
+        edge.metadata = md; edge.parent = this.root; decor.push(edge);
       }
-      if (city.isCapital && city.tribe !== null) {
-        const spire = MeshBuilder.CreateCylinder("cap", { diameterTop: 0, diameterBottom: 0.2, height: 0.55, tessellation: 4 }, this.scene);
-        spire.position = new Vector3(t.x - c, top + 0.45, t.y - c);
-        spire.material = this.mat("#ffd76a");
-        spire.metadata = { tile: true, x: t.x, y: t.y };
-        spire.parent = this.root;
-        decor.push(spire);
+      // seeded cluster: center building tallest, satellites around it
+      const js = (t.x * 7 + t.y * 13) % 4;
+      const SLOTS: [number, number][] = [[0, 0], [0.26, -0.12], [-0.25, 0.14], [0.08, 0.27], [-0.23, -0.23], [0.27, 0.19], [-0.04, -0.31]];
+      for (let i = 0; i < n; i++) {
+        const slot = SLOTS[i === 0 ? 0 : 1 + ((i - 1 + js) % (SLOTS.length - 1))];
+        const bw = i === 0 ? (isNeutral ? 0.22 : 0.3) : 0.17 + ((i * 17 + js) % 3) * 0.03;
+        const bhh = i === 0 ? (isNeutral ? 0.24 : 0.4 + city.level * 0.02) : 0.2 + ((i * 11 + js) % 3) * 0.05;
+        const house = MeshBuilder.CreateBox("cty", { width: bw, depth: bw, height: bhh }, this.scene);
+        house.position = new Vector3(t.x - c + slot[0], top + 0.06 + bhh / 2, t.y - c + slot[1]);
+        house.material = this.mat(PALETTE.city.house);
+        house.metadata = md; house.parent = this.root; decor.push(house);
+        if (i === 0 && city.isCapital && city.tribe !== null) {
+          // capital: the gold spire crowns the central tower
+          const spire = MeshBuilder.CreateCylinder("cap", { diameterTop: 0, diameterBottom: 0.22, height: 0.5, tessellation: 4 }, this.scene);
+          spire.position = new Vector3(t.x - c + slot[0], top + 0.06 + bhh + 0.24, t.y - c + slot[1]);
+          spire.rotation.y = Math.PI / 4;
+          spire.material = this.mat("#ffd76a");
+          spire.metadata = md; spire.parent = this.root; decor.push(spire);
+        } else if ((i + js) % 2 === 0) {
+          // pitched pyramid roof in the owner color
+          const roof = MeshBuilder.CreateCylinder("roof", { diameterTop: 0, diameterBottom: bw * 1.2, height: 0.14 + bw * 0.2, tessellation: 4 }, this.scene);
+          roof.position = new Vector3(t.x - c + slot[0], top + 0.06 + bhh + (0.14 + bw * 0.2) / 2, t.y - c + slot[1]);
+          roof.rotation.y = Math.PI / 4;
+          roof.material = this.mat(col);
+          roof.metadata = md; roof.parent = this.root; decor.push(roof);
+        } else {
+          // flat slab roof with an owner-color trim cap for variety
+          const slab = MeshBuilder.CreateBox("roof", { width: bw * 1.08, depth: bw * 1.08, height: 0.035 }, this.scene);
+          slab.position = new Vector3(t.x - c + slot[0], top + 0.06 + bhh + 0.018, t.y - c + slot[1]);
+          slab.material = this.mat(col);
+          slab.metadata = md; slab.parent = this.root; decor.push(slab);
+        }
       }
       if (city.walls) {
         // city walls: stone rampart ring with four corner towers
