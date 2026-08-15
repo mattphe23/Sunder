@@ -36,14 +36,27 @@ for (let g = 0; g < GAMES; g++) {
     roster: [0, 1, 2, 3, 4, 5].slice(0, 4).map((d) => (d + g) % 6),
   });
 
+  // Difficulty is global, and the two things that read it fire at different
+  // moments: runAiTurn picks the brain when the queued callback runs, while
+  // aiBonus pays income inside beginTurn — which happens at the TAIL of the
+  // PREVIOUS seat's callback. Retargeting only at callback time (the original
+  // version of this script) therefore paid each seat the other brain's income
+  // bonus, handing the pro brain hard's +2 and the standard brain
+  // impossible's +0. That confound inverted the result.
+  const store = game as unknown as { beginTurn: (i: number) => void; state: { difficulty: string; currentTribe: number } };
+  const origBeginTurn = store.beginTurn.bind(game);
+  store.beginTurn = (i: number) => {
+    store.state.difficulty = isPro(i) ? "impossible" : "hard";
+    origBeginTurn(i);
+  };
+
   let steps = 0;
   while (game.state.phase === "playing" && steps++ < 200000) {
     if (!pending.length) break;
-    // the queued callback is the acting tribe's turn — pick its brain first
-    const s = game.state as unknown as { currentTribe: number; difficulty: string };
-    s.difficulty = isPro(s.currentTribe) ? "impossible" : "hard";
+    store.state.difficulty = isPro(store.state.currentTribe) ? "impossible" : "hard";
     pending.shift()!();
   }
+  store.beginTurn = origBeginTurn;
 
   const s = game.state;
   if (s.phase !== "playing" && s.winner !== null) {

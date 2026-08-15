@@ -55,6 +55,23 @@ export interface SlotSummary {
 }
 
 /** Battle preview shown before committing an attack. */
+/**
+ * Flat stars per turn handed to an AI at each tier.
+ *
+ * Impossible has always drawn +0 on the principle that the top tier should win
+ * by playing better rather than by cheating — the achievement text even says
+ * "no cheats, no mercy". Worth keeping if it holds up; the knob exists so the
+ * ladder harness can measure whether it does.
+ */
+export const AI_INCOME_BONUS: Record<string, number> = {
+  easy: 0,
+  normal: 1,
+  hard: 2,
+  impossible: Number(
+    (typeof process !== "undefined" ? process.env?.SUNDER_IMPOSSIBLE_BONUS : undefined) ?? 0,
+  ),
+};
+
 export interface PendingAttack {
   attackerId: number;
   defenderId: number;
@@ -497,8 +514,7 @@ class GameStore {
     const s = this.state;
     const t = s.tribes[tribeIdx];
     if (t.isHuman) return 0;
-    // impossible plays with NO income cheat — it wins by playing better
-    return s.difficulty === "easy" ? 0 : s.difficulty === "normal" ? 1 : s.difficulty === "hard" ? 2 : 0;
+    return AI_INCOME_BONUS[s.difficulty] ?? 0;
   }
 
   /* ---------- v17 living map ---------- */

@@ -279,10 +279,13 @@ export function runProAiTurn(store: StoreLike, tribeIdx: number) {
     }
   }
 
+  // v48: cities already spoken for this turn, so two units do not walk to the
+  // same undefended village while a third sits idle
+  const grabbed = new Set<number>();
   // unit actions with threat awareness (freshest threat per unit is fine at this scale)
   for (const u of [...s.units.filter((q) => q.tribe === tribeIdx)]) {
     if (!s.units.includes(u)) continue;
-    proUnitAction(store, u, tribeIdx, target, buildThreatMap(s, tribeIdx));
+    proUnitAction(store, u, tribeIdx, target, buildThreatMap(s, tribeIdx), grabbed);
   }
 }
 
@@ -322,7 +325,27 @@ function trainArmy(store: StoreLike, tribeIdx: number) {
 
 /* -------------------------------- unit action -------------------------------- */
 
-function proUnitAction(store: StoreLike, u: Unit, tribeIdx: number, target: { x: number; y: number; cityId: number } | null, threat: Float32Array) {
+/**
+ * The nearest city this unit could simply walk into: neutral or enemy-held, but
+ * unwalled and with nobody standing on or beside it. Cities already claimed by
+ * a comrade this turn are skipped.
+ */
+function nearestGrab(s: GameState, tribeIdx: number, u: Unit, claimed: Set<number>) {
+  let best: { x: number; y: number; id: number } | null = null;
+  let bd = Infinity;
+  for (const c of s.cities) {
+    if (c.tribe === tribeIdx || claimed.has(c.id)) continue;
+    if (c.tribe !== null && atPeace(s, tribeIdx, c.tribe)) continue;
+    if (c.walls) continue; // walls are the task force's problem
+    const defended = s.units.some((q) => q.tribe !== tribeIdx && q.tribe >= 0 && cheb(q.x, q.y, c.x, c.y) <= 1);
+    if (defended) continue;
+    const d = cheb(u.x, u.y, c.x, c.y);
+    if (d < bd) { bd = d; best = { x: c.x, y: c.y, id: c.id }; }
+  }
+  return bd <= 7 ? best : null;
+}
+
+function proUnitAction(store: StoreLike, u: Unit, tribeIdx: number, target: { x: number; y: number; cityId: number } | null, threat: Float32Array, claimed: Set<number>) {
   const s = store.state;
   const st = UNIT_STATS[u.type];
 
@@ -425,6 +448,25 @@ function proUnitAction(store: StoreLike, u: Unit, tribeIdx: number, target: { x:
       return;
     }
     if (!garrisoned && iAmClosestDefensive) return; // hold the capital
+  }
+
+  // v48: expand on every front at once.
+  //
+  // The pro brain funnelled every unit at ONE shared war target, which is right
+  // for storming a defended capital and badly wrong for claiming four
+  // undefended villages: it took them one at a time while the standard brain,
+  // which scores every city per unit, took them in parallel. Measured over 200
+  // games with all four tiers in the same match, Impossible finished holding
+  // 1.6 cities to everyone else's 2.7 and won 15% of its games — the WORST tier
+  // on the ladder, below Easy. Undefended cities are now claimed by whichever
+  // unit is nearest; the task force is reserved for targets that need one.
+  if (!isHero) {
+    const grab = nearestGrab(s, tribeIdx, u, claimed);
+    if (grab) {
+      claimed.add(grab.id);
+      stepToward(store, u, grab.x, grab.y, threat, s);
+      return;
+    }
   }
 
   // task force rally: gather 2 tiles off the shared target, strike when 3+ ready
