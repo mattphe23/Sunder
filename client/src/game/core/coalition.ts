@@ -8,7 +8,7 @@
 //     strongest coalition member turns on its weakest partner — pacts of
 //     convenience end the moment convenience does.
 import { GameState } from "./types";
-import { strengthOf, atPeace } from "./diplomacy";
+import { strengthOf, atPeace, addGrudge } from "./diplomacy";
 
 /** transient, per-world-turn target claims: tribe -> cityId */
 const claims = new Map<number, { turn: number; cityId: number }>();
@@ -81,6 +81,11 @@ export function maybeBetray(s: GameState, tribeIdx: number): number | null {
     s.peaceUntil[tribeIdx][weakest.index] = s.turn;
     s.peaceUntil[weakest.index][tribeIdx] = s.turn;
   }
+  // v42: the victim remembers. This was the one place the AI could break a
+  // treaty and it recorded nothing, so `hasGrudge` was permanently false and
+  // every feature hanging off it — refused truces, refused tribute, gifts that
+  // buy back trust — was unreachable.
+  addGrudge(s, weakest.index, tribeIdx);
   s.log.unshift(`⚔ ${s.tribes[tribeIdx].name} betrayed ${weakest.name} — the pact is broken!`);
   return weakest.index;
 }

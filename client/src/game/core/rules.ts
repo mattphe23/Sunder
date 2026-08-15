@@ -291,15 +291,30 @@ export function reachableTiles(s: GameState, unit: Unit): { x: number; y: number
 }
 
 /** enemies attackable from current position */
-export function attackableUnits(s: GameState, unit: Unit): Unit[] {
+/** would striking `defender` tear up a standing peace treaty? */
+export function wouldBreakTreaty(s: GameState, attacker: Unit, defender: Unit): boolean {
+  if (attacker.tribe < 0 || defender.tribe < 0) return false;
+  return atPeace(s, attacker.tribe, defender.tribe);
+}
+
+/**
+ * Units this one may strike.
+ *
+ * `includeTreatyPartners` opens up targets protected by a peace treaty. It is
+ * off by default so every existing caller — the AI in particular — keeps
+ * honoring treaties automatically; the human's targeting layer opts in, and the
+ * attack itself then costs a permanent grudge. Before v42 the treaty filter was
+ * unconditional, which made a treaty an invulnerability wall nobody could ever
+ * break, and left the entire grudge/betrayal system unreachable.
+ */
+export function attackableUnits(s: GameState, unit: Unit, includeTreatyPartners = false): Unit[] {
   if (unit.attacked) return [];
   const stats = UNIT_STATS[unit.type];
   if (unit.moved && !stats.dash) return [];
   if (unit.boat) return []; // boats cannot attack (transport only)
   return s.units.filter((e) => {
     if (e.tribe === unit.tribe) return false;
-    // diplomacy: tribes at peace cannot attack each other
-    if (e.tribe >= 0 && unit.tribe >= 0 && (s.peaceUntil?.[unit.tribe]?.[e.tribe] ?? 0) > s.turn) return false;
+    if (!includeTreatyPartners && wouldBreakTreaty(s, unit, e)) return false;
     const d = Math.max(Math.abs(e.x - unit.x), Math.abs(e.y - unit.y));
     return d <= stats.range;
   });

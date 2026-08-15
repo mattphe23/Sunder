@@ -9,7 +9,7 @@ import {
   canBuildRoad, roadCost, connectedCityIds, severedCityIds,
 } from "../core/rules";
 import { Button } from "@/components/ui/button";
-import { Star, Swords, FlaskConical, X, ChevronRight, Anchor, Ship, Skull, Shield, Flag, Landmark, ScrollText, Undo2, Bird, Crown, Sparkles, SkipForward, Zap, Grid3x3, Route } from "lucide-react";
+import { Star, Swords, FlaskConical, X, ChevronRight, Anchor, Ship, Skull, Shield, Flag, Landmark, ScrollText, Undo2, Bird, Crown, Sparkles, SkipForward, Zap, Grid3x3, Route, Handshake } from "lucide-react";
 import { useState, useEffect } from "react";
 import { MuteButton } from "./MuteButton";
 import { sound } from "../sound";
@@ -113,6 +113,7 @@ export function TurnRecap() {
       case "cityLost": return <Flag className="h-3.5 w-3.5 text-red-400" />;
       case "ruin": return <Landmark className="h-3.5 w-3.5 text-cyan-300" />;
       case "fallen": return <Skull className="h-3.5 w-3.5 text-slate-400" />;
+      case "treatyBroken": return <Handshake className="h-3.5 w-3.5 text-red-400" />;
       default: return <ScrollText className="h-3.5 w-3.5 text-slate-400" />;
     }
   };
@@ -205,15 +206,26 @@ export function BattlePreview() {
           ))}
         </div>
       )}
+      {p.breaksTreaty && (
+        <div className="mb-2 flex items-start gap-2 rounded-md border border-red-400/40 bg-red-500/10 px-2.5 py-1.5">
+          <Handshake className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-300" />
+          <p className="text-[10px] leading-snug text-red-200">
+            <span className="font-bold">This breaks your treaty with {s.tribes[defender.tribe]?.name}.</span>{" "}
+            They will refuse every future truce and tribute for the rest of the match — only a gift of stars can buy back their trust.
+          </p>
+        </div>
+      )}
       <div className="flex gap-2">
         <Button size="sm" variant="secondary" className="min-h-[44px] flex-1 border border-white/10 bg-white/10 text-slate-200 hover:bg-white/20 sm:min-h-0" onClick={() => game.cancelAttack()}>
           Cancel
         </Button>
         <Button size="sm" className="min-h-[44px] flex-1 gap-1 bg-red-500 font-bold text-white hover:bg-red-400 sm:min-h-0" onClick={() => game.confirmAttack()}>
-          <Swords className="h-3.5 w-3.5" /> Attack
+          <Swords className="h-3.5 w-3.5" /> {p.breaksTreaty ? "Betray" : "Attack"}
         </Button>
       </div>
-      <p className="mt-1.5 text-center text-[10px] text-slate-400">Tip: click the target again to confirm</p>
+      <p className="mt-1.5 text-center text-[10px] text-slate-400">
+        {p.breaksTreaty ? "A broken treaty is remembered for the rest of the match" : "Tip: click the target again to confirm"}
+      </p>
     </div>
   );
 }

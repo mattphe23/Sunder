@@ -109,7 +109,9 @@ export default function GameCanvas() {
       if (selected && selected.tribe === s.humanTribe) {
         // attack? First click stages a preview; clicking the same target again confirms.
         if (clickedUnit && clickedUnit.tribe !== s.humanTribe) {
-          if (attackableUnits(s, selected).some((e2) => e2.id === clickedUnit.id)) {
+          // treaty partners are targetable: the preview panel warns that the
+          // strike breaks the treaty, and the second click is the commitment
+          if (attackableUnits(s, selected, true).some((e2) => e2.id === clickedUnit.id)) {
             const p = game.pendingAttack;
             if (p && p.attackerId === selected.id && p.defenderId === clickedUnit.id) {
               game.confirmAttack();

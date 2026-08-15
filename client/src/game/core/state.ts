@@ -11,7 +11,7 @@ import {
 } from "./types";
 import {
   reachableTiles, attackableUnits, previewCombat, combatModifiers, techCost, canResearch,
-  canHarvest, harvestCost, starIncome, tileAt, unitAt, cityAt, trainableUnits,
+  canHarvest, harvestCost, starIncome, tileAt, unitAt, cityAt, trainableUnits, wouldBreakTreaty,
   POP_PER_LEVEL, canBuildPort, portCost, wallCost, canBuild, atUnitCapacity,
   knockbackDestination, adjacencyPop, marketStars, canQuake, quakeVictims, quakeWallTargets, QUAKE_DAMAGE,
   canBuildRoad, roadCost, connectedCityIds, severedCityIds, scoreBreakdown, type ScoreParts,
@@ -65,6 +65,8 @@ export interface PendingAttack {
   dx: number;
   dy: number;
   modifiers: { text: string; side: "atk" | "def" }[];
+  /** this strike would tear up a standing peace treaty — the confirm step warns */
+  breaksTreaty?: boolean;
 }
 
 class GameStore {
@@ -675,7 +677,9 @@ class GameStore {
     const a = s.units.find((q) => q.id === attackerId);
     const d = s.units.find((q) => q.id === defenderId);
     if (!a || !d) return;
-    if (!attackableUnits(s, a).some((e) => e.id === defenderId)) return;
+    // treaty partners are stageable so the player can choose to betray — the
+    // confirmation step is where that choice is made explicit
+    if (!attackableUnits(s, a, true).some((e) => e.id === defenderId)) return;
     const r = previewCombat(s, a, d);
     this.pendingAttack = {
       attackerId, defenderId,
@@ -685,6 +689,7 @@ class GameStore {
       attackerDies: a.hp - r.damageToAttacker <= 0,
       dx: d.x, dy: d.y,
       modifiers: combatModifiers(s, a, d),
+      breaksTreaty: wouldBreakTreaty(s, a, d),
     };
     this.emit({ type: "changed" });
   }
@@ -905,6 +910,29 @@ class GameStore {
       this.recordReplay({ tribe: offer.to, kind: "diplo", text: `${s.tribes[offer.to].name} rejected ${s.tribes[offer.from].name}'s peace offer` });
     }
     this.emit({ type: "changed" });
+  }
+
+  /**
+   * v42: tear up a standing treaty. The victim remembers it for the rest of
+   * the match — `hasGrudge` makes them refuse every future peace offer and
+   * tribute demand from the offender, and only a gift of stars buys it back.
+   *
+   * Until now nothing in the game called `addGrudge`: peace hard-blocked
+   * attacks, so a treaty could never be broken and the whole betrayal loop
+   * (grudges, "they have not forgotten your betrayal", gift-to-forgive) was
+   * unreachable code. Batch games confirmed it — 0.00 grudges across 240
+   * matches.
+   */
+  breakTreaty(offender: number, victim: number) {
+    const s = this.state;
+    if (offender < 0 || victim < 0) return;
+    setPeace(s, offender, victim, 0); // symmetric — the truce is over both ways
+    addGrudge(s, victim, offender);
+    const oName = s.tribes[offender]?.name ?? "?";
+    const vName = s.tribes[victim]?.name ?? "?";
+    s.log.unshift(`${oName} broke the treaty with ${vName}!`);
+    this.recordRecap({ kind: "treatyBroken", text: `${oName} broke its treaty with ${vName}`, tribe: offender });
+    this.recordReplay({ tribe: offender, kind: "diplo", text: `${oName} broke the peace treaty with ${vName}` });
   }
 
   /** human gifts stars to an AI rival — clears a grudge and warms relations */
@@ -1157,7 +1185,11 @@ class GameStore {
     const d = s.units.find((q) => q.id === defenderId);
     this.lastMove = null;
     if (!a || !d) return;
-    if (!attackableUnits(s, a).some((e) => e.id === defenderId)) return;
+    if (!attackableUnits(s, a, true).some((e) => e.id === defenderId)) return;
+    // v42: a treaty is a promise you CAN break — at the cost of a permanent
+    // grudge. Resolve the diplomatic fallout before the blow lands, so the
+    // victim is already hostile when it retaliates.
+    if (wouldBreakTreaty(s, a, d)) this.breakTreaty(a.tribe, d.tribe);
     const result = previewCombat(s, a, d);
     const ax = a.x, ay = a.y, dxp = d.x, dyp = d.y;
     let dmgOut = result.damageToDefender;

@@ -372,7 +372,7 @@ export type Difficulty = "easy" | "normal" | "hard" | "impossible";
 
 /** One entry in the start-of-turn recap of what rivals did. */
 export interface RecapEntry {
-  kind: "combat" | "capture" | "cityLost" | "ruin" | "greatRuin" | "fallen";
+  kind: "combat" | "capture" | "cityLost" | "ruin" | "greatRuin" | "fallen" | "treatyBroken";
   text: string;
   /** tribe responsible (for color accents) */
   tribe: number;
