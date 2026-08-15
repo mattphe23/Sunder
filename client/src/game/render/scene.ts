@@ -734,7 +734,7 @@ export class BoardRenderer {
       const shoreMat = fogged ? this.foggedMat(this.bio.shore) : this.mat(this.bio.shore);
       // v34 coastal variation: sandy band + stepped rock ledge on cliff faces
       const sandMat = fogged ? this.foggedMat(this.bio.sand) : this.mat(this.bio.sand);
-      const ledgeHex = darken(darken(this.tileColor(s, t)));
+      const ledgeHex = darken(this.bio.soil, 0.78);
       const ledgeMat = fogged ? this.foggedMat(ledgeHex) : this.mat(ledgeHex);
       const dirs: [number, number, number][] = [[1, 0, 0], [-1, 0, Math.PI], [0, 1, Math.PI / 2], [0, -1, -Math.PI / 2]];
       for (const [dx, dy] of dirs) {

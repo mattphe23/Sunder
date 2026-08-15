@@ -537,6 +537,25 @@ below was checked against the actual codebase before being marked.
 - [x] Per-tribe v2 lineups from the remaining mockups (Kharzul horns, Auren arcs, Vessari hood,
       Mycelon cap) — see v44 below
 
+# v46 — App-Store-readiness pass: opening screen + board graphics
+- [x] Brand assets never break: procedural inline-SVG mark, chiseled wordmark and
+      floating-shard backdrop (Brand.tsx) with painted-art-when-available fallback —
+      the menu and loading splash previously showed broken images outside Manus hosting
+- [x] Per-biome terrain GEOMETRY (not just color): palm / pine / acacia / conifer tree
+      families, mesa / crag / classic mountain families
+- [x] Living sea: fish fins in ~45% of shallow tiles, bobbing motion, drifting wave
+      glints, slow cloud drift — all on one shared per-frame registry
+- [x] Fog reads as cloud cover: pale per-biome palette, four rounded puffs per tile with
+      shaded bellies (a new player's opening board is almost all fog — it is the first
+      thing anyone sees)
+- [x] Settlement ownership softened: thin deepened kerb + bright corner posts instead of
+      a saturated frame that read as a UI selection box
+- [x] Turf-over-earth cliff faces per biome — the board reads as a floating slab of world
+- [x] perf: freeze static board world matrices + materials (water excluded so shimmer
+      still animates); ~650 active meshes no longer recompute every frame
+- [ ] Follow-up: merge static decor per material to cut draw calls further (mobile)
+- [ ] Follow-up: unit/combat feedback juice; per-biome city architecture
+
 # v45 — Reconciliation: designer-locked v3 character system + biome maps
 - [x] Two parallel character implementations existed: the Manus-side v43/v44 checkpoints
       (built on the v2 warrior) and the externally reviewed claude/nerivane-warrior-v3
