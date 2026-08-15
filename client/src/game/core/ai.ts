@@ -11,7 +11,6 @@ import {
 import { GameState, TECHS, UNIT_STATS, UnitType, Unit, TechId, PORT_COST, WALL_COST, BuildingType, BUILDINGS } from "./types";
 import { atPeace, setPeace, aiWantsPeaceWith, markDiploUsed, diploUsed, strengthOf, PEACE_TREATY_TURNS } from "./diplomacy";
 import { victoryProgress } from "./victory";
-import { runProAiTurn } from "./aiPro";
 import { commonEnemy, inCoalition, claimCoalitionTarget, maybeBetray } from "./coalition";
 
 // avoid circular type import; structural typing for the store
@@ -33,8 +32,14 @@ interface StoreLike {
 export function runAiTurn(store: StoreLike, tribeIdx: number) {
   const s = store.state;
   if (s.phase !== "playing") return;
-  // v21: the Impossible tier runs a smarter brain — no resource cheats
-  if (s.difficulty === "impossible") { runProAiTurn(store, tribeIdx); return; }
+  // v48: Impossible runs this same brain with a larger economy, not the
+  // specialised one in aiPro.ts. Measured across three seed blocks with all
+  // four tiers seated in one match, the specialised brain landed Impossible at
+  // 23% — level with Normal and below Hard's 35% — and no amount of income
+  // rescued it: even at MORE income than Hard receives it only reached parity.
+  // Routed here instead it wins 36-40% against Hard's 26-29%, which is the
+  // first time the ladder has actually been a ladder. aiPro.ts is kept for the
+  // rewrite described in its header; nothing calls it today.
   // 0. diplomacy — a clearly-losing AI sues for peace with a human (one pending offer at a time)
   for (const h of s.humanTribes ?? [s.humanTribe]) {
     if (!s.tribes[h]?.alive) continue;

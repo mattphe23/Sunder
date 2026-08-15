@@ -26,7 +26,7 @@ function mulberry32(a: number) {
   };
 }
 
-import { game } from "../client/src/game/core/state";
+import { game, AI_INCOME_BONUS } from "../client/src/game/core/state";
 import { runAiTurn } from "../client/src/game/core/ai";
 
 interface SimResult { turns: number; phase: string; winner: number | null; winPath: string | null; heroesSurvived: number }
@@ -141,7 +141,9 @@ describe("v20 headless AI-vs-AI simulation", () => {
     expect(advancedWhileWounded).toBe(0);
   });
 
-  it("Impossible brain (aiPro) plays full matches to completion without throwing", () => {
+  // v48: Impossible routes through the standard brain now (aiPro.ts is parked),
+  // but the tier must still drive a match to a result.
+  it("Impossible plays full matches to completion without throwing", () => {
     for (const seed of [5, 17]) {
       const r = simulate(seed, "impossible");
       expect(r.phase).toBe("gameover");
@@ -156,5 +158,37 @@ describe("v20 headless AI-vs-AI simulation", () => {
     // competitive — a weak sanity proxy that the brain isn't broken.
     const r = simulate(9, "impossible");
     expect(r.phase).toBe("gameover");
+  });
+});
+
+describe("v48 the difficulty ladder climbs", () => {
+  // It did not, for a long time. Impossible ran a specialised brain on no
+  // income bonus and finished level with Normal, below Hard — the top tier was
+  // the weakest opponent in the game. The full measurement lives in
+  // scripts/ai-ladder.mts (all four tiers seated in one match, 240 games);
+  // these are the invariants that keep it from silently inverting again.
+  it("pays a strictly larger economy at every step up", () => {
+    expect(AI_INCOME_BONUS.easy).toBeLessThan(AI_INCOME_BONUS.normal);
+    expect(AI_INCOME_BONUS.normal).toBeLessThan(AI_INCOME_BONUS.hard);
+    expect(AI_INCOME_BONUS.hard).toBeLessThan(AI_INCOME_BONUS.impossible);
+  });
+
+  it("never pays the bonus to the human, at any tier", () => {
+    // The human's turn income also carries v40's staggered-start compensation,
+    // so the invariant is not "gain equals starIncome" — it is that the gain is
+    // identical across tiers, i.e. the difficulty bonus never reaches the human.
+    const gains = new Set<number>();
+    for (const d of ["easy", "normal", "hard", "impossible"] as const) {
+      game.newGame({ size: 9, humanTribe: 0, difficulty: d, seed: 4800, roster: [0, 1, 2, 3] });
+      const s = game.state;
+      expect(s.tribes[0].isHuman).toBe(true);
+      s.turnOrder = [0, 1, 2, 3];
+      s.orderPos = 0;
+      const before = s.tribes[0].stars;
+      game.beginTurn(0);
+      gains.add(s.tribes[0].stars - before);
+    }
+    expect(gains.size).toBe(1);
+    expect([...gains][0]).toBeGreaterThan(0);
   });
 });

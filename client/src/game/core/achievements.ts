@@ -60,7 +60,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   },
   {
     id: "impossible-win", name: "The Unmaker", icon: "skull",
-    desc: "Win a game on Impossible difficulty — no cheats, no mercy.",
+    desc: "Win a game on Impossible difficulty — outplay a rival who outspends you.",
     check: (s) => s.difficulty === "impossible",
   },
 ];

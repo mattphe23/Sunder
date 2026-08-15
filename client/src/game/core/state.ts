@@ -58,17 +58,18 @@ export interface SlotSummary {
 /**
  * Flat stars per turn handed to an AI at each tier.
  *
- * Impossible has always drawn +0 on the principle that the top tier should win
- * by playing better rather than by cheating — the achievement text even says
- * "no cheats, no mercy". Worth keeping if it holds up; the knob exists so the
- * ladder harness can measure whether it does.
+ * The knob exists so scripts/ai-ladder.mts can sweep these without a rebuild.
  */
 export const AI_INCOME_BONUS: Record<string, number> = {
   easy: 0,
   normal: 1,
   hard: 2,
+  // v48: 0 -> 3. Impossible used to draw NO bonus on the principle that the top
+  // tier should win by playing better. It did not: it finished level with
+  // Normal. It now runs the standard brain with the largest economy on the
+  // ladder, which is the honest version of "hardest".
   impossible: Number(
-    (typeof process !== "undefined" ? process.env?.SUNDER_IMPOSSIBLE_BONUS : undefined) ?? 0,
+    (typeof process !== "undefined" ? process.env?.SUNDER_IMPOSSIBLE_BONUS : undefined) ?? 3,
   ),
 };
 

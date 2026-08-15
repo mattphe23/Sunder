@@ -1,5 +1,30 @@
-// Sunder v21 — the "Impossible" AI brain. No resource cheats: it wins by
-// playing better. Built on four pillars:
+// Sunder — the specialised AI brain. PARKED as of v48: nothing calls this.
+//
+// It was the Impossible tier's brain, on the principle that the top difficulty
+// should win by playing better rather than by being handed resources. Measured
+// with all four tiers seated in one match over three seed blocks, it did not:
+// Impossible finished at 23%, level with Normal and below Hard's 35%, holding
+// 2.2 cities where the other tiers held ~2.6. Income did not rescue it either —
+// given MORE income than Hard receives it still only reached parity. Impossible
+// now runs the standard brain with the largest economy on the ladder.
+//
+// This file is kept because the diagnosis points at one part, not the whole.
+// The threat map, the retreat rule and the hero-risk model are good and have no
+// equivalent in the standard brain. What loses games is the TARGETING doctrine:
+// a single shared war target per tribe, which is right for storming a defended
+// capital and wrong for claiming four undefended villages — it takes them one
+// at a time while the standard brain, which scores every city per unit, takes
+// them in parallel. v47 and v48 chipped at that (free captures, army-first
+// spending, parallel grabs for undefended cities) and moved it from 15% to 23%,
+// which was not enough.
+//
+// The rewrite worth doing is the other direction: keep the standard brain's
+// expansion behaviour and layer this file's threat awareness on top, rather
+// than keeping this file's doctrine and trying to bolt expansion onto it.
+//
+// Original design notes follow.
+//
+// Built on four pillars:
 //   1. Threat map — enemy reach & max damage per tile; units refuse bad fights
 //      and retreat when standing in lethal squares.
 //   2. Task forces — attackers rally near a shared target city and strike

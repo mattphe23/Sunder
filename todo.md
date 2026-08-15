@@ -90,6 +90,30 @@ below was checked against the actual codebase before being marked.
       material. Cutting further means merging across tiles, which costs exact picking.
 - [ ] OPEN: never profiled on real mobile silicon — SwiftShader frame times say nothing about a phone.
 
+## v48 — the difficulty ladder
+- [x] CORRECTION: v47's "impossible now wins 61/39" was wrong. The duel harness retargeted the
+      global difficulty only when a queued turn ran, but income is paid inside beginTurn, which
+      fires at the TAIL of the previous seat's turn — so every seat drew the other brain's bonus
+      and the pro brain got a ~50-star head start. Correctly measured it loses 42/59. The
+      published gameplay-audit artifact has been revised.
+- [x] scripts/ai-ladder.mts seats all four tiers in one match and rotates the mapping. (First
+      version keyed tier and roster to the same counter, locking each tier to a fixed subset of
+      tribes — decorrelated before any of it was trusted.)
+- [x] Measured: easy 20% / normal 23% / hard 35% / impossible 23%. The top tier sat level with
+      Normal and held 2.2 cities to everyone else's ~2.6.
+- [x] Fixed one real cause in the pro brain: it funnelled every unit at a single shared war
+      target, so it claimed undefended villages one at a time while the standard brain took them
+      in parallel. Undefended cities are now grabbed by whoever is nearest. Cities 1.6 → 2.2.
+- [x] Not enough, and income does not rescue it: at MORE income than hard receives the pro brain
+      only reaches parity. DECISION (user): retire it. Impossible now runs the standard brain at
+      +3 income. aiPro.ts is parked with a header explaining the diagnosis.
+- [x] Ladder is now monotonic: 14% / 23% / 27% / 36%, a 22-point spread. Regression tests pin
+      the bonus ordering and that no tier ever pays the bonus to the human.
+- [x] Achievement text no longer claims "no cheats, no mercy" — it did not survive contact.
+- [ ] FUTURE PROJECT: rebuild the specialised brain the other way round — keep the standard
+      brain's expansion behaviour and layer aiPro's threat map, retreat rule and hero-risk model
+      on top, rather than bolting expansion onto aiPro's task-force doctrine.
+
 ## Reports
 - [x] Gameplay audit published as an artifact (320-game batch, before/after per system)
 - [x] Monetization thesis published as an artifact — free download, single $6.99 unlock,
