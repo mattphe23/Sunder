@@ -99,7 +99,7 @@ export function Minimap() {
   if (s.phase === "menu") return null;
 
   return (
-    <div className="pointer-events-auto absolute right-3 top-14 z-20">
+    <div className="safe-t-offset pointer-events-auto absolute right-3 z-20">
       {open ? (
         <div className="rounded-xl border border-white/10 bg-[#1b1b3f]/85 p-2 shadow-xl shadow-black/40 backdrop-blur-md">
           <div className="mb-1 flex items-center justify-between">
@@ -113,7 +113,7 @@ export function Minimap() {
       ) : (
         <button
           onClick={() => setOpen(true)}
-          className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-[#1b1b3f]/85 px-3 py-2 text-xs text-slate-200 shadow-xl shadow-black/40 backdrop-blur-md hover:bg-[#2a2a55]"
+          className="flex min-h-[44px] min-w-[44px] items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-[#1b1b3f]/85 px-3 py-2 text-xs text-slate-200 shadow-xl shadow-black/40 backdrop-blur-md hover:bg-[#2a2a55]"
         >
           <MapIcon className="h-4 w-4 text-cyan-300" /> Map
         </button>

@@ -139,6 +139,30 @@
 
 @layer components {
   /**
+   * iOS safe areas.
+   *
+   * The App Store build is a web view running full-bleed: index.html asks for
+   * viewport-fit=cover and the status bar is black-translucent, so the page
+   * genuinely extends under the Dynamic Island and the home indicator. Without
+   * these the turn/stars readout sits under the notch and the End Turn button
+   * sits under the home bar, where iOS steals the swipe.
+   *
+   * env() resolves to 0 everywhere that has no inset (desktop, Android, older
+   * phones), so these are safe to apply unconditionally. max() keeps the
+   * existing padding as a floor rather than replacing it.
+   */
+  .safe-t { padding-top: max(0.75rem, env(safe-area-inset-top)); }
+  .safe-b { padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
+  .safe-x {
+    padding-left: max(0.75rem, env(safe-area-inset-left));
+    padding-right: max(0.75rem, env(safe-area-inset-right));
+  }
+  /** for panels anchored above the bottom bar, so they clear the home indicator */
+  .safe-b-offset { bottom: calc(4rem + env(safe-area-inset-bottom)); }
+  /** for panels anchored below the top bar, so they clear the notch */
+  .safe-t-offset { top: calc(3.5rem + env(safe-area-inset-top)); }
+
+  /**
    * Custom container utility that centers content and adds responsive padding.
    *
    * This overrides Tailwind's default container behavior to:

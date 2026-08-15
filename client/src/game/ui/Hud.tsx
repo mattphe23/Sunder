@@ -160,7 +160,7 @@ export function BattlePreview() {
   const aStats = UNIT_STATS[attacker.type];
   const dStats = UNIT_STATS[defender.type];
   return (
-    <div className={`${panel} absolute bottom-16 left-1/2 z-30 w-72 -translate-x-1/2 border-red-400/30 p-3`}>
+    <div className={`${panel} safe-b-offset absolute left-1/2 z-30 w-72 -translate-x-1/2 border-red-400/30 p-3`}>
       <div className="mb-2 flex items-center justify-between">
         <span className="flex items-center gap-1.5 font-display text-sm font-bold text-red-300">
           <Swords className="h-4 w-4" /> Battle Preview
@@ -245,10 +245,10 @@ export function TopBar() {
   const parBlown = mission ? s.turn > mission.parTurns : false;
   const cityLost = mission ? (s.stats?.[s.humanTribe]?.citiesLost ?? 0) > 0 : false;
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-2 p-3">
-      <div className={`${panel} pointer-events-auto flex items-center gap-3 px-4 py-2`}>
+    <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-2 p-3 safe-t safe-x">
+      <div className={`${panel} pointer-events-auto flex min-w-0 shrink items-center gap-2 whitespace-nowrap px-3 py-2 sm:gap-3 sm:px-4`}>
         <span className="h-3 w-3 rounded-full" style={{ background: me.color }} />
-        <span className="font-display text-sm font-bold tracking-wide">{me.name}</span>
+        <span className="truncate font-display text-sm font-bold tracking-wide">{me.name}</span>
         <span className="flex items-center gap-1 text-amber-300">
           <Star className="h-4 w-4 fill-amber-300" />
           <span className="font-mono text-sm">{me.stars}</span>
@@ -257,7 +257,7 @@ export function TopBar() {
             <span className="ml-1 rounded bg-red-500/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-300" title="An enemy stands on one of your cities — it produces no stars">Siege</span>
           )}
         </span>
-        <span className="text-xs text-slate-300/80">Turn {s.turn + 1}/{s.maxTurns}</span>
+        <span className="shrink-0 text-xs text-slate-300/80">Turn {s.turn + 1}/{s.maxTurns}</span>
         {mission && (
           <span
             className={`hidden items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold sm:flex ${parBlown ? "border-white/15 bg-white/5 text-slate-400" : "border-amber-400/40 bg-amber-400/10 text-amber-200"}`}
@@ -282,8 +282,8 @@ export function TopBar() {
           </span>
         )}
       </div>
-      <div className="flex items-center gap-2">
-        <div className={`${panel} pointer-events-auto px-4 py-2 text-xs`}>
+      <div className="flex shrink-0 items-center gap-2">
+        <div className={`${panel} pointer-events-auto hidden px-4 py-2 text-xs sm:block`}>
           {s.aiThinking || !isMyTurn ? (
             <span className="animate-pulse text-slate-300">
               {s.tribes[s.currentTribe]?.name} is thinking…
@@ -334,48 +334,50 @@ export function BottomBar({ onOpenTech, onOpenDiplo }: { onOpenTech: () => void;
     g.endTurn();
   };
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-end justify-between gap-2 p-3" style={{ touchAction: "manipulation" }}>
-      <div className="pointer-events-auto flex gap-2">
-        <Button variant="secondary" size="sm" className="min-h-[44px] gap-1.5 border border-white/10 bg-[#1b1b3f]/85 px-4 text-slate-100 backdrop-blur-md hover:bg-[#2a2a55] sm:min-h-0 sm:px-3" onClick={onOpenTech}>
-          <FlaskConical className="h-4 w-4 text-cyan-300" /> Research
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-end justify-between gap-2 p-3 safe-b safe-x" style={{ touchAction: "manipulation" }}>
+      {/* min-w-0 lets this row shrink instead of pushing End Turn off the screen
+          on a phone; labels collapse to icons below sm so the controls still fit */}
+      <div className="pointer-events-auto flex min-w-0 shrink gap-2 overflow-x-auto">
+        <Button variant="secondary" size="sm" className="min-h-[44px] min-w-[44px] shrink-0 gap-1.5 border border-white/10 bg-[#1b1b3f]/85 px-3 text-slate-100 backdrop-blur-md hover:bg-[#2a2a55] sm:min-h-0" onClick={onOpenTech} title="Research">
+          <FlaskConical className="h-4 w-4 text-cyan-300" /> <span className="hidden sm:inline">Research</span>
         </Button>
-        <Button variant="secondary" size="sm" className="min-h-[44px] gap-1.5 border border-white/10 bg-[#1b1b3f]/85 px-4 text-slate-100 backdrop-blur-md hover:bg-[#2a2a55] sm:min-h-0 sm:px-3" onClick={() => { sound.play("click"); onOpenDiplo(); }}>
-          <Bird className="h-4 w-4 text-sky-300" /> Diplomacy
+        <Button variant="secondary" size="sm" className="min-h-[44px] min-w-[44px] shrink-0 gap-1.5 border border-white/10 bg-[#1b1b3f]/85 px-3 text-slate-100 backdrop-blur-md hover:bg-[#2a2a55] sm:min-h-0" onClick={() => { sound.play("click"); onOpenDiplo(); }} title="Diplomacy">
+          <Bird className="h-4 w-4 text-sky-300" /> <span className="hidden sm:inline">Diplomacy</span>
         </Button>
         <Button
           variant="secondary"
           size="sm"
-          className={`min-h-[44px] gap-1.5 border px-4 backdrop-blur-md sm:min-h-0 sm:px-3 ${s.plannerOpen ? "border-emerald-400/60 bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30" : "border-white/10 bg-[#1b1b3f]/85 text-slate-100 hover:bg-[#2a2a55]"}`}
+          className={`min-h-[44px] min-w-[44px] shrink-0 gap-1.5 border px-3 backdrop-blur-md sm:min-h-0 ${s.plannerOpen ? "border-emerald-400/60 bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30" : "border-white/10 bg-[#1b1b3f]/85 text-slate-100 hover:bg-[#2a2a55]"}`}
           onClick={() => { sound.play("click"); g.togglePlanner(); }}
           title="City planner — overlay projected building values on every buildable tile"
         >
-          <Grid3x3 className="h-4 w-4 text-emerald-300" /> Planner
+          <Grid3x3 className="h-4 w-4 text-emerald-300" /> <span className="hidden sm:inline">Planner</span>
         </Button>
         {game.canUndo() && (
           <Button
             variant="secondary"
             size="sm"
-            className="min-h-[44px] gap-1.5 border border-sky-400/40 bg-[#1b1b3f]/85 px-4 text-sky-200 backdrop-blur-md hover:bg-[#2a2a55] sm:min-h-0 sm:px-3"
+            className="min-h-[44px] min-w-[44px] shrink-0 gap-1.5 border border-sky-400/40 bg-[#1b1b3f]/85 px-3 text-sky-200 backdrop-blur-md hover:bg-[#2a2a55] sm:min-h-0"
             onClick={() => game.undoMove()}
             title="Undo the last move (before attacking or ending the turn)"
           >
-            <Undo2 className="h-4 w-4" /> Undo
+            <Undo2 className="h-4 w-4" /> <span className="hidden sm:inline">Undo</span>
           </Button>
         )}
         {isMyTurn && movesLeft > 0 && (
           <Button
             variant="secondary"
             size="sm"
-            className="min-h-[44px] gap-1.5 border border-emerald-400/40 bg-[#1b1b3f]/85 px-4 text-emerald-200 backdrop-blur-md hover:bg-[#2a2a55] sm:min-h-0 sm:px-3"
+            className="min-h-[44px] min-w-[44px] shrink-0 gap-1.5 border border-emerald-400/40 bg-[#1b1b3f]/85 px-3 text-emerald-200 backdrop-blur-md hover:bg-[#2a2a55] sm:min-h-0"
             onClick={() => { sound.play("click"); game.nextUnit(); }}
             title="Cycle to the next unit that can still act (Tab / N)"
           >
-            <SkipForward className="h-4 w-4" /> Next
+            <SkipForward className="h-4 w-4" /> <span className="hidden sm:inline">Next</span>
             <span className="ml-0.5 rounded-full bg-emerald-400/20 px-1.5 text-[11px] font-bold text-emerald-300">{movesLeft}</span>
           </Button>
         )}
       </div>
-      <div className="pointer-events-auto flex flex-col items-end gap-1.5">
+      <div className="pointer-events-auto flex shrink-0 flex-col items-end gap-1.5">
         {nudged && movesLeft > 0 && (
           <div className="rounded-md border border-amber-400/40 bg-[#1b1b3f]/90 px-2.5 py-1 text-[11px] font-semibold text-amber-200 backdrop-blur-md">
             {movesLeft} unit{movesLeft === 1 ? "" : "s"} can still act — tap again to end
@@ -408,7 +410,7 @@ export function SelectionPanel() {
     const isHero = !!unit.hero;
     const xpNeed = isHero && (unit.level ?? 1) < HERO_MAX_LEVEL ? HERO_XP_THRESHOLDS[(unit.level ?? 1) - 1] : null;
     return (
-      <div className={`${panel} absolute bottom-16 left-3 z-20 w-60 p-3`}>
+      <div className={`${panel} safe-b-offset absolute left-3 z-20 w-60 p-3`}>
         <div className="mb-1 flex items-center justify-between">
           <span className="flex items-center gap-1.5 font-display text-sm font-bold">
             {unit.boat && <Ship className="h-4 w-4 text-cyan-300" />}
@@ -512,7 +514,7 @@ export function SelectionPanel() {
       sites: s.tiles.filter((t) => t.ownerCityId === city.id && canBuild(s, s.humanTribe, t, b)),
     })).filter((e) => e.sites.length > 0);
     return (
-      <div className={`${panel} absolute bottom-16 left-3 z-20 w-64 p-3`}>
+      <div className={`${panel} safe-b-offset absolute left-3 z-20 w-64 p-3`}>
         <div className="mb-1 flex items-center justify-between">
           <span className="font-display text-sm font-bold">
             {city.name} {city.isCapital && <span className="text-amber-300">★</span>}

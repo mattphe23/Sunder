@@ -202,7 +202,11 @@ export class BoardRenderer {
     // board centre is the origin, so scaling the capital offset pulls toward it
     const PULL = 0.45;
     this.camera.target = new Vector3((cap.x - c) * (1 - PULL), 0, (cap.y - c) * (1 - PULL));
-    this.camera.radius = 13;
+    // A phone held upright is a tall, narrow window: the same radius that frames
+    // the board on a laptop leaves most of a portrait screen as sky and cloud.
+    // Pull in as the viewport narrows.
+    const aspect = this.engine.getAspectRatio(this.camera) || 1.6;
+    this.camera.radius = aspect < 0.75 ? 9.5 : aspect < 1.1 ? 11 : 13;
   }
 
   private setupCameraLights(canvas: HTMLCanvasElement) {
