@@ -71,6 +71,9 @@ export interface PendingAttack {
 
 class GameStore {
   state: GameState = emptyState();
+  /** last game turn whose round-start hooks (world phase, score snapshot,
+   *  victory check) have run — keyed to the round, not to any tribe slot */
+  private roundOpened = -1;
   /** Non-persisted UI state: attack awaiting confirmation. */
   pendingAttack: PendingAttack | null = null;
   /** Which of the three save slots is active. Slot 1 maps to the legacy key. */
@@ -158,6 +161,8 @@ class GameStore {
       if (s.handoff !== null && s.handoff !== undefined && s.handoff === myTribe) s.handoff = null;
       this.state = s;
       this.pendingAttack = null;
+      // this round's hooks already ran before the state was serialized
+      this.roundOpened = s.turn;
       this.emit({ type: "changed" });
       return true;
     } catch {
@@ -222,6 +227,8 @@ class GameStore {
       s.aiThinking = false;
       this.state = s;
       this.pendingAttack = null;
+      // this round's hooks already ran before the save was written
+      this.roundOpened = s.turn;
       this.emit({ type: "changed" });
       // if the save happened mid-AI-round, resume AI turns
       if (s.currentTribe !== s.humanTribe) {
@@ -344,6 +351,7 @@ class GameStore {
     this.state.heroFallen = null;
     this.state.campsRazedByHuman = 0;
     this.state.winPath = null;
+    this.roundOpened = -1; // a fresh match must run its first round's hooks
     this.exploreAround();
     this.beginTurn(this.state.turnOrder[0]);
     // v41: with randomized opening order the first actor may be an AI —
@@ -397,10 +405,16 @@ class GameStore {
       s.recap = []; // recaps are cross-player info leaks in hot-seat
       s.showRecap = false;
     }
-    // score history: snapshot all tribes once per game round (v41: keyed to the
-    // FIRST ACTOR of the shuffled round order, not tribe index 0)
-    const roundStart = s.turnOrder ? (s.orderPos ?? 0) === 0 && s.turnOrder[0] === tribeIdx : tribeIdx === 0;
+    // score history: snapshot all tribes once per game round.
+    //
+    // v41 keyed this to the first actor of the shuffled round order rather than
+    // tribe index 0. v42 keys it to the ROUND rather than to any particular
+    // tribe: once eliminated tribes are skipped, the first slot of a round is
+    // often dead, and matching on "is this the tribe in slot 0" silently
+    // dropped that round's world events, score snapshot and victory check.
+    const roundStart = this.roundOpened !== s.turn;
     if (roundStart) {
+      this.roundOpened = s.turn;
       for (const t of s.tribes) this.updateScore(t.index);
       s.scoreHistory[s.turn] = s.tribes.map((t) => (t.alive ? t.score : 0));
       this.recordReplay({ tribe: 0, kind: "turn", text: `Turn ${s.turn + 1} begins` });
@@ -542,18 +556,41 @@ class GameStore {
       s.turnOrder = s.tribes.map((_, i) => i);
       s.orderPos = s.turnOrder.indexOf(s.currentTribe);
     }
-    let pos = (s.orderPos ?? s.turnOrder.indexOf(s.currentTribe)) + 1;
-    if (pos >= s.turnOrder.length) {
-      s.turn++;
-      if (s.turn >= s.maxTurns) { this.endByScore(); return; }
-      s.turnOrder = this.rollTurnOrder(s.turn);
-      pos = 0;
+    // v42: skip eliminated tribes ITERATIVELY.
+    //
+    // This used to advance one slot, call beginTurn(next), and then decide
+    // whether to schedule an AI turn by looking at `next`. But beginTurn
+    // re-entered nextTribe when `next` was dead, so after the nested call
+    // returned, the tribe actually on turn was no longer `next` — and the
+    // scheduling check, still reading the dead `next`, declined to queue
+    // anything. The AI chain simply stopped and the match hung. It needed a
+    // tribe to die on exactly the wrong slot, so it showed up as ~0.6% of
+    // batch games stalling out short of a result.
+    let next = -1;
+    for (let guard = 0; guard <= s.turnOrder.length; guard++) {
+      let pos = (s.orderPos ?? s.turnOrder.indexOf(s.currentTribe)) + 1;
+      if (pos >= s.turnOrder.length) {
+        s.turn++;
+        if (s.turn >= s.maxTurns) { this.endByScore(); return; }
+        s.turnOrder = this.rollTurnOrder(s.turn);
+        pos = 0;
+      }
+      s.orderPos = pos;
+      next = s.turnOrder[pos];
+      if (s.tribes[next]?.alive) break;
+      s.currentTribe = next; // keep the cursor consistent while skipping the dead
+      next = -1;
     }
-    s.orderPos = pos;
-    const next = s.turnOrder[pos];
+    if (next < 0) { this.endByScore(); return; } // nobody left standing
     this.beginTurn(next);
+    if (s.phase !== "playing") return;
+    // A tribe can die inside its OWN beginTurn: the round-start world phase
+    // runs there, so a barbarian raid or a storm can take its last holding
+    // before it ever acts. The scheduling check below would then find a dead
+    // tribe, queue nothing, and hang the match — pass the turn along instead.
+    if (!s.tribes[next].alive) { this.nextTribe(); return; }
     const tribe = s.tribes[next];
-    if (!tribe.isHuman && tribe.alive && s.phase === "playing") {
+    if (!tribe.isHuman) {
       s.aiThinking = true;
       this.emit({ type: "changed" });
       // v29 QoL: Polytopia complaint — waiting on AI turns drags the pace.

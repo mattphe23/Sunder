@@ -23,10 +23,19 @@ export interface VictoryPathDef {
 const knob = (name: string, fallback: number) =>
   Number((typeof process !== "undefined" ? process.env?.[name] : undefined) ?? fallback);
 
-/** cumulative stars Vessari must loot from rivals to claim Plunder King.
- *  Raiders take 2★ per kill and Vessari plunders ~6★ per game, so this is
- *  about five successful raids. Swept over 8 / 10 / 12 / 14 / 18 / 24 / 30. */
-export const PLUNDER_TARGET = knob("SUNDER_PLUNDER_TARGET", 10);
+/**
+ * Cumulative stars Vessari must loot from rivals to claim Plunder King.
+ * Raiders take 2★ per kill, so this is three successful raids.
+ *
+ * Swept over 6 / 8 / 10 / 12 / 14 / 18 / 24 / 30. This is set low because
+ * Vessari's throughput is genuinely poor and the cause is upstream of the
+ * target: the Raider loots min(2, victim.stars), and sampling every treasury
+ * on the board across 40 matches found rivals sitting on 0 stars 22% of the
+ * time and 1 star another 15%, so the signature perk quietly pays nothing or
+ * half in over a third of its kills. Vessari remains the weakest tribe
+ * (~18%); fixing that properly means changing the perk, not the goal line.
+ */
+export const PLUNDER_TARGET = knob("SUNDER_PLUNDER_TARGET", 6);
 /** battles Kharzul must win for Bloodforge (was 18) */
 export const BLOODFORGE_TARGET = knob("SUNDER_BLOODFORGE_TARGET", 22);
 /** total city levels Sunwei must hold for Great Harvest (was 12) */
