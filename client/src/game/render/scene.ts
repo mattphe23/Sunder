@@ -51,6 +51,7 @@ import "@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent";
 import { GameState, Tile, Unit, idx } from "../core/types";
 import { game } from "../core/state";
 import { reachableTiles, attackableUnits, cityAt, isVisibleTo, plannerSites, tradeRouteTiles, raidedRoadTiles } from "../core/rules";
+import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import { PALETTE, darken, biomeFor, BiomePalette } from "./palette";
 
 const TILE = 1.02;
@@ -195,9 +196,11 @@ export class BoardRenderer {
     hemi.intensity = 0.62;
     hemi.diffuse = Color3.FromHexString("#ffffff");
     hemi.groundColor = Color3.FromHexString("#6f6a90");
+    hemi.specular = Color3.Black();
     const sun = new DirectionalLight("sun", new Vector3(-0.55, -1, 0.42), this.scene);
     sun.intensity = 0.72;
     sun.diffuse = Color3.FromHexString("#fff3e0");
+    sun.specular = Color3.Black();
     sun.position = new Vector3(8, 14, -6);
     // Stage 1: no shadow generator — Polytopia-style flat boards get depth
     // from palette value steps, not shadow maps. Blob shadows land in Stage 3.
@@ -301,14 +304,21 @@ export class BoardRenderer {
       m.diffuseColor = base.scale(0.62);
       m.specularColor = Color3.Black();
       m.disableLighting = false;
+      m.maxSimultaneousLights = 2; // key + fill only: smaller shader on mobile
       this.mats.set(key, m);
     }
     return m;
   }
 
-  /** give a prop crisp per-face normals so its facets read as carved */
+  /**
+   * Crisp per-face shading. Babylon's default fragment shader computes a
+   * geometric normal from screen-space derivatives whenever the NORMAL
+   * attribute is absent, so dropping normals gives exact flat shading with
+   * NO vertex duplication — convertToFlatShadedMesh() un-indexes the mesh and
+   * inflated our vertex count ~4.5x for the same picture.
+   */
   private facet(m: Mesh) {
-    (m as unknown as { convertToFlatShadedMesh?: () => void }).convertToFlatShadedMesh?.();
+    m.removeVerticesData(VertexBuffer.NormalKind);
   }
 
   /** fog-of-war variant of a tile color: desaturated and washed toward deep indigo */
@@ -736,25 +746,34 @@ export class BoardRenderer {
       [(j2 - 0.2) * 0.3, (0.42 - j) * 0.34, 0.22 + j3 * 0.07, 0.03],
       [(j3 - 0.5) * 0.4, (j2 - 0.6) * 0.3, 0.18 + j * 0.05, -0.02],
     ];
+    // Fog covers most of the board early, so this is the heaviest thing the
+    // renderer draws. Build the puffs, then MERGE them per tile per material:
+    // 8 meshes/tile becomes 2, which is the difference between ~750 and ~190
+    // draw calls on an opening board.
+    const tops: Mesh[] = [];
+    const bellies: Mesh[] = [];
     for (const [ox, oz, r, lift] of puffs) {
       const puff = MeshBuilder.CreateIcoSphere("cloud", { radius: r, subdivisions: 2 }, this.scene);
       puff.position = new Vector3(t.x - c + ox, -0.2 + r * 0.4 + lift, t.y - c + oz);
       puff.scaling.y = 0.58;
-      puff.material = this.mat(this.bio.cloud);
-      puff.metadata = { tile: true, x: t.x, y: t.y };
-      puff.parent = this.root;
-      decor.push(puff);
-      this.seaMotion.push({ m: puff, y0: puff.position.y, amp: 0.022, sp: 0.45 + j * 0.3, ph: (t.x + t.y) * 0.7 + r, spin: 0.05 + j2 * 0.04 });
-      // shaded belly: a slightly larger, darker sphere sunk below the puff
-      // gives each blob a lit-top / shadowed-underside read without lighting
+      tops.push(puff);
       const belly = MeshBuilder.CreateIcoSphere("cloud", { radius: r * 0.92, subdivisions: 1 }, this.scene);
       belly.position = new Vector3(puff.position.x, puff.position.y - r * 0.2, puff.position.z);
       belly.scaling.y = 0.42;
-      belly.material = this.mat(this.bio.cloudShade);
-      belly.metadata = { tile: true, x: t.x, y: t.y };
-      belly.parent = this.root;
-      decor.push(belly);
-      this.seaMotion.push({ m: belly, y0: belly.position.y, amp: 0.022, sp: 0.45 + j * 0.3, ph: (t.x + t.y) * 0.7 + r, spin: 0 });
+      bellies.push(belly);
+    }
+    const bank: [Mesh[], string][] = [[tops, this.bio.cloud], [bellies, this.bio.cloudShade]];
+    for (const [group, hex] of bank) {
+      const merged = Mesh.MergeMeshes(group, true, true);
+      if (!merged) continue;
+      merged.name = "cloud";
+      merged.material = this.mat(hex);
+      merged.metadata = { tile: true, x: t.x, y: t.y };
+      merged.parent = this.root;
+      decor.push(merged);
+      // Merged geometry is baked around the world origin, so spinning it would
+      // swing the whole bank across the board. Vertical drift only.
+      this.seaMotion.push({ m: merged, y0: merged.position.y, amp: 0.024, sp: 0.45 + j * 0.3, ph: (t.x + t.y) * 0.7, spin: 0 });
     }
     this.decorMeshes.set(key, decor);
   }

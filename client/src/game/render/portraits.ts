@@ -19,6 +19,8 @@ import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import { buildCharacter, tribeGlow } from "./characters";
 import { TRIBE_DEFS, type UnitType } from "../core/types";
 
@@ -63,9 +65,11 @@ export function createPortraitSession() {
   hemi.intensity = 0.62;
   hemi.diffuse = Color3.FromHexString("#ffffff");
   hemi.groundColor = Color3.FromHexString("#6f6a90");
+  hemi.specular = Color3.Black();
   const key = new DirectionalLight("pkey", new Vector3(-0.55, -1, 0.42), scene);
   key.intensity = 0.72;
   key.diffuse = Color3.FromHexString("#fff3e0");
+  key.specular = Color3.Black();
 
   // orthographic three-quarter camera matching the board's neutral view.
   // ArcRotateCamera pointed at the unit's mid-height: with an orthographic
@@ -127,8 +131,7 @@ export function createPortraitSession() {
     buildCharacter({ scene, mat, color, defIndex, type }, root, { finMat: glow, orbMat: glow });
     // crisp facets: low-poly reads as carved only when normals are per-face
     for (const m of root.getChildMeshes()) {
-      const mesh = m as unknown as { convertToFlatShadedMesh?: () => void };
-      mesh.convertToFlatShadedMesh?.();
+      (m as Mesh).removeVerticesData(VertexBuffer.NormalKind);
     }
     root.rotation.y = opts?.yaw ?? Math.PI / 5; // 3/4 pose
     // readiness barrier on every capture: newly created meshes may still be
