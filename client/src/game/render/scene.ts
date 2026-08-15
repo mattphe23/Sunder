@@ -1600,8 +1600,59 @@ export class BoardRenderer {
         }
       });
     }
-    decor.forEach((m) => this.addShadows(m));
-    this.decorMeshes.set(key, decor);
+    const batched = this.batchDecor(decor, t);
+    batched.forEach((m) => this.addShadows(m));
+    this.decorMeshes.set(key, batched);
+  }
+
+  /**
+   * Collapse one tile's decor into a single mesh per material.
+   *
+   * A fully-explored 13x13 board was drawing 1785 meshes for 27k triangles —
+   * the geometry is nothing, the draw calls are everything, and that ratio is
+   * exactly what a phone GPU punishes. Two thirds of those meshes were terrain
+   * decor on explored-but-unseen tiles: every trunk, canopy, rock and berry its
+   * own draw call.
+   *
+   * Merging per TILE per material rather than per material across the board is
+   * deliberate. Decor is pickable and carries its tile's coordinates so that
+   * clicking a tree selects the tile under it; merging across tiles would throw
+   * that away, and making it non-pickable instead would send the click through
+   * to whatever slab the ray reaches next — which for a tall tree at this camera
+   * angle is often the tile behind. Per-tile keeps picking exactly as it was.
+   *
+   * This runs after the fog wash so that fogged decor merges on its washed
+   * material rather than its original one. Meshes registered for animation are
+   * left alone: merged geometry is baked around the world origin, so a merged
+   * mesh cannot be spun in place.
+   */
+  private batchDecor(decor: Mesh[], t: Tile): Mesh[] {
+    if (decor.length < 2) return decor;
+    const animated = new Set(this.seaMotion.map((e) => e.m));
+    const groups = new Map<string, Mesh[]>();
+    const out: Mesh[] = [];
+    for (const m of decor) {
+      // an animated mesh, or one with children, is not safe to bake
+      if (animated.has(m) || m.getChildMeshes().length > 0 || !m.material) { out.push(m); continue; }
+      const k = m.material.name;
+      const g = groups.get(k);
+      if (g) g.push(m); else groups.set(k, [m]);
+    }
+    groups.forEach((group, matName) => {
+      if (group.length < 2) { out.push(group[0]); return; }
+      const mat = group[0].material;
+      const vis = group[0].visibility;
+      const merged = Mesh.MergeMeshes(group, true, true);
+      if (!merged) { out.push(...group); return; }
+      merged.name = "decor";
+      merged.material = mat;
+      merged.visibility = vis;
+      merged.metadata = { tile: true, x: t.x, y: t.y };
+      merged.parent = this.root;
+      out.push(merged);
+      void matName;
+    });
+    return out;
   }
 
   private tileColor(s: GameState, t: Tile): string {
