@@ -13,14 +13,37 @@ export interface VictoryPathDef {
   flavor: string;
 }
 
+/* --------------------------------------------------------------------------
+ * Path targets, all set by sweeping scripts/gameplay-audit.mts (120 AI-vs-AI
+ * games per value) and scoring each config by its spread around the 25%
+ * per-appearance win-rate baseline. The env overrides exist for those sweeps
+ * and are read defensively — this module is bundled for the browser, where
+ * `process` does not exist.
+ * ------------------------------------------------------------------------ */
+const knob = (name: string, fallback: number) =>
+  Number((typeof process !== "undefined" ? process.env?.[name] : undefined) ?? fallback);
+
+/** cumulative stars Vessari must loot from rivals to claim Plunder King.
+ *  Raiders take 2★ per kill and Vessari plunders ~6★ per game, so this is
+ *  about five successful raids. Swept over 8 / 10 / 12 / 14 / 18 / 24 / 30. */
+export const PLUNDER_TARGET = knob("SUNDER_PLUNDER_TARGET", 10);
+/** battles Kharzul must win for Bloodforge (was 18) */
+export const BLOODFORGE_TARGET = knob("SUNDER_BLOODFORGE_TARGET", 22);
+/** total city levels Sunwei must hold for Great Harvest (was 12) */
+export const HARVEST_TARGET = knob("SUNDER_HARVEST_TARGET", 15);
+
 /** path per TRIBE_DEFS index; the final entry (custom forge tribes) is the generic path */
 export const VICTORY_PATHS: VictoryPathDef[] = [
   { id: "enlightenment", name: "Enlightenment", goal: `Research all ${TECHS.length} technologies`, flavor: "The Auren archives are complete — knowledge itself has conquered the Shatterlands." },
-  { id: "bloodforge", name: "Bloodforge", goal: "Win 18 battles", flavor: "Kharzul's forges run red — no army dares stand against the Bloodforge." },
-  { id: "greatharvest", name: "Great Harvest", goal: "Reach 12 total city levels", flavor: "Sunwei's terraces feed a golden empire — the Great Harvest is gathered." },
-  // v40: 45 → 35 — Plunder King fired only twice across 160 batch games; the
-  // treasury target was too demanding vs the tempo cost of raiding.
-  { id: "plunderking", name: "Plunder King", goal: "Amass 35 stars in the treasury", flavor: "Vessari's saddlebags overflow — the Shatterlands' wealth rides with the Plunder King." },
+  { id: "bloodforge", name: "Bloodforge", goal: `Win ${BLOODFORGE_TARGET} battles`, flavor: "Kharzul's forges run red — no army dares stand against the Bloodforge." },
+  { id: "greatharvest", name: "Great Harvest", goal: `Reach ${HARVEST_TARGET} total city levels`, flavor: "Sunwei's terraces feed a golden empire — the Great Harvest is gathered." },
+  // v40: 45 → 35 stars banked. v42: measure LOOT TAKEN, not stars held.
+  // Lowering the treasury target twice never worked — it still fired in 1% of
+  // Vessari's games — because banking stars is anti-tempo by construction: the
+  // path asked Vessari to stop playing in order to win. Counting cumulative
+  // plunder instead rewards the thing that actually makes Vessari Vessari,
+  // which is putting Raiders on top of other people's units.
+  { id: "plunderking", name: "Plunder King", goal: `Plunder ${PLUNDER_TARGET} stars from your rivals`, flavor: "Vessari's saddlebags overflow — the Shatterlands' wealth rides with the Plunder King." },
   { id: "tidemastery", name: "Tide Mastery", goal: "Hold 4 ports on the open water", flavor: "Every current answers Nerivane — the tides themselves have chosen a master." },
   { id: "unbrokenwall", name: "Unbroken Wall", goal: "Hold 3 walled cities", flavor: "Dravok's ramparts blot out the horizon — the Unbroken Wall stands eternal." },
   { id: "stormlegend", name: "Storm Legend", goal: "Field 4 veteran units at once", flavor: "Valkyra's thunder never fades — an army of storm-tempered legends darkens the sky." },
@@ -46,11 +69,11 @@ export function victoryProgress(s: GameState, tribeIdx: number): VictoryProgress
     case "enlightenment":
       current = t.techs.length; target = TECHS.length; break;
     case "bloodforge":
-      current = s.stats[tribeIdx]?.battlesWon ?? 0; target = 18; break;
+      current = s.stats[tribeIdx]?.battlesWon ?? 0; target = BLOODFORGE_TARGET; break;
     case "greatharvest":
-      current = s.cities.filter((c) => c.tribe === tribeIdx).reduce((a, c) => a + c.level, 0); target = 12; break;
+      current = s.cities.filter((c) => c.tribe === tribeIdx).reduce((a, c) => a + c.level, 0); target = HARVEST_TARGET; break;
     case "plunderking":
-      current = t.stars; target = 35; break;
+      current = s.stats[tribeIdx]?.starsPlundered ?? 0; target = PLUNDER_TARGET; break;
     case "tidemastery":
       current = s.tiles.filter((tl) => tl.port === tribeIdx).length; target = 4; break;
     case "unbrokenwall":

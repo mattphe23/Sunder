@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import { game, STAGGER_COMP_TURNS } from "../client/src/game/core/state";
 import { starIncome, techCost } from "../client/src/game/core/rules";
-import { VICTORY_PATHS, victoryProgress } from "../client/src/game/core/victory";
+import { VICTORY_PATHS, victoryProgress, PLUNDER_TARGET } from "../client/src/game/core/victory";
 import { TRIBE_DEFS, TECHS, idx } from "../client/src/game/core/types";
 
 describe("v40 staggered-start star compensation", () => {
@@ -130,16 +130,40 @@ describe("v40 Tideborn coastal-city income", () => {
   });
 });
 
-describe("v40 Plunder King threshold", () => {
-  it("target lowered to 35 stars", () => {
-    expect(VICTORY_PATHS.find((p) => p.id === "plunderking")!.goal).toContain("35");
+describe("v42 Plunder King measures loot taken, not stars held", () => {
+  // v40 lowered the treasury target 45 → 35 and the path still fired in 1% of
+  // Vessari's games: banking stars is anti-tempo, so the goal asked Vessari to
+  // stop playing in order to win. It now counts cumulative plunder.
+  it("tracks starsPlundered against PLUNDER_TARGET, and ignores the treasury", () => {
+    expect(VICTORY_PATHS.find((p) => p.id === "plunderking")!.goal).toContain(String(PLUNDER_TARGET));
     game.newGame({ size: 9, humanTribe: 0, difficulty: "normal", seed: 4045, roster: [3, 1, 2, 5] });
     const s = game.state;
     const p = victoryProgress(s, 0)!;
     expect(p.def.id).toBe("plunderking");
-    expect(p.target).toBe(35);
-    s.tribes[0].stars = 35;
+    expect(p.target).toBe(PLUNDER_TARGET);
+
+    // a fat treasury is no longer progress
+    s.tribes[0].stars = 999;
+    expect(victoryProgress(s, 0)!.current).toBe(0);
+    expect(victoryProgress(s, 0)!.done).toBe(false);
+
+    // looting is
+    s.stats[0].starsPlundered = PLUNDER_TARGET;
     expect(victoryProgress(s, 0)!.done).toBe(true);
+  });
+});
+
+describe("v42 tech escalation keeps the tree from being exhausted", () => {
+  // A 240-game batch had every tribe finishing on 13.0/15 techs regardless of
+  // faction, which turned Auren's "research everything" path into a free clock
+  // (67% win rate) and converged every faction on the same late-game army.
+  it("charges more for each tech already banked", () => {
+    game.newGame({ size: 9, humanTribe: 0, difficulty: "normal", seed: 4210, roster: [1, 2, 3, 5] });
+    const s = game.state;
+    const tech = TECHS.find((t) => !s.tribes[0].techs.includes(t.id) && !t.requires)!;
+    const bare = techCost(s, 0, tech.id);
+    s.tribes[0].techs = [...s.tribes[0].techs, ...TECHS.filter((t) => t.id !== tech.id).slice(0, 8).map((t) => t.id)];
+    expect(techCost(s, 0, tech.id)).toBeGreaterThan(bare);
   });
 });
 
@@ -153,9 +177,13 @@ describe("v41.1 scholars tech discount", () => {
     for (const tech of TECHS) {
       const full = techCost(s, 1, tech.id);
       const discounted = techCost(s, 0, tech.id);
-      // both tribes hold exactly 1 city at game start, so the empire-size term
-      // is identical; only the passive differs
-      expect(discounted).toBe(Math.round(full * 0.9));
+      // Both tribes hold exactly 1 city and the same number of techs at game
+      // start, so the empire-size and escalation terms are identical; only the
+      // passive differs. Compared with a ±1 tolerance because both costs are
+      // rounded independently and v42's fractional escalation term means
+      // round(full) * 0.9 is no longer the same as round(full * 0.9).
+      expect(Math.abs(discounted - full * 0.9)).toBeLessThanOrEqual(1);
+      expect(discounted).toBeLessThanOrEqual(full);
     }
   });
 });

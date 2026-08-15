@@ -486,11 +486,39 @@ export function canQuake(s: GameState, u: Unit): boolean {
   return quakeVictims(s, u).length > 0 || quakeWallTargets(s, u).length > 0;
 }
 
+/**
+ * v42: each tech already banked raises the price of the next one.
+ *
+ * Without this the 15-tech tree is exhaustible inside a 30-turn match — a
+ * 240-game batch had EVERY tribe finishing on 13.0/15 regardless of faction or
+ * strategy. Two things broke as a result. Auren's Enlightenment path ("research
+ * all technologies") stopped being a goal and became a clock that ran on its
+ * own, winning 67% of games against a 22% next-best. And because everyone
+ * unlocked every unit, the factions converged on the same late-game army.
+ *
+ * Scaling on techs-owned (rather than raising base costs) keeps the opening
+ * tempo identical and only bites where the problem is: the tail of the tree.
+ *
+ * 0.6 was picked by sweeping 0 / 0.6 / 1.1 / 1.6 / 2.2 over 120 games each and
+ * taking the value with the least spread around the 25%-per-appearance
+ * baseline (Σ|deviation| of 55, vs 59 at 1.1 and 88 at 1.6). It leaves tribes
+ * on ~10.8/15 techs, so the tree still opens up but never runs out.
+ *
+ * The env override exists for those sweeps; it is read defensively because this
+ * module is bundled for the browser, where `process` does not exist.
+ */
+export const TECH_ESCALATION = Number(
+  (typeof process !== "undefined" ? process.env?.SUNDER_TECH_ESCALATION : undefined) ?? 0.6,
+);
+
 export function techCost(s: GameState, tribe: number, tech: TechId): number {
   const def = TECHS.find((t) => t.id === tech)!;
   const cityCount = s.cities.filter((c) => c.tribe === tribe).length;
   // Late-game fix: cost scales with empire size
   let cost = def.baseCost + def.tier * Math.max(0, cityCount - 1) * 1.5;
+  // ...and with how much of the tree you already hold, so the last techs are a
+  // real investment rather than something every tribe drifts into.
+  cost += s.tribes[tribe].techs.length * TECH_ESCALATION;
   // v41.1: 20% → 10%. The discount double-dips Auren's own Enlightenment path
   // ("research all techs"): unbiased 160-game batch showed 72% Auren win rate
   // with Enlightenment landing on turn ~17 vs turn 22+ for every other path.

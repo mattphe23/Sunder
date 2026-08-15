@@ -2,7 +2,10 @@
 // agnostic, so we can run full AI-vs-AI matches in Node and assert the new
 // asymmetric victory paths + AI hero care behave without a browser.
 import { describe, it, expect } from "vitest";
-import { VICTORY_PATHS, victoryProgress, checkPathVictory, VICTORY_PATH_START_TURN } from "../client/src/game/core/victory";
+import {
+  VICTORY_PATHS, victoryProgress, checkPathVictory, VICTORY_PATH_START_TURN,
+  PLUNDER_TARGET, BLOODFORGE_TARGET, HARVEST_TARGET,
+} from "../client/src/game/core/victory";
 import { TECHS, TRIBE_DEFS, GameState, emptyStats } from "../client/src/game/core/types";
 
 /** minimal fabricated state — enough for victoryProgress/checkPathVictory */
@@ -44,11 +47,11 @@ describe("v20 asymmetric victory paths", () => {
     expect(hit?.tribe).toBe(0);
   });
 
-  it("Kharzul Bloodforge tracks battlesWon and completes at 18", () => {
+  it("Kharzul Bloodforge tracks battlesWon and completes at its target", () => {
     const s = fakeState();
-    s.stats[1].battlesWon = 17;
+    s.stats[1].battlesWon = BLOODFORGE_TARGET - 1;
     expect(victoryProgress(s, 1)!.done).toBe(false);
-    s.stats[1].battlesWon = 18;
+    s.stats[1].battlesWon = BLOODFORGE_TARGET;
     expect(victoryProgress(s, 1)!.done).toBe(true);
   });
 
@@ -61,13 +64,19 @@ describe("v20 asymmetric victory paths", () => {
     ];
     const p = victoryProgress(s, 2)!;
     expect(p.def.id).toBe("greatharvest");
-    expect(p.current).toBe(12);
-    expect(p.done).toBe(true);
+    expect(p.current).toBe(12); // 5 + 7; the rival's level-9 city is excluded
+    expect(p.target).toBe(HARVEST_TARGET);
+
+    s.cities[1].level = HARVEST_TARGET; // now comfortably over the line
+    expect(victoryProgress(s, 2)!.done).toBe(true);
   });
 
-  it("Vessari Plunder King reads the star treasury", () => {
+  it("Vessari Plunder King reads cumulative loot, not the treasury", () => {
     const s = fakeState();
-    s.tribes[3].stars = 45;
+    s.tribes[3].stars = 999; // hoarding is no longer progress
+    expect(victoryProgress(s, 3)!.current).toBe(0);
+    expect(victoryProgress(s, 3)!.done).toBe(false);
+    s.stats[3].starsPlundered = PLUNDER_TARGET;
     expect(victoryProgress(s, 3)!.done).toBe(true);
   });
 

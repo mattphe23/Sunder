@@ -7,7 +7,8 @@
 //
 //   pnpm tsx scripts/gameplay-audit.mts [games] [size]
 import { game } from "../client/src/game/core/state";
-import { TRIBE_DEFS } from "../client/src/game/core/types";
+import { TRIBE_DEFS, TECHS } from "../client/src/game/core/types";
+import { victoryProgress, VICTORY_PATHS } from "../client/src/game/core/victory";
 
 // The engine schedules AI turns with setTimeout. Running them inline recurses
 // one stack frame per turn and silently dies mid-match on deep games, so we
@@ -41,6 +42,9 @@ function drive(maxSteps = 200000) {
 
 const GAMES = parseInt(process.argv[2] ?? "60", 10);
 const SIZE = parseInt(process.argv[3] ?? "11", 10);
+/** seed block — sweep on one block, then confirm on another to avoid tuning
+ *  the constants to a particular set of maps */
+const SEED_BASE = parseInt(process.argv[4] ?? "7000", 10);
 const PRESETS = ["continents", "archipelago", "highlands", "pangaea"] as const;
 const DIFFS = ["normal", "hard", "impossible"] as const;
 
@@ -64,6 +68,8 @@ interface Row {
   battles: number;
   citiesCaptured: number;
   topScore: number;
+  /** per-seat: how far each tribe got along ITS OWN faction path, 0..1 */
+  pathFrac: { def: number; frac: number; techs: number }[];
 }
 
 const rows: Row[] = [];
@@ -73,7 +79,7 @@ let stalled = 0;
 for (let g = 0; g < GAMES; g++) {
   const preset = PRESETS[g % PRESETS.length];
   const difficulty = DIFFS[Math.floor(g / PRESETS.length) % DIFFS.length];
-  const seed = 7000 + g;
+  const seed = SEED_BASE + g;
   // rotate which def sits in the human slot so tribe stats are not slot-confounded
   const roster = [0, 1, 2, 3, 4, 5].slice(0, 4).map((d) => (d + g) % 6);
 
@@ -90,7 +96,8 @@ for (let g = 0; g < GAMES; g++) {
   let peacePairs = 0;
   for (const a of Object.keys(peace)) {
     for (const b of Object.keys(peace[a as unknown as number] ?? {})) {
-      if ((peace[a as unknown as number][b as unknown as number] ?? 0) > 0) peacePairs++;
+      // peaceUntil keeps the expiry turn forever; only count treaties still standing
+      if ((peace[a as unknown as number][b as unknown as number] ?? 0) > s.turn) peacePairs++;
     }
   }
   const heroes = s.units.filter((u) => u.hero);
@@ -118,6 +125,14 @@ for (let g = 0; g < GAMES; g++) {
     battles: sum("battlesWon" as never),
     citiesCaptured: sum("citiesCaptured" as never),
     topScore: Math.max(...s.tribes.map((t) => t.score)),
+    pathFrac: s.tribes.map((t) => {
+      const p = victoryProgress(s, t.index);
+      return {
+        def: t.defIndex,
+        frac: p ? p.current / p.target : 0,
+        techs: t.techs.length,
+      };
+    }),
   });
   if ((g + 1) % 10 === 0) console.error(`  ...${g + 1}/${GAMES}`);
 }
@@ -149,14 +164,44 @@ const wins = new Map<number, number>();
 const seen = new Map<number, number>();
 for (const r of rows) {
   if (r.winnerDef !== null) wins.set(r.winnerDef, (wins.get(r.winnerDef) ?? 0) + 1);
-  const roster = [0, 1, 2, 3].map((i) => (i + (r.seed - 7000)) % 6);
+  const roster = [0, 1, 2, 3].map((i) => (i + (r.seed - SEED_BASE)) % 6);
   for (const d of roster) seen.set(d, (seen.get(d) ?? 0) + 1);
 }
+let spread = 0;
 TRIBE_DEFS.slice(0, 6).forEach((t, d) => {
   const s2 = seen.get(d) ?? 0;
   const w = wins.get(d) ?? 0;
+  if (s2) spread += Math.abs((w / s2) * 100 - 25);
   console.log(`  ${t.name.padEnd(10)} ${s2 ? ((w / s2) * 100).toFixed(0).padStart(3) : " --"}%   (${w}/${s2} appearances)`);
 });
+// 4 of 6 tribes play each match, so a perfectly balanced roster wins 25% of the
+// games it appears in. This is the single number to minimise when sweeping.
+console.log(`  BALANCE SPREAD  ${spread.toFixed(0)}   (sum of |win% - 25|; lower is better)`);
+
+console.log("\nPATH REACHABILITY  (how far each tribe gets along ITS OWN path)");
+console.log("  a path that averages near 1.00 is not a goal, it is a side effect of playing");
+{
+  const acc = new Map<number, { sum: number; n: number; done: number }>();
+  for (const r of rows) {
+    for (const p of r.pathFrac) {
+      const a = acc.get(p.def) ?? { sum: 0, n: 0, done: 0 };
+      a.sum += Math.min(1, p.frac); a.n++; if (p.frac >= 1) a.done++;
+      acc.set(p.def, a);
+    }
+  }
+  [...acc.entries()].sort((x, y) => y[1].sum / y[1].n - x[1].sum / x[1].n).forEach(([d, a]) => {
+    const path = VICTORY_PATHS[Math.min(d, VICTORY_PATHS.length - 1)];
+    console.log(
+      `  ${(TRIBE_DEFS[d]?.name ?? "?").padEnd(10)} ${path.name.padEnd(14)} avg ${((a.sum / a.n) * 100).toFixed(0).padStart(3)}% of target   completed in ${((a.done / a.n) * 100).toFixed(0).padStart(3)}% of its games`
+    );
+  });
+  const techAvg = rows.flatMap((r) => r.pathFrac).reduce((n, p) => n + p.techs, 0) / (rows.length * 4);
+  const techNonAuren = rows.flatMap((r) => r.pathFrac).filter((p) => p.def !== 0);
+  console.log(
+    `  every tribe ends on ${techAvg.toFixed(1)}/${TECHS.length} techs on average ` +
+    `(non-Auren: ${(techNonAuren.reduce((n, p) => n + p.techs, 0) / techNonAuren.length).toFixed(1)})`
+  );
+}
 
 console.log("\nDO THE ADDED SYSTEMS ACTUALLY FIRE?");
 console.log(`  buildings placed / game     ${avg((r) => r.buildings)}      (games with 0: ${pct((r) => r.buildings === 0)})`);

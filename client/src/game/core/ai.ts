@@ -99,9 +99,11 @@ export function runAiTurn(store: StoreLike, tribeIdx: number) {
   }
 
   // 2. harvest affordable resources in own borders
+  // v42: dropped the plunderking hoarding rule that halted harvesting past 55%
+  // of the treasury target. It starved Vessari's economy to chase a goal it
+  // still only reached in 1% of games; Plunder King now counts loot taken, so
+  // there is nothing to hoard for.
   for (const t of s.tiles) {
-    // plunderking (Vessari): hoard toward the treasury target once past halfway
-    if (pathId === "plunderking" && path && path.current > path.target * 0.55) break;
     if (canHarvest(s, tribeIdx, t)) store.harvest(t.x, t.y);
   }
 
