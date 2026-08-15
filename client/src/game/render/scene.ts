@@ -339,10 +339,20 @@ export class BoardRenderer {
     // v33 diorama: extend the slab body downward by a fixed skirt so land
     // cliffs read chunky above water and the void — the "board game piece" look.
     const bodyH = h + LAND_SKIRT;
+    // The cliff face is two-tone like a cut of turf: a shallow band of the
+    // terrain's own side color at the top, exposed earth below. This is what
+    // makes the board read as a slab of world floating in the void rather
+    // than a green plate.
+    const soilMat = fogged ? this.foggedMat(this.bio.soil) : this.mat(this.bio.soil);
     const body = MeshBuilder.CreateBox(name, { width: TILE * 0.96, depth: TILE * 0.96, height: bodyH }, this.scene);
     // top face must stay at the original y (= h - 0.4), so center sits lower
     body.position = new Vector3(x, h - 0.4 - bodyH / 2, z);
-    body.material = sideMat;
+    body.material = soilMat;
+    const turfH = 0.13;
+    const turf = MeshBuilder.CreateBox(name + "-turf", { width: TILE * 0.962, depth: TILE * 0.962, height: turfH }, this.scene);
+    turf.position = new Vector3(0, bodyH / 2 - turfH / 2, 0);
+    turf.material = sideMat;
+    turf.parent = body;
     const cap = MeshBuilder.CreateBox(name + "-cap", { width: TILE * 0.965, depth: TILE * 0.965, height: 0.03 }, this.scene);
     cap.position = new Vector3(0, bodyH / 2 + 0.001, 0);
     cap.material = topMat;

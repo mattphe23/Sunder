@@ -58,6 +58,8 @@ export interface BiomePalette {
   fogWash: string; // fog-of-war desaturation wash target
   cloud: string; //   unexplored cloud-bank puffs
   cloudShade: string; // cloud underside / pick slab
+  /** exposed earth in the cliff cross-section under the turf band */
+  soil: string;
   /** tree silhouette family — geometry, not just color */
   treeKind: "conifer" | "palm" | "acacia" | "pine";
   /** mountain silhouette family */
@@ -81,6 +83,7 @@ export const BIOMES: Record<string, BiomePalette> = {
     fogWash: "#262650",
     cloud: "#c8cbe6",
     cloudShade: "#8f95c0",
+    soil: "#6b5236",
     treeKind: "conifer",
     rockKind: "classic",
   },
@@ -100,6 +103,7 @@ export const BIOMES: Record<string, BiomePalette> = {
     fogWash: "#24304e",
     cloud: "#cdd6ea",
     cloudShade: "#94a0ca",
+    soil: "#7d6242",
     treeKind: "palm",
     rockKind: "mesa",
   },
@@ -119,6 +123,7 @@ export const BIOMES: Record<string, BiomePalette> = {
     fogWash: "#232a52",
     cloud: "#d5dcee",
     cloudShade: "#9aa5cc",
+    soil: "#5c5145",
     treeKind: "pine",
     rockKind: "crag",
   },
@@ -138,6 +143,7 @@ export const BIOMES: Record<string, BiomePalette> = {
     fogWash: "#292648",
     cloud: "#d2ccdf",
     cloudShade: "#9990b8",
+    soil: "#7a5c34",
     treeKind: "acacia",
     rockKind: "mesa",
   },
