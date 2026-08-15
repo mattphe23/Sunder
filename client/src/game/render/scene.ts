@@ -189,12 +189,12 @@ export class BoardRenderer {
     // Stage 1 flat shading: terrain and decor are unlit (emissive-only), so
     // this light only matters for the few remaining lit materials (units keep
     // a whisper of shading until Stage 2 replaces them). Kept dim and neutral.
-    hemi.intensity = 0.55;
+    hemi.intensity = 0.62;
     hemi.diffuse = Color3.FromHexString("#ffffff");
-    hemi.groundColor = Color3.FromHexString("#8a86a8");
-    const sun = new DirectionalLight("sun", new Vector3(-0.5, -1, 0.35), this.scene);
-    sun.intensity = 0.55;
-    sun.diffuse = Color3.FromHexString("#fff4e0");
+    hemi.groundColor = Color3.FromHexString("#6f6a90");
+    const sun = new DirectionalLight("sun", new Vector3(-0.55, -1, 0.42), this.scene);
+    sun.intensity = 0.72;
+    sun.diffuse = Color3.FromHexString("#fff3e0");
     sun.position = new Vector3(8, 14, -6);
     // Stage 1: no shadow generator — Polytopia-style flat boards get depth
     // from palette value steps, not shadow maps. Blob shadows land in Stage 3.
@@ -279,6 +279,33 @@ export class BoardRenderer {
       this.mats.set(hex, m);
     }
     return m;
+  }
+
+  /**
+   * v47 sculpted props: LIT material with a high ambient floor. Terrain slabs
+   * keep their hand-picked unlit value steps, but freestanding props (units,
+   * trees, rocks, buildings) need real directional shading or they read as
+   * stacked flat blocks instead of carved figurines. floor + diffuse * lights
+   * lands near 1.0 so lit faces hit the intended palette color.
+   */
+  litMat(hex: string): StandardMaterial {
+    const key = "lit:" + hex;
+    let m = this.mats.get(key);
+    if (!m) {
+      const base = Color3.FromHexString(hex);
+      m = new StandardMaterial("m" + key, this.scene);
+      m.emissiveColor = base.scale(0.46);
+      m.diffuseColor = base.scale(0.62);
+      m.specularColor = Color3.Black();
+      m.disableLighting = false;
+      this.mats.set(key, m);
+    }
+    return m;
+  }
+
+  /** give a prop crisp per-face normals so its facets read as carved */
+  private facet(m: Mesh) {
+    (m as unknown as { convertToFlatShadedMesh?: () => void }).convertToFlatShadedMesh?.();
   }
 
   /** fog-of-war variant of a tile color: desaturated and washed toward deep indigo */
@@ -868,7 +895,7 @@ export class BoardRenderer {
           const trunk = MeshBuilder.CreateCylinder("trk", { diameterTop: 0.05, diameterBottom: 0.075, height: th, tessellation: 5 }, this.scene);
           trunk.position = new Vector3(px, top + th / 2, pz);
           trunk.rotation.z = (seed - 1) * 0.16;
-          trunk.material = this.mat(this.bio.tree.trunk);
+          trunk.material = this.litMat(this.bio.tree.trunk); this.facet(trunk);
           trunk.metadata = md; trunk.parent = this.root; decor.push(trunk);
           const crownY = top + th + 0.02;
           for (let f = 0; f < 5; f++) {
@@ -877,28 +904,28 @@ export class BoardRenderer {
             frond.rotation.z = Math.cos(f * 1.256 + seed) * 1.15;
             frond.rotation.x = -Math.sin(f * 1.256 + seed) * 1.15;
             frond.scaling.z = 0.4;
-            frond.material = this.mat(f % 2 ? this.bio.tree.canopyB : leafHex);
+            frond.material = this.litMat(f % 2 ? this.bio.tree.canopyB : leafHex); this.facet(frond);
             frond.metadata = md; frond.parent = this.root; decor.push(frond);
           }
           // coconut cluster
           const nut = MeshBuilder.CreateIcoSphere("tr", { radius: 0.035, subdivisions: 1 }, this.scene);
           nut.position = new Vector3(px + (seed - 1) * 0.05, crownY - 0.01, pz + 0.03);
-          nut.material = this.mat(this.bio.tree.trunk);
+          nut.material = this.litMat(this.bio.tree.trunk); this.facet(nut);
           nut.metadata = md; nut.parent = this.root; decor.push(nut);
         } else if (kind === "acacia") {
           // acacia: short trunk under a wide flat-topped umbrella canopy
           const th = 0.2 + seed * 0.05;
           const trunk = MeshBuilder.CreateCylinder("trk", { diameterTop: 0.06, diameterBottom: 0.1, height: th, tessellation: 5 }, this.scene);
           trunk.position = new Vector3(px, top + th / 2, pz);
-          trunk.material = this.mat(this.bio.tree.trunk);
+          trunk.material = this.litMat(this.bio.tree.trunk); this.facet(trunk);
           trunk.metadata = md; trunk.parent = this.root; decor.push(trunk);
           const umbrella = MeshBuilder.CreateCylinder("tr", { diameterTop: 0.42, diameterBottom: 0.2, height: 0.1, tessellation: 6 }, this.scene);
           umbrella.position = new Vector3(px, top + th + 0.05, pz);
-          umbrella.material = this.mat(leafHex);
+          umbrella.material = this.litMat(leafHex); this.facet(umbrella);
           umbrella.metadata = md; umbrella.parent = this.root; decor.push(umbrella);
           const crownTop = MeshBuilder.CreateCylinder("tr", { diameterTop: 0.3, diameterBottom: 0.44, height: 0.05, tessellation: 6 }, this.scene);
           crownTop.position = new Vector3(px, top + th + 0.12, pz);
-          crownTop.material = this.mat(this.bio.tree.canopyB);
+          crownTop.material = this.litMat(this.bio.tree.canopyB); this.facet(crownTop);
           crownTop.metadata = md; crownTop.parent = this.root; decor.push(crownTop);
         } else {
           // conifer / pine: trunk + stacked cone skirts (pine gets a taller,
@@ -907,7 +934,7 @@ export class BoardRenderer {
           const th = (kind === "pine" ? 0.44 : 0.4) + seed * 0.09;
           const trunk = MeshBuilder.CreateCylinder("trk", { diameter: 0.09, height: 0.22, tessellation: 5 }, this.scene);
           trunk.position = new Vector3(px, top + 0.11, pz);
-          trunk.material = this.mat(this.bio.tree.trunk);
+          trunk.material = this.litMat(this.bio.tree.trunk); this.facet(trunk);
           trunk.metadata = md; trunk.parent = this.root; decor.push(trunk);
           for (let k = 0; k < tiers; k++) {
             const frac = k / tiers;
@@ -915,7 +942,7 @@ export class BoardRenderer {
             const h = th / (tiers === 1 ? 1 : 1.9);
             const cone = MeshBuilder.CreateCylinder("tr", { diameterTop: 0, diameterBottom: w, height: h, tessellation: 6 }, this.scene);
             cone.position = new Vector3(px, top + 0.2 + frac * th * 0.42 + h / 2, pz);
-            cone.material = this.mat(k === 0 ? leafHex : k === 1 ? this.bio.tree.canopyB : this.bio.tree.canopyLight);
+            cone.material = this.litMat(k === 0 ? leafHex : k === 1 ? this.bio.tree.canopyB : this.bio.tree.canopyLight); this.facet(cone);
             cone.metadata = md; cone.parent = this.root; decor.push(cone);
           }
         }
@@ -1001,7 +1028,7 @@ export class BoardRenderer {
       const skirt = MeshBuilder.CreateCylinder("pkbase", { diameterTop: 0.55, diameterBottom: 0.98, height: 0.2, tessellation: 7 }, this.scene);
       skirt.position = new Vector3(t.x - c, top + 0.06, t.y - c);
       skirt.rotation.y = yaw;
-      skirt.material = this.mat(this.bio.rock.shadow);
+      skirt.material = this.litMat(this.bio.rock.shadow); this.facet(skirt);
       skirt.metadata = md; skirt.parent = this.root; decor.push(skirt);
       // 2. main massif — silhouette family varies per biome
       const rk = this.bio.rockKind;
@@ -1010,17 +1037,17 @@ export class BoardRenderer {
         const tier1 = MeshBuilder.CreateCylinder("pk", { diameterTop: 0.5, diameterBottom: 0.66, height: 0.3, tessellation: 6 }, this.scene);
         tier1.position = new Vector3(t.x - c, top + 0.26, t.y - c);
         tier1.rotation.y = yaw + 0.3;
-        tier1.material = this.mat(this.bio.rock.body);
+        tier1.material = this.litMat(this.bio.rock.body); this.facet(tier1);
         tier1.metadata = md; tier1.parent = this.root; decor.push(tier1);
         const tier2 = MeshBuilder.CreateCylinder("pk", { diameterTop: 0.3, diameterBottom: 0.44, height: 0.24, tessellation: 6 }, this.scene);
         tier2.position = new Vector3(t.x - c + 0.04, top + 0.52, t.y - c - 0.03);
         tier2.rotation.y = yaw - 0.4;
-        tier2.material = this.mat(this.bio.rock.shadow);
+        tier2.material = this.litMat(this.bio.rock.shadow); this.facet(tier2);
         tier2.metadata = md; tier2.parent = this.root; decor.push(tier2);
         const capm = MeshBuilder.CreateCylinder("snow", { diameterTop: 0.26, diameterBottom: 0.3, height: 0.05, tessellation: 6 }, this.scene);
         capm.position = new Vector3(t.x - c + 0.04, top + 0.66, t.y - c - 0.03);
         capm.rotation.y = yaw - 0.4;
-        capm.material = this.mat(this.bio.rock.snow);
+        capm.material = this.litMat(this.bio.rock.snow); this.facet(capm);
         capm.metadata = md; capm.parent = this.root; decor.push(capm);
       } else if (rk === "crag") {
         // crag: steep twin spires with heavy snow — alpine
@@ -1028,32 +1055,32 @@ export class BoardRenderer {
         spire.position = new Vector3(t.x - c - 0.03, top + 0.42, t.y - c + 0.02);
         spire.rotation.y = yaw + 0.3;
         spire.rotation.z = 0.05;
-        spire.material = this.mat(this.bio.rock.body);
+        spire.material = this.litMat(this.bio.rock.body); this.facet(spire);
         spire.metadata = md; spire.parent = this.root; decor.push(spire);
         const snowC = MeshBuilder.CreateCylinder("snow", { diameterTop: 0, diameterBottom: 0.17, height: 0.2, tessellation: 5 }, this.scene);
         snowC.position = new Vector3(t.x - c - 0.03, top + 0.75, t.y - c + 0.02);
         snowC.rotation.y = yaw + 0.3;
-        snowC.material = this.mat(this.bio.rock.snow);
+        snowC.material = this.litMat(this.bio.rock.snow); this.facet(snowC);
         snowC.metadata = md; snowC.parent = this.root; decor.push(snowC);
         const sub = MeshBuilder.CreateCylinder("pk", { diameterTop: 0.04, diameterBottom: 0.28, height: 0.42, tessellation: 5 }, this.scene);
         sub.position = new Vector3(t.x - c + 0.24, top + 0.3, t.y - c - 0.16);
         sub.rotation.y = yaw - 0.6;
-        sub.material = this.mat(this.bio.rock.shadow);
+        sub.material = this.litMat(this.bio.rock.shadow); this.facet(sub);
         sub.metadata = md; sub.parent = this.root; decor.push(sub);
         const subSnow = MeshBuilder.CreateCylinder("snow", { diameterTop: 0, diameterBottom: 0.1, height: 0.11, tessellation: 5 }, this.scene);
         subSnow.position = new Vector3(t.x - c + 0.24, top + 0.53, t.y - c - 0.16);
-        subSnow.material = this.mat(this.bio.rock.snow);
+        subSnow.material = this.litMat(this.bio.rock.snow); this.facet(subSnow);
         subSnow.metadata = md; subSnow.parent = this.root; decor.push(subSnow);
       } else {
         const rock = MeshBuilder.CreateCylinder("pk", { diameterTop: 0.1, diameterBottom: 0.58, height: 0.46, tessellation: 6 }, this.scene);
         rock.position = new Vector3(t.x - c, top + 0.34, t.y - c);
         rock.rotation.y = yaw + 0.3;
-        rock.material = this.mat(this.bio.rock.body);
+        rock.material = this.litMat(this.bio.rock.body); this.facet(rock);
         rock.metadata = md; rock.parent = this.root; decor.push(rock);
         const snow = MeshBuilder.CreateCylinder("snow", { diameterTop: 0, diameterBottom: 0.2, height: 0.22, tessellation: 6 }, this.scene);
         snow.position = new Vector3(t.x - c, top + 0.66, t.y - c);
         snow.rotation.y = rock.rotation.y;
-        snow.material = this.mat(this.bio.rock.snow);
+        snow.material = this.litMat(this.bio.rock.snow); this.facet(snow);
         snow.metadata = md; snow.parent = this.root; decor.push(snow);
       }
       // 3. shoulder peak growing out of the skirt edge (classic only — the
@@ -1063,7 +1090,7 @@ export class BoardRenderer {
         const shoulder = MeshBuilder.CreateCylinder("pk2", { diameterTop: 0, diameterBottom: 0.34, height: 0.34, tessellation: 5 }, this.scene);
         shoulder.position = new Vector3(t.x - c + shx, top + 0.24, t.y - c + shz);
         shoulder.rotation.y = yaw + 1.1;
-        shoulder.material = this.mat(this.bio.rock.body);
+        shoulder.material = this.litMat(this.bio.rock.body); this.facet(shoulder);
         shoulder.metadata = md; shoulder.parent = this.root; decor.push(shoulder);
       }
       // 4. scree boulders at the foot for a natural transition
@@ -1071,7 +1098,7 @@ export class BoardRenderer {
         const boulder = MeshBuilder.CreateIcoSphere("scree", { radius: br, subdivisions: 1 }, this.scene);
         boulder.position = new Vector3(t.x - c + bx, top + br * 0.7, t.y - c + bz);
         boulder.scaling.y = 0.75;
-        boulder.material = this.mat(this.bio.rock.shadow);
+        boulder.material = this.litMat(this.bio.rock.shadow); this.facet(boulder);
         boulder.metadata = md; boulder.parent = this.root; decor.push(boulder);
       }
     }
@@ -1383,7 +1410,7 @@ export class BoardRenderer {
       for (const [cx, cz] of [[-bh, -bh], [bh, -bh], [-bh, bh], [bh, bh]] as const) {
         const post = MeshBuilder.CreateBox("cityedge", { width: 0.075, depth: 0.075, height: 0.075 }, this.scene);
         post.position = new Vector3(t.x - c + cx, top + 0.065, t.y - c + cz);
-        post.material = this.mat(col);
+        post.material = this.litMat(col); this.facet(post);
         post.metadata = md; post.parent = this.root; decor.push(post);
       }
       // seeded cluster: center building tallest, satellites around it
@@ -1395,27 +1422,27 @@ export class BoardRenderer {
         const bhh = i === 0 ? (isNeutral ? 0.24 : 0.4 + city.level * 0.02) : 0.2 + ((i * 11 + js) % 3) * 0.05;
         const house = MeshBuilder.CreateBox("cty", { width: bw, depth: bw, height: bhh }, this.scene);
         house.position = new Vector3(t.x - c + slot[0], top + 0.06 + bhh / 2, t.y - c + slot[1]);
-        house.material = this.mat(PALETTE.city.house);
+        house.material = this.litMat(PALETTE.city.house); this.facet(house);
         house.metadata = md; house.parent = this.root; decor.push(house);
         if (i === 0 && city.isCapital && city.tribe !== null) {
           // capital: the gold spire crowns the central tower
           const spire = MeshBuilder.CreateCylinder("cap", { diameterTop: 0, diameterBottom: 0.22, height: 0.5, tessellation: 4 }, this.scene);
           spire.position = new Vector3(t.x - c + slot[0], top + 0.06 + bhh + 0.24, t.y - c + slot[1]);
           spire.rotation.y = Math.PI / 4;
-          spire.material = this.mat("#ffd76a");
+          spire.material = this.litMat("#ffd76a"); this.facet(spire);
           spire.metadata = md; spire.parent = this.root; decor.push(spire);
         } else if ((i + js) % 2 === 0) {
           // pitched pyramid roof in the owner color
           const roof = MeshBuilder.CreateCylinder("roof", { diameterTop: 0, diameterBottom: bw * 1.2, height: 0.14 + bw * 0.2, tessellation: 4 }, this.scene);
           roof.position = new Vector3(t.x - c + slot[0], top + 0.06 + bhh + (0.14 + bw * 0.2) / 2, t.y - c + slot[1]);
           roof.rotation.y = Math.PI / 4;
-          roof.material = this.mat(darken(col, 0.85));
+          roof.material = this.litMat(darken(col, 0.85)); this.facet(roof);
           roof.metadata = md; roof.parent = this.root; decor.push(roof);
         } else {
           // flat slab roof with an owner-color trim cap for variety
           const slab = MeshBuilder.CreateBox("roof", { width: bw * 1.08, depth: bw * 1.08, height: 0.035 }, this.scene);
           slab.position = new Vector3(t.x - c + slot[0], top + 0.06 + bhh + 0.018, t.y - c + slot[1]);
-          slab.material = this.mat(col);
+          slab.material = this.litMat(col); this.facet(slab);
           slab.metadata = md; slab.parent = this.root; decor.push(slab);
         }
       }
@@ -1745,10 +1772,12 @@ export class BoardRenderer {
       this.mats.set(glowKey, finMat);
     }
     const rig = buildCharacter(
-      { scene: this.scene, mat: (hex) => this.mat(hex), color: col, defIndex, type: u.type },
+      { scene: this.scene, mat: (hex) => this.litMat(hex), color: col, defIndex, type: u.type },
       node,
       { orbMat, finMat },
     );
+    // crisp facets so the figurine reads as carved, not smoothed
+    for (const cm of node.getChildMeshes()) this.facet(cm as Mesh);
     // arcanist: bob the rune orb
     if (u.type === "arcanist" && rig.orb) {
       const bob = new Animation("orbBob", "position.y", 30, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CYCLE);

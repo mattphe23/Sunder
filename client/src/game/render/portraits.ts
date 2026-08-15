@@ -16,6 +16,8 @@ import { Camera } from "@babylonjs/core/Cameras/camera";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
+import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { buildCharacter, tribeGlow } from "./characters";
 import { TRIBE_DEFS, type UnitType } from "../core/types";
@@ -54,6 +56,17 @@ export function createPortraitSession() {
   const scene = new Scene(engine);
   scene.clearColor = new Color4(0, 0, 0, 0); // transparent — no baked background
 
+  // v47: figurines are LIT + flat-shaded. Flat colors alone read as stacked
+  // blocks; a single key light plus ambient fill makes the same geometry read
+  // as sculpted, which is what the Polytopia reference actually does.
+  const hemi = new HemisphericLight("phemi", new Vector3(0.25, 1, 0.15), scene);
+  hemi.intensity = 0.62;
+  hemi.diffuse = Color3.FromHexString("#ffffff");
+  hemi.groundColor = Color3.FromHexString("#6f6a90");
+  const key = new DirectionalLight("pkey", new Vector3(-0.55, -1, 0.42), scene);
+  key.intensity = 0.72;
+  key.diffuse = Color3.FromHexString("#fff3e0");
+
   // orthographic three-quarter camera matching the board's neutral view.
   // ArcRotateCamera pointed at the unit's mid-height: with an orthographic
   // camera the window is centered on the target, so a symmetric window puts
@@ -74,10 +87,14 @@ export function createPortraitSession() {
     let m = mats.get(hex);
     if (!m) {
       m = new StandardMaterial("p" + hex, scene);
-      m.emissiveColor = Color3.FromHexString(hex);
-      m.diffuseColor = Color3.Black();
+      const base = Color3.FromHexString(hex);
+      // ambient floor keeps the hand-picked hue readable in shadow; the
+      // diffuse term does the sculpting. floor + diffuse * lights ~= 1.0 so
+      // lit faces land on the intended color instead of blowing out.
+      m.emissiveColor = base.scale(0.46);
+      m.diffuseColor = base.scale(0.62);
       m.specularColor = Color3.Black();
-      m.disableLighting = true;
+      m.disableLighting = false;
       mats.set(hex, m);
     }
     return m;
@@ -108,6 +125,11 @@ export function createPortraitSession() {
     const color = opts?.color ?? TRIBE_DEFS[defIndex]?.color ?? "#888888";
     const glow = glowFor(defIndex);
     buildCharacter({ scene, mat, color, defIndex, type }, root, { finMat: glow, orbMat: glow });
+    // crisp facets: low-poly reads as carved only when normals are per-face
+    for (const m of root.getChildMeshes()) {
+      const mesh = m as unknown as { convertToFlatShadedMesh?: () => void };
+      mesh.convertToFlatShadedMesh?.();
+    }
     root.rotation.y = opts?.yaw ?? Math.PI / 5; // 3/4 pose
     // readiness barrier on every capture: newly created meshes may still be
     // compiling effects; whenReadyAsync resolves immediately once the pipeline
