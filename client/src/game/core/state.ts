@@ -1476,8 +1476,10 @@ class GameStore {
       city.population -= POP_PER_LEVEL;
       city.level++;
       s.log.unshift(`${city.name} grew to level ${city.level}!`);
-      if (city.tribe === s.humanTribe) {
-        // human picks from the modal; queue persists across saves (like hero perks)
+      if (city.tribe !== null && s.tribes[city.tribe]?.isHuman) {
+        // human picks from the modal; queue persists across saves (like hero perks).
+        // Keyed off isHuman rather than the humanTribe index: in hotseat the
+        // second player's cities were silently handed an AI-picked reward.
         s.pendingCityReward = city.id;
       } else if (city.tribe !== null) {
         this.aiPickCityReward(city);
@@ -1694,9 +1696,11 @@ class GameStore {
       this.onGameOver();
       this.emit({ type: "sfx", name: s.winner === s.humanTribe ? "victory" : "defeat" });
     }
-    const humans = s.humanTribes ?? [s.humanTribe];
+    // Only meaningful when a seat is actually human — an all-AI board (batch
+    // simulation / auto-play spectate) must be allowed to play itself out.
+    const humans = (s.humanTribes ?? [s.humanTribe]).filter((h) => s.tribes[h]?.isHuman);
     const anyHumanAlive = humans.some((h) => s.tribes[h]?.alive);
-    if (!anyHumanAlive && s.phase === "playing") {
+    if (humans.length > 0 && !anyHumanAlive && s.phase === "playing") {
       // all human players eliminated: game over immediately
       const best = alive.sort((a, b) => b.score - a.score)[0];
       s.winner = best?.index ?? null;

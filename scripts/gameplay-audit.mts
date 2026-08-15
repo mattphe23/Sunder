@@ -9,9 +9,35 @@
 import { game } from "../client/src/game/core/state";
 import { TRIBE_DEFS } from "../client/src/game/core/types";
 
-// stub timers so AI turns run synchronously
+// The engine schedules AI turns with setTimeout. Running them inline recurses
+// one stack frame per turn and silently dies mid-match on deep games, so we
+// trampoline instead: queue the callbacks and drain them iteratively. Each AI
+// turn ends by calling endTurn(), which queues the next one, so an all-AI
+// board drives itself — the harness only pumps the queue.
 (globalThis as unknown as { window: undefined }).window = undefined;
-(globalThis as unknown as { setTimeout: unknown }).setTimeout = (fn: () => void) => { fn(); return 0; };
+const pending: (() => void)[] = [];
+(globalThis as unknown as { setTimeout: unknown }).setTimeout = (fn: () => void) => {
+  pending.push(fn);
+  return 0;
+};
+
+// Seat -1 is nobody, so `isHuman: humans.includes(i)` leaves every seat AI and
+// newGame's opening kick fires on its own. Flipping the flags AFTER newGame
+// instead (the old approach) broke two ways: seat 0 stayed the humanTribe
+// INDEX, so its first city level-up queued a reward modal nothing could answer
+// and endTurn() refuses to advance while one is pending; and when seat 0 drew
+// the opening slot the kick was skipped entirely, leaving the match un-driven.
+const NO_HUMAN = -1;
+
+/** run the match to completion without growing the stack */
+function drive(maxSteps = 200000) {
+  let steps = 0;
+  while (game.state.phase === "playing" && steps++ < maxSteps) {
+    if (!pending.length) break; // chain broken — surfaced as a stalled row
+    pending.shift()!();
+  }
+  return steps;
+}
 
 const GAMES = parseInt(process.argv[2] ?? "60", 10);
 const SIZE = parseInt(process.argv[3] ?? "11", 10);
@@ -41,6 +67,8 @@ interface Row {
 }
 
 const rows: Row[] = [];
+/** matches whose AI chain broke before reaching gameover — data integrity guard */
+let stalled = 0;
 
 for (let g = 0; g < GAMES; g++) {
   const preset = PRESETS[g % PRESETS.length];
@@ -49,18 +77,12 @@ for (let g = 0; g < GAMES; g++) {
   // rotate which def sits in the human slot so tribe stats are not slot-confounded
   const roster = [0, 1, 2, 3, 4, 5].slice(0, 4).map((d) => (d + g) % 6);
 
-  game.newGame({ size: SIZE, humanTribe: 0, difficulty, seed, preset, roster });
-  // flip the nominal human to AI so all four seats play (batch-harness fix from v41)
-  const st = game.state as unknown as { tribes: { isHuman: boolean }[] };
-  st.tribes.forEach((t) => { t.isHuman = false; });
-
-  let guard = 0;
-  while (game.state.phase === "playing" && guard < 600) {
-    if (game.state.currentTribe === game.state.humanTribe && !game.state.aiThinking) {
-      game.endTurn();
-    }
-    guard++;
-  }
+  // clear BEFORE newGame: newGame queues the opening AI turn, and dropping
+  // that kick leaves the whole match un-driven
+  pending.length = 0;
+  game.newGame({ size: SIZE, humanTribe: NO_HUMAN, difficulty, seed, preset, roster });
+  drive();
+  if (game.state.phase === "playing") stalled++;
 
   const s = game.state;
   const tiles = s.tiles;
@@ -83,7 +105,7 @@ for (let g = 0; g < GAMES; g++) {
     turns: s.turn,
     winnerDef: s.winner === null ? null : (s.tribes[s.winner]?.defIndex ?? null),
     path: s.winPath?.pathId ?? (s.winner === null ? "none" : "score/domination"),
-    cappedOut: s.turn >= 30,
+    cappedOut: s.turn >= s.maxTurns,
     buildings: tiles.filter((t) => t.building).length,
     roads: tiles.filter((t) => t.road).length,
     heroesAlive: heroes.length,
@@ -106,6 +128,8 @@ const avg = (f: (r: Row) => number) => (rows.reduce((a, r) => a + f(r), 0) / n).
 const pct = (f: (r: Row) => boolean) => ((rows.filter(f).length / n) * 100).toFixed(0) + "%";
 
 console.log(`\n=== SUNDER GAMEPLAY AUDIT — ${n} games, size ${SIZE} ===\n`);
+
+if (stalled) console.log(`!! ${stalled}/${n} matches stalled before gameover — figures below are unreliable\n`);
 
 console.log("MATCH SHAPE");
 console.log(`  avg turns              ${avg((r) => r.turns)}   (30 = cap)`);
