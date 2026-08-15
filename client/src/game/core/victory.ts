@@ -25,21 +25,51 @@ const knob = (name: string, fallback: number) =>
 
 /**
  * Cumulative stars Vessari must loot from rivals to claim Plunder King.
- * Raiders take 2★ per kill, so this is three successful raids.
  *
- * Swept over 6 / 8 / 10 / 12 / 14 / 18 / 24 / 30. This is set low because
- * Vessari's throughput is genuinely poor and the cause is upstream of the
- * target: the Raider loots min(2, victim.stars), and sampling every treasury
- * on the board across 40 matches found rivals sitting on 0 stars 22% of the
- * time and 1 star another 15%, so the signature perk quietly pays nothing or
- * half in over a third of its kills. Vessari remains the weakest tribe
- * (~18%); fixing that properly means changing the perk, not the goal line.
+ * v42 set this to 6 as damage control: the Raider paid `min(2, victim.stars)`
+ * and rivals are broke often enough that the perk delivered nothing or half in
+ * over a third of its kills, so the target had to be tiny to fire at all.
+ * v47 made the payout flat (see GameStore.plunder), which roughly doubled
+ * Vessari's throughput, so the goal line moves back up.
+ *
+ * Swept over 6 / 8 / 10 / 12 across three independent seed blocks. 8 and 10 are
+ * balanced within noise (spread 31.7 vs 28.0, overlapping ranges); 8 wins
+ * because the path completes in 21% of Vessari's games against 12.7% at 10,
+ * which puts Plunder King in the same band as Great Harvest and Unbroken Wall
+ * instead of back near the floor it started at.
  */
-export const PLUNDER_TARGET = knob("SUNDER_PLUNDER_TARGET", 6);
+export const PLUNDER_TARGET = knob("SUNDER_PLUNDER_TARGET", 8);
 /** battles Kharzul must win for Bloodforge (was 18) */
 export const BLOODFORGE_TARGET = knob("SUNDER_BLOODFORGE_TARGET", 22);
 /** total city levels Sunwei must hold for Great Harvest (was 12) */
 export const HARVEST_TARGET = knob("SUNDER_HARVEST_TARGET", 15);
+/** shallow-water tiles per port Tide Mastery demands — see tideTarget() */
+export const TIDE_DIVISOR = knob("SUNDER_TIDE_DIVISOR", 4);
+
+/**
+ * Ports Nerivane must hold for Tide Mastery, scaled to how much coast the board
+ * actually has.
+ *
+ * A flat 4 made this an archipelago-only win condition. Measuring 40 matches per
+ * preset: Nerivane reached four ports in 53% of archipelago games but 8% on
+ * continents, 5% on highlands and 3% on pangaea — and on three of the four it
+ * finished holding ZERO remaining legal port sites. It was not neglecting the
+ * path; highlands has four shallow-water tiles on the entire board, shared by
+ * every tribe, so four ports for one of them is not reachable at all.
+ *
+ * Counted from the board rather than stored, like every other path, so old
+ * saves keep working. Clamped to 2..4 so the goal never becomes trivial on a
+ * flooded map or a formality on a dry one.
+ *
+ * The divisor was swept over 4 / 5 / 7 / 9 across three seed blocks. 4 is both
+ * the most consistent (win-rate spread 22.0 against 27.0 at 5) and the one that
+ * lands Nerivane closest to the 25% baseline, at 23.3%, with the path firing in
+ * 21% of its games — up from 11% when the target was a flat 4.
+ */
+export function tideTarget(s: GameState): number {
+  const shallow = s.tiles.reduce((n, t) => n + (t.terrain === "water" ? 1 : 0), 0);
+  return Math.max(2, Math.min(4, Math.ceil(shallow / TIDE_DIVISOR)));
+}
 
 /** path per TRIBE_DEFS index; the final entry (custom forge tribes) is the generic path */
 export const VICTORY_PATHS: VictoryPathDef[] = [
@@ -53,7 +83,8 @@ export const VICTORY_PATHS: VictoryPathDef[] = [
   // plunder instead rewards the thing that actually makes Vessari Vessari,
   // which is putting Raiders on top of other people's units.
   { id: "plunderking", name: "Plunder King", goal: `Plunder ${PLUNDER_TARGET} stars from your rivals`, flavor: "Vessari's saddlebags overflow — the Shatterlands' wealth rides with the Plunder King." },
-  { id: "tidemastery", name: "Tide Mastery", goal: "Hold 4 ports on the open water", flavor: "Every current answers Nerivane — the tides themselves have chosen a master." },
+  // goal text is rewritten per board in victoryProgress — see tideTarget()
+  { id: "tidemastery", name: "Tide Mastery", goal: "Hold the coast's ports", flavor: "Every current answers Nerivane — the tides themselves have chosen a master." },
   { id: "unbrokenwall", name: "Unbroken Wall", goal: "Hold 3 walled cities", flavor: "Dravok's ramparts blot out the horizon — the Unbroken Wall stands eternal." },
   { id: "stormlegend", name: "Storm Legend", goal: "Field 4 veteran units at once", flavor: "Valkyra's thunder never fades — an army of storm-tempered legends darkens the sky." },
   { id: "overgrowth", name: "Overgrowth", goal: "Hold 5 cities", flavor: "Mycelon's spores drift on every wind — the Shatterlands bloom beneath one endless canopy." },
@@ -72,7 +103,7 @@ export function victoryProgress(s: GameState, tribeIdx: number): VictoryProgress
   const t = s.tribes[tribeIdx];
   if (!t || !t.alive) return null;
   const pathIdx = Math.min(t.defIndex, VICTORY_PATHS.length - 1);
-  const def = VICTORY_PATHS[pathIdx];
+  let def = VICTORY_PATHS[pathIdx];
   let current = 0, target = 1;
   switch (def.id) {
     case "enlightenment":
@@ -83,8 +114,13 @@ export function victoryProgress(s: GameState, tribeIdx: number): VictoryProgress
       current = s.cities.filter((c) => c.tribe === tribeIdx).reduce((a, c) => a + c.level, 0); target = HARVEST_TARGET; break;
     case "plunderking":
       current = s.stats[tribeIdx]?.starsPlundered ?? 0; target = PLUNDER_TARGET; break;
-    case "tidemastery":
-      current = s.tiles.filter((tl) => tl.port === tribeIdx).length; target = 4; break;
+    case "tidemastery": {
+      current = s.tiles.filter((tl) => tl.port === tribeIdx).length;
+      target = tideTarget(s);
+      // the only path whose goal depends on the map, so it states the real number
+      def = { ...def, goal: `Hold ${target} ports on the open water` };
+      break;
+    }
     case "unbrokenwall":
       current = s.cities.filter((c) => c.tribe === tribeIdx && c.walls).length; target = 3; break;
     case "stormlegend":

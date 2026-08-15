@@ -184,7 +184,7 @@ export const UNIT_STATS: Record<UnitType, UnitStats> = {
   raider: {
     name: "Raider", cost: 6, hp: 10, attack: 2.5, defense: 1, movement: 3, range: 1, dash: true,
     tech: "riding", faction: 3,
-    perk: "Plunders 2 stars from the enemy on every kill",
+    perk: "Plunders 2 stars on every kill — from their coffers, or the field",
   },
   tidecaller: {
     name: "Tidecaller", cost: 6, hp: 10, attack: 2.5, defense: 1.5, movement: 2, range: 1, dash: true,
@@ -324,6 +324,11 @@ export const TECHS: TechDef[] = [
   // v38 trade network: the second placement economy — roads knit cities to the capital
   { id: "roads", name: "Roads", tier: 2, requires: "riding", baseCost: 5, desc: "Build roads — faster overland movement; cities linked to your capital earn +1 star." },
 ];
+
+/** stars a Raider (or a Plunderer-perked hero) takes on every kill. Flat: what
+ *  the victim cannot cover is minted as battlefield spoils, so the unit card is
+ *  true even against a bankrupt rival. */
+export const PLUNDER_PER_KILL = 2;
 
 /** cost in stars to build a port on a shallow water tile in your city borders */
 export const PORT_COST = 3;

@@ -4,7 +4,7 @@
 import { describe, it, expect } from "vitest";
 import {
   VICTORY_PATHS, victoryProgress, checkPathVictory, VICTORY_PATH_START_TURN,
-  PLUNDER_TARGET, BLOODFORGE_TARGET, HARVEST_TARGET,
+  PLUNDER_TARGET, BLOODFORGE_TARGET, HARVEST_TARGET, tideTarget,
 } from "../client/src/game/core/victory";
 import { TECHS, TRIBE_DEFS, GameState, emptyStats } from "../client/src/game/core/types";
 
@@ -106,5 +106,45 @@ describe("v20 asymmetric victory paths", () => {
     expect(victoryProgress(s, 0)!.done).toBe(false);
     s.tribes[0].score = 900;
     expect(victoryProgress(s, 0)!.done).toBe(true);
+  });
+});
+
+describe("v47 Tide Mastery scales to the board's coast", () => {
+  // A flat target of 4 made this an archipelago-only win condition: measured
+  // over 40 matches per preset, Nerivane reached four ports in 53% of
+  // archipelago games but 3-8% elsewhere, and on three of the four presets it
+  // finished holding ZERO remaining legal port sites — highlands has four
+  // shallow tiles on the whole board, shared by every tribe.
+  const withShallow = (n: number) => {
+    const s = fakeState();
+    s.size = 11;
+    s.tiles = Array.from({ length: 121 }, (_, i) => ({
+      x: i % 11, y: Math.floor(i / 11),
+      terrain: i < n ? "water" : "grass",
+      resource: null, cityId: null, ownerCityId: null,
+      explored: [true, true, true, true], port: null, ruin: false, greatRuin: false,
+    })) as GameState["tiles"];
+    return s;
+  };
+
+  it("asks for more ports on a wet board than a dry one", () => {
+    expect(tideTarget(withShallow(19))).toBeGreaterThan(tideTarget(withShallow(4)));
+  });
+
+  it("never drops below 2 or climbs above 4", () => {
+    for (const n of [0, 1, 4, 8, 12, 19, 60, 121]) {
+      const t = tideTarget(withShallow(n));
+      expect(t).toBeGreaterThanOrEqual(2);
+      expect(t).toBeLessThanOrEqual(4);
+    }
+  });
+
+  it("states the real number in the goal line, not a fixed one", () => {
+    const s = withShallow(4); // a dry, highlands-like board
+    s.tribes[0].defIndex = 4; // Nerivane
+    const p = victoryProgress(s, 0)!;
+    expect(p.def.id).toBe("tidemastery");
+    expect(p.target).toBe(tideTarget(s));
+    expect(p.def.goal).toContain(String(p.target));
   });
 });

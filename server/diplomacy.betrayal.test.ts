@@ -11,7 +11,7 @@ import { attackableUnits, wouldBreakTreaty } from "../client/src/game/core/rules
 import {
   setPeace, atPeace, hasGrudge, aiAcceptsPeace, aiPaysTribute, PEACE_TREATY_TURNS,
 } from "../client/src/game/core/diplomacy";
-import { Unit, UNIT_STATS } from "../client/src/game/core/types";
+import { Unit, UNIT_STATS, PLUNDER_PER_KILL } from "../client/src/game/core/types";
 
 /** put a unit of `tribe` at (x,y), displacing whatever stood there */
 function place(tribe: number, x: number, y: number, id: number): Unit {
@@ -125,5 +125,52 @@ describe("v42 the Commander is built to survive long enough to level", () => {
     expect(hero.hp).toBeLessThan(UNIT_STATS.colossus.hp);
     // and remains a poor attacker: durability is its role, not damage
     expect(hero.attack).toBeLessThan(UNIT_STATS.knight.attack);
+  });
+});
+
+describe("v47 the Raider's perk pays what the unit card promises", () => {
+  // It used to pay min(2, victim.stars) — a pure transfer. Sampling every
+  // treasury across 40 matches found rivals holding 0 stars 22% of the time and
+  // 1 star another 15%, so the signature perk under-delivered in over a third of
+  // its kills, silently: the log line sat inside an `if (loot > 0)` guard.
+  function raidAgainst(victimStars: number) {
+    game.newGame({ size: 11, humanTribe: 0, difficulty: "normal", seed: 606, roster: [3, 1, 2, 5] });
+    const s = game.state;
+    s.tribes[1].stars = victimStars;
+    s.tribes[0].stars = 0;
+    s.stats[0].starsPlundered = 0;
+    s.log = [];
+    const raider = place(0, 4, 4, 8101);
+    raider.type = "raider";
+    const prey = place(1, 5, 4, 8102);
+    prey.hp = 1; // dies to the first hit, so the kill branch runs
+    game.attack(raider.id, prey.id);
+    return s;
+  }
+
+  it("pays the full amount even when the victim is bankrupt", () => {
+    const s = raidAgainst(0);
+    expect(s.tribes[0].stars).toBe(PLUNDER_PER_KILL);
+    expect(s.stats[0].starsPlundered).toBe(PLUNDER_PER_KILL);
+    expect(s.tribes[1].stars).toBe(0); // cannot be driven negative
+  });
+
+  it("takes what it can from the coffers before minting the rest", () => {
+    const s = raidAgainst(1);
+    expect(s.tribes[1].stars).toBe(0);
+    expect(s.tribes[0].stars).toBe(PLUNDER_PER_KILL);
+  });
+
+  it("is a pure transfer when the victim can cover it", () => {
+    const s = raidAgainst(10);
+    expect(s.tribes[1].stars).toBe(10 - PLUNDER_PER_KILL);
+    expect(s.tribes[0].stars).toBe(PLUNDER_PER_KILL);
+  });
+
+  it("always tells the player it happened, bankrupt victim or not", () => {
+    for (const stars of [0, 1, 10]) {
+      const s = raidAgainst(stars);
+      expect(s.log.some((l) => /plundered|spoils/i.test(l))).toBe(true);
+    }
   });
 });
