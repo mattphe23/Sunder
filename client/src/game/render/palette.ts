@@ -58,6 +58,10 @@ export interface BiomePalette {
   fogWash: string; // fog-of-war desaturation wash target
   cloud: string; //   unexplored cloud-bank puffs
   cloudShade: string; // cloud underside / pick slab
+  /** tree silhouette family — geometry, not just color */
+  treeKind: "conifer" | "palm" | "acacia" | "pine";
+  /** mountain silhouette family */
+  rockKind: "classic" | "mesa" | "crag";
 }
 
 export const BIOMES: Record<string, BiomePalette> = {
@@ -77,6 +81,8 @@ export const BIOMES: Record<string, BiomePalette> = {
     fogWash: "#262650",
     cloud: "#6f74a4",
     cloudShade: "#4e5384",
+    treeKind: "conifer",
+    rockKind: "classic",
   },
   // tropics — turquoise shallows, azure deeps, white-gold beaches, vivid canopy
   archipelago: {
@@ -94,23 +100,27 @@ export const BIOMES: Record<string, BiomePalette> = {
     fogWash: "#24304e",
     cloud: "#7881b2",
     cloudShade: "#565e92",
+    treeKind: "palm",
+    rockKind: "mesa",
   },
   // alpine — sage meadows, dark pines, glacial water, bright snow on cold slate
   highlands: {
     terrain: {
       grass: { top: "#79a86e", side: "#41663c" },
       forest: { top: "#3f8a4c", side: "#265939" },
-      mountain: { top: "#a7b2c0", side: "#5a6b78" },
+      mountain: { top: "#8e9bad", side: "#4e5d6b" },
       water: { top: "#52a4d8", side: "#3a72a4" },
       ocean: { top: "#1e4aa0", side: "#153678" },
     },
     shore: "#bce6f4",
     sand: "#b5b0a2",
     tree: { trunk: "#59412f", canopyA: "#226b3a", canopyB: "#1a5430", canopyLight: "#2f7f46" },
-    rock: { body: "#a2adbd", shadow: "#7e8898", snow: "#ffffff" },
+    rock: { body: "#8d99ab", shadow: "#6c7789", snow: "#f4f8ff" },
     fogWash: "#232a52",
     cloud: "#7d88b8",
     cloudShade: "#5a6494",
+    treeKind: "pine",
+    rockKind: "crag",
   },
   // savanna — olive-gold plains, acacia greens, ochre rock, sun-bleached caps
   pangaea: {
@@ -128,6 +138,8 @@ export const BIOMES: Record<string, BiomePalette> = {
     fogWash: "#292648",
     cloud: "#77709f",
     cloudShade: "#544e7e",
+    treeKind: "acacia",
+    rockKind: "mesa",
   },
 };
 

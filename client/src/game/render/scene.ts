@@ -770,24 +770,73 @@ export class BoardRenderer {
       decor.push(sail);
     }
     if (t.terrain === "forest") {
-      // two-tone trees: brown trunk + layered canopy, varied heights — unmistakably a forest
-      const treeCount = 3 + ((t.x * 7 + t.y * 11) % 2); // seeded 3-4 per tile
+      // per-biome tree silhouettes: the forest's SHAPE changes with the map
+      // preset, not just its color (conifer / pine / palm / acacia)
+      const kind = this.bio.treeKind;
+      const md = { tile: true, x: t.x, y: t.y };
+      const treeCount = (kind === "palm" || kind === "acacia" ? 2 : 3) + ((t.x * 7 + t.y * 11) % 2);
       for (let i = 0; i < treeCount; i++) {
         const px = t.x - c + (i === 3 ? 0.08 : (i - 1) * 0.26);
         const pz = t.y - c + (i === 3 ? -0.32 : ((i * 7) % 3 - 1) * 0.24);
-        const th = 0.4 + ((i * 13 + t.x + t.y) % 3) * 0.09;
-        const trunk = MeshBuilder.CreateCylinder("trk", { diameter: 0.09, height: 0.22, tessellation: 5 }, this.scene);
-        trunk.position = new Vector3(px, top + 0.11, pz);
-        trunk.material = this.mat(this.bio.tree.trunk);
-        trunk.metadata = { tile: true, x: t.x, y: t.y };
-        trunk.parent = this.root;
-        decor.push(trunk);
-        const canopy = MeshBuilder.CreateCylinder("tr", { diameterTop: 0, diameterBottom: 0.3, height: th, tessellation: 6 }, this.scene);
-        canopy.position = new Vector3(px, top + 0.2 + th / 2, pz);
-        canopy.material = this.mat(i === 1 ? this.bio.tree.canopyB : i === 0 ? this.bio.tree.canopyA : this.bio.tree.canopyLight);
-        canopy.metadata = { tile: true, x: t.x, y: t.y };
-        canopy.parent = this.root;
-        decor.push(canopy);
+        const seed = (i * 13 + t.x * 5 + t.y * 3) % 3;
+        const leafHex = i === 1 ? this.bio.tree.canopyB : i === 0 ? this.bio.tree.canopyA : this.bio.tree.canopyLight;
+        if (kind === "palm") {
+          // palm: tall leaning bare trunk + radiating frond blades
+          const th = 0.34 + seed * 0.07;
+          const trunk = MeshBuilder.CreateCylinder("trk", { diameterTop: 0.05, diameterBottom: 0.075, height: th, tessellation: 5 }, this.scene);
+          trunk.position = new Vector3(px, top + th / 2, pz);
+          trunk.rotation.z = (seed - 1) * 0.16;
+          trunk.material = this.mat(this.bio.tree.trunk);
+          trunk.metadata = md; trunk.parent = this.root; decor.push(trunk);
+          const crownY = top + th + 0.02;
+          for (let f = 0; f < 5; f++) {
+            const frond = MeshBuilder.CreateCylinder("tr", { diameterTop: 0, diameterBottom: 0.11, height: 0.24, tessellation: 3 }, this.scene);
+            frond.position = new Vector3(px + Math.cos(f * 1.256 + seed) * 0.1 + (seed - 1) * 0.05, crownY + 0.03, pz + Math.sin(f * 1.256 + seed) * 0.1);
+            frond.rotation.z = Math.cos(f * 1.256 + seed) * 1.15;
+            frond.rotation.x = -Math.sin(f * 1.256 + seed) * 1.15;
+            frond.scaling.z = 0.4;
+            frond.material = this.mat(f % 2 ? this.bio.tree.canopyB : leafHex);
+            frond.metadata = md; frond.parent = this.root; decor.push(frond);
+          }
+          // coconut cluster
+          const nut = MeshBuilder.CreateIcoSphere("tr", { radius: 0.035, subdivisions: 1 }, this.scene);
+          nut.position = new Vector3(px + (seed - 1) * 0.05, crownY - 0.01, pz + 0.03);
+          nut.material = this.mat(this.bio.tree.trunk);
+          nut.metadata = md; nut.parent = this.root; decor.push(nut);
+        } else if (kind === "acacia") {
+          // acacia: short trunk under a wide flat-topped umbrella canopy
+          const th = 0.2 + seed * 0.05;
+          const trunk = MeshBuilder.CreateCylinder("trk", { diameterTop: 0.06, diameterBottom: 0.1, height: th, tessellation: 5 }, this.scene);
+          trunk.position = new Vector3(px, top + th / 2, pz);
+          trunk.material = this.mat(this.bio.tree.trunk);
+          trunk.metadata = md; trunk.parent = this.root; decor.push(trunk);
+          const umbrella = MeshBuilder.CreateCylinder("tr", { diameterTop: 0.42, diameterBottom: 0.2, height: 0.1, tessellation: 6 }, this.scene);
+          umbrella.position = new Vector3(px, top + th + 0.05, pz);
+          umbrella.material = this.mat(leafHex);
+          umbrella.metadata = md; umbrella.parent = this.root; decor.push(umbrella);
+          const crownTop = MeshBuilder.CreateCylinder("tr", { diameterTop: 0.3, diameterBottom: 0.44, height: 0.05, tessellation: 6 }, this.scene);
+          crownTop.position = new Vector3(px, top + th + 0.12, pz);
+          crownTop.material = this.mat(this.bio.tree.canopyB);
+          crownTop.metadata = md; crownTop.parent = this.root; decor.push(crownTop);
+        } else {
+          // conifer / pine: trunk + stacked cone skirts (pine gets a taller,
+          // narrower, three-tier silhouette; conifer keeps the classic cone)
+          const tiers = kind === "pine" ? 3 : 1;
+          const th = (kind === "pine" ? 0.44 : 0.4) + seed * 0.09;
+          const trunk = MeshBuilder.CreateCylinder("trk", { diameter: 0.09, height: 0.22, tessellation: 5 }, this.scene);
+          trunk.position = new Vector3(px, top + 0.11, pz);
+          trunk.material = this.mat(this.bio.tree.trunk);
+          trunk.metadata = md; trunk.parent = this.root; decor.push(trunk);
+          for (let k = 0; k < tiers; k++) {
+            const frac = k / tiers;
+            const w = (kind === "pine" ? 0.32 : 0.3) * (1 - frac * 0.42);
+            const h = th / (tiers === 1 ? 1 : 1.9);
+            const cone = MeshBuilder.CreateCylinder("tr", { diameterTop: 0, diameterBottom: w, height: h, tessellation: 6 }, this.scene);
+            cone.position = new Vector3(px, top + 0.2 + frac * th * 0.42 + h / 2, pz);
+            cone.material = this.mat(k === 0 ? leafHex : k === 1 ? this.bio.tree.canopyB : this.bio.tree.canopyLight);
+            cone.metadata = md; cone.parent = this.root; decor.push(cone);
+          }
+        }
       }
     }
     if (t.terrain === "grass" && !t.resource && !t.building && !t.ruin && !t.greatRuin && !t.road && t.cityId === null) {
@@ -846,24 +895,69 @@ export class BoardRenderer {
       skirt.rotation.y = yaw;
       skirt.material = this.mat(this.bio.rock.shadow);
       skirt.metadata = md; skirt.parent = this.root; decor.push(skirt);
-      // 2. main peak rising out of the skirt
-      const rock = MeshBuilder.CreateCylinder("pk", { diameterTop: 0.1, diameterBottom: 0.58, height: 0.46, tessellation: 6 }, this.scene);
-      rock.position = new Vector3(t.x - c, top + 0.34, t.y - c);
-      rock.rotation.y = yaw + 0.3;
-      rock.material = this.mat(this.bio.rock.body);
-      rock.metadata = md; rock.parent = this.root; decor.push(rock);
-      const snow = MeshBuilder.CreateCylinder("snow", { diameterTop: 0, diameterBottom: 0.2, height: 0.22, tessellation: 6 }, this.scene);
-      snow.position = new Vector3(t.x - c, top + 0.66, t.y - c);
-      snow.rotation.y = rock.rotation.y;
-      snow.material = this.mat(this.bio.rock.snow);
-      snow.metadata = md; snow.parent = this.root; decor.push(snow);
-      // 3. shoulder peak growing out of the skirt edge (not floating beside it)
-      const shx = 0.22 - (seed % 2) * 0.44, shz = -0.16 + (seed % 3) * 0.14;
-      const shoulder = MeshBuilder.CreateCylinder("pk2", { diameterTop: 0, diameterBottom: 0.34, height: 0.34, tessellation: 5 }, this.scene);
-      shoulder.position = new Vector3(t.x - c + shx, top + 0.24, t.y - c + shz);
-      shoulder.rotation.y = yaw + 1.1;
-      shoulder.material = this.mat(this.bio.rock.body);
-      shoulder.metadata = md; shoulder.parent = this.root; decor.push(shoulder);
+      // 2. main massif — silhouette family varies per biome
+      const rk = this.bio.rockKind;
+      if (rk === "mesa") {
+        // mesa: flat-topped stepped butte (arid / island volcanic plateau)
+        const tier1 = MeshBuilder.CreateCylinder("pk", { diameterTop: 0.5, diameterBottom: 0.66, height: 0.3, tessellation: 6 }, this.scene);
+        tier1.position = new Vector3(t.x - c, top + 0.26, t.y - c);
+        tier1.rotation.y = yaw + 0.3;
+        tier1.material = this.mat(this.bio.rock.body);
+        tier1.metadata = md; tier1.parent = this.root; decor.push(tier1);
+        const tier2 = MeshBuilder.CreateCylinder("pk", { diameterTop: 0.3, diameterBottom: 0.44, height: 0.24, tessellation: 6 }, this.scene);
+        tier2.position = new Vector3(t.x - c + 0.04, top + 0.52, t.y - c - 0.03);
+        tier2.rotation.y = yaw - 0.4;
+        tier2.material = this.mat(this.bio.rock.shadow);
+        tier2.metadata = md; tier2.parent = this.root; decor.push(tier2);
+        const capm = MeshBuilder.CreateCylinder("snow", { diameterTop: 0.26, diameterBottom: 0.3, height: 0.05, tessellation: 6 }, this.scene);
+        capm.position = new Vector3(t.x - c + 0.04, top + 0.66, t.y - c - 0.03);
+        capm.rotation.y = yaw - 0.4;
+        capm.material = this.mat(this.bio.rock.snow);
+        capm.metadata = md; capm.parent = this.root; decor.push(capm);
+      } else if (rk === "crag") {
+        // crag: steep twin spires with heavy snow — alpine
+        const spire = MeshBuilder.CreateCylinder("pk", { diameterTop: 0.06, diameterBottom: 0.5, height: 0.66, tessellation: 5 }, this.scene);
+        spire.position = new Vector3(t.x - c - 0.03, top + 0.42, t.y - c + 0.02);
+        spire.rotation.y = yaw + 0.3;
+        spire.rotation.z = 0.05;
+        spire.material = this.mat(this.bio.rock.body);
+        spire.metadata = md; spire.parent = this.root; decor.push(spire);
+        const snowC = MeshBuilder.CreateCylinder("snow", { diameterTop: 0, diameterBottom: 0.17, height: 0.2, tessellation: 5 }, this.scene);
+        snowC.position = new Vector3(t.x - c - 0.03, top + 0.75, t.y - c + 0.02);
+        snowC.rotation.y = yaw + 0.3;
+        snowC.material = this.mat(this.bio.rock.snow);
+        snowC.metadata = md; snowC.parent = this.root; decor.push(snowC);
+        const sub = MeshBuilder.CreateCylinder("pk", { diameterTop: 0.04, diameterBottom: 0.28, height: 0.42, tessellation: 5 }, this.scene);
+        sub.position = new Vector3(t.x - c + 0.24, top + 0.3, t.y - c - 0.16);
+        sub.rotation.y = yaw - 0.6;
+        sub.material = this.mat(this.bio.rock.shadow);
+        sub.metadata = md; sub.parent = this.root; decor.push(sub);
+        const subSnow = MeshBuilder.CreateCylinder("snow", { diameterTop: 0, diameterBottom: 0.1, height: 0.11, tessellation: 5 }, this.scene);
+        subSnow.position = new Vector3(t.x - c + 0.24, top + 0.53, t.y - c - 0.16);
+        subSnow.material = this.mat(this.bio.rock.snow);
+        subSnow.metadata = md; subSnow.parent = this.root; decor.push(subSnow);
+      } else {
+        const rock = MeshBuilder.CreateCylinder("pk", { diameterTop: 0.1, diameterBottom: 0.58, height: 0.46, tessellation: 6 }, this.scene);
+        rock.position = new Vector3(t.x - c, top + 0.34, t.y - c);
+        rock.rotation.y = yaw + 0.3;
+        rock.material = this.mat(this.bio.rock.body);
+        rock.metadata = md; rock.parent = this.root; decor.push(rock);
+        const snow = MeshBuilder.CreateCylinder("snow", { diameterTop: 0, diameterBottom: 0.2, height: 0.22, tessellation: 6 }, this.scene);
+        snow.position = new Vector3(t.x - c, top + 0.66, t.y - c);
+        snow.rotation.y = rock.rotation.y;
+        snow.material = this.mat(this.bio.rock.snow);
+        snow.metadata = md; snow.parent = this.root; decor.push(snow);
+      }
+      // 3. shoulder peak growing out of the skirt edge (classic only — the
+      //    mesa and crag families carry their own secondary mass)
+      if (rk === "classic") {
+        const shx = 0.22 - (seed % 2) * 0.44, shz = -0.16 + (seed % 3) * 0.14;
+        const shoulder = MeshBuilder.CreateCylinder("pk2", { diameterTop: 0, diameterBottom: 0.34, height: 0.34, tessellation: 5 }, this.scene);
+        shoulder.position = new Vector3(t.x - c + shx, top + 0.24, t.y - c + shz);
+        shoulder.rotation.y = yaw + 1.1;
+        shoulder.material = this.mat(this.bio.rock.body);
+        shoulder.metadata = md; shoulder.parent = this.root; decor.push(shoulder);
+      }
       // 4. scree boulders at the foot for a natural transition
       for (const [bx, bz, br] of [[0.34, 0.3, 0.07], [-0.32, 0.26, 0.055]] as const) {
         const boulder = MeshBuilder.CreateIcoSphere("scree", { radius: br, subdivisions: 1 }, this.scene);
