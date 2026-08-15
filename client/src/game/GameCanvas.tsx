@@ -155,7 +155,20 @@ export default function GameCanvas() {
 
   return (
     <>
-      <canvas ref={canvasRef} className="h-full w-full outline-none" style={{ touchAction: "none" }} />
+      {/* The sky. Babylon clears transparent, so this gradient shows wherever
+          the diorama does not fill the frame — which on a first turn is most of
+          it. Same palette as the menu backdrop (indigo void, ember horizon), so
+          the board and the front screen read as one world. */}
+      <canvas
+        ref={canvasRef}
+        className="h-full w-full outline-none"
+        style={{
+          touchAction: "none",
+          background:
+            "radial-gradient(120% 55% at 50% 100%, rgba(255,155,47,0.13), rgba(255,155,47,0) 62%)," +
+            "linear-gradient(#191940 0%, #262657 52%, #141433 100%)",
+        }}
+      />
       {/* v16 brand splash — covers Babylon's first-frame flash, fades out via CSS */}
       <div
         className={`pointer-events-none absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-[#141433] transition-opacity duration-500 ${booting ? "opacity-100" : "opacity-0"}`}

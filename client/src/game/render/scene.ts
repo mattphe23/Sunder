@@ -116,9 +116,13 @@ export class BoardRenderer {
   onPick: ((p: PickInfo) => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
-    this.engine = new Engine(canvas, true, { antialias: true, stencil: false });
+    this.engine = new Engine(canvas, true, { antialias: true, stencil: false, alpha: true });
     this.scene = new Scene(this.engine);
-    this.scene.clearColor = Color4.FromHexString("#141433ff");
+    // The sky is painted in CSS behind a transparent clear (see GameCanvas).
+    // A flat clear color left the opening frame with a large slab of dead
+    // background wherever the diorama did not reach the edge of the viewport;
+    // a gradient costs no draw calls and gives the void some depth.
+    this.scene.clearColor = new Color4(0, 0, 0, 0);
     // dev/perf harness hook: lets tooling read live scene statistics
     if (typeof window !== "undefined") (window as unknown as Record<string, unknown>).__sunderScene = this.scene;
     this.setupCameraLights(canvas);
@@ -166,6 +170,28 @@ export class BoardRenderer {
   }
 
   private handleResize = () => this.engine.resize();
+
+  /**
+   * The opening shot — the first frame a player ever sees of the board.
+   *
+   * Aiming the camera squarely at the human capital looks right on paper and
+   * frames badly in practice: capitals often spawn near an edge, so the board
+   * falls into one corner and up to 40% of the screen is empty void past the
+   * diorama's rim. Pulling the target back toward the middle of the board keeps
+   * the capital comfortably in frame while filling the shot with world.
+   */
+  private frameOpeningShot(s: GameState, c: number) {
+    const cap = s.cities.find((ci) => ci.isCapital && ci.tribe === s.humanTribe);
+    if (!cap) {
+      this.camera.target = Vector3.Zero();
+      this.camera.radius = 13;
+      return;
+    }
+    // board centre is the origin, so scaling the capital offset pulls toward it
+    const PULL = 0.45;
+    this.camera.target = new Vector3((cap.x - c) * (1 - PULL), 0, (cap.y - c) * (1 - PULL));
+    this.camera.radius = 13;
+  }
 
   private setupCameraLights(canvas: HTMLCanvasElement) {
     this.camera = new ArcRotateCamera(
@@ -514,9 +540,7 @@ export class BoardRenderer {
       this.buildTile(s, t, c);
     }
     if (!this.cameraInitialized) {
-      const cap = s.cities.find((ci) => ci.isCapital && ci.tribe === s.humanTribe);
-      this.camera.target = cap ? new Vector3(cap.x - c, 0, cap.y - c) : Vector3.Zero();
-      this.camera.radius = 13;
+      this.frameOpeningShot(s, c);
       this.cameraInitialized = true;
       this.cameraGameSig = `${s.seed}:${s.humanTribe}:${s.size}`;
     } else {
@@ -524,9 +548,7 @@ export class BoardRenderer {
       // straight into a new match) — recenter on the new capital.
       const sig = `${s.seed}:${s.humanTribe}:${s.size}`;
       if (this.cameraGameSig !== sig) {
-        const cap = s.cities.find((ci) => ci.isCapital && ci.tribe === s.humanTribe);
-        this.camera.target = cap ? new Vector3(cap.x - c, 0, cap.y - c) : Vector3.Zero();
-        this.camera.radius = 13;
+        this.frameOpeningShot(s, c);
         this.cameraGameSig = sig;
       }
     }
