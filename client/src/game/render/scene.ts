@@ -64,6 +64,14 @@ const LAND_SKIRT = 0.34;
 // beneath the board — sells the "island floating over the abyss" look.
 const SHADOW_Y = -0.78;
 
+/** flat triangular prism (fins, sails, shards) — a 3-tess cone, z-squashed */
+function wedgeMesh(scene: Scene, name: string, w: number, h: number, d: number): Mesh {
+  const m = MeshBuilder.CreateCylinder(name, { diameterTop: 0, diameterBottom: w, height: h, tessellation: 3 }, scene);
+  m.scaling.z = d / w;
+  m.isPickable = false;
+  return m;
+}
+
 export interface PickInfo {
   kind: "tile";
   x: number;
@@ -93,6 +101,8 @@ export class BoardRenderer {
   private lowQuality = false;
   private waterMats: StandardMaterial[] = [];
   private shimmerT = 0;
+  /** sea life + surface motion: bobbing fish, drifting glints, cloud puffs */
+  private seaMotion: { m: Mesh; y0: number; amp: number; sp: number; ph: number; spin: number }[] = [];
   private ambientMeshes: Mesh[] = [];
   private ambientObs: any = null;
   private forestSpots: { x: number; z: number }[] = [];
@@ -114,6 +124,15 @@ export class BoardRenderer {
       this.shimmerT += this.engine.getDeltaTime() / 1000;
       const p = (Math.sin(this.shimmerT * 1.6) + 1) / 2; // 0..1 slow swell
       const q = (Math.sin(this.shimmerT * 2.7 + 1.3) + 1) / 2; // offset ripple
+      // sea life + cloud drift: cheap per-frame transform nudges, no physics
+      if (this.seaMotion.length) {
+        const tt = this.shimmerT;
+        for (const e of this.seaMotion) {
+          if (e.m.isDisposed()) continue;
+          e.m.position.y = e.y0 + Math.sin(tt * e.sp + e.ph) * e.amp;
+          if (e.spin) e.m.rotation.y += e.spin * this.engine.getDeltaTime() / 1000;
+        }
+      }
       for (const wm of this.waterMats) {
         const deep = wm.name.includes("ocean");
         // Stage 1: flat unlit water — the whole color IS the emissive channel,
@@ -380,6 +399,7 @@ export class BoardRenderer {
   /** full rebuild of static board (called on new game / capture) */
   buildBoard(s: GameState) {
     this.bio = biomeFor(s.preset);
+    this.seaMotion = [];
     this.tileMeshes.forEach((m) => m.dispose());
     this.tileMeshes.clear();
     this.decorMeshes.forEach((arr) => arr.forEach((m: Mesh) => m.dispose()));
@@ -623,6 +643,7 @@ export class BoardRenderer {
       puff.metadata = { tile: true, x: t.x, y: t.y };
       puff.parent = this.root;
       decor.push(puff);
+      this.seaMotion.push({ m: puff, y0: puff.position.y, amp: 0.02, sp: 0.5 + j * 0.35, ph: (t.x + t.y) * 0.7 + r, spin: 0.06 + j2 * 0.05 });
     }
     this.decorMeshes.set(key, decor);
   }
@@ -861,6 +882,31 @@ export class BoardRenderer {
         }
       }
     }
+    if (t.terrain === "water" && !fogged && t.port === null) {
+      // fish: ~45% of shallow tiles carry a dark fin + tail breaking the
+      // surface (Polytopia's shallow-water life rule), gently bobbing
+      const f = (t.x * 37 + t.y * 59) % 100;
+      if (f < 45) {
+        const md = { tile: true, x: t.x, y: t.y };
+        const surf = TERRAIN_H[t.terrain] - 0.4;
+        const fx = t.x - c + ((f % 5) - 2) * 0.12;
+        const fz = t.y - c + ((f % 7) - 3) * 0.1;
+        const body = darken(this.bio.terrain.ocean.top, 0.55);
+        const fin = wedgeMesh(this.scene, "fish", 0.17, 0.15, 0.06);
+        fin.position = new Vector3(fx, surf + 0.045, fz);
+        fin.rotation.y = (f % 9) * 0.6;
+        fin.material = this.mat(body);
+        fin.metadata = md; fin.parent = this.root; decor.push(fin);
+        this.seaMotion.push({ m: fin, y0: surf + 0.045, amp: 0.018, sp: 1.6 + (f % 5) * 0.2, ph: f, spin: 0 });
+        const tail = wedgeMesh(this.scene, "fish", 0.12, 0.1, 0.045);
+        tail.position = new Vector3(fx - Math.cos((f % 9) * 0.6) * 0.11, surf + 0.025, fz - Math.sin((f % 9) * 0.6) * 0.11);
+        tail.rotation.y = (f % 9) * 0.6;
+        tail.rotation.z = 0.5;
+        tail.material = this.mat(body);
+        tail.metadata = md; tail.parent = this.root; decor.push(tail);
+        this.seaMotion.push({ m: tail, y0: surf + 0.025, amp: 0.014, sp: 1.6 + (f % 5) * 0.2, ph: f + 0.8, spin: 0 });
+      }
+    }
     if ((t.terrain === "water" || t.terrain === "ocean") && !fogged) {
       // wave glints: thin pale dashes on ~1/3 of water tiles — the flat sea
       // gets sparkle without any texture work
@@ -878,6 +924,7 @@ export class BoardRenderer {
           arc.rotation.y = (w + k) * 0.5;
           arc.material = this.mat(this.bio.shore);
           arc.metadata = md; arc.parent = this.root; decor.push(arc);
+          this.seaMotion.push({ m: arc, y0: surf, amp: 0.01, sp: 1.1 + k * 0.4, ph: w * 1.7 + k, spin: 0 });
         }
       }
     }
