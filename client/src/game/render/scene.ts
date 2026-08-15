@@ -629,31 +629,48 @@ export class BoardRenderer {
   private buildFogTile(s: GameState, t: Tile, c: number) {
     const key = idx(t.x, t.y, s.size);
     // shaded underside slab: keeps the board footprint legible between puffs
-    // and gives clicks a reliable pick target
+    // and gives clicks a reliable pick target. Sits low and dim so the puffs
+    // above it carry the read.
     const box = MeshBuilder.CreateBox("t" + key, { width: TILE * 0.96, depth: TILE * 0.96, height: 0.1 }, this.scene);
-    box.position = new Vector3(t.x - c, -0.32, t.y - c);
+    box.position = new Vector3(t.x - c, -0.36, t.y - c);
     box.material = this.mat(this.bio.cloudShade);
     box.metadata = { tile: true, x: t.x, y: t.y };
     box.parent = this.root;
     this.tileMeshes.set(key, box);
-    // deterministic puff cluster so the bank looks organic, not gridded
+    // Deterministic puff cluster. A new player's opening board is almost all
+    // fog, so this is the first thing anyone sees: it has to read as soft
+    // cloud cover, not as unrendered tiles. Rounder spheres, more of them,
+    // varied heights, and a shaded underside give the bank real volume.
     const j = ((t.x * 31 + t.y * 17) % 7) / 7;
     const j2 = ((t.x * 13 + t.y * 29) % 5) / 5;
+    const j3 = ((t.x * 7 + t.y * 43) % 11) / 11;
     const decor: Mesh[] = [];
-    const puffs: [number, number, number][] = [
-      [(j - 0.5) * 0.3, (j2 - 0.5) * 0.3, 0.36 + j * 0.1],
-      [(0.5 - j2) * 0.38, (j - 0.5) * 0.3, 0.27 + j2 * 0.09],
-      [(j2 - 0.2) * 0.28, (0.42 - j) * 0.38, 0.2 + j * 0.07],
+    const puffs: [number, number, number, number][] = [
+      // [offX, offZ, radius, heightLift]
+      [(j - 0.5) * 0.26, (j2 - 0.5) * 0.26, 0.33 + j * 0.07, 0.06],
+      [(0.5 - j2) * 0.34, (j - 0.5) * 0.28, 0.26 + j2 * 0.07, 0.0],
+      [(j2 - 0.2) * 0.3, (0.42 - j) * 0.34, 0.22 + j3 * 0.07, 0.03],
+      [(j3 - 0.5) * 0.4, (j2 - 0.6) * 0.3, 0.18 + j * 0.05, -0.02],
     ];
-    for (const [ox, oz, r] of puffs) {
-      const puff = MeshBuilder.CreateIcoSphere("cloud", { radius: r, subdivisions: 1 }, this.scene);
-      puff.position = new Vector3(t.x - c + ox, -0.16 + r * 0.35, t.y - c + oz);
-      puff.scaling.y = 0.5;
+    for (const [ox, oz, r, lift] of puffs) {
+      const puff = MeshBuilder.CreateIcoSphere("cloud", { radius: r, subdivisions: 2 }, this.scene);
+      puff.position = new Vector3(t.x - c + ox, -0.2 + r * 0.4 + lift, t.y - c + oz);
+      puff.scaling.y = 0.58;
       puff.material = this.mat(this.bio.cloud);
       puff.metadata = { tile: true, x: t.x, y: t.y };
       puff.parent = this.root;
       decor.push(puff);
-      this.seaMotion.push({ m: puff, y0: puff.position.y, amp: 0.02, sp: 0.5 + j * 0.35, ph: (t.x + t.y) * 0.7 + r, spin: 0.06 + j2 * 0.05 });
+      this.seaMotion.push({ m: puff, y0: puff.position.y, amp: 0.022, sp: 0.45 + j * 0.3, ph: (t.x + t.y) * 0.7 + r, spin: 0.05 + j2 * 0.04 });
+      // shaded belly: a slightly larger, darker sphere sunk below the puff
+      // gives each blob a lit-top / shadowed-underside read without lighting
+      const belly = MeshBuilder.CreateIcoSphere("cloud", { radius: r * 0.92, subdivisions: 1 }, this.scene);
+      belly.position = new Vector3(puff.position.x, puff.position.y - r * 0.2, puff.position.z);
+      belly.scaling.y = 0.42;
+      belly.material = this.mat(this.bio.cloudShade);
+      belly.metadata = { tile: true, x: t.x, y: t.y };
+      belly.parent = this.root;
+      decor.push(belly);
+      this.seaMotion.push({ m: belly, y0: belly.position.y, amp: 0.022, sp: 0.45 + j * 0.3, ph: (t.x + t.y) * 0.7 + r, spin: 0 });
     }
     this.decorMeshes.set(key, decor);
   }
@@ -1341,13 +1358,23 @@ export class BoardRenderer {
       plaza.position = new Vector3(t.x - c, top + 0.03, t.y - c);
       plaza.material = this.mat(isNeutral ? "#cfc2a4" : "#cfc8b8");
       plaza.metadata = md; plaza.parent = this.root; decor.push(plaza);
-      // border frame in the owner color — ownership reads at any zoom
-      const bh = pw / 2 - 0.02;
-      for (const [fx, fz, fw, fd] of [[0, -bh, pw, 0.05], [0, bh, pw, 0.05], [-bh, 0, 0.05, pw], [bh, 0, 0.05, pw]] as const) {
-        const edge = MeshBuilder.CreateBox("cityedge", { width: fw, depth: fd, height: 0.07 }, this.scene);
-        edge.position = new Vector3(t.x - c + fx, top + 0.045, t.y - c + fz);
-        edge.material = this.mat(col);
+      // Ownership edging: a low kerb around the plaza in a deepened owner
+      // color. Kept thin and dark — a bright full-saturation frame reads as a
+      // UI selection box rather than part of the world.
+      const bh = pw / 2 - 0.015;
+      const kerb = darken(col, 0.72);
+      for (const [fx, fz, fw, fd] of [[0, -bh, pw, 0.035], [0, bh, pw, 0.035], [-bh, 0, 0.035, pw], [bh, 0, 0.035, pw]] as const) {
+        const edge = MeshBuilder.CreateBox("cityedge", { width: fw, depth: fd, height: 0.045 }, this.scene);
+        edge.position = new Vector3(t.x - c + fx, top + 0.05, t.y - c + fz);
+        edge.material = this.mat(kerb);
         edge.metadata = md; edge.parent = this.root; decor.push(edge);
+      }
+      // corner posts in the full owner color: small, bright, unambiguous
+      for (const [cx, cz] of [[-bh, -bh], [bh, -bh], [-bh, bh], [bh, bh]] as const) {
+        const post = MeshBuilder.CreateBox("cityedge", { width: 0.075, depth: 0.075, height: 0.075 }, this.scene);
+        post.position = new Vector3(t.x - c + cx, top + 0.065, t.y - c + cz);
+        post.material = this.mat(col);
+        post.metadata = md; post.parent = this.root; decor.push(post);
       }
       // seeded cluster: center building tallest, satellites around it
       const js = (t.x * 7 + t.y * 13) % 4;
@@ -1372,7 +1399,7 @@ export class BoardRenderer {
           const roof = MeshBuilder.CreateCylinder("roof", { diameterTop: 0, diameterBottom: bw * 1.2, height: 0.14 + bw * 0.2, tessellation: 4 }, this.scene);
           roof.position = new Vector3(t.x - c + slot[0], top + 0.06 + bhh + (0.14 + bw * 0.2) / 2, t.y - c + slot[1]);
           roof.rotation.y = Math.PI / 4;
-          roof.material = this.mat(col);
+          roof.material = this.mat(darken(col, 0.85));
           roof.metadata = md; roof.parent = this.root; decor.push(roof);
         } else {
           // flat slab roof with an owner-color trim cap for variety
