@@ -11,7 +11,7 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "db:push": "drizzle-kit generate && drizzle-kit migrate",
-    "ios:sync": "pnpm build && npx cap sync ios",
+    "ios:sync": "pnpm icons && pnpm build && npx cap sync ios",
     "ios:open": "npx cap open ios",
     "icons": "node scripts/gen-app-icons.mjs"
   },

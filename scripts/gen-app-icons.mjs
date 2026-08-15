@@ -36,12 +36,20 @@ const ICON = (px) => `
   <g transform="translate(48 42) scale(0.78) translate(-48 -48)">${SIGIL}</g>
 </svg>`;
 
-/** Splash: same world, mark small and centred — iOS scales and crops this. */
+/**
+ * Splash: the mark on the flat void, small and centred — iOS scales and crops.
+ *
+ * Deliberately NOT the sky gradient. A 2732x2732 gradient encodes to ~1.6MB of
+ * PNG because there are no runs to compress, and three of them blew past a
+ * deploy size limit; a flat ground crushes to a few KB. It also reads better as
+ * a launch screen: flat void, then the gradient sky arrives with the first
+ * rendered frame. Matches capacitor.config.ts's backgroundColor exactly, so
+ * there is no seam between the native launch screen and the web view.
+ */
 const SPLASH = (px) => `
 <svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}">
   ${DEFS}
-  <rect width="96" height="96" fill="url(#sky)"/>
-  <rect width="96" height="96" fill="url(#hglow)"/>
+  <rect width="96" height="96" fill="#141433"/>
   <g transform="translate(48 42) scale(0.34) translate(-48 -48)">${SIGIL}</g>
 </svg>`;
 
