@@ -115,6 +115,8 @@ export class BoardRenderer {
     this.engine = new Engine(canvas, true, { antialias: true, stencil: false });
     this.scene = new Scene(this.engine);
     this.scene.clearColor = Color4.FromHexString("#141433ff");
+    // dev/perf harness hook: lets tooling read live scene statistics
+    if (typeof window !== "undefined") (window as unknown as Record<string, unknown>).__sunderScene = this.scene;
     this.setupCameraLights(canvas);
     this.setupPipeline();
     this.root = new TransformNode("root", this.scene);
@@ -399,6 +401,7 @@ export class BoardRenderer {
   /** full rebuild of static board (called on new game / capture) */
   buildBoard(s: GameState) {
     this.bio = biomeFor(s.preset);
+    this.unfreezeMaterials();
     this.seaMotion = [];
     this.tileMeshes.forEach((m) => m.dispose());
     this.tileMeshes.clear();
@@ -433,6 +436,13 @@ export class BoardRenderer {
         this.cameraGameSig = sig;
       }
     }
+
+    // ---- static-board optimization (matters on phones) ----
+    // The board is thousands of small unlit meshes that never move. Freezing
+    // their world matrices stops Babylon recomputing them every frame, and
+    // freezing the unlit materials skips per-frame shader dirty checks.
+    // Meshes registered for sea motion are skipped — they animate.
+    this.freezeStaticBoard();
 
     // ambient life: rebuild cloud shadows + bird spawn spots for this board
     this.boardHalf = s.size / 2 + 1;
@@ -646,6 +656,30 @@ export class BoardRenderer {
       this.seaMotion.push({ m: puff, y0: puff.position.y, amp: 0.02, sp: 0.5 + j * 0.35, ph: (t.x + t.y) * 0.7 + r, spin: 0.06 + j2 * 0.05 });
     }
     this.decorMeshes.set(key, decor);
+  }
+
+  /** freeze world matrices of non-animated board meshes + freeze materials */
+  private freezeStaticBoard() {
+    const moving = new Set(this.seaMotion.map((e) => e.m));
+    const freeze = (m: Mesh) => {
+      if (moving.has(m)) return;
+      m.freezeWorldMatrix();
+      m.doNotSyncBoundingInfo = true;
+    };
+    this.tileMeshes.forEach((m) => {
+      freeze(m);
+      m.getChildMeshes().forEach((cm) => freeze(cm as Mesh));
+    });
+    this.decorMeshes.forEach((arr) => arr.forEach(freeze));
+    // water materials are mutated every frame by the shimmer loop — freezing
+    // them would pin the emissive uniform and kill the animation
+    const animated = new Set<StandardMaterial>(this.waterMats);
+    this.mats.forEach((mat) => { if (!animated.has(mat)) mat.freeze(); });
+  }
+
+  /** undo material freezing so a later rebuild can recolor safely */
+  private unfreezeMaterials() {
+    this.mats.forEach((mat) => mat.unfreeze());
   }
 
   private buildTile(s: GameState, t: Tile, c: number) {
