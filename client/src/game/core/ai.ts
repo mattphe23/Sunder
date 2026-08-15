@@ -6,7 +6,7 @@ import {
   reachableTiles, attackableUnits, previewCombat, canResearch, canHarvest,
   trainableUnits, techCost, cityAt, unitAt, canBuildPort, tileAt, uniqueUnitOf, canBuild, adjacencyPop, marketStars,
   canQuake, quakeVictims, quakeWallTargets, QUAKE_DAMAGE,
-  canBuildRoad, roadCost, connectedCityIds,
+  canBuildRoad, roadCost, connectedCityIds, roadRouteToCapital,
 } from "./rules";
 import { GameState, TECHS, UNIT_STATS, UnitType, Unit, TechId, PORT_COST, WALL_COST, BuildingType, BUILDINGS } from "./types";
 import { atPeace, setPeace, aiWantsPeaceWith, markDiploUsed, diploUsed, strengthOf, PEACE_TREATY_TURNS } from "./diplomacy";
@@ -85,6 +85,12 @@ export function runAiTurn(store: StoreLike, tribeIdx: number) {
     const siegePath = rivalsWalled
       ? available.find((t) => t.id === "mathematics" || t.id === "forestry" || t.id === "hunting")
       : undefined;
+    // v42: a tribe with cities to link should take Roads while there is still
+    // time to earn the trade star back. Picking purely by cheapest tech landed
+    // Roads around turn 21 of 25, long after any payback window.
+    const roadPath = s.cities.filter((c) => c.tribe === tribeIdx).length >= 2
+      ? available.find((t) => t.id === "roads" || t.id === "riding")
+      : undefined;
     // enlightenment (Auren): research even at a worse price point — grab two if affordable
     if (pathId === "enlightenment") {
       store.research(available[0].id);
@@ -94,7 +100,7 @@ export function runAiTurn(store: StoreLike, tribeIdx: number) {
         store.research(again[0].id);
       }
     } else {
-      store.research(siegePath ? siegePath.id : available[0].id);
+      store.research((siegePath ?? roadPath ?? available[0]).id);
     }
   }
 
@@ -154,16 +160,16 @@ export function runAiTurn(store: StoreLike, tribeIdx: number) {
         .filter((c) => c.tribe === tribeIdx && !c.isCapital && !connected.has(c.id))
         .sort((a, b) => (Math.abs(a.x - capital.x) + Math.abs(a.y - capital.y)) - (Math.abs(b.x - capital.x) + Math.abs(b.y - capital.y)))[0];
       if (target && Math.random() < 0.75) {
-        // greedy 4-adjacent walk from the city toward the capital; pave the first gap
-        let cx = target.x, cy = target.y;
-        for (let step = 0; step < s.size * 2; step++) {
-          if (cx === capital.x && cy === capital.y) break;
-          if (Math.abs(capital.x - cx) >= Math.abs(capital.y - cy) && capital.x !== cx) cx += Math.sign(capital.x - cx);
-          else cy += Math.sign(capital.y - cy);
-          const t = tileAt(s, cx, cy);
-          if (t.road || t.cityId !== null) continue;
-          if (canBuildRoad(s, tribeIdx, t)) store.buildRoad(cx, cy);
-          break; // one segment per turn; stop if the path is blocked
+        // v42: pave along a real BFS route, as far as the treasury allows this
+        // turn. This used to be a greedy L-walk that laid ONE tile per turn and
+        // abandoned the route at the first unpavable tile. A trade link is
+        // all-or-nothing — a city earns +1★/turn only once the path reaches the
+        // capital — so links were essentially never completed: measured over
+        // 640 tribe-seats, 0.02 cities per tribe earned the trade star.
+        for (const t of roadRouteToCapital(s, tribeIdx, target)) {
+          if (s.tribes[tribeIdx].stars < roadCost(s, tribeIdx) + 2) break; // keep a reserve
+          if (!canBuildRoad(s, tribeIdx, t)) break;
+          store.buildRoad(t.x, t.y);
         }
       }
     }

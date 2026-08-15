@@ -102,6 +102,62 @@ export function canBuildRoad(s: GameState, tribe: number, t: Tile | undefined): 
 }
 
 /**
+ * v42: the tiles that would link `from` to the tribe's capital, in order.
+ *
+ * A trade link pays nothing until it actually reaches the capital, so the route
+ * has to be a real one. Both AI brains previously walked a greedy L-shape from
+ * the city toward the capital and gave up the moment a tile was unpavable —
+ * any mountain, lake or rival border on that diagonal killed the whole route.
+ * Roads got laid (62% of tribes laid at least one) but almost never connected
+ * anything: 0.15 cities per tribe earned the trade star.
+ *
+ * This is a 4-adjacent BFS over tiles that are already road, already ours, or
+ * paveable, so it routes around obstacles and returns nothing when no route
+ * exists — letting the caller spend its stars on something that works instead.
+ * Returns only the tiles that still need paving.
+ */
+export function roadRouteToCapital(s: GameState, tribe: number, from: City): Tile[] {
+  const capital = s.cities.find((c) => c.tribe === tribe && c.isCapital);
+  if (!capital || capital.id === from.id) return [];
+  const passable = (t: Tile): boolean => {
+    if (t.road) return true;
+    if (t.cityId !== null) return s.cities[t.cityId]?.tribe === tribe;
+    if (t.terrain !== "grass" && t.terrain !== "forest") return false;
+    // own or neutral land only — you cannot pave a rival's territory
+    return t.ownerCityId === null || s.cities[t.ownerCityId]?.tribe === tribe;
+  };
+  const size = s.size;
+  const prev = new Map<number, number>();
+  const start = idx(from.x, from.y, size);
+  const goal = idx(capital.x, capital.y, size);
+  const seen = new Set<number>([start]);
+  const queue: [number, number][] = [[from.x, from.y]];
+  let found = false;
+  while (queue.length && !found) {
+    const [x, y] = queue.shift()!;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= size || ny >= size) continue;
+      const key = idx(nx, ny, size);
+      if (seen.has(key)) continue;
+      const t = s.tiles[key];
+      if (!passable(t)) continue;
+      seen.add(key);
+      prev.set(key, idx(x, y, size));
+      if (key === goal) { found = true; break; }
+      queue.push([nx, ny]);
+    }
+  }
+  if (!found) return [];
+  const path: Tile[] = [];
+  for (let k: number | undefined = goal; k !== undefined && k !== start; k = prev.get(k)) {
+    const t = s.tiles[k];
+    if (!t.road && t.cityId === null) path.push(t);
+  }
+  return path.reverse();
+}
+
+/**
  * v38 Capital Trade Network: ids of this tribe's cities connected to its
  * capital through a chain of road tiles (4-adjacent). City tiles themselves
  * count as road nodes, so two adjacent cities are trivially connected.
