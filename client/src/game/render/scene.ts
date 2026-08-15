@@ -107,6 +107,9 @@ export class BoardRenderer {
   private ambientObs: any = null;
   private forestSpots: { x: number; z: number }[] = [];
   private boardHalf = 5; // half-extent of the board in world units (set in buildBoard)
+  /** signature of the last built board — rebuilds are skipped when nothing
+   *  the board actually draws has changed (see computeBoardSig) */
+  private boardSig = "";
   /** active biome palette — resolved from s.preset on every buildBoard */
   private bio: BiomePalette = biomeFor("continents");
   onPick: ((p: PickInfo) => void) | null = null;
@@ -436,7 +439,51 @@ export class BoardRenderer {
   }
 
   /** full rebuild of static board (called on new game / capture) */
+  /**
+   * Compact fingerprint of everything the board's static geometry depends on.
+   * Unit positions are deliberately excluded — units are separate meshes kept
+   * in sync by syncUnits(), so moving one must not rebuild the world.
+   */
+  private computeBoardSig(s: GameState): string {
+    const h = s.humanTribe;
+    const out: string[] = [String(s.size), String(s.preset ?? ""), String(h)];
+    for (const t of s.tiles) {
+      out.push(
+        t.terrain,
+        t.explored[h] ? "1" : "0",
+        isVisibleTo(s, h, t.x, t.y) ? "1" : "0",
+        t.ownerCityId === null ? "-" : String(t.ownerCityId),
+        t.cityId === null ? "-" : String(t.cityId),
+        t.resource ?? "-",
+        t.building ?? "-",
+        t.road ? "r" : "-",
+        t.ruin ? "u" : "-",
+        t.greatRuin ? "U" : "-",
+        t.port === null ? "-" : String(t.port),
+      );
+    }
+    for (const ci of s.cities) {
+      out.push(`${ci.id}:${ci.tribe ?? "n"}:${ci.level}:${ci.walls ? 1 : 0}:${ci.isCapital ? 1 : 0}`);
+    }
+    for (const tr of s.tribes) out.push(tr.color);
+    return out.join("|");
+  }
+
   buildBoard(s: GameState) {
+    // The game notifies on every action, so this is called after each move,
+    // attack and turn end. Rebuilding ~1000 meshes (with flat-shading
+    // conversions) each time caused real hitches on phones; skip when the
+    // world is unchanged and let syncUnits handle the moving pieces.
+    const sig = this.computeBoardSig(s);
+    if (sig === this.boardSig && this.tileMeshes.size > 0) {
+      // The world is unchanged, but road raiding depends on where units are
+      // standing, which is deliberately not part of the signature — so the
+      // trade pulse still has to be refreshed on the skipped path.
+      this.rebuildTradePulse(s);
+      return;
+    }
+    this.boardSig = sig;
+
     this.bio = biomeFor(s.preset);
     this.unfreezeMaterials();
     this.seaMotion = [];
