@@ -4,8 +4,8 @@
 //      and retreat when standing in lethal squares.
 //   2. Task forces — attackers rally near a shared target city and strike
 //      together instead of trickling in one by one.
-//   3. Hold-the-prize lookahead — before committing to a capture, check the
-//      city can be held against next-turn counterattack.
+//   3. Expansion — undefended and neutral cities are walked straight into;
+//      the task force is reserved for cities that are actually held.
 //   4. Economic optimizer — value-per-star scoring for research, harvest,
 //      training, ports and walls.
 import {
@@ -121,20 +121,6 @@ function chooseWarTarget(s: GameState, tribeIdx: number): { x: number; y: number
   return best;
 }
 
-/** hold-the-prize check: can we keep the city if we take it this turn? */
-function canHoldCity(s: GameState, tribeIdx: number, cityX: number, cityY: number): boolean {
-  let friendly = 0, hostile = 0;
-  for (const u of s.units) {
-    const d = cheb(u.x, u.y, cityX, cityY);
-    if (d > 3) continue;
-    const w = UNIT_STATS[u.type].attack * (u.hp / u.maxHp);
-    if (u.tribe === tribeIdx) friendly += w;
-    else if (u.tribe >= 0 && !atPeace(s, tribeIdx, u.tribe)) hostile += w;
-  }
-  // taking with local superiority (city defense bonus counts for us after capture)
-  return friendly >= hostile * 0.8;
-}
-
 /* --------------------------------- main turn --------------------------------- */
 
 export function runProAiTurn(store: StoreLike, tribeIdx: number) {
@@ -169,13 +155,24 @@ export function runProAiTurn(store: StoreLike, tribeIdx: number) {
     }
   }
 
+  // v42: how far below a working army is this tribe? The pro brain used to
+  // spend in the order research x2 -> harvest -> buildings -> ports -> roads ->
+  // walls -> army, so the treasury was empty by the time it trained anything.
+  // Head to head against the standard brain it fielded 3.4 units to 8.2 and
+  // held 1.2 cities to 3.7 while sitting on MORE techs (12.1 to 9.7): it teched
+  // up while being conquered. Army spending now comes first when under-strength.
+  const armyFloor = s.cities.filter((c) => c.tribe === tribeIdx).length * 2;
+  const underStrength = () => s.units.filter((u) => u.tribe === tribeIdx).length < armyFloor;
+
   // economy: research by value-per-star (up to twice if flush with stars)
   for (let i = 0; i < 2; i++) {
     const pick = pickResearch(s, tribeIdx);
     if (!pick) break;
     const cost = techCost(s, tribeIdx, pick);
-    // keep a training reserve: don't burn every star on tech
-    if (me.stars < cost + (s.turn < 6 ? 2 : 5)) break;
+    // keep a training reserve: don't burn every star on tech. The reserve grows
+    // when the army is thin, so research never starves the barracks.
+    const reserve = underStrength() ? 10 : s.turn < 6 ? 2 : 5;
+    if (me.stars < cost + reserve) break;
     store.research(pick);
   }
 
@@ -184,6 +181,10 @@ export function runProAiTurn(store: StoreLike, tribeIdx: number) {
     if (me.stars < harvestCost(s, tribeIdx) + 2) break;
     if (canHarvest(s, tribeIdx, t)) store.harvest(t.x, t.y);
   }
+
+  // army before the discretionary build-out: an under-strength tribe cannot
+  // hold what its buildings would pay for
+  if (underStrength()) trainArmy(store, tribeIdx);
 
   // v35 buildings: convert surplus stars into population once resources thin out
   if (me.stars > 9) {
@@ -326,13 +327,18 @@ function proUnitAction(store: StoreLike, u: Unit, tribeIdx: number, target: { x:
     return;
   }
 
-  // capture if standing on capturable city — but only if we can hold it
+  // Capture if standing on a capturable city.
+  //
+  // v42: this used to be vetoed by a "can we hold it?" lookahead, which was
+  // wrong as a veto on a capture already in hand: taking the city costs nothing (no combat roll), hands us its
+  // defense bonus for the counterattack, and cuts the owner's income even if we
+  // lose it back next turn. The veto had the pro brain walking onto cities and
+  // then declining them — 0.7 captures per game against the standard brain's
+  // 4.1, which is most of why "impossible" lost to "hard" head to head.
   const here = cityAt(s, u.x, u.y);
   if (here && here.tribe !== tribeIdx && !u.moved) {
-    if (canHoldCity(s, tribeIdx, here.x, here.y) || here.tribe === null) {
-      store.captureCity(u.id);
-      return;
-    }
+    store.captureCity(u.id);
+    return;
   }
 
   // attack selection with threat-adjusted scoring
@@ -419,7 +425,15 @@ function proUnitAction(store: StoreLike, u: Unit, tribeIdx: number, target: { x:
   if (target && !isHero) {
     const dist = cheb(u.x, u.y, target.x, target.y);
     const comrades = s.units.filter((q) => q.tribe === tribeIdx && q.id !== u.id && !q.hero && cheb(q.x, q.y, target.x, target.y) <= 3).length;
-    const strike = comrades >= 2 || dist <= 1; // enough force assembled (3 total incl. self)
+    // v42: a task force is for storming a defended city. Rallying in front of
+    // an EMPTY neutral village just stalls expansion — units parked two tiles
+    // off an undefended target waiting for a force that never assembled, which
+    // is why the pro brain held 1.4 cities to the standard brain's 3.5. Walk in.
+    const tCity = s.cities[target.cityId];
+    const defenders = s.units.filter((q) =>
+      q.tribe !== tribeIdx && q.tribe >= 0 && cheb(q.x, q.y, target.x, target.y) <= 2).length;
+    const undefended = defenders === 0 && (!tCity || tCity.tribe === null || !tCity.walls);
+    const strike = undefended || comrades >= 2 || dist <= 1;
     if (dist > 2 || strike) {
       // ruins still tempt scouts en route
       const ruin = nearestRuin(s, u);
