@@ -22,6 +22,18 @@ import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTexture";
 import { buildCharacter, skinFor, tribeGlow } from "./characters";
+
+/**
+ * How large a figure stands on its tile.
+ *
+ * The rigs were authored and reviewed in the Model Lab, which shows one figure
+ * alone against a dark ground — and at that size and contrast they read
+ * perfectly. On the actual board they were about a fifth of a tile, so the
+ * terrain dominated every frame and the classes blurred into identical
+ * silhouettes at play distance. The Model Lab acceptance test is necessary and
+ * it is not sufficient; this is the correction for the difference.
+ */
+const UNIT_SCALE = 1.34;
 // side-effect registrations the barrel used to pull in implicitly
 import "@babylonjs/core/Animations/animatable";
 import "@babylonjs/core/Culling/ray";
@@ -1798,6 +1810,35 @@ export class BoardRenderer {
     return node;
   }
 
+  /**
+   * A soft dark disc on the ground under a figure.
+   *
+   * Without it the units read as stickers hovering over the tile rather than
+   * standing on it — the board is unlit and flat-shaded, so nothing else in the
+   * scene casts anything. This is the cheapest possible grounding cue: one
+   * shared unlit material, one 8-sided disc, no shadow map.
+   */
+  private addContactShadow(parent: TransformNode, radius = 0.30) {
+    let m = this.mats.get("contact-shadow");
+    if (!m) {
+      m = new StandardMaterial("contact-shadow", this.scene);
+      m.diffuseColor = Color3.Black();
+      m.emissiveColor = Color3.Black();
+      m.specularColor = Color3.Black();
+      m.disableLighting = true;
+      m.alpha = 0.26;
+      this.mats.set("contact-shadow", m);
+    }
+    const disc = MeshBuilder.CreateDisc("shadow", { radius, tessellation: 8 }, this.scene);
+    disc.rotation.x = Math.PI / 2;
+    disc.position.y = 0.012; // clear of the tile top without floating visibly
+    disc.material = m;
+    disc.parent = parent;
+    disc.isPickable = false;
+    disc.receiveShadows = false;
+    return disc;
+  }
+
   private buildUnitMesh(s: GameState, u: Unit): TransformNode {
     const node = new TransformNode("u" + u.id, this.scene);
     node.parent = this.root;
@@ -1930,6 +1971,10 @@ export class BoardRenderer {
       this.scene.beginAnimation(crest, 0, 90, true);
     }
     node.getChildMeshes().forEach((m) => this.addShadows(m as Mesh));
+    // after the caster pass: the ground disc stands in for a shadow, it must
+    // not cast one of its own
+    this.addContactShadow(node);
+    node.scaling.setAll(UNIT_SCALE);
     return node;
   }
 
@@ -1967,14 +2012,19 @@ export class BoardRenderer {
     const ease = new CubicEase();
     ease.setEasingMode(EasingFunction.EASINGMODE_EASEINOUT);
     anim.setEasingFunction(ease);
-    // squash & stretch: stretch tall mid-hop, squash on landing, settle back
+    // Squash & stretch: stretch tall mid-hop, squash on landing, settle back.
+    // Keyed as multiples of UNIT_SCALE rather than as absolutes. These values
+    // are written straight onto the node, and every unit animates at least once
+    // (it is built at the origin and hops to its tile), so absolute keys
+    // silently reset each figure to its unscaled size on the first frame.
+    const k = (w: number, h: number) => new Vector3(UNIT_SCALE * w, UNIT_SCALE * h, UNIT_SCALE * w);
     const sq = new Animation("sq", "scaling", 60, Animation.ANIMATIONTYPE_VECTOR3, Animation.ANIMATIONLOOPMODE_CONSTANT);
     sq.setKeys([
-      { frame: 0, value: new Vector3(1, 1, 1) },
-      { frame: 4, value: new Vector3(0.92, 1.12, 0.92) },
-      { frame: 8, value: new Vector3(0.95, 1.08, 0.95) },
-      { frame: 16, value: new Vector3(1.1, 0.85, 1.1) },
-      { frame: 22, value: new Vector3(1, 1, 1) },
+      { frame: 0, value: k(1, 1) },
+      { frame: 4, value: k(0.92, 1.12) },
+      { frame: 8, value: k(0.95, 1.08) },
+      { frame: 16, value: k(1.1, 0.85) },
+      { frame: 22, value: k(1, 1) },
     ]);
     node.animations = [anim, sq];
     this.scene.beginAnimation(node, 0, 22, false, 1, () => {

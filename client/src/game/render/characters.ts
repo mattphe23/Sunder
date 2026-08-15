@@ -192,8 +192,14 @@ function dropletSigil(spec: CharacterSpec, parent: TransformNode, y: number, z: 
  */
 
 // fractured-stone base grays (shared across all tribes per the lineup mockups)
-const STONE_TOP = "#8f8c96";
-const STONE_SIDE = "#6b6873";
+// v46: the plinth was read and approved in the Model Lab, which shows the
+// figure against a dark ground. On the board it sits on bright grass, where a
+// mid-grey stone became a halo that detached every unit from the tile it was
+// standing on — the opposite of what a base is for. Darkened until it reads as
+// the figure's own shadow-side footing, which grounds it on light terrain and
+// still steps cleanly against the darker biomes.
+const STONE_TOP = "#4a4756";
+const STONE_SIDE = "#332f3e";
 
 /** fractured stone hex base with a tribe-glow fissure — replaces the flat
  *  color puck on v2 units. Ownership reads from the glowing crack + armor. */
