@@ -6,6 +6,8 @@ import { game } from "./core/state";
 import { sound } from "./sound";
 import { unitAt, cityAt, reachableTiles, attackableUnits } from "./core/rules";
 
+import { BrandMark, ArtOrFallback } from "./ui/Brand";
+
 const LOGO = "/manus-storage/sunder-mark_d1dbf156.png";
 
 export default function GameCanvas() {
@@ -157,7 +159,11 @@ export default function GameCanvas() {
         className={`pointer-events-none absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-[#141433] transition-opacity duration-500 ${booting ? "opacity-100" : "opacity-0"}`}
         aria-hidden={!booting}
       >
-        <img src={LOGO} alt="" className="h-24 w-24 animate-pulse drop-shadow-[0_0_30px_rgba(255,140,31,0.45)]" />
+        <ArtOrFallback
+          src={LOGO}
+          className="h-24 w-24 animate-pulse drop-shadow-[0_0_30px_rgba(255,140,31,0.45)]"
+          fallback={<BrandMark className="h-24 w-24 animate-pulse drop-shadow-[0_0_30px_rgba(255,140,31,0.45)]" />}
+        />
         <p className="font-display text-xs font-black uppercase tracking-[0.35em] text-amber-300/90">
           Outthink. Outforge. Outlast.
         </p>

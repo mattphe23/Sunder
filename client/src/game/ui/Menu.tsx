@@ -117,6 +117,8 @@ import {
   Tooltip as RTooltip, ResponsiveContainer,
 } from "recharts";
 
+import { BrandMark, BrandWordmark, BrandBackdrop, ArtOrFallback, useArtAvailable } from "./Brand";
+
 const MENU_BG = "/manus-storage/menu-bg_b1164e9a.png";
 const LOGO = "/manus-storage/sunder-mark_d1dbf156.png";
 const WORDMARK = "/manus-storage/sunder-wordmark_36e4517b.png";
@@ -197,6 +199,7 @@ export function MainMenu() {
   const [daily] = useState(() => dailyChallenge());
   const [weekly] = useState(() => weeklyChallenge());
   const [friend, setFriend] = useState<FriendChallenge | null>(() => readFriendChallengeFromUrl());
+  const heroArt = useArtAvailable(MENU_BG);
   const dailyBest = currentScore("daily");
   const weeklyBest = currentScore("weekly");
   const [slot, setSlot] = useState(() => game.activeSlot);
@@ -278,13 +281,18 @@ export function MainMenu() {
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#141433] px-4 py-10">
       {/* World art — brightened and saturated so the board reads as luminous, not misty */}
-      <img
-        src={MENU_BG}
-        alt=""
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-70"
-        style={{ filter: "saturate(1.5) brightness(1.25) contrast(1.08)" }}
-      />
+      {heroArt && (
+        <img
+          src={MENU_BG}
+          alt=""
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-70"
+          style={{ filter: "saturate(1.5) brightness(1.25) contrast(1.08)" }}
+        />
+      )}
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#141433]/55 via-[#141433]/20 to-[#141433]/90" />
+      {/* no painted hero art available (local/self-hosted/app bundle): the
+          procedural diorama carries its own scrim and sits above the page one */}
+      {!heroArt && <BrandBackdrop className="pointer-events-none absolute inset-0 h-full w-full" />}
       {/* Emerald + amber board-glow pools rising from the world below */}
       <div className="pointer-events-none absolute -bottom-32 left-1/4 h-96 w-96 rounded-full bg-emerald-400/20 blur-[110px]" />
       <div className="pointer-events-none absolute -bottom-24 right-1/5 h-80 w-80 rounded-full bg-amber-400/25 blur-[100px]" />
@@ -315,12 +323,17 @@ export function MainMenu() {
       <div className="absolute right-6 top-6 z-30"><MuteButton /></div>
 
       <div className="relative z-20 flex w-full max-w-lg flex-col items-center">
-        <img src={LOGO} alt="" className="mb-3 h-24 w-24 drop-shadow-[0_0_36px_rgba(255,150,40,0.5)]" />
+        <ArtOrFallback
+          src={LOGO}
+          className="mb-3 h-24 w-24 drop-shadow-[0_0_36px_rgba(255,150,40,0.5)]"
+          fallback={<BrandMark className="mb-3 h-24 w-24 drop-shadow-[0_0_36px_rgba(255,150,40,0.5)]" />}
+        />
         <h1 className="m-0">
-          <img
+          <ArtOrFallback
             src={WORDMARK}
             alt="SUNDER"
             className="h-14 w-auto max-w-[320px] object-contain drop-shadow-[0_2px_18px_rgba(226,98,43,0.35)] sm:h-16"
+            fallback={<BrandWordmark className="h-14 w-[320px] max-w-full drop-shadow-[0_2px_18px_rgba(226,98,43,0.35)] sm:h-16" />}
           />
         </h1>
         <p className="mt-1 text-center text-[11px] font-bold uppercase tracking-[0.35em] text-amber-300/90">
