@@ -4,6 +4,81 @@ History note: v10–v13 granular plans (all verified complete) are preserved in 
 file. This version consolidates the audit done after the v19 checkpoint (7d70bcb0): every item
 below was checked against the actual codebase before being marked.
 
+# v47 — Gameplay audit, App Store readiness, and the board at play distance
+
+## Batch harness: the data was wrong before any of this
+- [x] All-AI boards deadlocked on turn 0 — `addPopulation` queued the city level-up modal by
+      comparing to the humanTribe INDEX (also a real hotseat bug: player 2's cities were handed
+      an AI-picked reward), and `checkDominationWin` ended the match instantly when no seat was
+      flagged human. Harness now asks for `humanTribe: -1` and reports stalls instead of scoring
+      them as draws. Batch went from 6.67 avg turns / 29% decisive (garbage) to 22.6 / 100%.
+- [x] Two turn-flow bugs could hang a real match (~0.6% of games): skipping an eliminated tribe
+      re-entered nextTribe from inside beginTurn so the scheduler read the wrong tribe, and a
+      tribe can be eliminated inside its OWN beginTurn because the world phase runs there.
+      Round-start hooks are now keyed to the round, not to "is this the tribe in slot 0".
+
+## Do the additions to the Polytopia formula earn their place?
+- [x] Victory paths were decorative — Auren won 67% via Enlightenment, Vessari's path fired in 1%.
+      Root cause was not Auren: EVERY tribe finished on 13.0/15 techs because the tree is
+      exhaustible in 30 turns, so "research everything" was a free clock and all factions
+      converged on the same army. Tech cost now escalates with techs owned (~11/15 now).
+- [x] Plunder King now counts stars LOOTED, not stars held — banking is anti-tempo by
+      construction, and the AI made it worse by halting all harvesting past 55% of target.
+- [x] Bloodforge 18 → 22 battles, Great Harvest 12 → 15 city levels. Every constant swept over
+      the harness and confirmed on independent seed blocks (one candidate scored best in-sample
+      and worst out-of-sample). Win-rate spread 84 → 32; all seven paths now fire 7–21%.
+- [x] Betrayal was unreachable code: peace hard-filtered treaty partners from targeting, so no
+      treaty could ever be broken and nothing ever called `addGrudge` (0.00 across 240 games).
+      Treaties can now be broken as a deliberate, warned act; grudges 0.00 → 1.52/game.
+- [x] The Commander died before the hero system could happen — 14hp/2def made it squishier than
+      a 3-star Defender despite being irreplaceable. 82% fell and perks fired for 1 commander in
+      17. Now 20hp/4def: 32% fall, 0.50 perks each, tribe balance unchanged.
+- [x] "Impossible" was the WEAKEST AI, losing 40/60 head-to-head to "hard". It rallied task
+      forces in front of empty neutral villages, vetoed capturing cities it stood on, and trained
+      units last after research/buildings/ports/roads/walls drained the treasury. Now wins 61/39.
+- [x] The road trade network was inert — 0.02 cities per tribe earned the trade star. Greedy
+      L-walk routing abandoned at the first obstacle, one tile paved per turn, and the tech
+      arrived turn 21 of 25. Real BFS routing + pave-to-budget + value Roads by cities to link.
+      0.02 → 0.32 connected, 3.06 → 12.28 road tiles/game.
+- [ ] OPEN: Vessari is still the weakest tribe. The Raider loots `min(2, victim.stars)` and
+      rivals hold 0 stars 22% of the time, 1 star another 15% — the signature perk pays nothing
+      or half in over a third of its kills. Fixing it means changing the perk (a design call).
+- [ ] OPEN: Tide Mastery (4 ports on open water) is heavily map-dependent; on Highlands there is
+      often nowhere to build them. Wants a map-aware target or a different condition.
+
+## The board at play distance
+- [x] Opening frame: the camera aimed at the capital, which spawns near an edge often enough that
+      the island fell into a corner with ~40% dead background. Now pulls partway to board centre,
+      and pulls in as the viewport narrows.
+- [x] Sky: Babylon clears transparent and the void is a CSS gradient (indigo, ember horizon) —
+      same palette as the menu backdrop, zero draw calls, no texture memory.
+- [x] Units were ~1/5 of a tile — terrain dominated and all five classes read as the same
+      silhouette at play distance. Now 34% larger. The Model Lab (one figure, large, dark ground)
+      is a necessary acceptance test and NOT a sufficient one.
+- [x] Fixed a real bug found doing that: the move animation's squash-and-stretch keys are
+      absolute scaling values and every unit animates once on spawn, so it silently reset every
+      figure to unscaled size.
+- [x] Contact shadows: one shared unlit disc per figure. Nothing in an unlit flat-shaded scene
+      casts anything, so units hovered over their tile.
+- [x] The plinth read as carved stone on the Lab's dark ground and as a bright halo on grass,
+      detaching every unit. Darkened to read as the figure's own shadow-side footing.
+
+## iOS wrapper readiness (App Store target)
+- [x] viewport-fit=cover + four safe-area utilities built on env()/max() — inert everywhere
+      without insets. The turn readout sat under the Dynamic Island and the controls under the
+      home indicator, where iOS eats the swipe.
+- [x] End Turn was pushed clean off the right edge in portrait; control rows now shrink and
+      collapse labels to icons on narrow screens while End Turn keeps full width.
+- [x] Minimap was pinned at a hardcoded top offset that assumed no notch (landed on the mute
+      button); Map and mute were 34–36pt against Apple's 44pt minimum. Verified 393x852: no tap
+      target under 44pt, nothing clipped.
+- [ ] TODO: Capacitor project itself (capacitor.config.ts, ios/ target, icon/splash set).
+
+## Reports
+- [x] Gameplay audit published as an artifact (320-game batch, before/after per system)
+- [x] Monetization thesis published as an artifact — free download, single $6.99 unlock,
+      cosmetics only; do NOT sell tribes individually into a ranked pool this small
+
 # v10 — Faction-unique units (637e6d81)
 - [x] 4 unique units (Arcanist/Berserker/Warden/Raider) — rules, AI, meshes, badges, verified
 
