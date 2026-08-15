@@ -153,8 +153,16 @@ export const UNIT_STATS: Record<UnitType, UnitStats> = {
     tech: null,
     perk: "City reward super unit — a slow, towering juggernaut. Cannot be trained.",
   },
+  // v42: 14hp/2def -> 20hp/4def. The Commander is irreplaceable and lost
+  // forever if slain, yet it was squishier than a 3-star Defender (15/3), so
+  // 82% of commanders died and the entire perk system — 8 perks, a level-up
+  // modal, "forged forever" — fired for 1 commander in 17 (0.07 perks each).
+  // Its attack stays low: this is a durable anchor you level up, not a wrecking
+  // ball, and it stays under the Colossus (24hp) in the reward hierarchy.
+  // Swept over 4 stat lines x 3 seed blocks: deaths 82% -> 37%, perks chosen
+  // 0.07 -> 0.45, with tribe win-rate spread statistically unchanged (40 -> 40).
   hero: {
-    name: "Commander", cost: 10, hp: 14, attack: 2.5, defense: 2, movement: 1, range: 1, dash: true,
+    name: "Commander", cost: 10, hp: 20, attack: 2.5, defense: 4, movement: 1, range: 1, dash: true,
     tech: null,
     perk: "Your levelling hero — earns XP from battles and conquest, choosing a new perk at each level. Falls forever if slain.",
   },

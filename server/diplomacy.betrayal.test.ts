@@ -11,7 +11,7 @@ import { attackableUnits, wouldBreakTreaty } from "../client/src/game/core/rules
 import {
   setPeace, atPeace, hasGrudge, aiAcceptsPeace, aiPaysTribute, PEACE_TREATY_TURNS,
 } from "../client/src/game/core/diplomacy";
-import { Unit } from "../client/src/game/core/types";
+import { Unit, UNIT_STATS } from "../client/src/game/core/types";
 
 /** put a unit of `tribe` at (x,y), displacing whatever stood there */
 function place(tribe: number, x: number, y: number, id: number): Unit {
@@ -107,5 +107,23 @@ describe("v42 a peace treaty is a promise you can break", () => {
     game.attack(d.id, a.id); // tribe 1 (AI) betrays tribe 0 (human)
     expect(hasGrudge(s, 0, 1)).toBe(true);
     expect(s.recap.some((r) => r.kind === "treatyBroken")).toBe(true);
+  });
+});
+
+describe("v42 the Commander is built to survive long enough to level", () => {
+  it("out-tanks every trainable unit, so a permanent loss is not a coin flip", () => {
+    // It was 14hp/2def — squishier than a 3-star Defender (15/3) despite being
+    // irreplaceable. 82% of commanders died and the perk system fired for 1 in 17.
+    const hero = UNIT_STATS.hero;
+    const trainable = (Object.keys(UNIT_STATS) as (keyof typeof UNIT_STATS)[])
+      .filter((k) => k !== "hero" && k !== "colossus");
+    for (const k of trainable) {
+      const bulk = UNIT_STATS[k].hp * UNIT_STATS[k].defense;
+      expect(hero.hp * hero.defense).toBeGreaterThan(bulk);
+    }
+    // ...but stays under the Colossus reward super-unit in raw hit points
+    expect(hero.hp).toBeLessThan(UNIT_STATS.colossus.hp);
+    // and remains a poor attacker: durability is its role, not damage
+    expect(hero.attack).toBeLessThan(UNIT_STATS.knight.attack);
   });
 });

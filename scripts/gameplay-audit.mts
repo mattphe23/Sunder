@@ -70,6 +70,9 @@ interface Row {
   topScore: number;
   /** per-seat: how far each tribe got along ITS OWN faction path, 0..1 */
   pathFrac: { def: number; frac: number; techs: number }[];
+  /** per-seat hero outcome. Every tribe starts with a level-1 commander, so
+   *  this is a clean survival + progression measure of the hero feature. */
+  heroes: { fell: boolean; level: number; perks: number }[];
 }
 
 const rows: Row[] = [];
@@ -125,6 +128,14 @@ for (let g = 0; g < GAMES; g++) {
     battles: sum("battlesWon" as never),
     citiesCaptured: sum("citiesCaptured" as never),
     topScore: Math.max(...s.tribes.map((t) => t.score)),
+    heroes: s.tribes.map((t) => {
+      const h = s.units.find((u) => u.hero && u.tribe === t.index);
+      return {
+        fell: !!(t as unknown as { heroFell?: boolean }).heroFell,
+        level: h?.level ?? 0,
+        perks: h?.perks?.length ?? 0,
+      };
+    }),
     pathFrac: s.tribes.map((t) => {
       const p = victoryProgress(s, t.index);
       return {
@@ -207,6 +218,18 @@ console.log("\nDO THE ADDED SYSTEMS ACTUALLY FIRE?");
 console.log(`  buildings placed / game     ${avg((r) => r.buildings)}      (games with 0: ${pct((r) => r.buildings === 0)})`);
 console.log(`  road tiles / game           ${avg((r) => r.roads)}      (games with 0: ${pct((r) => r.roads === 0)})`);
 console.log(`  heroes alive at end         ${avg((r) => r.heroesAlive)} of 4   max hero level ${avg((r) => r.heroMaxLevel)}`);
+{
+  const hs = rows.flatMap((r) => r.heroes);
+  const alive = hs.filter((h) => !h.fell);
+  const p = (k: number) => ((hs.filter((h) => !h.fell && h.level === k).length / hs.length) * 100).toFixed(0);
+  console.log(
+    `    every tribe starts with a level-1 commander:` +
+    ` ${((hs.filter((h) => h.fell).length / hs.length) * 100).toFixed(0)}% fell,` +
+    ` ${(alive.reduce((n, h) => n + h.level, 0) / Math.max(1, alive.length)).toFixed(2)} avg level among survivors`
+  );
+  console.log(`    survivors by level:  L1 ${p(1)}%   L2 ${p(2)}%   L3 ${p(3)}%   L4 ${p(4)}%`);
+  console.log(`    perks actually chosen / commander  ${(hs.reduce((n, h) => n + h.perks, 0) / hs.length).toFixed(2)}`);
+}
 console.log(`  peace treaties standing     ${avg((r) => r.peacePairs)}      (games with 0: ${pct((r) => r.peacePairs === 0)})`);
 console.log(`  grudges                     ${avg((r) => r.grudges)}`);
 console.log(`  barbarian camps at end      ${avg((r) => r.camps)}      (games with 0: ${pct((r) => r.camps === 0)})`);
