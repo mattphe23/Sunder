@@ -40,11 +40,7 @@ below was checked against the actual codebase before being marked.
       L-walk routing abandoned at the first obstacle, one tile paved per turn, and the tech
       arrived turn 21 of 25. Real BFS routing + pave-to-budget + value Roads by cities to link.
       0.02 → 0.32 connected, 3.06 → 12.28 road tiles/game.
-- [ ] OPEN: Vessari is still the weakest tribe. The Raider loots `min(2, victim.stars)` and
-      rivals hold 0 stars 22% of the time, 1 star another 15% — the signature perk pays nothing
-      or half in over a third of its kills. Fixing it means changing the perk (a design call).
-- [ ] OPEN: Tide Mastery (4 ports on open water) is heavily map-dependent; on Highlands there is
-      often nowhere to build them. Wants a map-aware target or a different condition.
+- [x] RESOLVED below: Vessari's Raider perk and Tide Mastery's fixed target.
 
 ## The board at play distance
 - [x] Opening frame: the camera aimed at the capital, which spawns near an edge often enough that
@@ -72,7 +68,27 @@ below was checked against the actual codebase before being marked.
 - [x] Minimap was pinned at a hardcoded top offset that assumed no notch (landed on the mute
       button); Map and mute were 34–36pt against Apple's 44pt minimum. Verified 393x852: no tap
       target under 44pt, nothing clipped.
-- [ ] TODO: Capacitor project itself (capacitor.config.ts, ios/ target, icon/splash set).
+- [x] RESOLVED below: Capacitor project scaffolded.
+
+## Follow-ups resolved after the first pass
+- [x] Vessari's Raider perk now pays a flat 2★ — what the victim cannot cover is minted as
+      battlefield spoils. It used to pay min(2, victim.stars) and rivals are broke often enough
+      that the card lied in over a third of its kills, silently (the log sat inside `if (loot > 0)`).
+      Plunder King moved back up 6 → 8. Vessari 21% → 28% win, path fires 12% → 21%.
+- [x] Tide Mastery scales to the board's coast (clamp 2..4, counted from shallow tiles, divisor
+      swept over 4/5/7/9 on three blocks). A flat 4 made it archipelago-only: Nerivane reached
+      four ports in 53% of archipelago games but 3–8% elsewhere, finishing with ZERO legal port
+      sites left on three of four presets. Nerivane 15% → 23%, path fires 11% → 21%.
+- [x] Capacitor iOS project scaffolded (capacitor.config.ts + ios/, `pnpm ios:sync` / `ios:open`).
+      Icon and splash generated from the procedural brand sigil by `pnpm icons`, so the home
+      screen cannot drift from the in-app mark. See ios/README.md for the pre-submission
+      checklist — the remaining items need real devices and a Mac with Xcode.
+- [x] Draw calls: tile decor merged per tile per material — 1785 meshes → 1189 on a fully
+      explored 13×13. Per-tile (not per-board) so decor keeps its tile coordinates and clicking
+      a tree still selects the tile under it.
+- [ ] OPEN: ~759 fog-washed meshes remain, mostly tiles whose decor has no two pieces sharing a
+      material. Cutting further means merging across tiles, which costs exact picking.
+- [ ] OPEN: never profiled on real mobile silicon — SwiftShader frame times say nothing about a phone.
 
 ## Reports
 - [x] Gameplay audit published as an artifact (320-game batch, before/after per system)
