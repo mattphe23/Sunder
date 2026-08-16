@@ -95,16 +95,12 @@ jobs:
       - name: Install Chromium for asset rendering
         run: pnpm exec playwright install --with-deps chromium
 
+      # Compares pixels, not bytes. Two Chromium builds render the same sigil and
+      # write it with a couple of bytes' difference in the PNG container, so a
+      # `git diff --exit-code` here reports five changed files and no visual
+      # change whatsoever — which is exactly what it did on the first run.
       - name: Brand assets match the sigil source
-        run: |
-          pnpm icons
-          if ! git diff --quiet -- ios/App/App/Assets.xcassets client/public; then
-            echo "::error::The committed icon/splash no longer match a fresh render of the sigil source."
-            echo "Run 'pnpm icons' locally and commit the result. Files that changed:"
-            git diff --stat -- ios/App/App/Assets.xcassets client/public
-            exit 1
-          fi
-          echo "Committed assets are byte-identical to a fresh render."
+        run: pnpm check:assets
 
       - name: Build web
         run: pnpm build

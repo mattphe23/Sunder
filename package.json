@@ -13,7 +13,8 @@
     "db:push": "drizzle-kit generate && drizzle-kit migrate",
     "ios:sync": "pnpm icons && pnpm build && npx cap sync ios",
     "ios:open": "npx cap open ios",
-    "icons": "node scripts/gen-app-icons.mjs"
+    "icons": "node scripts/gen-app-icons.mjs",
+    "check:assets": "node scripts/check-brand-assets.mjs"
   },
   "dependencies": {
     "@babylonjs/core": "^9.17.1",
