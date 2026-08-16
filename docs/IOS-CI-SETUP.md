@@ -9,26 +9,30 @@ the minute and free for public repositories.
 Budget roughly ninety minutes for the first pass, most of it waiting on Apple.
 After that, releasing is one button in the Actions tab.
 
-> **First, get the workflow file onto GitHub.** GitHub blocks any push from a
-> GitHub App — including the Manus connector — that creates or changes a file
-> under `.github/workflows/`, so `.github/workflows/ios.yml` exists in the
-> project but could not be pushed. Add it once, either by pasting its contents
-> into **Actions → New workflow** in the web UI, or by pushing from a machine
-> signed in with a personal access token carrying the `workflow` scope. Nothing
-> else in this guide depends on how you do it.
+> `.github/workflows/ios.yml` is committed and live — nothing needs to be
+> pasted into the web UI. The `verify` and `ios-build` jobs run on every push
+> today; `testflight` stays dormant until the secrets below exist.
 
 ---
 
 ## What you are building
 
-| Job in the workflow | Trigger | Needs Apple credentials | What it does |
-|---|---|---|---|
-| `verify` | every push touching the app | No | Installs, runs 185 tests plus type-check, confirms the committed icon and splash still match the sigil source, builds the app unsigned, and asserts the web build really landed inside the bundle |
-| `testflight` | manual, from the Actions tab | Yes | Archives, signs, exports a `.ipa`, validates it, and uploads it to TestFlight |
+| Job in the workflow | Runner | Trigger | Needs Apple credentials | What it does |
+|---|---|---|---|---|
+| `verify` | Linux | every push touching the app | No | Installs, runs 185 tests plus type-check, confirms the committed icon and splash still match the sigil source, and builds the web app |
+| `ios-build` | macOS | after `verify` | No | Syncs the web build into the Xcode project, compiles the real iOS app unsigned, and asserts the web build really landed inside `App.app` |
+| `testflight` | macOS | manual, from the Actions tab | Yes | Archives, signs, exports a `.ipa`, validates it, and uploads it to TestFlight |
 
-The split matters. `verify` runs today with no account at all, so the iOS
-project cannot quietly rot in the months before you ship. `testflight` stays
-dormant until the secrets exist, then becomes the release button.
+Two splits matter here.
+
+The first is credentials. `verify` and `ios-build` run today with no Apple
+account at all, so the iOS project cannot quietly rot in the months before you
+ship. `testflight` stays dormant until the secrets exist, then becomes the
+release button.
+
+The second is the runner. macOS minutes bill at ten times the Linux rate on a
+private repository, so the tests, the type-check and the asset check run on
+Linux and only the two jobs that genuinely need Xcode pay for a Mac.
 
 ---
 
@@ -241,6 +245,7 @@ Answer it accurately; a wrong declaration is worse than a generous one.
 | `The bundle version must be higher than the previously uploaded version` | a build number was reused | shouldn't happen with run numbers; if you rebuilt an old run, just re-run the workflow |
 | `Invalid Pre-Release Train` | no app record | do step 6 |
 | `scheme "App" not found` | shared scheme missing | `ios/App/App.xcodeproj/xcshareddata/xcschemes/App.xcscheme` must be committed — it is, so check it was not deleted |
+| `Neither apiKey nor config.authenticator provided` in five server tests | `server/stripe.ts` builds its client at import time and the SDK rejects an empty key | set `STRIPE_SECRET_KEY` to any non-empty string; the workflow does this itself, and locally `STRIPE_SECRET_KEY=sk_test_x pnpm test` is the difference between 162 and 185 passing |
 
 Failed runs upload the `.ipa` and export logs as an artifact for fourteen days,
 which is usually faster to read than the console output.
