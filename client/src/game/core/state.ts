@@ -24,6 +24,7 @@ import {
 } from "./diplomacy";
 import { ChallengeKind, recordChallengeScore } from "./challenges";
 import { CustomTribeConfig, customTribeDef, CUSTOM_DEF_INDEX, DEFAULT_FORGE_HEADGEAR } from "./customTribe";
+import { WALL_HOLD_CITIES } from "./victory";
 import { runWorldPhase, worldUnitIntents, campAt } from "./events";
 import { recordGameResult } from "./profile";
 import { checkPathVictory } from "./victory";
@@ -435,6 +436,17 @@ class GameStore {
     if (roundStart) {
       this.roundOpened = s.turn;
       for (const t of s.tribes) this.updateScore(t.index);
+      // Unbroken Wall: Dravok's path used to ask for 3 WALLED cities while the
+      // tribe holds 2.36 on average, so it completed in 13% of its games and no
+      // constant could fix it — 3 walls put Dravok at 18%, 2 at 38%, and making
+      // walls cheaper did nothing because affordability was never the
+      // constraint. Endurance is the axis that actually fits the fantasy and,
+      // being counted in rounds, tunes in single points instead of twenty.
+      for (const t of s.tribes) {
+        if (!t.alive) { t.wallStreak = 0; continue; }
+        const walled = s.cities.filter((c) => c.tribe === t.index && c.walls).length;
+        t.wallStreak = walled >= WALL_HOLD_CITIES ? (t.wallStreak ?? 0) + 1 : 0;
+      }
       s.scoreHistory[s.turn] = s.tribes.map((t) => (t.alive ? t.score : 0));
       this.recordReplay({ tribe: 0, kind: "turn", text: `Turn ${s.turn + 1} begins` });
       // v17 living map: the world takes its phase before the first tribe acts

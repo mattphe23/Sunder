@@ -5,6 +5,7 @@ import { describe, it, expect } from "vitest";
 import {
   VICTORY_PATHS, victoryProgress, checkPathVictory, VICTORY_PATH_START_TURN,
   PLUNDER_TARGET, BLOODFORGE_TARGET, HARVEST_TARGET, tideTarget, STORMLEGEND_TARGET,
+  UNBROKENWALL_TARGET, WALL_HOLD_CITIES,
 } from "../client/src/game/core/victory";
 import { TECHS, TRIBE_DEFS, GameState, emptyStats } from "../client/src/game/core/types";
 
@@ -174,5 +175,39 @@ describe("Storm Legend is reachable", () => {
     expect(p.target).toBe(STORMLEGEND_TARGET);
     expect(p.target).toBeLessThanOrEqual(3);
     expect(p.def.goal).toContain(String(p.target));
+  });
+});
+
+describe("Unbroken Wall is an endurance goal, not a city count", () => {
+  // It used to ask for 3 WALLED cities while Dravok holds 2.36 on average, so
+  // it completed in 13% of its games and no constant fixed it: 3 walls put
+  // Dravok at 18%, 2 at 38%, and cheaper walls moved nothing. Counting rounds
+  // instead tunes in single points and cannot outrun the tribe's city count.
+  it("reads the wall streak, not the number of walls standing right now", () => {
+    const s = fakeState();
+    s.tribes[0].defIndex = 5; // Dravok
+    s.tribes[0].wallStreak = 0;
+    const p0 = victoryProgress(s, 0)!;
+    expect(p0.def.id).toBe("unbrokenwall");
+    expect(p0.target).toBe(UNBROKENWALL_TARGET);
+    expect(p0.done).toBe(false);
+
+    // a wall of cities standing this instant is not progress on its own
+    s.cities.push(
+      { id: 90, x: 1, y: 1, tribe: 0, name: "A", level: 1, pop: 0, isCapital: false, walls: true } as never,
+      { id: 91, x: 2, y: 2, tribe: 0, name: "B", level: 1, pop: 0, isCapital: false, walls: true } as never,
+    );
+    expect(victoryProgress(s, 0)!.current).toBe(0);
+
+    s.tribes[0].wallStreak = UNBROKENWALL_TARGET;
+    expect(victoryProgress(s, 0)!.done).toBe(true);
+  });
+
+  it("states the real goal, including how many walls the streak needs", () => {
+    const s = fakeState();
+    s.tribes[0].defIndex = 5;
+    const p = victoryProgress(s, 0)!;
+    expect(p.def.goal).toContain(String(UNBROKENWALL_TARGET));
+    expect(p.def.goal).toContain(String(WALL_HOLD_CITIES));
   });
 });

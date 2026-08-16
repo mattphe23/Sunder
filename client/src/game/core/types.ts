@@ -351,6 +351,9 @@ export interface Tribe {
    *  module so it survives a save/load and works in hot-seat, where two forged
    *  tribes could otherwise share one global costume. */
   customHeadgear?: string;
+  /** Unbroken Wall: consecutive game rounds holding WALL_HOLD_CITIES walled
+   *  cities. Resets the moment the wall count drops — "unbroken" is the point. */
+  wallStreak?: number;
   name: string;
   color: string; // hex
   colorName: string;

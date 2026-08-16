@@ -72,7 +72,7 @@ export const ASCENDANCE_TARGET = knob("SUNDER_ASCENDANCE_TARGET", 1600);
  * Veteran units Valkyra must field AT ONCE for Storm Legend.
  *
  * A unit becomes veteran at 3 kills, so a target of 4 asks for twelve kills
- * spread across four units that all survive to hold the board together. It
+ * spread across four units that all survive to hold the board together.
  * At 4 it fired ONCE in 48 appearances, which is why Valkyra was the weakest
  * tribe in the pool — it was effectively playing with no victory path at all.
  *
@@ -88,13 +88,26 @@ export const ASCENDANCE_TARGET = knob("SUNDER_ASCENDANCE_TARGET", 1600);
  */
 export const STORMLEGEND_TARGET = knob("SUNDER_STORMLEGEND_TARGET", 3);
 /**
- * Walled cities Dravok must hold for Unbroken Wall.
+ * Consecutive rounds Dravok must keep WALL_HOLD_CITIES walls standing.
  *
- * Completes in 13% of Dravok's games, the lowest of any path, averaging 33% of
- * target — walls cost stars that early expansion needs, so three of them is a
- * long way down a road the tribe cannot afford to start.
+ * This used to count walled cities: hold 3 of them. It completed in 13% of
+ * Dravok's games, the lowest of any path, and no constant could fix it — 3 put
+ * Dravok at 18% and 2 at 38%, a twenty-point step with no integer between, and
+ * cutting the wall cost from 3 stars to 2 to 1 moved nothing, because the AI
+ * already builds walls 95% of the time when chasing this path.
+ *
+ * scripts/tribe-diag.mts showed why: Dravok holds 2.36 cities on average and
+ * the goal asked for 3 WALLED ones. It was not expensive, it was asking for
+ * more cities than the tribe ever has.
+ *
+ * Endurance is the axis that fits both the fantasy and the tuning problem —
+ * "unbroken" is a thing walls do over time, and rounds tune in single points
+ * where city counts tune in twenties. The streak resets the moment the wall
+ * count drops, which is the whole idea.
  */
-export const UNBROKENWALL_TARGET = knob("SUNDER_UNBROKENWALL_TARGET", 3);
+export const UNBROKENWALL_TARGET = knob("SUNDER_UNBROKENWALL_TARGET", 6);
+/** walled cities that must stand together for the streak to run */
+export const WALL_HOLD_CITIES = knob("SUNDER_WALL_HOLD_CITIES", 2);
 /** shallow-water tiles per port Tide Mastery demands — see tideTarget() */
 export const TIDE_DIVISOR = knob("SUNDER_TIDE_DIVISOR", 4);
 
@@ -214,7 +227,7 @@ export const VICTORY_PATHS: VictoryPathDef[] = [
   { id: "plunderking", name: "Plunder King", goal: `Plunder ${PLUNDER_TARGET} stars from your rivals`, flavor: "Vessari's saddlebags overflow — the Shatterlands' wealth rides with the Plunder King." },
   // goal text is rewritten per board in victoryProgress — see tideTarget()
   { id: "tidemastery", name: "Tide Mastery", goal: "Hold the coast's ports", flavor: "Every current answers Nerivane — the tides themselves have chosen a master." },
-  { id: "unbrokenwall", name: "Unbroken Wall", goal: "Hold 3 walled cities", flavor: "Dravok's ramparts blot out the horizon — the Unbroken Wall stands eternal." },
+  { id: "unbrokenwall", name: "Unbroken Wall", goal: "Hold walled cities, unbroken", flavor: "Dravok's ramparts blot out the horizon — the Unbroken Wall stands eternal." },
   { id: "stormlegend", name: "Storm Legend", goal: "Field 4 veteran units at once", flavor: "Valkyra's thunder never fades — an army of storm-tempered legends darkens the sky." },
   { id: "overgrowth", name: "Overgrowth", goal: "Hold 5 cities", flavor: "Mycelon's spores drift on every wind — the Shatterlands bloom beneath one endless canopy." },
   { id: "ascendance", name: "Ascendance", goal: "Reach 900 score", flavor: "A tribe forged from nothing now defines the age — the Shatterlands kneel to its ascendance." },
@@ -258,8 +271,8 @@ export function victoryProgress(s: GameState, tribeIdx: number): VictoryProgress
       break;
     }
     case "unbrokenwall":
-      current = s.cities.filter((c) => c.tribe === tribeIdx && c.walls).length; target = scaled(UNBROKENWALL_TARGET, s, 2);
-      def = { ...def, goal: `Hold ${target} walled cities` }; break;
+      current = t.wallStreak ?? 0; target = UNBROKENWALL_TARGET;
+      def = { ...def, goal: `Hold ${WALL_HOLD_CITIES} walled cities for ${target} rounds` }; break;
     case "stormlegend":
       current = s.units.filter((u) => u.tribe === tribeIdx && u.veteran).length; target = scaled(STORMLEGEND_TARGET, s, 2);
       def = { ...def, goal: `Field ${target} veteran units at once` }; break;
