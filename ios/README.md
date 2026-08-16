@@ -30,6 +30,12 @@ clone that skips this step can still build — `cap sync` only needs `pnpm build
 Everything up to the Xcode step runs anywhere. Archiving and uploading needs
 macOS with Xcode and a signing identity, so those steps have to happen on a Mac.
 
+**No Mac?** `.github/workflows/ios.yml` runs the archive, signing and TestFlight
+upload on a GitHub-hosted macOS runner instead, which is free for public
+repositories. The one-time Apple credential setup is browser-only and written up
+in [`docs/IOS-CI-SETUP.md`](../docs/IOS-CI-SETUP.md) — including how to create a
+distribution certificate with `openssl` rather than Keychain Access.
+
 ## What is already configured
 
 | Thing | Where | Why |

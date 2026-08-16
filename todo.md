@@ -734,3 +734,31 @@ below was checked against the actual codebase before being marked.
 - [ ] MAC-ONLY (cannot be verified here): signing identity + real bundle id, device run, launch
       transition flash, notch/home-indicator clearance, drag frame rate on a full 13×13, rotation,
       offline failure modes for duels/leaderboard, IAP decision (guideline 3.1.1), privacy answers
+
+# v50 — Mac-free iOS builds via GitHub Actions (user has no Mac)
+- [x] Prepared the Xcode project for unattended CI: committed a SHARED scheme
+      (ios/App/App.xcodeproj/xcshareddata/xcschemes/App.xcscheme — Xcode writes schemes to the
+      git-ignored xcuserdata by default, so a clean clone had none and `xcodebuild -scheme App`
+      would have failed), plus ios/App/ExportOptions.plist for app-store-connect distribution with
+      manual signing and placeholders CI substitutes
+- [x] GitHub Actions workflow (.github/workflows/ios.yml) on macos-15: installs deps, builds the
+      web app, `cap sync ios`, imports the signing cert into a throwaway keychain (with
+      set-key-partition-list so codesign cannot block on a UI prompt), installs the provisioning
+      profile and reads its real name/UUID/bundle id out of the file rather than trusting a
+      hardcoded string, archives, exports, validates with altool then uploads to TestFlight.
+      Build number comes from the run number so Apple can never see a duplicate. Keychain and
+      API key are deleted in an always() step.
+- [x] No-secrets `verify` job builds unsigned on every push: runs tests + type-check, re-renders
+      the brand assets and fails if the committed icon/splash have drifted from the sigil source
+      (pixel comparison, since PNG encoder metadata differs between Chromium builds), and asserts
+      public/index.html AND public/assets exist inside the built .app so a cap-sync regression
+      cannot ship an empty shell
+- [x] Wrote docs/IOS-CI-SETUP.md: the browser-only credential path, including creating the
+      distribution certificate with `openssl` instead of Keychain Access (verified the full CSR →
+      cert → .p12 chain end to end in the sandbox), the exact seven repo secrets, the optional
+      environment approval gate, a failure-mode table, and honest limits (on-device judgement
+      calls, the IAP decision under guideline 3.1.1, the privacy questionnaire)
+- [x] Validated: actionlint with shellcheck enabled reports 0 errors; YAML parses; the asset-drift
+      check and the openssl chain were both dry-run locally
+- [ ] AWAITING USER: enrol in the Apple Developer Program, register the bundle id, add the seven
+      secrets, then run the workflow — the `verify` job proves itself on the next push regardless

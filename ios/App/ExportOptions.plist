@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Export options for `xcodebuild -exportArchive`.
+
+  teamID is substituted by CI from the APPLE_TEAM_ID secret, so the committed
+  file carries a placeholder rather than a real team. Manual signing is
+  deliberate: automatic signing needs an interactive Xcode session to talk to
+  the developer portal, which a runner does not have.
+-->
+<plist version="1.0">
+<dict>
+	<key>method</key>
+	<string>app-store-connect</string>
+	<key>teamID</key>
+	<string>__APPLE_TEAM_ID__</string>
+	<key>signingStyle</key>
+	<string>manual</string>
+	<key>provisioningProfiles</key>
+	<dict>
+		<key>__BUNDLE_ID__</key>
+		<string>__PROFILE_NAME__</string>
+	</dict>
+	<key>uploadSymbols</key>
+	<true/>
+	<key>manageAppVersionAndBuildNumber</key>
+	<false/>
+	<key>destination</key>
+	<string>export</string>
+</dict>
+</plist>
+
