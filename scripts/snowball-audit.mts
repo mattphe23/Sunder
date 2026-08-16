@@ -17,6 +17,7 @@
 //
 //   pnpm tsx scripts/snowball-audit.mts [games] [size] [seedBase]
 import { game } from "../client/src/game/core/state";
+import { seedRandom } from "./_rng.mts";
 
 // Same trampoline as gameplay-audit.mts: the engine schedules AI turns with
 // setTimeout, and running them inline recurses one frame per turn and dies mid
@@ -62,6 +63,7 @@ for (let g = 0; g < GAMES; g++) {
   const roster = [0, 1, 2, 3].map((d) => (d + g) % 6);
 
   pending.length = 0;
+  seedRandom(seed);
   game.newGame({ size: SIZE, humanTribe: NO_HUMAN, difficulty, seed, preset, roster });
 
   const standings = new Map<number, Standing>();

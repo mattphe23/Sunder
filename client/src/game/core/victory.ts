@@ -92,11 +92,23 @@ export function tideTarget(s: GameState): number {
  * scripts/path-scale-sweep.mts.
  * ------------------------------------------------------------------------ */
 
-/** land tiles per tribe on 11x11 with four tribes, measured over 24 games */
-export const REFERENCE_SHARE = 23.8;
+/**
+ * The board the flat constants were swept on: 11x11, four tribes.
+ *
+ * Scaling is measured from NOMINAL board area per tribe, not from the land
+ * actually generated. Counting real land looks more precise and is worse: land
+ * per tribe varies by preset and by seed, so an 11x11 would land on a
+ * multiplier near 1.0 but never exactly, and the default size — the only one
+ * whose balance is already validated — would drift for no benefit. Measured
+ * that way, 11x11's balance spread moved 43.8 -> 50.0 at alpha 0.35 while
+ * fixing a problem 11x11 does not have. Nominal area is exactly 1.0 at the
+ * reference board by construction, so every existing sweep stays valid and
+ * only the larger boards change.
+ */
+const REFERENCE_SIZE = 11;
+const REFERENCE_TRIBES = 4;
 /** default exponent — see docs/BOARD-SCALING.md before changing */
 export const PATH_SCALE_ALPHA = 0;
-const LAND_TERRAIN = new Set(["grass", "forest", "mountain"]);
 
 /**
  * Read at call time rather than module load so a sweep can drive it per process
@@ -111,9 +123,9 @@ function scaleAlpha(): number {
 export function boardScale(s: GameState): number {
   const alpha = scaleAlpha();
   if (!alpha) return 1;
-  const land = s.tiles.reduce((n, t) => n + (LAND_TERRAIN.has(t.terrain) ? 1 : 0), 0);
-  const share = land / Math.max(1, s.tribes.length);
-  return Math.pow(share / REFERENCE_SHARE, alpha);
+  const share = (s.size * s.size) / Math.max(1, s.tribes.length);
+  const reference = (REFERENCE_SIZE * REFERENCE_SIZE) / REFERENCE_TRIBES;
+  return Math.pow(share / reference, alpha);
 }
 
 /** a flat target rescaled to this board, never below `floor` */

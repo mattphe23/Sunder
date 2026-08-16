@@ -16,6 +16,7 @@
 //
 //   pnpm tsx scripts/density-audit.mts [gamesPerSize] [seedBase]
 import { game } from "../client/src/game/core/state";
+import { seedRandom } from "./_rng.mts";
 
 (globalThis as unknown as { window: undefined }).window = undefined;
 const pending: (() => void)[] = [];
@@ -58,6 +59,7 @@ for (const size of SIZES) {
     const roster = [0, 1, 2, 3].map((d) => (d + g) % 6);
 
     pending.length = 0;
+    seedRandom(SEED_BASE + g);
     game.newGame({ size, humanTribe: NO_HUMAN, difficulty, seed: SEED_BASE + g, preset, roster });
 
     let firstBattle: number | null = null;

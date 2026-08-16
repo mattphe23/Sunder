@@ -3,7 +3,7 @@
 // The defect being fixed: every victory target except Tide Mastery is a flat
 // constant swept on 11x11, so a bigger board is a shorter game (16.9 turns at
 // 15x15 against 23.3 at 11x11). victory.ts now multiplies those targets by
-// (land-per-tribe / 23.8) ^ alpha. This measures what alpha should be.
+// (nominal area per tribe / the 11x11 reference) ^ alpha. This measures alpha.
 //
 // One config per process because the alpha is read from the environment and a
 // single node process would have to re-import the module graph to change it.
@@ -11,6 +11,7 @@
 //
 //   SUNDER_PATH_SCALE_ALPHA=0.5 pnpm tsx scripts/path-scale-sweep.mts <size> <games> <seedBase>
 import { game } from "../client/src/game/core/state";
+import { seedRandom } from "./_rng.mts";
 
 (globalThis as unknown as { window: undefined }).window = undefined;
 const pending: (() => void)[] = [];
@@ -42,6 +43,7 @@ for (let g = 0; g < GAMES; g++) {
   const roster = [0, 1, 2, 3].map((d) => (d + g) % 6);
 
   pending.length = 0;
+  seedRandom(SEED_BASE + g);
   game.newGame({ size: SIZE, humanTribe: NO_HUMAN, difficulty, seed: SEED_BASE + g, preset, roster });
 
   let steps = 0;
