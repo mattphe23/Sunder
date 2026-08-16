@@ -186,27 +186,51 @@ export class BoardRenderer {
   /**
    * The opening shot — the first frame a player ever sees of the board.
    *
-   * Aiming the camera squarely at the human capital looks right on paper and
-   * frames badly in practice: capitals often spawn near an edge, so the board
-   * falls into one corner and up to 40% of the screen is empty void past the
-   * diorama's rim. Pulling the target back toward the middle of the board keeps
-   * the capital comfortably in frame while filling the shot with world.
+   * Two framings both look right on paper and fail in practice. Aiming squarely
+   * at the capital puts the board in a corner, because capitals often spawn near
+   * an edge and the rest of the frame is void past the diorama's rim. Pulling
+   * the target back toward the middle of the board fixes the void and replaces
+   * it with something no better: on turn one the middle of the board is
+   * unexplored, so most of the shot is cloud bank.
+   *
+   * So frame what the player can actually SEE. The explored region is the only
+   * part of the board that carries any picture at all, and on turn one it is a
+   * small blob around the capital — centre on it, and size the radius to its
+   * extent so it fills the shot with terrain instead of weather.
    */
   private frameOpeningShot(s: GameState, c: number) {
-    const cap = s.cities.find((ci) => ci.isCapital && ci.tribe === s.humanTribe);
-    if (!cap) {
-      this.camera.target = Vector3.Zero();
-      this.camera.radius = 13;
+    // A phone held upright is a tall, narrow window: the radius that frames the
+    // board on a laptop leaves most of a portrait screen as sky and cloud.
+    const aspect = this.engine.getAspectRatio(this.camera) || 1.6;
+    const maxRadius = aspect < 0.75 ? 9.5 : aspect < 1.1 ? 11 : 13;
+
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, n = 0;
+    for (const t of s.tiles) {
+      if (!t.explored[s.humanTribe]) continue;
+      n++;
+      if (t.x < minX) minX = t.x;
+      if (t.x > maxX) maxX = t.x;
+      if (t.y < minY) minY = t.y;
+      if (t.y > maxY) maxY = t.y;
+    }
+
+    if (!n) {
+      // No vision at all (spectating an all-AI board): frame the whole diorama.
+      const cap = s.cities.find((ci) => ci.isCapital && ci.tribe === s.humanTribe);
+      this.camera.target = cap ? new Vector3((cap.x - c) * 0.55, 0, (cap.y - c) * 0.55) : Vector3.Zero();
+      this.camera.radius = maxRadius;
       return;
     }
-    // board centre is the origin, so scaling the capital offset pulls toward it
-    const PULL = 0.45;
-    this.camera.target = new Vector3((cap.x - c) * (1 - PULL), 0, (cap.y - c) * (1 - PULL));
-    // A phone held upright is a tall, narrow window: the same radius that frames
-    // the board on a laptop leaves most of a portrait screen as sky and cloud.
-    // Pull in as the viewport narrows.
-    const aspect = this.engine.getAspectRatio(this.camera) || 1.6;
-    this.camera.radius = aspect < 0.75 ? 9.5 : aspect < 1.1 ? 11 : 13;
+
+    // Centre of the explored bounding box, not of the tiles: a long scouting
+    // arm in one direction should swing the camera, not be averaged away.
+    this.camera.target = new Vector3((minX + maxX) / 2 - c, 0, (minY + maxY) / 2 - c);
+
+    // Enough radius to hold the explored span with a margin, never wider than
+    // the aspect budget and never so tight that the board fills the frame edge
+    // to edge on turn one.
+    const span = Math.max(maxX - minX, maxY - minY, 4);
+    this.camera.radius = Math.min(maxRadius, Math.max(8, span * 1.35 + 3.5));
   }
 
   private setupCameraLights(canvas: HTMLCanvasElement) {
@@ -1176,13 +1200,18 @@ export class BoardRenderer {
         subSnow.material = this.litMat(this.bio.rock.snow); this.facet(subSnow);
         subSnow.metadata = md; subSnow.parent = this.root; decor.push(subSnow);
       } else {
-        const rock = MeshBuilder.CreateCylinder("pk", { diameterTop: 0.1, diameterBottom: 0.58, height: 0.46, tessellation: 6 }, this.scene);
-        rock.position = new Vector3(t.x - c, top + 0.34, t.y - c);
+        // Squatter and broader than it used to be. A tall thin cone reads as a
+        // party hat and, repeated across a range, as visual noise; mass low and
+        // wide is what makes a mountain look heavy rather than pointy.
+        const rock = MeshBuilder.CreateCylinder("pk", { diameterTop: 0.12, diameterBottom: 0.64, height: 0.38, tessellation: 6 }, this.scene);
+        rock.position = new Vector3(t.x - c, top + 0.29, t.y - c);
         rock.rotation.y = yaw + 0.3;
         rock.material = this.litMat(this.bio.rock.body); this.facet(rock);
         rock.metadata = md; rock.parent = this.root; decor.push(rock);
-        const snow = MeshBuilder.CreateCylinder("snow", { diameterTop: 0, diameterBottom: 0.2, height: 0.22, tessellation: 6 }, this.scene);
-        snow.position = new Vector3(t.x - c, top + 0.66, t.y - c);
+        // The cap is a hint of snow on a summit, not a hat. Big white cones pull
+        // the eye away from the units, which are what the player is reading.
+        const snow = MeshBuilder.CreateCylinder("snow", { diameterTop: 0, diameterBottom: 0.17, height: 0.14, tessellation: 6 }, this.scene);
+        snow.position = new Vector3(t.x - c, top + 0.52, t.y - c);
         snow.rotation.y = rock.rotation.y;
         snow.material = this.litMat(this.bio.rock.snow); this.facet(snow);
         snow.metadata = md; snow.parent = this.root; decor.push(snow);

@@ -21,7 +21,7 @@ export const PALETTE = {
     // mountain top pulled toward mossy slate so peaks (not plates) read gray.
     grass: { top: "#84c95e", side: "#47823a" },
     forest: { top: "#4a9e4e", side: "#2c6b34" }, // forest floor under trees
-    mountain: { top: "#9aad8f", side: "#47823a" }, // mossy slate top, land-family side
+    mountain: { top: "#79b055", side: "#47823a" }, // land-family green; the massif carries the "mountain" read, not the plate
     water: { top: "#3fa0e8", side: "#2b6fb0" }, // shallow / coastal
     ocean: { top: "#2458b8", side: "#193f8a" }, // deep
   } as Record<string, TerrainSwatch>,
@@ -31,7 +31,7 @@ export const PALETTE = {
 
   // decor accents (flat, hand-picked; no lighting will touch these)
   tree: { trunk: "#6d4a2f", canopyA: "#2f8a3d", canopyB: "#256e31", canopyLight: "#3da34c" },
-  rock: { body: "#8b98ac", shadow: "#71809a", snow: "#f6f9ff" },
+  rock: { body: "#7b8497", shadow: "#5e6779", snow: "#ecf1fa" },
   fruit: { bush: "#3f9e46", berry: "#ff5a3c" },
   animal: { body: "#a5713d", head: "#b8834e", ear: "#8a5c30" },
   crystal: { body: "#7fd4ef", glow: "#2c86ac" },
@@ -72,14 +72,14 @@ export const BIOMES: Record<string, BiomePalette> = {
     terrain: {
       grass: { top: "#84c95e", side: "#47823a" },
       forest: { top: "#4a9e4e", side: "#2c6b34" },
-      mountain: { top: "#9aad8f", side: "#47823a" },
+      mountain: { top: "#79b055", side: "#47823a" },
       water: { top: "#3fa0e8", side: "#2b6fb0" },
       ocean: { top: "#2458b8", side: "#193f8a" },
     },
     shore: "#8fd8f2",
     sand: "#d9c58f",
     tree: { trunk: "#6d4a2f", canopyA: "#2f8a3d", canopyB: "#256e31", canopyLight: "#3da34c" },
-    rock: { body: "#8b98ac", shadow: "#71809a", snow: "#f6f9ff" },
+    rock: { body: "#7b8497", shadow: "#5e6779", snow: "#ecf1fa" },
     fogWash: "#262650",
     cloud: "#c8cbe6",
     cloudShade: "#8f95c0",
