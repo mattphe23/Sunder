@@ -43,6 +43,31 @@ export const PLUNDER_TARGET = knob("SUNDER_PLUNDER_TARGET", 8);
 export const BLOODFORGE_TARGET = knob("SUNDER_BLOODFORGE_TARGET", 22);
 /** total city levels Sunwei must hold for Great Harvest (was 12) */
 export const HARVEST_TARGET = knob("SUNDER_HARVEST_TARGET", 15);
+/**
+ * Score Ascendance demands — the generic path every forged tribe inherits.
+ *
+ * This was 900 and it was a win button. Measured over 60 games with a forged
+ * tribe that is an exact clone of Auren (same passive, same start tech, same
+ * signature unit), seat 0 won 85% of matches against Auren's own 48% in the
+ * identical seat and seeds — and all 51 wins came through Ascendance. The
+ * reason is in the scores: the clone averaged 921, but Auren averaged 1587.
+ * Every tribe sails past 900 in the normal course of play, so a path that asks
+ * for it fires the moment paths unlock. The Forge was not stronger because
+ * cherry-picking beat the designed pairings; it was stronger because it had a
+ * far easier win condition bolted to it.
+ *
+ * Swept over 900 / 1400 / 1600 / 1700 / 1800 / 2200 / 2600 against that same
+ * clone-vs-Auren control, across two independent seed blocks, 120 games per
+ * point at the finalists:
+ *
+ *   900 -> 85.0%   1400 -> 61.7%   1600 -> 47.5%   1700 -> 44.2%
+ *   1800 -> 36.7%  2200 -> 28.3%   2600 -> 26.7%      (control 48.3%)
+ *
+ * 1600 puts a forged tribe within a point of a designed one in the same seat on
+ * the same seeds, which is the whole requirement: the Forge should be a way to
+ * play differently, not a way to play stronger.
+ */
+export const ASCENDANCE_TARGET = knob("SUNDER_ASCENDANCE_TARGET", 1600);
 /** shallow-water tiles per port Tide Mastery demands — see tideTarget() */
 export const TIDE_DIVISOR = knob("SUNDER_TIDE_DIVISOR", 4);
 
@@ -215,7 +240,7 @@ export function victoryProgress(s: GameState, tribeIdx: number): VictoryProgress
       current = s.cities.filter((c) => c.tribe === tribeIdx).length; target = scaled(5, s, 3);
       def = { ...def, goal: `Hold ${target} cities` }; break;
     case "ascendance":
-      current = t.score; target = scaled(900, s, 400);
+      current = t.score; target = scaled(ASCENDANCE_TARGET, s, 400);
       def = { ...def, goal: `Reach ${target} score` }; break;
   }
   return { def, current: Math.min(current, target), target, done: current >= target };

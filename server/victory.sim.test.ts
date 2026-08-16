@@ -101,11 +101,23 @@ describe("v20 asymmetric victory paths", () => {
   it("custom forge tribes (defIndex 8 = TRIBE_DEFS.length) fall back to the generic Ascendance path", () => {
     const s = fakeState();
     s.tribes[0].defIndex = 8;
-    s.tribes[0].score = 899;
+    const target = victoryProgress(s, 0)!.target;
     expect(victoryProgress(s, 0)!.def.id).toBe("ascendance");
+    s.tribes[0].score = target - 1;
     expect(victoryProgress(s, 0)!.done).toBe(false);
-    s.tribes[0].score = 900;
+    s.tribes[0].score = target;
     expect(victoryProgress(s, 0)!.done).toBe(true);
+  });
+
+  it("Ascendance is a real goal, not a score every tribe passes anyway", () => {
+    // It was 900, and that was a win button: a forged tribe cloned from Auren
+    // won 85% of matches to Auren's 48% in the same seat, all of them through
+    // Ascendance, while Auren's own average score was 1587. Any tribe sails
+    // past 900, so the path fired the moment paths unlocked. This holds the
+    // goal above the scores a normal match produces.
+    const s = fakeState();
+    s.tribes[0].defIndex = 8;
+    expect(victoryProgress(s, 0)!.target).toBeGreaterThan(1200);
   });
 });
 
