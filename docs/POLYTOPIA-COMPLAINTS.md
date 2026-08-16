@@ -60,10 +60,9 @@ becoming "massively repetitive" on larger maps, that longer games "just turn
 into multi-hour grinds," and that "the early game is interesting enough but it
 lacks the variety and complexity to have staying power."
 
-**What Sunder does today.** This is the gap our whole design bets on. Five
-victory paths exist and are reachable — domination plus plunder, bloodforge,
-harvest and tide mastery — and the last gameplay audit moved them from
-decorative to live. Tribes differ by perk *and* by which victory path their perk
+**What Sunder does today.** This is the gap our whole design bets on. Nine
+faction paths are defined — one per tribe — alongside domination and score, and
+the last gameplay audit moved them from decorative to live. Tribes differ by perk *and* by which victory path their perk
 pushes them toward.
 
 **And it is working.** Across the same 80 matches, wins came through seven
@@ -80,7 +79,7 @@ different conditions:
 | unbrokenwall | 9% |
 
 Set that against the community's own figure for Polytopia — **99% of multiplayer
-games are Domination**. Conquest is a quarter of our outcomes, not all of them.
+games are Domination**. Conquest is a fifth of our outcomes, not all of them.
 This is the clearest evidence we have that the central design bet is paying off.
 
 **Recommendation.** Keep watching it. The distribution is healthy now, and the
