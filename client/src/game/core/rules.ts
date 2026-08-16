@@ -80,8 +80,20 @@ export const BOAT_MOVEMENT = 3;
 export function portCost(s: GameState, tribe: number): number {
   return s.tribes[tribe]?.passive === "tideborn" ? 1 : 3;
 }
+/**
+ * Stars a city wall costs. Dravok's Stonebound passive discounts it.
+ *
+ * The discount is the fine-grained lever on Dravok's Unbroken Wall path, which
+ * completes in only 13% of its games — the lowest of any path. The TARGET is
+ * not usable as a lever: three walls puts Dravok at 18%, two puts it at 38%,
+ * with no integer between, so the goal line moves in 20-point steps.
+ */
+export const STONEBOUND_WALL_COST = Number(
+  (typeof process !== "undefined" ? process.env?.SUNDER_STONEBOUND_WALL_COST : undefined) ?? 3,
+);
+
 export function wallCost(s: GameState, tribe: number): number {
-  return s.tribes[tribe]?.passive === "stonebound" ? 3 : 5;
+  return s.tribes[tribe]?.passive === "stonebound" ? STONEBOUND_WALL_COST : 5;
 }
 export function roadCost(s: GameState, tribe: number): number {
   return ROAD_COST;

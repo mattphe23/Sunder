@@ -87,6 +87,14 @@ export const ASCENDANCE_TARGET = knob("SUNDER_ASCENDANCE_TARGET", 1600);
  * 2 turns Valkyra into the strongest tribe in the pool by a distance.
  */
 export const STORMLEGEND_TARGET = knob("SUNDER_STORMLEGEND_TARGET", 3);
+/**
+ * Walled cities Dravok must hold for Unbroken Wall.
+ *
+ * Completes in 13% of Dravok's games, the lowest of any path, averaging 33% of
+ * target — walls cost stars that early expansion needs, so three of them is a
+ * long way down a road the tribe cannot afford to start.
+ */
+export const UNBROKENWALL_TARGET = knob("SUNDER_UNBROKENWALL_TARGET", 3);
 /** shallow-water tiles per port Tide Mastery demands — see tideTarget() */
 export const TIDE_DIVISOR = knob("SUNDER_TIDE_DIVISOR", 4);
 
@@ -250,7 +258,7 @@ export function victoryProgress(s: GameState, tribeIdx: number): VictoryProgress
       break;
     }
     case "unbrokenwall":
-      current = s.cities.filter((c) => c.tribe === tribeIdx && c.walls).length; target = scaled(3, s, 2);
+      current = s.cities.filter((c) => c.tribe === tribeIdx && c.walls).length; target = scaled(UNBROKENWALL_TARGET, s, 2);
       def = { ...def, goal: `Hold ${target} walled cities` }; break;
     case "stormlegend":
       current = s.units.filter((u) => u.tribe === tribeIdx && u.veteran).length; target = scaled(STORMLEGEND_TARGET, s, 2);
