@@ -71,6 +71,56 @@ export function tideTarget(s: GameState): number {
   return Math.max(2, Math.min(4, Math.ceil(shallow / TIDE_DIVISOR)));
 }
 
+/* --------------------------------------------------------------------------
+ * Board scaling.
+ *
+ * Every target above except Tide Mastery was swept on an 11x11 board with four
+ * tribes and is a flat constant. That makes a bigger map a SHORTER game rather
+ * than a roomier one: scripts/density-audit.mts measured 16.9 average turns at
+ * 15x15 against 23.3 at 11x11, because more land means more cities, more city
+ * levels and more battles, so a fixed goal line arrives sooner.
+ *
+ * `boardScale` is the correction — the room this board gives each tribe,
+ * relative to the 11x11 the constants were tuned on, raised to an exponent:
+ *
+ *   alpha 0    flat targets; exactly the pre-existing behaviour
+ *   alpha 1    fully proportional to land per tribe
+ *
+ * The exponent is a knob rather than a guess because the right answer is not
+ * obviously 1. City levels track land closely; battles do not, since a bigger
+ * board also means longer marches between the tribes that would fight. Swept by
+ * scripts/path-scale-sweep.mts.
+ * ------------------------------------------------------------------------ */
+
+/** land tiles per tribe on 11x11 with four tribes, measured over 24 games */
+export const REFERENCE_SHARE = 23.8;
+/** default exponent — see docs/BOARD-SCALING.md before changing */
+export const PATH_SCALE_ALPHA = 0;
+const LAND_TERRAIN = new Set(["grass", "forest", "mountain"]);
+
+/**
+ * Read at call time rather than module load so a sweep can drive it per process
+ * without import order mattering. `process` is absent in the browser, where this
+ * always resolves to the default.
+ */
+function scaleAlpha(): number {
+  const env = typeof process !== "undefined" ? process.env?.SUNDER_PATH_SCALE_ALPHA : undefined;
+  return env === undefined ? PATH_SCALE_ALPHA : Number(env);
+}
+
+export function boardScale(s: GameState): number {
+  const alpha = scaleAlpha();
+  if (!alpha) return 1;
+  const land = s.tiles.reduce((n, t) => n + (LAND_TERRAIN.has(t.terrain) ? 1 : 0), 0);
+  const share = land / Math.max(1, s.tribes.length);
+  return Math.pow(share / REFERENCE_SHARE, alpha);
+}
+
+/** a flat target rescaled to this board, never below `floor` */
+function scaled(base: number, s: GameState, floor: number): number {
+  return Math.max(floor, Math.round(base * boardScale(s)));
+}
+
 /** path per TRIBE_DEFS index; the final entry (custom forge tribes) is the generic path */
 export const VICTORY_PATHS: VictoryPathDef[] = [
   { id: "enlightenment", name: "Enlightenment", goal: `Research all ${TECHS.length} technologies`, flavor: "The Auren archives are complete — knowledge itself has conquered the Shatterlands." },
@@ -105,15 +155,22 @@ export function victoryProgress(s: GameState, tribeIdx: number): VictoryProgress
   const pathIdx = Math.min(t.defIndex, VICTORY_PATHS.length - 1);
   let def = VICTORY_PATHS[pathIdx];
   let current = 0, target = 1;
+  // Every board-scaled path rewrites its own goal line the way Tide Mastery
+  // does. The static strings in VICTORY_PATHS are built from the unscaled
+  // constants, so on any board but the 11x11 they were tuned on they would
+  // show the player a number the engine is not using.
   switch (def.id) {
     case "enlightenment":
       current = t.techs.length; target = TECHS.length; break;
     case "bloodforge":
-      current = s.stats[tribeIdx]?.battlesWon ?? 0; target = BLOODFORGE_TARGET; break;
+      current = s.stats[tribeIdx]?.battlesWon ?? 0; target = scaled(BLOODFORGE_TARGET, s, 8);
+      def = { ...def, goal: `Win ${target} battles` }; break;
     case "greatharvest":
-      current = s.cities.filter((c) => c.tribe === tribeIdx).reduce((a, c) => a + c.level, 0); target = HARVEST_TARGET; break;
+      current = s.cities.filter((c) => c.tribe === tribeIdx).reduce((a, c) => a + c.level, 0); target = scaled(HARVEST_TARGET, s, 6);
+      def = { ...def, goal: `Reach ${target} total city levels` }; break;
     case "plunderking":
-      current = s.stats[tribeIdx]?.starsPlundered ?? 0; target = PLUNDER_TARGET; break;
+      current = s.stats[tribeIdx]?.starsPlundered ?? 0; target = scaled(PLUNDER_TARGET, s, 4);
+      def = { ...def, goal: `Plunder ${target} stars from your rivals` }; break;
     case "tidemastery": {
       current = s.tiles.filter((tl) => tl.port === tribeIdx).length;
       target = tideTarget(s);
@@ -122,13 +179,17 @@ export function victoryProgress(s: GameState, tribeIdx: number): VictoryProgress
       break;
     }
     case "unbrokenwall":
-      current = s.cities.filter((c) => c.tribe === tribeIdx && c.walls).length; target = 3; break;
+      current = s.cities.filter((c) => c.tribe === tribeIdx && c.walls).length; target = scaled(3, s, 2);
+      def = { ...def, goal: `Hold ${target} walled cities` }; break;
     case "stormlegend":
-      current = s.units.filter((u) => u.tribe === tribeIdx && u.veteran).length; target = 4; break;
+      current = s.units.filter((u) => u.tribe === tribeIdx && u.veteran).length; target = scaled(4, s, 3);
+      def = { ...def, goal: `Field ${target} veteran units at once` }; break;
     case "overgrowth":
-      current = s.cities.filter((c) => c.tribe === tribeIdx).length; target = 5; break;
+      current = s.cities.filter((c) => c.tribe === tribeIdx).length; target = scaled(5, s, 3);
+      def = { ...def, goal: `Hold ${target} cities` }; break;
     case "ascendance":
-      current = t.score; target = 900; break;
+      current = t.score; target = scaled(900, s, 400);
+      def = { ...def, goal: `Reach ${target} score` }; break;
   }
   return { def, current: Math.min(current, target), target, done: current >= target };
 }
