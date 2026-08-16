@@ -39,8 +39,48 @@ const knob = (name: string, fallback: number) =>
  * instead of back near the floor it started at.
  */
 export const PLUNDER_TARGET = knob("SUNDER_PLUNDER_TARGET", 8);
-/** battles Kharzul must win for Bloodforge (was 18) */
-export const BLOODFORGE_TARGET = knob("SUNDER_BLOODFORGE_TARGET", 22);
+/**
+ * Cities Kharzul must TAKE for Bloodforge.
+ *
+ * This used to count battles won — 22 of them — and that is what kept Kharzul
+ * the weakest tribe in the pool. Three levers aimed at its combat all failed,
+ * because none of them was the constraint: its trade ratio is 0.97 while
+ * Vessari trades at 0.64 and wins 25%; the Forgeborn damage multiplier has a
+ * ten-point cliff between 1.20 and 1.25 with nothing landing on parity; and a
+ * unit-cap exemption did literally nothing, since every tribe finishes with 5-8
+ * spare capacity.
+ *
+ * What the diagnosis actually showed is that Kharzul takes 2.00 cities per
+ * match, the fewest of any tribe, and holds 2.04 — so it has the smallest
+ * economy, the smallest army, and therefore the fewest battles to win.
+ *
+ * BE CLEAR ABOUT WHAT THIS DOES AND DOES NOT FIX. The theory was that counting
+ * battles asked the war tribe to farm fights instead of taking ground, and that
+ * the AI was obeying. That theory is WRONG, and ai.ts says so in three lines:
+ * pathId is consulted only for research preference (enlightenment), whether to
+ * build a port (tidemastery), and whether to build walls (unbrokenwall). No
+ * victory path touches targeting, capture or movement, so no path change can
+ * steer AI aggression. Measured after the switch, Kharzul's captures went 2.00
+ * -> 1.98 and its cities 2.04 -> 2.11: unchanged.
+ *
+ * It ships anyway, on two honest grounds. A war tribe whose win condition is
+ * conquest rather than skirmish-farming is better design for the HUMAN who does
+ * respond to incentives. And the numbers are no worse: 21.5% mean -> 23%, with
+ * balance spread going from 30/40 across blocks to 33/33. That gain comes from
+ * four captures being a slightly easier bar than twenty-two battles, not from
+ * anyone playing differently.
+ *
+ * Distinct from Mycelon's Overgrowth, which counts cities HELD at once.
+ * Bloodforge is cumulative conquest: cities you took, including ones you later
+ * lost, and it does not reward founding a single one.
+ */
+export const BLOODFORGE_TARGET = knob("SUNDER_BLOODFORGE_TARGET", 4);
+/*
+ * Swept 3 / 4 / 5 across two seed blocks, 240 games each:
+ *   3   34% / 43%   spread 27 / 48
+ *   4   18% / 28%   spread 33 / 33
+ *   5   10% / 13%   spread 43 / 45
+ */
 /** total city levels Sunwei must hold for Great Harvest — see harvestTarget() */
 export const HARVEST_TARGET = knob("SUNDER_HARVEST_TARGET", 15);
 /** resource tiles per city level Great Harvest demands — see harvestTarget() */
@@ -262,7 +302,7 @@ function scaled(base: number, s: GameState, floor: number): number {
 /** path per TRIBE_DEFS index; the final entry (custom forge tribes) is the generic path */
 export const VICTORY_PATHS: VictoryPathDef[] = [
   { id: "enlightenment", name: "Enlightenment", goal: `Research all ${TECHS.length} technologies`, flavor: "The Auren archives are complete — knowledge itself has conquered the Shatterlands." },
-  { id: "bloodforge", name: "Bloodforge", goal: `Win ${BLOODFORGE_TARGET} battles`, flavor: "Kharzul's forges run red — no army dares stand against the Bloodforge." },
+  { id: "bloodforge", name: "Bloodforge", goal: `Capture ${BLOODFORGE_TARGET} cities`, flavor: "Kharzul's forges run red — no army dares stand against the Bloodforge." },
   { id: "greatharvest", name: "Great Harvest", goal: `Reach ${HARVEST_TARGET} total city levels`, flavor: "Sunwei's terraces feed a golden empire — the Great Harvest is gathered." },
   // v40: 45 → 35 stars banked. v42: measure LOOT TAKEN, not stars held.
   // Lowering the treasury target twice never worked — it still fired in 1% of
@@ -301,8 +341,8 @@ export function victoryProgress(s: GameState, tribeIdx: number): VictoryProgress
     case "enlightenment":
       current = t.techs.length; target = TECHS.length; break;
     case "bloodforge":
-      current = s.stats[tribeIdx]?.battlesWon ?? 0; target = scaled(BLOODFORGE_TARGET, s, 8);
-      def = { ...def, goal: `Win ${target} battles` }; break;
+      current = s.stats[tribeIdx]?.citiesCaptured ?? 0; target = scaled(BLOODFORGE_TARGET, s, 2);
+      def = { ...def, goal: `Capture ${target} cities` }; break;
     case "greatharvest":
       current = s.cities.filter((c) => c.tribe === tribeIdx).reduce((a, c) => a + c.level, 0); target = harvestTarget(s);
       def = { ...def, goal: `Reach ${target} total city levels` }; break;

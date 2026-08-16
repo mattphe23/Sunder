@@ -836,6 +836,19 @@ Kharzul 21.5, Mycelon 20. Spread 30, from 46 at the start of the session.
       cities taken — the AI is being asked to farm fights instead of take ground
       and is doing exactly that. AI-behaviour work, same box as the parked aiPro
       project. Do not sweep it again.
+      UPDATE: Bloodforge switched from "win 22 battles" to "capture 4 cities".
+      The rationale — that the path was telling the AI to farm fights — is
+      REFUTED: ai.ts reads pathId in exactly three places (research preference,
+      port building, wall building) and none of them touches targeting, capture
+      or movement, so no path can steer AI aggression. Kharzul's captures went
+      2.00 -> 1.98 after the switch. Shipped for design coherence and a marginal,
+      more consistent balance gain (21.5% -> 23%, spread 30/40 -> 33/33), NOT
+      because it changed how the AI plays.
+- [ ] OPEN, for the aiPro work — victory paths barely steer the AI at all. Three
+      pathId checks in ai.ts, all of them build decisions. Every combat-flavoured
+      path (Bloodforge, Plunder King, Storm Legend) is therefore something the AI
+      stumbles into rather than pursues. Making paths actually drive AI strategy
+      is likely worth more than any further constant.
 
 - [x] Sunwei — Great Harvest now scales to the board's RESOURCE ENDOWMENT
       (divisor 2.2) rather than a flat 15. Mean 19% -> 25%. The variance

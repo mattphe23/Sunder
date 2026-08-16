@@ -48,12 +48,25 @@ describe("v20 asymmetric victory paths", () => {
     expect(hit?.tribe).toBe(0);
   });
 
-  it("Kharzul Bloodforge tracks battlesWon and completes at its target", () => {
+  it("Kharzul Bloodforge tracks cities CAPTURED and completes at its target", () => {
     const s = fakeState();
-    s.stats[1].battlesWon = BLOODFORGE_TARGET - 1;
+    s.stats[1].citiesCaptured = BLOODFORGE_TARGET - 1;
     expect(victoryProgress(s, 1)!.done).toBe(false);
-    s.stats[1].battlesWon = BLOODFORGE_TARGET;
+    s.stats[1].citiesCaptured = BLOODFORGE_TARGET;
     expect(victoryProgress(s, 1)!.done).toBe(true);
+  });
+
+  it("Bloodforge ignores battles that took no ground", () => {
+    // The whole point of the change: the war tribe was farming fights instead
+    // of taking cities, and winning fights was what its own path rewarded.
+    const s = fakeState();
+    s.stats[1].battlesWon = 999;
+    s.stats[1].citiesCaptured = 0;
+    const p = victoryProgress(s, 1)!;
+    expect(p.def.id).toBe("bloodforge");
+    expect(p.current).toBe(0);
+    expect(p.done).toBe(false);
+    expect(p.def.goal).toContain(String(p.target));
   });
 
   it("Sunwei Great Harvest sums owned city levels", () => {
