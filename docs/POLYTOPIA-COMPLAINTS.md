@@ -71,13 +71,13 @@ different conditions:
 
 | Won by | Share |
 |---|---|
-| score/domination | 25% |
-| enlightenment | 23% |
+| score/domination | 21% |
+| bloodforge | 18% |
 | plunderking | 15% |
-| bloodforge | 14% |
-| tidemastery | 11% |
-| greatharvest | 8% |
-| unbrokenwall | 5% |
+| enlightenment | 13% |
+| greatharvest | 13% |
+| tidemastery | 13% |
+| unbrokenwall | 9% |
 
 Set that against the community's own figure for Polytopia — **99% of multiplayer
 games are Domination**. Conquest is a quarter of our outcomes, not all of them.
@@ -172,15 +172,21 @@ The question: if you lead on turn N, do you win? With four tribes, 25% is chance
 
 | Turn | Leader by cities goes on to win |
 |---|---|
-| 5 | 34% |
-| 10 | 38% |
-| 15 | 50% |
-| 20 | 55% |
-| 25 | 69% |
+| 5 | 38% |
+| 10 | 45% |
+| 15 | 40% |
+| 20 | 50% |
+| 25 | 59% |
 
-The city lead only stops changing hands 72% of the way through a match, and
-**62% of winners did not hold the city lead on turn 10**. Measured by score
+The city lead only stops changing hands 79% of the way through a match, and
+**55% of winners did not hold the city lead on turn 10**. Measured by score
 rather than cities the curve is the same shape.
+
+> These figures were re-measured after `scripts/_rng.mts` made batch runs
+> deterministic — the AI's decisions were reading an unseeded `Math.random`, so
+> the first pass had run-to-run noise on top of seed noise. The conclusion did
+> not move; the curve came out slightly *flatter* than the first measurement
+> (59% at turn 25, not 69%).
 
 **Sunder does not have Polytopia's snowball problem. It may have the opposite
 one.** A turn-20 leader winning 55% of the time is a game where two thirds of

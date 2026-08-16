@@ -53,6 +53,20 @@ function AdminLabLink() {
   );
 }
 
+/**
+ * One line per map size, so the picker says what the board will feel like
+ * instead of only how many tiles it has. Drawn from the measured density audit
+ * (docs/BOARD-SCALING.md), not from vibes: 9x9 sees first blood on turn 2.4 and
+ * wipes a tribe out in most matches; 15x15 gives each tribe roughly twice the
+ * land of the default and eliminates someone in 4% of games.
+ */
+const SIZE_BLURB: Record<number, string> = {
+  9: "Knife fight — you are in contact by turn 2, with no room to build. Expect someone to be knocked out.",
+  11: "Standard — tight borders and an early scrap. The size everything is balanced around.",
+  13: "Room to breathe — a few turns of build-up before the first blow lands.",
+  15: "Frontier — twice the land per tribe, real expansion, and almost nobody is eliminated.",
+};
+
 /** Premium curated maps — seed-locked boards sold in packs. Owned packs expand
  *  into a playable map list; unowned ones deep-link to the store. */
 function CuratedMapsSection({ onPlay }: { onPlay: (m: CuratedMap) => void }) {
@@ -496,6 +510,13 @@ export function MainMenu() {
                   </button>
                 ))}
               </div>
+              {/* Each board plays differently enough that picking one blind is a
+                  trap — 9x9 draws first blood on turn 2 and eliminates a tribe
+                  in most matches, while 15x15 almost never does. Measured in
+                  docs/BOARD-SCALING.md; the copy is those numbers in words. */}
+              <p className="mt-1.5 text-[10px] leading-snug text-slate-400">
+                {SIZE_BLURB[size] ?? SIZE_BLURB[11]}
+              </p>
             </div>
           </div>
 
