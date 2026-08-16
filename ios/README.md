@@ -15,6 +15,18 @@ pnpm ios:open     # opens ios/App/App.xcworkspace in Xcode
 `cap sync` copies `dist/public` into `ios/App/App/public/`. That copy is
 generated and git-ignored — never edit it, and never commit it.
 
+`pnpm icons` rasterises the brand sigil with headless Chromium, so the first run
+on a new machine needs the browser binary once:
+
+```bash
+pnpm exec playwright install chromium
+```
+
+Playwright is a devDependency, so `pnpm install` covers the rest. If the browser
+is missing, the script says so and names this command instead of failing on a
+module-resolution error. The committed icon and splash are already correct, so a
+clone that skips this step can still build — `cap sync` only needs `pnpm build`.
+
 Everything up to the Xcode step runs anywhere. Archiving and uploading needs
 macOS with Xcode and a signing identity, so those steps have to happen on a Mac.
 

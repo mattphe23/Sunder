@@ -712,3 +712,25 @@ below was checked against the actual codebase before being marked.
 - [x] Engine bug fix found during verification: randomized opening order stalled solo games when an AI acted first (newGame never kicked the AI chain) — fixed + kept turn flow verified in-browser
 - [x] Engine hardening: legacy saves (pre-v41, no turnOrder/orderPos) backfilled on continueGame/loadOnlineSnapshot
 - [x] Tests + type-check green (159/159); browser verify (select → fissure overlay → move → Undo); checkpoint + deliver for designer review
+
+# v49 — iOS handoff verification (Manus, against Sunder-iOS-Handoff.docx)
+- [x] FIXED — blocker for a clean Mac clone: `scripts/gen-app-icons.mjs` imported Playwright by
+      absolute sandbox path (`/opt/node22/lib/node_modules/playwright/index.mjs`) and pinned a
+      sandbox-only `executablePath`, so `pnpm icons` — and therefore step 2 of the handoff,
+      `pnpm ios:sync` — could only ever run in this sandbox. Now resolves Playwright normally
+      (declared devDependency) with global paths as fallback, pins an executable only when that
+      exact build exists, and passes container-only Chromium flags only on Linux. Failure mode is
+      now an actionable message naming the install command instead of ERR_MODULE_NOT_FOUND.
+- [x] Verified regeneration is visually identical to the committed assets: a different Chromium
+      build differs by ~2 bytes of PNG encoder metadata but PIXELS ARE IDENTICAL on splash, icon
+      and PWA icons, so the committed assets stand and the byte-churn was reverted
+- [x] `pnpm build` emits dist/public (4.4M) and `npx cap sync ios` copies the real vite build
+      (assets/, sw.js, manifest) into `ios/App/App/public/`, which is git-ignored via ios/.gitignore
+- [x] Confirmed the handoff's headless-verifiable claims: capacitor.config.ts (backgroundColor
+      #141433, contentInset never, scrollEnabled false, webDir dist/public), SPM path with no
+      Podfile (so the handoff's `pod install` step is correctly described as a no-op), Info.plist
+      light status bar + Xcode-managed version keys, viewport-fit=cover, 6 safe-area rules,
+      sw.js in the build, no tracked file over 1MB. 185 tests + tsc + production build green.
+- [ ] MAC-ONLY (cannot be verified here): signing identity + real bundle id, device run, launch
+      transition flash, notch/home-indicator clearance, drag frame rate on a full 13×13, rotation,
+      offline failure modes for duels/leaderboard, IAP decision (guideline 3.1.1), privacy answers

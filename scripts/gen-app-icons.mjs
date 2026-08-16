@@ -1,6 +1,58 @@
 // Render the procedural brand mark (client/src/game/ui/Brand.tsx) to the PNGs
 // the iOS project needs. No painted asset to go stale, no external dependency.
-import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+//
+// Playwright resolution is deliberately forgiving: this has to run on a plain
+// Mac clone (`pnpm ios:sync` step 2 of the handoff), not just inside the build
+// sandbox that happens to carry a global copy. Order: the normal dependency
+// resolution first, then known global locations. An absolute path here made
+// `pnpm icons` sandbox-only, which meant a fresh clone could not regenerate the
+// launch screen at all.
+import { existsSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
+
+const require = createRequire(import.meta.url);
+
+const CANDIDATES = [
+  'playwright',
+  'playwright-core',
+  '/opt/node22/lib/node_modules/playwright/index.mjs',
+  '/usr/lib/node_modules/playwright/index.mjs',
+  '/usr/local/lib/node_modules/playwright/index.mjs',
+];
+
+const loadChromium = async () => {
+  const tried = [];
+  for (const spec of CANDIDATES) {
+    const isPath = spec.startsWith('/');
+    if (isPath && !existsSync(spec)) {
+      tried.push(`${spec} (not present)`);
+      continue;
+    }
+    try {
+      const mod = await import(isPath ? pathToFileURL(spec).href : spec);
+      return (mod.chromium ?? mod.default?.chromium);
+    } catch (err) {
+      tried.push(`${spec} (${err.code ?? err.message})`);
+    }
+  }
+  throw new Error(
+    'Could not load Playwright, which this script uses to rasterise the SVG ' +
+      'sigil into the icon and launch screen.\n\nInstall it once:\n' +
+      '  pnpm add -D playwright && pnpm exec playwright install chromium\n\n' +
+      `Tried:\n  ${tried.join('\n  ')}`
+  );
+};
+
+const chromium = await loadChromium();
+
+// Only pin an executable when that exact build is present (the sandbox image
+// ships one); otherwise let Playwright use the browser it installed itself.
+const SANDBOX_CHROME = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
+
+// --no-sandbox is required for root/container CI. On macOS it is harmless, but
+// there is no reason to pass it when we are not in a container.
+const isLinux = process.platform === 'linux';
 
 // the sigil itself, drawn in a 96x96 space
 const SIGIL = `
@@ -54,8 +106,8 @@ const SPLASH = (px) => `
 </svg>`;
 
 const browser = await chromium.launch({
-  executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
-  args: ['--no-sandbox','--disable-dev-shm-usage'],
+  ...(existsSync(SANDBOX_CHROME) ? { executablePath: SANDBOX_CHROME } : {}),
+  ...(isLinux ? { args: ['--no-sandbox', '--disable-dev-shm-usage'] } : {}),
 });
 const shoot = async (svg, px, out) => {
   const page = await browser.newPage({ viewport: { width: px, height: px }, deviceScaleFactor: 1 });
