@@ -66,11 +66,28 @@ harvest and tide mastery — and the last gameplay audit moved them from
 decorative to live. Tribes differ by perk *and* by which victory path their perk
 pushes them toward.
 
-**Recommendation.** Keep going, and start measuring it as a headline number.
-The audit harness already records which path each AI win came through; if that
-distribution is lopsided, we have the same problem Polytopia has and don't know
-it yet. A "victory path spread" alongside the balance spread would make
-convergence visible the moment it appears.
+**And it is working.** Across the same 80 matches, wins came through seven
+different conditions:
+
+| Won by | Share |
+|---|---|
+| score/domination | 25% |
+| enlightenment | 23% |
+| plunderking | 15% |
+| bloodforge | 14% |
+| tidemastery | 11% |
+| greatharvest | 8% |
+| unbrokenwall | 5% |
+
+Set that against the community's own figure for Polytopia — **99% of multiplayer
+games are Domination**. Conquest is a quarter of our outcomes, not all of them.
+This is the clearest evidence we have that the central design bet is paying off.
+
+**Recommendation.** Keep watching it. The distribution is healthy now, and the
+failure mode is drift: one path quietly becoming the efficient answer. It is
+already reported by both harnesses, so the only discipline required is running
+them after balance changes and looking at the spread rather than only the win
+rates.
 
 ---
 
@@ -146,15 +163,42 @@ doomed." Scout spam is called "the most obnoxious tactic" with "no counter."
 The community discusses catch-up mechanics as an open problem.
 
 **What Sunder does today.** No explicit comeback mechanic. Plunder transfers
-stars from the victim to the raider, which if anything accelerates a snowball.
+stars from the victim to the raider, which if anything should accelerate a
+snowball.
 
-**Recommendation.** This is the most interesting *unclaimed* opportunity in the
-list, and also the easiest to get wrong — catch-up mechanics that are too
-generous make winning feel unearned. It should not be done by intuition. We have
-a batch harness that can measure it: instrument "lead at turn N vs. eventual
-winner" across a few hundred games, see how early the outcome is actually
-decided, and only then decide whether it needs a fix. I would not ship a
-comeback mechanic without that number.
+**So I measured it** — `scripts/snowball-audit.mts`, 80 headless matches, size
+11, all four presets and three difficulties, sampling the standings every turn.
+The question: if you lead on turn N, do you win? With four tribes, 25% is chance.
+
+| Turn | Leader by cities goes on to win |
+|---|---|
+| 5 | 34% |
+| 10 | 38% |
+| 15 | 50% |
+| 20 | 55% |
+| 25 | 69% |
+
+The city lead only stops changing hands 72% of the way through a match, and
+**62% of winners did not hold the city lead on turn 10**. Measured by score
+rather than cities the curve is the same shape.
+
+**Sunder does not have Polytopia's snowball problem. It may have the opposite
+one.** A turn-20 leader winning 55% of the time is a game where two thirds of
+your mid-game barely moves the needle, and an ending that can feel arbitrary
+rather than earned. That is a real failure mode, just an unfamiliar one.
+
+**Recommendation: do not add catch-up mechanics.** There is nothing to catch up
+from. Before acting on the opposite concern, two caveats have to be cleared:
+
+- This is bot-vs-bot. A human presses an advantage harder than our AI does, so
+  the true human curve is steeper than this by an unknown amount. The honest
+  claim is an upper bound on how comeback-friendly the game is, not a
+  measurement of how it feels to play.
+- Matches average 23 turns against a 30-turn cap. A short game gives an
+  advantage less time to compound, which flattens the curve on its own.
+
+The way to settle it is the same instrument pointed at real games once there are
+some, not more simulation.
 
 ---
 
@@ -181,13 +225,18 @@ comeback mechanic without that number.
 1. **Take the power out of the paid tribes.** One catalog change, and it removes
    the loudest single grievance this audience has — while we still can, before
    anyone has bought one.
-2. **Measure when games are decided.** The snowball question is unanswerable by
-   argument and completely answerable by the harness.
-3. **Report victory-path spread** next to balance spread, so strategy
-   convergence cannot creep up on us.
-4. **Touch-target pass on a real phone**, aimed at crowded tiles specifically.
-5. **Resume the AI project** — the top difficulty is the one a strategy audience
-   judges us by.
+2. **Touch-target pass on a real phone**, aimed at crowded tiles specifically.
+   This is the one item on the list that cannot be done from here.
+3. **Resume the AI project** — the top difficulty is the one a strategy audience
+   judges us by, and at 36% it is competent rather than frightening. A stronger
+   top AI would also sharpen the snowball curve, since a bot that presses its
+   advantage is a better model of a human opponent.
+
+~~Measure when games are decided~~ — done, see §6. The answer inverted the
+question, so no catch-up mechanic is warranted.
+
+~~Report victory-path spread~~ — already reported by both harnesses, and the
+spread is healthy (§2).
 
 ---
 
