@@ -36,7 +36,11 @@ export const PALETTE = {
   animal: { body: "#a5713d", head: "#b8834e", ear: "#8a5c30" },
   crystal: { body: "#7fd4ef", glow: "#2c86ac" },
   ruin: { stone: "#8f93b8", stoneDark: "#767a9e", glow: "#ffd76a", glowEmissive: "#c79a34" },
-  city: { house: "#efe9db", houseSide: "#cfc7b4", neutral: "#c9b896", spire: "#ffd76a", wall: "#a8a5b8" },
+  // `neutral` is the plaza and owner stand-in for an unclaimed village; `thatch`
+  // is its accent. Villages used to draw every part from `neutral`, so cream
+  // huts got beige roofs on a beige plaza inside beige trim and the settlement
+  // read as one flat tan square. The accent has to leave the sand family.
+  city: { house: "#efe9db", houseSide: "#cfc7b4", neutral: "#c9b896", thatch: "#8a5f38", spire: "#ffd76a", wall: "#a8a5b8" },
   port: { pier: "#a97c50", sail: "#f2ead8" },
   // v33: fog bank darkened toward the void so the island silhouette pops
   fog: { cloud: "#191940", mist: "#232350" },

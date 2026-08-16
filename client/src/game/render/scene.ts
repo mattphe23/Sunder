@@ -1522,8 +1522,13 @@ export class BoardRenderer {
       // border frame, filled by a seeded building cluster that grows with
       // city level. Villages are two modest huts on a smaller sand plaza.
       const md = { tile: true, x: t.x, y: t.y };
-      const n = isNeutral ? 2 : Math.min(7, 2 + city.level + (city.isCapital ? 1 : 0));
-      const pw = isNeutral ? 0.72 : 0.9;
+      // Every accent on a village used to come from `col`, which for a neutral
+      // is the same sand as the plaza — cream huts, beige roofs, beige kerb, all
+      // on beige. Neutrals take a thatch brown instead so the huts have edges.
+      const accent = isNeutral ? PALETTE.city.thatch : col;
+      // Two huts left most of the plaza bare; three fill it without crowding.
+      const n = isNeutral ? 3 : Math.min(7, 2 + city.level + (city.isCapital ? 1 : 0));
+      const pw = isNeutral ? 0.66 : 0.9;
       const plaza = MeshBuilder.CreateBox("cityplate", { width: pw, depth: pw, height: 0.06 }, this.scene);
       plaza.position = new Vector3(t.x - c, top + 0.03, t.y - c);
       plaza.material = this.mat(isNeutral ? "#cfc2a4" : "#cfc8b8");
@@ -1532,7 +1537,7 @@ export class BoardRenderer {
       // color. Kept thin and dark — a bright full-saturation frame reads as a
       // UI selection box rather than part of the world.
       const bh = pw / 2 - 0.015;
-      const kerb = darken(col, 0.72);
+      const kerb = darken(accent, 0.72);
       for (const [fx, fz, fw, fd] of [[0, -bh, pw, 0.035], [0, bh, pw, 0.035], [-bh, 0, 0.035, pw], [bh, 0, 0.035, pw]] as const) {
         const edge = MeshBuilder.CreateBox("cityedge", { width: fw, depth: fd, height: 0.045 }, this.scene);
         edge.position = new Vector3(t.x - c + fx, top + 0.05, t.y - c + fz);
@@ -1543,7 +1548,7 @@ export class BoardRenderer {
       for (const [cx, cz] of [[-bh, -bh], [bh, -bh], [-bh, bh], [bh, bh]] as const) {
         const post = MeshBuilder.CreateBox("cityedge", { width: 0.075, depth: 0.075, height: 0.075 }, this.scene);
         post.position = new Vector3(t.x - c + cx, top + 0.065, t.y - c + cz);
-        post.material = this.litMat(col); this.facet(post);
+        post.material = this.litMat(accent); this.facet(post);
         post.metadata = md; post.parent = this.root; decor.push(post);
       }
       // seeded cluster: center building tallest, satellites around it
@@ -1569,13 +1574,13 @@ export class BoardRenderer {
           const roof = MeshBuilder.CreateCylinder("roof", { diameterTop: 0, diameterBottom: bw * 1.2, height: 0.14 + bw * 0.2, tessellation: 4 }, this.scene);
           roof.position = new Vector3(t.x - c + slot[0], top + 0.06 + bhh + (0.14 + bw * 0.2) / 2, t.y - c + slot[1]);
           roof.rotation.y = Math.PI / 4;
-          roof.material = this.litMat(darken(col, 0.85)); this.facet(roof);
+          roof.material = this.litMat(darken(accent, 0.85)); this.facet(roof);
           roof.metadata = md; roof.parent = this.root; decor.push(roof);
         } else {
           // flat slab roof with an owner-color trim cap for variety
           const slab = MeshBuilder.CreateBox("roof", { width: bw * 1.08, depth: bw * 1.08, height: 0.035 }, this.scene);
           slab.position = new Vector3(t.x - c + slot[0], top + 0.06 + bhh + 0.018, t.y - c + slot[1]);
-          slab.material = this.litMat(col); this.facet(slab);
+          slab.material = this.litMat(accent); this.facet(slab);
           slab.metadata = md; slab.parent = this.root; decor.push(slab);
         }
       }
