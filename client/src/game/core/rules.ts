@@ -582,6 +582,21 @@ export const TECH_ESCALATION = Number(
   (typeof process !== "undefined" ? process.env?.SUNDER_TECH_ESCALATION : undefined) ?? 0.6,
 );
 
+/** multiplier the Scholars passive applies to tech cost — see SCHOLARS_DISCOUNT */
+const SCHOLARS_COST_MULT = () =>
+  Number(
+    (typeof process !== "undefined" ? process.env?.SUNDER_SCHOLARS_MULT : undefined) ?? SCHOLARS_DISCOUNT
+  );
+
+/**
+ * Auren's Scholars discount, as a cost multiplier.
+ *
+ * Swept because the aggregate win rate hides which lever matters: 16 of Auren's
+ * 22 wins in a 96-game audit came through Enlightenment, so the discount is
+ * buying path speed more than economy, and moving it trades one for the other.
+ */
+export const SCHOLARS_DISCOUNT = 0.9;
+
 export function techCost(s: GameState, tribe: number, tech: TechId): number {
   const def = TECHS.find((t) => t.id === tech)!;
   const cityCount = s.cities.filter((c) => c.tribe === tribe).length;
@@ -593,7 +608,9 @@ export function techCost(s: GameState, tribe: number, tech: TechId): number {
   // v41.1: 20% → 10%. The discount double-dips Auren's own Enlightenment path
   // ("research all techs"): unbiased 160-game batch showed 72% Auren win rate
   // with Enlightenment landing on turn ~17 vs turn 22+ for every other path.
-  if (s.tribes[tribe].passive === "scholars") cost *= 0.9;
+  // Read from the environment at call time so a sweep can drive it per process;
+  // `process` is absent in the browser, where this is always the default.
+  if (s.tribes[tribe].passive === "scholars") cost *= SCHOLARS_COST_MULT();
   return Math.round(cost);
 }
 

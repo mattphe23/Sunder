@@ -200,6 +200,25 @@ TRIBE_DEFS.forEach((t, d) => {
 // games it appears in whatever the pool size. This is the single number to
 // minimise when sweeping.
 console.log(`  BALANCE SPREAD  ${spread.toFixed(0)}   (sum of |win% - 25|; lower is better)`);
+// Which path each tribe actually wins through. A tribe that is too strong
+// because its economy is good needs a different fix from one that is too strong
+// because its goal line is short, and the aggregate win rate cannot tell them
+// apart — Ascendance at 900 looked like a forge problem until it was split out.
+console.log("\nHOW EACH TRIBE WINS");
+const byTribe = new Map<number, Map<string, number>>();
+for (const r of rows) {
+  if (r.winnerDef === null) continue;
+  if (!byTribe.has(r.winnerDef)) byTribe.set(r.winnerDef, new Map());
+  const m = byTribe.get(r.winnerDef)!;
+  m.set(r.path, (m.get(r.path) ?? 0) + 1);
+}
+TRIBE_DEFS.forEach((t, d) => {
+  const m = byTribe.get(d);
+  if (!m) return;
+  const parts = [...m.entries()].sort((a, b) => b[1] - a[1]).map(([p, c]) => `${p} ${c}`);
+  console.log(`  ${t.name.padEnd(10)} ${parts.join(", ")}`);
+});
+
 
 console.log("\nPATH REACHABILITY  (how far each tribe gets along ITS OWN path)");
 console.log("  a path that averages near 1.00 is not a goal, it is a side effect of playing");
