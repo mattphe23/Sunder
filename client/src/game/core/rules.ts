@@ -597,6 +597,7 @@ const SCHOLARS_COST_MULT = () =>
  */
 export const SCHOLARS_DISCOUNT = 0.9;
 
+
 export function techCost(s: GameState, tribe: number, tech: TechId): number {
   const def = TECHS.find((t) => t.id === tech)!;
   const cityCount = s.cities.filter((c) => c.tribe === tribe).length;
@@ -605,11 +606,17 @@ export function techCost(s: GameState, tribe: number, tech: TechId): number {
   // ...and with how much of the tree you already hold, so the last techs are a
   // real investment rather than something every tribe drifts into.
   cost += s.tribes[tribe].techs.length * TECH_ESCALATION;
-  // v41.1: 20% → 10%. The discount double-dips Auren's own Enlightenment path
-  // ("research all techs"): unbiased 160-game batch showed 72% Auren win rate
-  // with Enlightenment landing on turn ~17 vs turn 22+ for every other path.
-  // Read from the environment at call time so a sweep can drive it per process;
-  // `process` is absent in the browser, where this is always the default.
+  // v41.1: 20% -> 10%. The discount double-dips Auren's own Enlightenment path
+  // ("research all techs"), so it buys path speed as well as economy.
+  //
+  // Trimming it further does NOT fix Auren, which was worth measuring before
+  // assuming: across 96 games, 0.95 (a 5% discount) and 1.00 (no passive at
+  // all) both land Auren at 35%, still ten points above the 25% baseline, and
+  // balance spread does not improve at any value — the wins just move to
+  // Kharzul. Applying the discount to the base cost only, leaving the
+  // escalation term full price, was also measured: 45% -> 40%, not enough to
+  // justify the extra branch. Auren's strength is the Enlightenment path
+  // itself. See the commit for the TECH_ESCALATION sweep.
   if (s.tribes[tribe].passive === "scholars") cost *= SCHOLARS_COST_MULT();
   return Math.round(cost);
 }

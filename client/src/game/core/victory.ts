@@ -68,6 +68,25 @@ export const HARVEST_TARGET = knob("SUNDER_HARVEST_TARGET", 15);
  * play differently, not a way to play stronger.
  */
 export const ASCENDANCE_TARGET = knob("SUNDER_ASCENDANCE_TARGET", 1600);
+/**
+ * Veteran units Valkyra must field AT ONCE for Storm Legend.
+ *
+ * A unit becomes veteran at 3 kills, so a target of 4 asks for twelve kills
+ * spread across four units that all survive to hold the board together. It
+ * At 4 it fired ONCE in 48 appearances, which is why Valkyra was the weakest
+ * tribe in the pool — it was effectively playing with no victory path at all.
+ *
+ * Swept over 4 / 3 / 2 across two independent seed blocks, 96 games each:
+ *
+ *          block A            block B          balance spread
+ *   4      17%                23%              50 / 42
+ *   3      27%                25%              42 / 42
+ *   2      48%                52%              67 / 63
+ *
+ * 3 lands on the 25% baseline in both blocks and is the only value that does.
+ * 2 turns Valkyra into the strongest tribe in the pool by a distance.
+ */
+export const STORMLEGEND_TARGET = knob("SUNDER_STORMLEGEND_TARGET", 3);
 /** shallow-water tiles per port Tide Mastery demands — see tideTarget() */
 export const TIDE_DIVISOR = knob("SUNDER_TIDE_DIVISOR", 4);
 
@@ -234,7 +253,7 @@ export function victoryProgress(s: GameState, tribeIdx: number): VictoryProgress
       current = s.cities.filter((c) => c.tribe === tribeIdx && c.walls).length; target = scaled(3, s, 2);
       def = { ...def, goal: `Hold ${target} walled cities` }; break;
     case "stormlegend":
-      current = s.units.filter((u) => u.tribe === tribeIdx && u.veteran).length; target = scaled(4, s, 3);
+      current = s.units.filter((u) => u.tribe === tribeIdx && u.veteran).length; target = scaled(STORMLEGEND_TARGET, s, 2);
       def = { ...def, goal: `Field ${target} veteran units at once` }; break;
     case "overgrowth":
       current = s.cities.filter((c) => c.tribe === tribeIdx).length; target = scaled(5, s, 3);

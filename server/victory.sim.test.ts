@@ -4,7 +4,7 @@
 import { describe, it, expect } from "vitest";
 import {
   VICTORY_PATHS, victoryProgress, checkPathVictory, VICTORY_PATH_START_TURN,
-  PLUNDER_TARGET, BLOODFORGE_TARGET, HARVEST_TARGET, tideTarget,
+  PLUNDER_TARGET, BLOODFORGE_TARGET, HARVEST_TARGET, tideTarget, STORMLEGEND_TARGET,
 } from "../client/src/game/core/victory";
 import { TECHS, TRIBE_DEFS, GameState, emptyStats } from "../client/src/game/core/types";
 
@@ -157,6 +157,22 @@ describe("v47 Tide Mastery scales to the board's coast", () => {
     const p = victoryProgress(s, 0)!;
     expect(p.def.id).toBe("tidemastery");
     expect(p.target).toBe(tideTarget(s));
+    expect(p.def.goal).toContain(String(p.target));
+  });
+});
+
+describe("Storm Legend is reachable", () => {
+  // A unit becomes veteran at 3 kills, so the target is a multiple of that:
+  // 4 veterans meant twelve kills across four units that all had to survive
+  // together, and it fired once in 48 games. Valkyra was the weakest tribe in
+  // the pool purely because its path never completed.
+  it("asks for a number of veterans a tribe can actually hold at once", () => {
+    const s = fakeState();
+    s.tribes[0].defIndex = 6; // Valkyra
+    const p = victoryProgress(s, 0)!;
+    expect(p.def.id).toBe("stormlegend");
+    expect(p.target).toBe(STORMLEGEND_TARGET);
+    expect(p.target).toBeLessThanOrEqual(3);
     expect(p.def.goal).toContain(String(p.target));
   });
 });
