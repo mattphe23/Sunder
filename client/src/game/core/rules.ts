@@ -742,6 +742,25 @@ export function trainableUnits(s: GameState, tribe: number): UnitType[] {
 /* ---------------------------------- v35 economy ---------------------------------- */
 
 /** each city supports (level + 1) units; capitals support one extra */
+/**
+ * Unit capacity is NOT what limits any tribe's army, which is worth recording
+ * because it looks like it should be.
+ *
+ * Reading train() suggests otherwise — it gates on atUnitCapacity, and capacity
+ * is derived purely from cities — so a "horde exemption" giving Kharzul extra
+ * capacity per city was the obvious fix for the tribe that ends matches with
+ * the fewest cities and fewest units. It was measured over two seed blocks at
+ * 240 games each and did NOTHING:
+ *
+ *   +0 per city   Kharzul 17% / 26%
+ *   +1 per city   Kharzul 16% / 25%
+ *   +2 per city   Kharzul 16% / 25%
+ *
+ * scripts/tribe-diag.mts says why: every tribe finishes with 5-8 units of
+ * SPARE capacity, Kharzul included at 5.59. Nobody is near the ceiling, so
+ * raising it cannot change anything. Armies are limited by income and by
+ * losses, not by permission to build.
+ */
 export function unitCapacity(s: GameState, tribe: number): number {
   let cap = 0;
   for (const c of s.cities) {

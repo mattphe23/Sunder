@@ -17,6 +17,7 @@
 import { game } from "../client/src/game/core/state";
 import { seedRandom } from "./_rng.mts";
 import { TRIBE_DEFS } from "../client/src/game/core/types";
+import { unitCapacity, unitCount } from "../client/src/game/core/rules";
 
 (globalThis as unknown as { window: undefined }).window = undefined;
 const pending: (() => void)[] = [];
@@ -38,9 +39,11 @@ interface Acc {
   won: number[];
   lost: number[];
   captured: number[];
+  cap: number[];
+  stars: number[];
 }
 const acc = new Map<number, Acc>();
-const blank = (): Acc => ({ cities: [], walls: [], units: [], kills: [], won: [], lost: [], captured: [] });
+const blank = (): Acc => ({ cities: [], walls: [], units: [], kills: [], won: [], lost: [], captured: [], cap: [], stars: [] });
 
 for (let g = 0; g < GAMES; g++) {
   const roster = [0, 1, 2, 3].map((d) => (d + g) % TRIBE_DEFS.length);
@@ -68,6 +71,8 @@ for (let g = 0; g < GAMES; g++) {
     a.won.push(st.battlesWon ?? 0);
     a.lost.push(st.unitsLost ?? 0);
     a.captured.push(st.citiesCaptured ?? 0);
+    a.cap.push(unitCapacity(s, t.index) - unitCount(s, t.index));
+    a.stars.push(t.stars);
   }
 }
 
@@ -76,7 +81,7 @@ const mean = (a: number[]) => (a.length ? a.reduce((x, y) => x + y, 0) / a.lengt
 console.log(`\nEND-OF-MATCH AVERAGES  (${GAMES} games, seeds ${SB}+)\n`);
 console.log(
   "tribe".padEnd(11) + "cities".padStart(8) + "walled".padStart(8) + "units".padStart(8) +
-  "kills".padStart(8) + "won".padStart(8) + "lost".padStart(8) + "W/L".padStart(8) + "captured".padStart(10)
+  "kills".padStart(8) + "won".padStart(8) + "lost".padStart(8) + "W/L".padStart(8) + "captured".padStart(10) + "spare".padStart(8) + "stars".padStart(8)
 );
 TRIBE_DEFS.forEach((t, d) => {
   const a = acc.get(d);
@@ -92,7 +97,11 @@ TRIBE_DEFS.forEach((t, d) => {
     won.toFixed(2).padStart(8) +
     lost.toFixed(2).padStart(8) +
     (lost ? (won / lost).toFixed(2) : "--").padStart(8) +
-    mean(a.captured).toFixed(2).padStart(10)
+    mean(a.captured).toFixed(2).padStart(10) +
+    mean(a.cap).toFixed(2).padStart(8) +
+    mean(a.stars).toFixed(1).padStart(8)
   );
 });
-console.log("\n  W/L  battles won per unit lost — the trade ratio a tribe gets in a fight\n");
+console.log("\n  W/L    battles won per unit lost — the trade ratio a tribe gets in a fight");
+console.log("  spare  unused unit capacity: if this is positive the cap is NOT what limits the army");
+console.log("  stars  treasury sitting unspent at match end\n");
