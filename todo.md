@@ -805,3 +805,47 @@ below was checked against the actual codebase before being marked.
       research list that cannot be done from here
 - [ ] OPEN: the Rider silhouette is the least readable of the six classes at 40px; the other five
       pass cleanly
+
+
+## Tribe balance — where it stands after the sweep session
+
+Shipped and cross-validated (240 games per point, two seed blocks, seeded RNG):
+
+- [x] TECH_ESCALATION 0.6 -> 0.9. Auren 40% -> 29%. The Scholars discount was
+      NOT the cause — 0.95 and 1.00 both left it at 35%; the Enlightenment path
+      was. 1.0 gives better total spread but pushes Auren to 18%, which is the
+      same bug inverted.
+- [x] Storm Legend 4 -> 3 veterans. Valkyra 20% -> 25%. A unit is veteran at 3
+      kills, so 4 asked for twelve kills across four survivors and fired ONCE in
+      48 games.
+- [x] Unbroken Wall reformulated: 2 walls held for 6 consecutive rounds, not 3
+      walled cities. Dravok 18% -> 23%, and balance spread 35 -> 30. Dravok holds
+      2.36 cities; the old goal asked for more cities than it ever has.
+- [x] Ascendance 900 -> 1600. It was a win button every forged tribe inherited.
+
+Roster now: Auren 32, Nerivane 30, Valkyra 28, Sunwei 25, Vessari 25, Dravok 23,
+Kharzul 21.5, Mycelon 20. Spread 30, from 46 at the start of the session.
+
+- [ ] PARKED — Kharzul (21.5% mean, the mildest outlier left). Three hypotheses
+      tested and all three refuted: trade ratio (0.97, but Vessari trades at 0.64
+      and wins 25%), damage multiplier (ten-point cliff between 1.20 and 1.25,
+      nothing lands on 25), unit cap (a horde exemption of +1 and +2 per city
+      changed NOTHING — every tribe finishes with 5-8 spare capacity, so the cap
+      was never binding). What remains: Kharzul takes 2.00 cities per match, the
+      fewest of any tribe, and its Bloodforge path counts BATTLES WON rather than
+      cities taken — the AI is being asked to farm fights instead of take ground
+      and is doing exactly that. AI-behaviour work, same box as the parked aiPro
+      project. Do not sweep it again.
+
+- [ ] OPEN — Sunwei. Not a weak tribe; an unreliable one. Great Harvest
+      completion swings 20-37% on one seed block and 7-13% on another, a 3x
+      difference no other tribe shows, and its win rate follows. Highlands is
+      consistently its best map (43% / 20%) but the dominant variance is
+      SEED-level, not preset-level.
+      Recommended fix, precedent and all: Great Harvest asks for 15 total city
+      levels and scales only with board AREA. City levels come from population,
+      population comes from harvestable resources, and a resource-poor seed makes
+      the goal unreachable. Tide Mastery had exactly this shape — a flat 4 ports
+      made it archipelago-only — and was fixed by counting the coast the board
+      actually has. Great Harvest should count the board's actual harvestable
+      resources the same way. Measure before shipping.
