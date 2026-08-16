@@ -88,6 +88,20 @@ export function portCost(s: GameState, tribe: number): number {
  * not usable as a lever: three walls puts Dravok at 18%, two puts it at 38%,
  * with no integer between, so the goal line moves in 20-point steps.
  */
+/**
+ * Kharzul's Forgeborn attack multiplier.
+ *
+ * Kharzul is the weakest tribe in the pool at 17% and the diagnosis is not the
+ * one that looks obvious. Its trade ratio is 0.97 battles won per unit lost —
+ * mediocre, but Vessari trades at 0.64 and wins 25%. What is distinctive is
+ * that Kharzul ends matches with the FEWEST cities (2.04) and FEWEST units
+ * (3.76) of any tribe, so a damage multiplier has almost nothing to multiply:
+ * it wins 10.88 battles where Auren wins 18.25.
+ */
+export const FORGEBORN_ATTACK = Number(
+  (typeof process !== "undefined" ? process.env?.SUNDER_FORGEBORN_ATTACK : undefined) ?? 1.15,
+);
+
 export const STONEBOUND_WALL_COST = Number(
   (typeof process !== "undefined" ? process.env?.SUNDER_STONEBOUND_WALL_COST : undefined) ?? 3,
 );
@@ -435,7 +449,7 @@ export function previewCombat(s: GameState, attacker: Unit, defender: Unit): Com
   const aStats = UNIT_STATS[attacker.type];
   const dStats = UNIT_STATS[defender.type];
   let atk = aStats.attack;
-  if (attacker.tribe >= 0 && s.tribes[attacker.tribe].passive === "forgeborn") atk *= 1.15;
+  if (attacker.tribe >= 0 && s.tribes[attacker.tribe].passive === "forgeborn") atk *= FORGEBORN_ATTACK;
   // v16 hero perks
   if (heroHasPerk(attacker, "warlord")) atk *= 1.25;
   if (heroHasPerk(attacker, "relic")) atk *= 1.15; // v18 Guardian's Relic
