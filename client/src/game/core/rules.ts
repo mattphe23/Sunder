@@ -578,8 +578,39 @@ export function canQuake(s: GameState, u: Unit): boolean {
  * The env override exists for those sweeps; it is read defensively because this
  * module is bundled for the browser, where `process` does not exist.
  */
+/**
+ * How steeply each tech already held raises the cost of the next one.
+ *
+ * This is what makes "research all techs" — Auren's Enlightenment path — a real
+ * investment, and at 0.6 it was not doing that job: Auren won 40% of the games
+ * it appeared in against a 25% baseline, with 16 of 22 wins coming through
+ * Enlightenment. Trimming the Scholars discount does not fix it (0.95 and 1.00
+ * both leave Auren at 35%); the path itself was the strong thing.
+ *
+ * Swept at 240 games per point across two independent seed blocks, with Storm
+ * Legend already at 3 so the two fixes were measured together rather than in
+ * isolation — measured separately at 96 games they did not compose.
+ *
+ *   escalation   Auren   spread of means   worst outlier
+ *   0.6 (was)    40.0%   32.5              Auren      +15
+ *   0.8          28.5%   41.0              Valkyra   +8.5
+ *   0.9          29.0%   40.5              Dravok    -7.0
+ *   1.0          18.0%   29.5              Vessari    +7
+ *   1.2          22.5%   39.5              Vessari   +12
+ *
+ * 0.9 is the pick: it removes the only tribe that was dominating without
+ * inverting it into the weakest, which is what 1.0 does. 1.0 posts the best
+ * total spread of any value tested, but it gets there by pushing Auren to 18%,
+ * and a tech tribe that loses because tech is expensive is a different bug
+ * wearing the same number.
+ *
+ * What this does NOT fix, stated so the next pass does not rediscover it: total
+ * spread is no better than it was. Auren was masking a flatter imbalance —
+ * Sunwei and Dravok sit at 18-19% in EVERY configuration tested, including the
+ * original. That is the next problem, and it is not a tech-cost problem.
+ */
 export const TECH_ESCALATION = Number(
-  (typeof process !== "undefined" ? process.env?.SUNDER_TECH_ESCALATION : undefined) ?? 0.6,
+  (typeof process !== "undefined" ? process.env?.SUNDER_TECH_ESCALATION : undefined) ?? 0.9,
 );
 
 /** multiplier the Scholars passive applies to tech cost — see SCHOLARS_DISCOUNT */
