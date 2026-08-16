@@ -23,7 +23,7 @@ import {
   strengthOf, aiAcceptsPeace, aiPaysTribute, aiWantsPeaceWith, PEACE_TREATY_TURNS, TRIBUTE_AMOUNT,
 } from "./diplomacy";
 import { ChallengeKind, recordChallengeScore } from "./challenges";
-import { CustomTribeConfig, customTribeDef, CUSTOM_DEF_INDEX } from "./customTribe";
+import { CustomTribeConfig, customTribeDef, CUSTOM_DEF_INDEX, DEFAULT_FORGE_HEADGEAR } from "./customTribe";
 import { runWorldPhase, worldUnitIntents, campAt } from "./events";
 import { recordGameResult } from "./profile";
 import { checkPathVictory } from "./victory";
@@ -284,6 +284,7 @@ class GameStore {
         index: i,
         defIndex: isCustom ? CUSTOM_DEF_INDEX : di,
         customUnique: isCustom ? opts.custom!.config.uniqueUnit : undefined,
+        customHeadgear: isCustom ? (opts.custom!.config.headgear ?? DEFAULT_FORGE_HEADGEAR) : undefined,
         name: d.name,
         color: d.color,
         colorName: d.colorName,

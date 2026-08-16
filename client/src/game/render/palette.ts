@@ -163,6 +163,20 @@ export function biomeFor(preset?: string | null): BiomePalette {
  *  swatch is not hand-picked) — one fixed step, applied everywhere */
 export const SIDE_DARKEN = 0.62;
 
+/**
+ * Mix a colour toward white. Used to derive a forged tribe's costume accent
+ * from the banner colour it already chose, so a custom tribe reads as its own
+ * thing instead of borrowing someone else's trim.
+ */
+export function lighten(hex: string, amount = 0.55): string {
+  const n = parseInt(hex.slice(1), 16);
+  const mix = (c: number) => Math.round(c + (255 - c) * amount);
+  const r = mix((n >> 16) & 255);
+  const g = mix((n >> 8) & 255);
+  const b = mix(n & 255);
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+}
+
 /** darken a hex color by a fixed ratio (for auto-derived side walls) */
 export function darken(hex: string, ratio = SIDE_DARKEN): string {
   const n = parseInt(hex.slice(1), 16);

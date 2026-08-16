@@ -347,6 +347,10 @@ export interface Tribe {
   index: number;
   defIndex: number; // index into TRIBE_DEFS (roster identity — matches use 4 of the 6 defs)
   customUnique?: UnitType; // Tribe Forge: overrides the def-keyed unique unit
+  /** Tribe Forge: chosen headgear. Lives on the tribe rather than in a render
+   *  module so it survives a save/load and works in hot-seat, where two forged
+   *  tribes could otherwise share one global costume. */
+  customHeadgear?: string;
   name: string;
   color: string; // hex
   colorName: string;

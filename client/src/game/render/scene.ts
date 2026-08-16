@@ -21,7 +21,7 @@ import { EasingFunction, CubicEase } from "@babylonjs/core/Animations/easing";
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTexture";
-import { buildCharacter, skinFor, tribeGlow } from "./characters";
+import { buildCharacter, skinFor, tribeGlow, setCustomCostume, Costume } from "./characters";
 
 /**
  * How large a figure stands on its tile.
@@ -64,7 +64,7 @@ import { GameState, Tile, Unit, idx } from "../core/types";
 import { game } from "../core/state";
 import { reachableTiles, attackableUnits, cityAt, isVisibleTo, plannerSites, tradeRouteTiles, raidedRoadTiles } from "../core/rules";
 import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
-import { PALETTE, darken, biomeFor, BiomePalette } from "./palette";
+import { PALETTE, darken, lighten, biomeFor, BiomePalette } from "./palette";
 
 const TILE = 1.02;
 // Mountain sits FLUSH with the other land tiles rather than on a raised plate.
@@ -552,7 +552,23 @@ export class BoardRenderer {
     return out.join("|");
   }
 
+  /**
+   * A forged tribe's costume comes from the tribe itself, not from a global the
+   * UI happened to set — so a loaded save or a hot-seat match renders it right.
+   * The accent is derived from the banner colour the player chose, so wearing
+   * the same headgear shape as a designed tribe does not read as being it.
+   */
+  private applyForgedCostume(s: GameState) {
+    const forged = s.tribes.find((t) => t.customHeadgear);
+    setCustomCostume(
+      forged
+        ? { accent: lighten(forged.color, 0.5), headgear: forged.customHeadgear as Costume["headgear"] }
+        : null
+    );
+  }
+
   buildBoard(s: GameState) {
+    this.applyForgedCostume(s);
     // The game notifies on every action, so this is called after each move,
     // attack and turn end. Rebuilding ~1000 meshes (with flat-shading
     // conversions) each time caused real hitches on phones; skip when the

@@ -4,6 +4,7 @@
 import { useState } from "react";
 import {
   CustomTribeConfig, FORGE_PASSIVES, FORGE_UNITS, FORGE_TECHS, FORGE_COLORS,
+  FORGE_HEADGEAR, DEFAULT_FORGE_HEADGEAR, ForgeHeadgear,
   loadCustomTribe, saveCustomTribe, deleteCustomTribe, FORGE_PRESETS,
 } from "../core/customTribe";
 import { UNIT_STATS, UnitType, FactionPassive, TechId } from "../core/types";
@@ -18,6 +19,7 @@ export function TribeForge({ onClose, onSaved }: { onClose: () => void; onSaved:
   const [passive, setPassive] = useState<FactionPassive>(existing?.passive ?? "scholars");
   const [unit, setUnit] = useState<UnitType>(existing?.uniqueUnit ?? "arcanist");
   const [tech, setTech] = useState<TechId>(existing?.startTech ?? "organization");
+  const [headgear, setHeadgear] = useState<ForgeHeadgear>(existing?.headgear ?? DEFAULT_FORGE_HEADGEAR);
   const valid = name.trim().length >= 2 && name.trim().length <= 14;
 
   // v19: remix a preset — load its full config into the forge for editing
@@ -28,12 +30,13 @@ export function TribeForge({ onClose, onSaved }: { onClose: () => void; onSaved:
     setPassive(cfg.passive);
     setUnit(cfg.uniqueUnit);
     setTech(cfg.startTech);
+    setHeadgear(cfg.headgear ?? DEFAULT_FORGE_HEADGEAR);
   };
 
   const save = () => {
     if (!valid) return;
     sound.play("click");
-    const cfg: CustomTribeConfig = { name: name.trim(), color, passive, uniqueUnit: unit, startTech: tech };
+    const cfg: CustomTribeConfig = { name: name.trim(), color, passive, uniqueUnit: unit, startTech: tech, headgear };
     saveCustomTribe(cfg);
     onSaved(cfg);
   };
@@ -83,6 +86,22 @@ export function TribeForge({ onClose, onSaved }: { onClose: () => void; onSaved:
           placeholder="e.g. Emberfall"
           className="mb-3 w-full rounded-md border border-white/15 bg-white/5 px-3 py-2 font-display text-sm font-bold text-white placeholder:text-slate-500 focus:border-amber-400/60 focus:outline-none"
         />
+        {/* Headgear is the silhouette — it is the one costume feature that reads
+            at play distance, which is why every designed tribe has its own. A
+            forged tribe had none until now and rendered bare-headed. */}
+        <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Headgear</p>
+        <div className="mb-4 grid grid-cols-5 gap-1">
+          {FORGE_HEADGEAR.map((h) => (
+            <button
+              key={h.id}
+              onClick={() => { sound.play("click"); setHeadgear(h.id); }}
+              title={h.desc}
+              className={`rounded-md border px-1 py-1.5 text-[10px] font-bold transition-colors ${headgear === h.id ? "border-amber-400/70 bg-amber-400/15 text-amber-200" : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"}`}
+            >
+              {h.label}
+            </button>
+          ))}
+        </div>
         <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Banner color</p>
         <div className="mb-4 flex flex-wrap gap-2">
           {FORGE_COLORS.map((c) => (

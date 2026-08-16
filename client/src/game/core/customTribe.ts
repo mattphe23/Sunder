@@ -7,13 +7,40 @@ import { FactionPassive, TechId, UnitType, TRIBE_DEFS } from "./types";
 const KEY = "polyforge-custom-tribe-v1";
 export const CUSTOM_DEF_INDEX = TRIBE_DEFS.length; // 8 (6 standard + 2 premium) — slot appended at runtime
 
+export type ForgeHeadgear = "circlet" | "horns" | "hood" | "crest" | "helm";
+
 export interface CustomTribeConfig {
   name: string;
   color: string;
   passive: FactionPassive;
   uniqueUnit: UnitType; // one of the six faction units
   startTech: TechId;
+  /** Optional so configs saved before the forge had a costume still load —
+   *  those fall back to DEFAULT_FORGE_HEADGEAR rather than being rejected. */
+  headgear?: ForgeHeadgear;
 }
+
+/**
+ * Headgear is what carries a tribe's silhouette at play distance — it is the
+ * one costume feature readable at 40px, which is why every designed tribe has
+ * its own. A forged tribe used to have NONE: defIndex 8 fell off the end of the
+ * costume table onto the tribeless-raider fallback, so the tribe a player named
+ * and coloured rendered bare-headed in bandit grey.
+ *
+ * These five are free and reuse geometry the designed tribes already ship, so
+ * the forge has a real default rather than a placeholder. The accent is derived
+ * from the player's own banner colour, so wearing the same shape as Auren does
+ * not read as being Auren.
+ */
+export const FORGE_HEADGEAR: { id: ForgeHeadgear; label: string; desc: string }[] = [
+  { id: "circlet", label: "Circlet", desc: "A scholar's thin silver band" },
+  { id: "hood", label: "Hood", desc: "A rider's deep travelling hood" },
+  { id: "helm", label: "Helm", desc: "A heavy closed warhelm" },
+  { id: "crest", label: "Crest", desc: "A swept ceremonial fin" },
+  { id: "horns", label: "Horns", desc: "A pair of curved bone horns" },
+];
+
+export const DEFAULT_FORGE_HEADGEAR: ForgeHeadgear = "circlet";
 
 /** balanced building blocks the forge offers (all already tuned in live play) */
 export const FORGE_PASSIVES: { id: FactionPassive; label: string; desc: string }[] = [

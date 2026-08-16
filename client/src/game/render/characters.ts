@@ -43,7 +43,7 @@ const BONE = "#e8e2d2";
 
 // per-faction costume flavor: accent color + headgear style.
 // defIndex matches TRIBE_DEFS order: Auren, Kharzul, Sunwei, Vessari, Nerivane, Dravok.
-interface Costume {
+export interface Costume {
   accent: string;
   headgear: "circlet" | "horns" | "straw" | "hood" | "crest" | "helm" | "wings" | "cap" | "none";
 }
@@ -106,7 +106,26 @@ export function skinFor(defIndex: number): SkinDef | undefined {
   return key ? SKINS.find((s) => s.key === key && s.tribe === defIndex) : undefined;
 }
 
+/**
+ * Costume for a forged tribe, set from React alongside setActiveSkins().
+ *
+ * A custom tribe's defIndex is TRIBE_DEFS.length, which falls off the end of
+ * COSTUMES — so before this it landed on RAIDER_COSTUME and every forged tribe
+ * rendered as a bare-headed bandit in grey, whatever the player had named and
+ * coloured it. Headgear is the one costume feature readable at play distance,
+ * so having none made the tribe a player built the least distinctive thing on
+ * the board.
+ */
+let customCostume: Costume | null = null;
+export function setCustomCostume(next: Costume | null) {
+  customCostume = next;
+}
+
+/** the index a forged tribe occupies — TRIBE_DEFS.length, past every costume */
+const FORGED_INDEX = COSTUMES.length;
+
 function costumeFor(defIndex: number): Costume {
+  if (defIndex === FORGED_INDEX && customCostume) return customCostume;
   const base = defIndex >= 0 && defIndex < COSTUMES.length ? COSTUMES[defIndex] : RAIDER_COSTUME;
   const skin = skinFor(defIndex);
   return skin ? { ...base, accent: skin.accent } : base;
