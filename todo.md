@@ -837,7 +837,15 @@ Kharzul 21.5, Mycelon 20. Spread 30, from 46 at the start of the session.
       and is doing exactly that. AI-behaviour work, same box as the parked aiPro
       project. Do not sweep it again.
 
-- [ ] OPEN — Sunwei. Not a weak tribe; an unreliable one. Great Harvest
+- [x] Sunwei — Great Harvest now scales to the board's RESOURCE ENDOWMENT
+      (divisor 2.2) rather than a flat 15. Mean 19% -> 25%. The variance
+      hypothesis that motivated it did not hold — the block-to-block gap barely
+      moved — but flat integers cannot land on parity (15 -> 19%, 14 -> 23%,
+      13 -> 30%) and a continuous divisor can. Caught a real bug on the way: the
+      first version counted LIVE resources, which harvesting consumes, so the
+      goal lowered itself toward the tribe chasing it and completion jumped to
+      60%. Endowment is recorded at map generation now.
+- [ ] SUPERSEDED — Sunwei. Not a weak tribe; an unreliable one. Great Harvest
       completion swings 20-37% on one seed block and 7-13% on another, a 3x
       difference no other tribe shows, and its win rate follows. Highlands is
       consistently its best map (43% / 20%) but the dominant variance is

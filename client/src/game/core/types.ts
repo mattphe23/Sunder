@@ -435,6 +435,10 @@ export const emptyStats = (): TribeStats => ({
 });
 
 export interface GameState {
+  /** Resource tiles the map was GENERATED with. Harvesting sets tile.resource
+   *  to null, so a live count shrinks as the game is played — see harvestTarget,
+   *  whose goal would otherwise lower itself toward whoever is chasing it. */
+  resourceEndowment?: number;
   phase: Phase;
   size: number;
   seed: number;

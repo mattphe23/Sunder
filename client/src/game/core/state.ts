@@ -278,6 +278,9 @@ class GameStore {
     // story missions script 2-4 tribes per battle.
     const roster = opts.roster && opts.roster.length >= 2 && opts.roster.length <= 4 ? opts.roster : [0, 1, 2, 3];
     const { tiles, cities } = generateMap(opts.size, seed, roster.length, preset);
+    // Counted once, at generation. Great Harvest scales to what the board could
+    // ever feed, not to what is left of it.
+    const resourceEndowment = tiles.reduce((n, t) => n + (t.resource ? 1 : 0), 0);
     const tribes: Tribe[] = roster.map((di, i) => {
       const isCustom = !!opts.custom && opts.custom.slot === i;
       const d = isCustom ? customTribeDef(opts.custom!.config) : TRIBE_DEFS[di];
@@ -344,6 +347,7 @@ class GameStore {
       difficulty: opts.difficulty,
       tribes,
       tiles,
+      resourceEndowment,
       cities,
       units,
       nextUnitId,

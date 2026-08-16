@@ -41,8 +41,10 @@ const knob = (name: string, fallback: number) =>
 export const PLUNDER_TARGET = knob("SUNDER_PLUNDER_TARGET", 8);
 /** battles Kharzul must win for Bloodforge (was 18) */
 export const BLOODFORGE_TARGET = knob("SUNDER_BLOODFORGE_TARGET", 22);
-/** total city levels Sunwei must hold for Great Harvest (was 12) */
+/** total city levels Sunwei must hold for Great Harvest — see harvestTarget() */
 export const HARVEST_TARGET = knob("SUNDER_HARVEST_TARGET", 15);
+/** resource tiles per city level Great Harvest demands — see harvestTarget() */
+export const HARVEST_DIVISOR = knob("SUNDER_HARVEST_DIVISOR", 2.2);
 /**
  * Score Ascendance demands — the generic path every forged tribe inherits.
  *
@@ -135,6 +137,50 @@ export function tideTarget(s: GameState): number {
   const shallow = s.tiles.reduce((n, t) => n + (t.terrain === "water" ? 1 : 0), 0);
   return Math.max(2, Math.min(4, Math.ceil(shallow / TIDE_DIVISOR)));
 }
+
+/**
+ * Total city levels Great Harvest demands, scaled to what the board can feed.
+ *
+ * A flat 15 made Sunwei unreliable rather than weak. Great Harvest completed in
+ * 20-37% of its games on one seed block and 7-13% on another — a 3x swing in
+ * the same tribe on the same settings, which no other tribe shows — and its win
+ * rate followed. City levels come from population and population comes from
+ * harvested resources, so the goal was really "15 levels if this seed happened
+ * to give you the resources for it". An 11x11 carries anywhere from 14 to 40
+ * resource tiles.
+ *
+ * Scaling only with board AREA, as the other targets do, cannot see this: two
+ * boards of identical size differ by 3x in what they can grow.
+ *
+ * The variance hypothesis this was built on did NOT hold. Scaling to the board
+ * tightened Sunwei's block-to-block gap barely at all (9-12 points against a
+ * baseline of 12). What it does earn is GRANULARITY: swept against flat targets
+ * on the same two blocks, flat 15 puts Sunwei at a 19% mean, flat 14 at 23%
+ * with a worse gap of 16, and flat 13 overshoots to 30%. No integer lands on
+ * 25. A divisor of 2.2 does, at 31%/19%, with overall balance spread unchanged.
+ *
+ * This is the same fix Tide Mastery already got for the same shape of problem —
+ * a flat 4 ports made it archipelago-only, and counting the board's actual
+ * shallow water fixed it. Counted from the board rather than stored, so old
+ * saves keep working, and clamped so a barren map is not a formality and a lush
+ * one is not a marathon. NOT multiplied by boardScale: resource count already
+ * grows with the board, so scaling it again would count area twice.
+ */
+export function harvestTarget(s: GameState): number {
+  // The ENDOWMENT, not the live count. Harvesting sets tile.resource to null,
+  // so counting what is left makes the goal lower itself toward whoever is
+  // chasing it — Sunwei harvests most, so Sunwei shrinks its own target fastest.
+  // Measured: with a live count, Great Harvest completed in 60% of Sunwei's
+  // games against 27% before, and the divisor looked completely inert because
+  // by match end almost every resource is consumed and every divisor hits the
+  // clamp floor. Tide Mastery is safe from this only because shallow water is
+  // not consumable.
+  //
+  // Falls back to a live count for saves written before the endowment existed.
+  const resources = s.resourceEndowment ?? s.tiles.reduce((n, t) => n + (t.resource ? 1 : 0), 0);
+  return Math.max(8, Math.min(22, Math.ceil(resources / HARVEST_DIVISOR)));
+}
+
 
 /* --------------------------------------------------------------------------
  * Board scaling.
@@ -258,7 +304,7 @@ export function victoryProgress(s: GameState, tribeIdx: number): VictoryProgress
       current = s.stats[tribeIdx]?.battlesWon ?? 0; target = scaled(BLOODFORGE_TARGET, s, 8);
       def = { ...def, goal: `Win ${target} battles` }; break;
     case "greatharvest":
-      current = s.cities.filter((c) => c.tribe === tribeIdx).reduce((a, c) => a + c.level, 0); target = scaled(HARVEST_TARGET, s, 6);
+      current = s.cities.filter((c) => c.tribe === tribeIdx).reduce((a, c) => a + c.level, 0); target = harvestTarget(s);
       def = { ...def, goal: `Reach ${target} total city levels` }; break;
     case "plunderking":
       current = s.stats[tribeIdx]?.starsPlundered ?? 0; target = scaled(PLUNDER_TARGET, s, 4);
