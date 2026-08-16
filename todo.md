@@ -762,11 +762,46 @@ below was checked against the actual codebase before being marked.
       check and the openssl chain were both dry-run locally
 - [x] Pushed everything except the workflow file to GitHub (e354de8): docs/IOS-CI-SETUP.md, the
       shared Xcode scheme, ExportOptions.plist, README pointer
-- [ ] AWAITING USER — one manual paste: GitHub refuses any push from the Manus GitHub App that
-      creates or updates `.github/workflows/*` ("without `workflows` permission"), and the contents
-      API returns 403 for the same reason. The finished, lint-clean file is in the project at
-      `.github/workflows/ios.yml` and copied to /home/ubuntu/ios.yml.forgithub. Add it either by
-      pasting it in the GitHub web UI (Actions → new workflow) or by pushing from a machine with a
-      personal access token that has the `workflow` scope.
+- [x] Workflow file is ON GitHub — no manual paste was needed after all. The Manus GitHub App
+      cannot create `.github/workflows/*`, but this session's credentials can; pushed as fb939f5.
+      The workflow was authored fresh against the tree rather than reused, which surfaced two
+      things that would have failed the first run: `pnpm test` needs any non-empty
+      STRIPE_SECRET_KEY (server/stripe.ts builds its client at import and the SDK throws on an
+      empty key — 162 passing/5 files red without it, 185 green with it), and the repo is SPM with
+      no App.xcworkspace, so xcodebuild must target `-project ios/App/App.xcodeproj`.
+- [x] Split three ways instead of two: `verify` on Linux (tests, type-check, asset drift, web
+      build), `ios-build` on macOS (compiles unsigned, asserts the web build is inside App.app),
+      `testflight` manual. macOS minutes bill at 10x Linux on private repos and only the last two
+      need Xcode. Repo is currently public, so it is all free either way.
+- [x] Run #2 fully green end to end: verify ✅, unsigned macOS build ✅ (xcodebuild 47s, web-build
+      assertion passed), testflight correctly skipped on a push event.
 - [ ] AWAITING USER: enrol in the Apple Developer Program, register the bundle id, add the seven
       secrets, then run the workflow — the `verify` job proves itself on the next push regardless
+
+
+## Overnight pass — Polytopia research + graphics (this session)
+
+- [x] Surveyed Steam negative reviews, App Store critical reviews and Steam community discussion
+      for what Polytopia players actually complain about → docs/POLYTOPIA-COMPLAINTS.md, with each
+      complaint mapped to what Sunder does today and a recommendation
+- [x] Measured the snowball question instead of guessing at it (scripts/snowball-audit.mts, 80
+      games): leading on turn 10 wins 38% of the time against a 25% chance baseline, the city lead
+      only locks in 72% of the way through, and 62% of winners were behind at turn 10. Sunder does
+      NOT snowball — no catch-up mechanic is warranted, and the open question runs the other way
+- [x] Same run confirms the central design bet: seven distinct win conditions fired across 80
+      games (domination 25%, enlightenment 23%, plunderking 15%, bloodforge 14%, tidemastery 11%,
+      greatharvest 8%, unbrokenwall 5%) against the community's figure of 99% Domination in
+      Polytopia multiplayer
+- [x] Graphics: opening shot now frames the explored region rather than pulling toward the board
+      centre (turn one was ~two thirds cloud bank); mountains squatter, darker and de-blued with
+      the snow cap cut back; mountain tile tops moved into the land-family green so a range stops
+      breaking the quilt; neutral villages given a thatch accent instead of drawing every part
+      from the same beige as their plaza
+- [ ] OPEN, needs a product decision: shared/products.ts sells two premium tribes with mechanical
+      perks (Valkyra halves enemy retaliation). Selling tribes as DLC is the single loudest
+      complaint in Polytopia's negative reviews and ours are power rather than cosmetic. Recommend
+      moving both to the free roster and keeping the money in skins, map packs and the campaign
+- [ ] OPEN: touch-target pass on a real phone, aimed at crowded tiles — the one item on the
+      research list that cannot be done from here
+- [ ] OPEN: the Rider silhouette is the least readable of the six classes at 40px; the other five
+      pass cleanly
