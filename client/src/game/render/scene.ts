@@ -67,8 +67,15 @@ import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import { PALETTE, darken, biomeFor, BiomePalette } from "./palette";
 
 const TILE = 1.02;
+// Mountain sits FLUSH with the other land tiles rather than on a raised plate.
+// It used to be 0.85 against grass at 0.3, which made every range a plateau with
+// a brown cliff around its rim — the relief was being drawn twice, once by the
+// tile and again by the rock on top of it, and the cliffs chopped the board into
+// terraces. Now only the massif makes the height, which is how the tiles read as
+// one continuous quilt. Render-only: vision and movement rules never consult
+// this table, so nothing about play changes.
 const TERRAIN_H: Record<string, number> = {
-  grass: 0.3, forest: 0.34, mountain: 0.85, water: 0.14, ocean: 0.08,
+  grass: 0.3, forest: 0.34, mountain: 0.34, water: 0.14, ocean: 0.08,
 };
 // v33 diorama: land slabs extrude a fixed skirt below their logical base so
 // cliffs read chunky where land meets water or the void. Water stays thin.
