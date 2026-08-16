@@ -9,6 +9,14 @@ the minute and free for public repositories.
 Budget roughly ninety minutes for the first pass, most of it waiting on Apple.
 After that, releasing is one button in the Actions tab.
 
+> **First, get the workflow file onto GitHub.** GitHub blocks any push from a
+> GitHub App — including the Manus connector — that creates or changes a file
+> under `.github/workflows/`, so `.github/workflows/ios.yml` exists in the
+> project but could not be pushed. Add it once, either by pasting its contents
+> into **Actions → New workflow** in the web UI, or by pushing from a machine
+> signed in with a personal access token carrying the `workflow` scope. Nothing
+> else in this guide depends on how you do it.
+
 ---
 
 ## What you are building

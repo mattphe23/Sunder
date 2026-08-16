@@ -760,5 +760,13 @@ below was checked against the actual codebase before being marked.
       calls, the IAP decision under guideline 3.1.1, the privacy questionnaire)
 - [x] Validated: actionlint with shellcheck enabled reports 0 errors; YAML parses; the asset-drift
       check and the openssl chain were both dry-run locally
+- [x] Pushed everything except the workflow file to GitHub (e354de8): docs/IOS-CI-SETUP.md, the
+      shared Xcode scheme, ExportOptions.plist, README pointer
+- [ ] AWAITING USER — one manual paste: GitHub refuses any push from the Manus GitHub App that
+      creates or updates `.github/workflows/*` ("without `workflows` permission"), and the contents
+      API returns 403 for the same reason. The finished, lint-clean file is in the project at
+      `.github/workflows/ios.yml` and copied to /home/ubuntu/ios.yml.forgithub. Add it either by
+      pasting it in the GitHub web UI (Actions → new workflow) or by pushing from a machine with a
+      personal access token that has the `workflow` scope.
 - [ ] AWAITING USER: enrol in the Apple Developer Program, register the bundle id, add the seven
       secrets, then run the workflow — the `verify` job proves itself on the next push regardless
