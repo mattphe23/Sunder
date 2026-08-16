@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import { game, STAGGER_COMP_TURNS } from "../client/src/game/core/state";
 import { starIncome, techCost } from "../client/src/game/core/rules";
-import { VICTORY_PATHS, victoryProgress, PLUNDER_TARGET } from "../client/src/game/core/victory";
+import { VICTORY_PATHS, victoryProgress, PLUNDER_TARGET, boardScale } from "../client/src/game/core/victory";
 import { TRIBE_DEFS, TECHS, idx } from "../client/src/game/core/types";
 
 describe("v40 staggered-start star compensation", () => {
@@ -140,7 +140,12 @@ describe("v42 Plunder King measures loot taken, not stars held", () => {
     const s = game.state;
     const p = victoryProgress(s, 0)!;
     expect(p.def.id).toBe("plunderking");
-    expect(p.target).toBe(PLUNDER_TARGET);
+    // Targets are scaled to the board, and this is a 9x9 — smaller than the
+    // 11x11 the constants were tuned on, so the goal line comes down with it.
+    // Asserting the raw constant here would only be asserting that no board
+    // ever differs from the reference one.
+    expect(p.target).toBe(Math.max(4, Math.round(PLUNDER_TARGET * boardScale(s))));
+    expect(p.target).toBeLessThan(PLUNDER_TARGET);
 
     // a fat treasury is no longer progress
     s.tribes[0].stars = 999;
@@ -185,5 +190,31 @@ describe("v41.1 scholars tech discount", () => {
       expect(Math.abs(discounted - full * 0.9)).toBeLessThanOrEqual(1);
       expect(discounted).toBeLessThanOrEqual(full);
     }
+  });
+});
+
+describe("board scaling keeps the reference board fixed", () => {
+  // Every flat victory target was swept on 11x11 with four tribes. Scaling has
+  // to leave that board EXACTLY alone or it silently retunes the one size whose
+  // balance is already validated — which is what the first implementation did,
+  // because it divided by measured land and a real board never lands on the
+  // average. These two tests are what stop that coming back.
+  it("is exactly 1.0 on 11x11 with four tribes, so tuned targets are untouched", () => {
+    game.newGame({ size: 11, humanTribe: 0, difficulty: "normal", seed: 4242, roster: [3, 1, 2, 5] });
+    const s = game.state;
+    expect(s.tribes.length).toBe(4);
+    expect(boardScale(s)).toBe(1);
+    expect(victoryProgress(s, 0)!.target).toBe(PLUNDER_TARGET);
+  });
+
+  it("raises the goal line on a bigger board, and says so in the goal text", () => {
+    game.newGame({ size: 15, humanTribe: 0, difficulty: "normal", seed: 4242, roster: [3, 1, 2, 5] });
+    const s = game.state;
+    const p = victoryProgress(s, 0)!;
+    expect(boardScale(s)).toBeGreaterThan(1);
+    expect(p.target).toBeGreaterThan(PLUNDER_TARGET);
+    // the HUD must quote the number the engine is actually using, not the
+    // static string built from the unscaled constant
+    expect(p.def.goal).toContain(String(p.target));
   });
 });

@@ -489,7 +489,7 @@ export function MainMenu() {
                 <span className="h-1 w-1 rotate-45 bg-emerald-400" /> Map size
               </p>
               <div className="flex gap-1">
-                {[9, 11, 13].map((sz) => (
+                {[9, 11, 13, 15].map((sz) => (
                   <button key={sz} onClick={() => setSize(sz)}
                     className={`flex-1 rounded-md border px-2 py-1.5 font-display text-xs font-bold transition-colors ${size === sz ? "border-emerald-400 bg-emerald-400/20 text-emerald-200 shadow-[0_0_12px_rgba(52,211,153,0.25)]" : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"}`}>
                     {sz}×{sz}

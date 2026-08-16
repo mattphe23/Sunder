@@ -107,8 +107,23 @@ export function tideTarget(s: GameState): number {
  */
 const REFERENCE_SIZE = 11;
 const REFERENCE_TRIBES = 4;
-/** default exponent — see docs/BOARD-SCALING.md before changing */
-export const PATH_SCALE_ALPHA = 0;
+/**
+ * Swept over 0 / 0.35 / 0.5 / 0.7 / 1.0 at sizes 13 and 15, 48 games each,
+ * across two independent seed blocks (96 games per point), with the AI's RNG
+ * seeded so the runs are reproducible — see scripts/_rng.mts for why that
+ * mattered. Full table in docs/BOARD-SCALING.md.
+ *
+ * The trade is monotone: more scaling lengthens big-board matches back toward
+ * the 11x11 baseline, and costs turn-cap rate and balance spread. 0.35 is the
+ * value that lands on the reference board's character rather than just its
+ * match length — 22.6 turns against 23.6, a 10.9% cap rate against 12.5%, and
+ * a 48.5 balance spread against 45.3. 0.5 gets match length marginally closer
+ * and pays 14 points of spread for it; by 1.0 a third of matches time out.
+ *
+ * 0.35 is also the most stable across the two blocks: at size 13 it returned
+ * an identical 43.8 spread in both, where 0.5 disagreed 62.5 vs 75.0.
+ */
+export const PATH_SCALE_ALPHA = 0.35;
 
 /**
  * Read at call time rather than module load so a sweep can drive it per process
