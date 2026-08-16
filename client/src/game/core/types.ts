@@ -378,10 +378,19 @@ export const TRIBE_DEFS = [
 ] as const;
 
 /** TRIBE_DEFS indices that require a store entitlement for human selection. */
-export const PREMIUM_TRIBES: Record<number, string> = {
-  6: "tribe.valkyra",
-  7: "tribe.mycelon",
-};
+/**
+ * Tribes that require a store entitlement to select.
+ *
+ * Deliberately empty. Valkyra and Mycelon were sold at $3.99 each and both
+ * carry mechanical perks rather than cosmetic ones, which makes them a
+ * purchased edge in a duel — the exact thing this game's audience most
+ * resents about Polytopia. They are free, and with the gate gone they also
+ * join the AI opponent pool, taking the roster from six tribes to eight.
+ *
+ * The map is kept rather than deleted so the gating mechanism stays available
+ * if a future tribe is ever genuinely cosmetic.
+ */
+export const PREMIUM_TRIBES: Record<number, string> = {};
 
 export type Phase = "menu" | "playing" | "gameover";
 

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { appRouter } from "./routers";
-import { PRODUCTS, productBySku, ultimateSavings, ALL_ENTITLEMENT_KEYS } from "../shared/products";
+import { PRODUCTS, productBySku, ultimateSavings, ALL_ENTITLEMENT_KEYS, RETIRED_ENTITLEMENT_KEYS } from "../shared/products";
 import type { TrpcContext } from "./_core/context";
 
 function ctxAnon(): TrpcContext {
@@ -28,7 +28,15 @@ describe("product catalog", () => {
     const seen = new Map<string, number>();
     for (const p of PRODUCTS.filter((p) => p.kind !== "bundle"))
       for (const g of p.grants) seen.set(g, (seen.get(g) ?? 0) + 1);
-    for (const key of ALL_ENTITLEMENT_KEYS) expect(seen.get(key)).toBe(1);
+    for (const key of ALL_ENTITLEMENT_KEYS) {
+      // Retired keys are deliberately granted by nothing — they exist so a
+      // past purchase still resolves, not so it can be bought again.
+      if (RETIRED_ENTITLEMENT_KEYS.includes(key)) {
+        expect(seen.get(key)).toBeUndefined();
+        continue;
+      }
+      expect(seen.get(key)).toBe(1);
+    }
   });
 });
 

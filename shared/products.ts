@@ -41,6 +41,19 @@ export const ENT = {
 
 export const ALL_ENTITLEMENT_KEYS: string[] = Object.values(ENT);
 
+/**
+ * Keys that were sold once and are not sold any more.
+ *
+ * They stay in ENT because a player who bought one still has the grant stored
+ * against their account, and dropping the key would orphan it — the fulfilment
+ * path matches on these strings. But nothing in the catalog grants them now, so
+ * the "exactly one product grants each key" invariant has to know about them
+ * rather than be quietly relaxed.
+ *
+ * The two tribes moved to the free roster; see docs/POLYTOPIA-COMPLAINTS.md §1.
+ */
+export const RETIRED_ENTITLEMENT_KEYS: string[] = [ENT.TRIBE_VALKYRA, ENT.TRIBE_MYCELON];
+
 // ── Catalog ──────────────────────────────────────────────────────────────────
 export const PRODUCTS: Product[] = [
   // — tribe skins ($1.99 each) —
@@ -50,9 +63,15 @@ export const PRODUCTS: Product[] = [
   { sku: "skin_vessari_midnight", kind: "skin", name: "Midnight Vessari", tagline: "Outriders wrapped in moonless violet.", priceCents: 199, grants: [ENT.SKIN_VESSARI_MIDNIGHT], accent: "#6d28d9" },
   { sku: "skin_nerivane_abyssal", kind: "skin", name: "Abyssal Nerivane", tagline: "Tideborn from the lightless deep.", priceCents: 199, grants: [ENT.SKIN_NERIVANE_ABYSSAL], accent: "#0e7490" },
   { sku: "skin_dravok_molten", kind: "skin", name: "Molten Dravok", tagline: "Stonebound veined with living magma.", priceCents: 199, grants: [ENT.SKIN_DRAVOK_MOLTEN], accent: "#ea580c" },
-  // — premium tribes ($3.99 each) —
-  { sku: "tribe_valkyra", kind: "tribe", name: "Valkyra", tagline: "Stormborn — enemy retaliation against your attacks is halved.", priceCents: 399, grants: [ENT.TRIBE_VALKYRA], accent: "#38bdf8" },
-  { sku: "tribe_mycelon", kind: "tribe", name: "Mycelon", tagline: "Sporebound — units recover +2 extra HP resting in friendly territory.", priceCents: 399, grants: [ENT.TRIBE_MYCELON], accent: "#a3e635" },
+  // Valkyra and Mycelon used to sell here at $3.99. They are free now: their
+  // perks are mechanical, not cosmetic — halved enemy retaliation changes the
+  // arithmetic of every trade — and "selling tribes as DLC" is the single
+  // loudest complaint in Polytopia's negative reviews, which is the audience
+  // this game is aimed at. See docs/POLYTOPIA-COMPLAINTS.md §1. The money
+  // stays where paying cannot win a match: skins, map packs and the campaign.
+  //
+  // Their entitlement keys survive in ENT so anyone who already bought one
+  // keeps a valid grant and the Ultimate bundle's stored grants still resolve.
   // — map packs ($2.99 each) —
   { sku: "maps_forgotten_realms", kind: "maps", name: "Forgotten Realms Pack", tagline: "4 AI-forged maps: calderas, terraces, and lost valleys.", priceCents: 299, grants: [ENT.MAPS_FORGOTTEN_REALMS], accent: "#f59e0b" },
   { sku: "maps_shattered_seas", kind: "maps", name: "Shattered Seas Pack", tagline: "4 AI-forged maps: reefs, straits, and island fortresses.", priceCents: 299, grants: [ENT.MAPS_SHATTERED_SEAS], accent: "#22d3ee" },

@@ -20,7 +20,9 @@ describe("premium content consistency", () => {
     }
   });
 
-  it("every premium tribe def maps to a store entitlement", () => {
+  it("any gated tribe still maps to a store entitlement", () => {
+    // Currently empty — see PREMIUM_TRIBES. The loop stays so that if a tribe
+    // is ever gated again it has to be a real, purchasable one.
     for (const [idxStr, key] of Object.entries(PREMIUM_TRIBES)) {
       const idx = Number(idxStr);
       expect(TRIBE_DEFS[idx], `TRIBE_DEFS[${idx}] missing`).toBeTruthy();
@@ -29,6 +31,24 @@ describe("premium content consistency", () => {
       expect(product, `no tribe product grants ${key}`).toBeTruthy();
       expect(product!.name).toBe(TRIBE_DEFS[idx].name);
     }
+  });
+
+  it("sells nothing that changes the arithmetic of a match", () => {
+    // The rule the catalog now lives by: paying may change how the game LOOKS
+    // or how much of it you can reach, never how a fight resolves. Valkyra
+    // (halved enemy retaliation) and Mycelon (+2 HP resting) failed it and are
+    // free. This is the guard that stops a future tribe SKU sneaking back in.
+    expect(PRODUCTS.filter((p) => p.kind === "tribe")).toHaveLength(0);
+    for (const p of PRODUCTS) {
+      expect(["skin", "maps", "story", "bundle"]).toContain(p.kind);
+    }
+  });
+
+  it("keeps retired entitlement keys valid so past purchases still resolve", () => {
+    // The SKUs are gone; the keys must not be, or an existing grant becomes an
+    // orphan the fulfilment path cannot match.
+    expect(ALL_ENTITLEMENT_KEYS).toContain(ENT.TRIBE_VALKYRA);
+    expect(ALL_ENTITLEMENT_KEYS).toContain(ENT.TRIBE_MYCELON);
   });
 
   it("map packs match store products and every curated map generates a valid board", () => {

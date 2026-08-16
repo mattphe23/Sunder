@@ -7,6 +7,7 @@
 //
 //   pnpm tsx scripts/gameplay-audit.mts [games] [size]
 import { game } from "../client/src/game/core/state";
+import { seedRandom } from "./_rng.mts";
 import { TRIBE_DEFS, TECHS } from "../client/src/game/core/types";
 import { victoryProgress, VICTORY_PATHS } from "../client/src/game/core/victory";
 
@@ -50,6 +51,12 @@ const DIFFS = ["normal", "hard", "impossible"] as const;
 
 interface Row {
   seed: number;
+  /** the defs that actually played. Recorded, not re-derived: the report used
+   *  to rebuild this with its own hardcoded `% 6`, so when the roster widened
+   *  to eight tribes it silently credited Valkyra's and Mycelon's games to
+   *  other tribes and reported six. A number this important should be observed
+   *  rather than recomputed from an assumption. */
+  roster: number[];
   preset: string;
   difficulty: string;
   turns: number;
@@ -84,11 +91,15 @@ for (let g = 0; g < GAMES; g++) {
   const difficulty = DIFFS[Math.floor(g / PRESETS.length) % DIFFS.length];
   const seed = SEED_BASE + g;
   // rotate which def sits in the human slot so tribe stats are not slot-confounded
-  const roster = [0, 1, 2, 3, 4, 5].slice(0, 4).map((d) => (d + g) % 6);
+  // Follows TRIBE_DEFS rather than a hardcoded 6, so retiring the premium
+  // gate — which put Valkyra and Mycelon into the pool — widens the audit
+  // instead of silently leaving two tribes unmeasured.
+  const roster = [0, 1, 2, 3].map((d) => (d + g) % TRIBE_DEFS.length);
 
   // clear BEFORE newGame: newGame queues the opening AI turn, and dropping
   // that kick leaves the whole match un-driven
   pending.length = 0;
+  seedRandom(seed);
   game.newGame({ size: SIZE, humanTribe: NO_HUMAN, difficulty, seed, preset, roster });
   drive();
   if (game.state.phase === "playing") stalled++;
@@ -110,6 +121,7 @@ for (let g = 0; g < GAMES; g++) {
 
   rows.push({
     seed,
+    roster,
     preset,
     difficulty,
     turns: s.turn,
@@ -175,18 +187,18 @@ const wins = new Map<number, number>();
 const seen = new Map<number, number>();
 for (const r of rows) {
   if (r.winnerDef !== null) wins.set(r.winnerDef, (wins.get(r.winnerDef) ?? 0) + 1);
-  const roster = [0, 1, 2, 3].map((i) => (i + (r.seed - SEED_BASE)) % 6);
-  for (const d of roster) seen.set(d, (seen.get(d) ?? 0) + 1);
+  for (const d of r.roster) seen.set(d, (seen.get(d) ?? 0) + 1);
 }
 let spread = 0;
-TRIBE_DEFS.slice(0, 6).forEach((t, d) => {
+TRIBE_DEFS.forEach((t, d) => {
   const s2 = seen.get(d) ?? 0;
   const w = wins.get(d) ?? 0;
   if (s2) spread += Math.abs((w / s2) * 100 - 25);
   console.log(`  ${t.name.padEnd(10)} ${s2 ? ((w / s2) * 100).toFixed(0).padStart(3) : " --"}%   (${w}/${s2} appearances)`);
 });
-// 4 of 6 tribes play each match, so a perfectly balanced roster wins 25% of the
-// games it appears in. This is the single number to minimise when sweeping.
+// 4 tribes play each match, so a perfectly balanced roster wins 25% of the
+// games it appears in whatever the pool size. This is the single number to
+// minimise when sweeping.
 console.log(`  BALANCE SPREAD  ${spread.toFixed(0)}   (sum of |win% - 25|; lower is better)`);
 
 console.log("\nPATH REACHABILITY  (how far each tribe gets along ITS OWN path)");
