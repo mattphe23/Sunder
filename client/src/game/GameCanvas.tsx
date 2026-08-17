@@ -95,8 +95,19 @@ export default function GameCanvas() {
       if (e.type === "turnStarted" && e.tribe === s.humanTribe && s.turn > 0) sound.play("turn");
       if (e.type === "focusTile") r.focusTile(s, e.x, e.y);
       if (e.type === "gain") {
-        // slight lift so it clears the hero's crown rather than sitting in it
-        r.showGainNumber(s, e.x, e.y, `+${e.amount} XP`, "#ffd76a");
+        // Each kind takes the colour its own HUD bar already uses — amber for
+        // the XP bar, emerald for the HP bar — so a number that flies past
+        // unread still points at the right meter. Stars have no bar; they take
+        // the palette's star gold. Amber and star gold are close, but only the
+        // hero ever floats XP and only XP carries a word, so the two never
+        // have to be told apart at a glance.
+        const GAIN = {
+          xp: { label: `+${e.amount} XP`, color: "#fbbf24" },
+          stars: { label: `+${e.amount}★`, color: "#ffd76a" },
+          heal: { label: `+${e.amount}`, color: "#34d399" },
+        } as const;
+        const g = GAIN[e.kind];
+        r.showGainNumber(s, e.x, e.y, g.label, g.color);
       }
       if (e.type === "sfx") {
         sound.play(e.name);

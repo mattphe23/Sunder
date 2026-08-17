@@ -38,10 +38,18 @@ export type GameEvent =
   | { type: "turnStarted"; tribe: number }
   | { type: "focusTile"; x: number; y: number }
   | { type: "sfx"; name: "plunder" | "heal" | "promote" | "ruin" | "victory" | "defeat" | "catapult" | "treaty" | "levelup"; x?: number; y?: number }
-  /** a positive number worth floating over the board — the counterpart to the
-   *  damage numbers combat already shows. Carries the amount, which the `sfx`
-   *  events deliberately do not. */
-  | { type: "gain"; kind: "xp"; amount: number; x: number; y: number };
+  /**
+   * A positive number worth floating over the board — the counterpart to the
+   * damage numbers combat already shows. Carries the amount, which the `sfx`
+   * events do not: `sfx` says "a thing happened here, play a sound", and every
+   * payload it has ever needed was a name and a tile.
+   *
+   * Only ever emitted for the HUMAN tribe. A star floater over an AI's raider
+   * would be telling the player how much an off-screen rival just looted, which
+   * is information the fog is meant to withhold; it would also mean a screenful
+   * of numbers during every AI turn.
+   */
+  | { type: "gain"; kind: "xp" | "stars" | "heal"; amount: number; x: number; y: number };
 
 type Listener = (e: GameEvent) => void;
 const SAVE_KEY = "polyforge-save-v1";
@@ -495,21 +503,40 @@ class GameStore {
     for (const u of s.units) {
       if (u.tribe === tribeIdx) { u.moved = false; u.attacked = false; }
     }
+    /**
+     * Turn-start healing, accumulated per TILE rather than per heal.
+     *
+     * Two things drove the rewrite. First, the floater has to show the HP a
+     * unit actually recovered, not the HP the source offered: `+2` on a unit
+     * one point below full is a lie, and it is the common case late in a fight.
+     * Second, the old code pushed one entry per heal, so a unit standing
+     * between two Arcanists queued two sparkles and two identical heal chimes
+     * on the same tile — and would now have queued two identical numbers on top
+     * of each other. Summing by tile gives one honest label per unit.
+     */
+    const healedAt: { x: number; y: number; amount: number }[] = [];
+    const mend = (u: Unit, hp: number) => {
+      const before = u.hp;
+      u.hp = Math.min(u.maxHp, u.hp + hp);
+      const got = u.hp - before;
+      if (got <= 0) return;
+      const seen = healedAt.find((p) => p.x === u.x && p.y === u.y);
+      if (seen) seen.amount += got;
+      else healedAt.push({ x: u.x, y: u.y, amount: got });
+    };
     // Auren Arcanist: mends adjacent friendly units +2 HP at the start of the turn
-    let healed = false;
-    const healedAt: { x: number; y: number }[] = [];
     for (const a of s.units) {
       if (a.tribe !== tribeIdx || a.type !== "arcanist") continue;
       for (const f of s.units) {
         if (f.tribe !== tribeIdx || f.id === a.id || f.hp >= f.maxHp) continue;
         const d = Math.max(Math.abs(f.x - a.x), Math.abs(f.y - a.y));
-        if (d === 1) { f.hp = Math.min(f.maxHp, f.hp + 2); healed = true; healedAt.push({ x: f.x, y: f.y }); }
+        if (d === 1) mend(f, 2);
       }
     }
     // v16 hero Mender perk: the commander recovers +3 HP at turn start
     for (const h of s.units) {
       if (h.tribe !== tribeIdx || !h.hero || !(h.perks?.includes("mender"))) continue;
-      if (h.hp < h.maxHp) { h.hp = Math.min(h.maxHp, h.hp + 3); healed = true; healedAt.push({ x: h.x, y: h.y }); }
+      if (h.hp < h.maxHp) mend(h, 3);
     }
     // Mycelon Sporebound: units resting in friendly territory knit flesh with spores (+2 HP)
     if (tribe.passive === "sporebound") {
@@ -517,15 +544,14 @@ class GameStore {
         if (u.tribe !== tribeIdx || u.hp >= u.maxHp || u.guardian) continue;
         const t = s.tiles[u.y * s.size + u.x];
         const owner = t.ownerCityId != null ? s.cities.find((c) => c.id === t.ownerCityId) : null;
-        if (owner && owner.tribe === tribeIdx) {
-          u.hp = Math.min(u.maxHp, u.hp + 2);
-          healed = true;
-          healedAt.push({ x: u.x, y: u.y });
-        }
+        if (owner && owner.tribe === tribeIdx) mend(u, 2);
       }
     }
-    if (healed && tribeIdx === s.humanTribe) {
-      for (const p of healedAt) this.emit({ type: "sfx", name: "heal", x: p.x, y: p.y });
+    if (tribeIdx === s.humanTribe) {
+      for (const p of healedAt) {
+        this.emit({ type: "sfx", name: "heal", x: p.x, y: p.y });
+        this.emit({ type: "gain", kind: "heal", amount: p.amount, x: p.x, y: p.y });
+      }
     }
     this.updateScore(tribeIdx);
     this.emit({ type: "turnStarted", tribe: tribeIdx });
@@ -960,8 +986,16 @@ class GameStore {
     const res = aiPaysTribute(s, other, s.humanTribe);
     if (res.pay) {
       s.tribes[other].stars -= res.amount;
-      s.tribes[s.humanTribe].stars += res.amount;
-      this.bumpStat(s.humanTribe, "starsEarned", res.amount);
+      // Tribute is the one payout with no tile behind it — it is extorted in a
+      // dialog, not picked up off the board. It floats over the capital, which
+      // is where a player looks for their own treasury anyway.
+      const seat = s.cities.find((c) => c.tribe === s.humanTribe && c.isCapital)
+        ?? s.cities.find((c) => c.tribe === s.humanTribe);
+      if (seat) this.grantStars(s.humanTribe, res.amount, seat);
+      else {
+        s.tribes[s.humanTribe].stars += res.amount;
+        this.bumpStat(s.humanTribe, "starsEarned", res.amount);
+      }
       s.log.unshift(`${s.tribes[other].name} paid ${res.amount}★ in tribute!`);
       this.recordReplay({ tribe: s.humanTribe, kind: "diplo", text: `${s.tribes[other].name} paid ${res.amount}★ tribute to ${s.tribes[s.humanTribe].name}` });
       this.emit({ type: "sfx", name: "plunder" });
@@ -1004,14 +1038,16 @@ class GameStore {
    * never meant to plunder at all. You are looting a battlefield, not picking a
    * pocket — the payout is now flat, and the shortfall is minted as spoils.
    */
-  private plunder(raider: number, victimIdx: number, amount: number, actorName: string) {
+  private plunder(raider: number, victimIdx: number, amount: number, actorName: string, at: { x: number; y: number }) {
     const s = this.state;
     const victim = s.tribes[victimIdx];
     if (!victim || raider < 0) return;
     const fromCoffers = Math.min(amount, Math.max(0, victim.stars));
     victim.stars -= fromCoffers;
-    s.tribes[raider].stars += amount;
-    this.bumpStat(raider, "starsEarned", amount);
+    // floats over the raider's own tile, not the corpse's: the kill already put
+    // a damage number on the defender's tile and two labels on one tile read as
+    // one unreadable smear
+    this.grantStars(raider, amount, at);
     this.bumpStat(raider, "starsPlundered", amount);
     s.log.unshift(
       fromCoffers >= amount
@@ -1085,6 +1121,32 @@ class GameStore {
     s.stats[tribeIdx][key] += amount;
   }
 
+  /**
+   * Pay `amount` stars to a tribe, and float the number over the tile it came
+   * from when the tribe is the player's.
+   *
+   * Every one-off star payout in the engine used to be written out by hand as
+   * `tribe.stars += n` plus a `bumpStat`, and four of the eleven sites had
+   * quietly dropped the `bumpStat` — the fallback branches in `exploreRuin` and
+   * `exploreGreatRuin`, the ones that hand out stars when there is no tech left
+   * to learn or nowhere to place the free unit. Those stars were spendable but
+   * never showed up under "Stars earned" on the stats screen. `starsEarned` is
+   * display-only (nothing reads it for score or AI), so folding them in here is
+   * a reporting fix, not a balance change.
+   *
+   * Recurring city income deliberately does NOT come through here: it lands
+   * every turn in every city at once, and floating a dozen numbers on every
+   * turn boundary is noise, not feedback. This is for the one-off payouts a
+   * player earns by doing something — looting, razing, claiming, extorting.
+   */
+  private grantStars(tribeIdx: number, amount: number, at: { x: number; y: number }) {
+    const s = this.state;
+    if (tribeIdx < 0 || amount <= 0) return;
+    s.tribes[tribeIdx].stars += amount;
+    this.bumpStat(tribeIdx, "starsEarned", amount);
+    if (tribeIdx === s.humanTribe) this.emit({ type: "gain", kind: "stars", amount, x: at.x, y: at.y });
+  }
+
   /** v28 anti-snowball: star payouts from ruins taper with each ruin a tribe has
    *  already claimed (×0.75 per prior claim, floor 40%) — playtests showed a
    *  ruin-rush economy snowballing one tribe far ahead of the field. */
@@ -1107,8 +1169,7 @@ class GameStore {
     let msg: string;
     if (roll < 0.5) {
       const stars = this.ruinTaper(u.tribe, 5 + Math.floor(roll * 10)); // 5–9 stars, tapered
-      tribe.stars += stars;
-      this.bumpStat(u.tribe, "starsEarned", stars);
+      this.grantStars(u.tribe, stars, u);
       msg = `${tribe.name} found ${stars} stars in ancient ruins!`;
     } else if (roll < 0.8) {
       const unknown = TECHS.filter((q) => !tribe.techs.includes(q.id) && (q.requires === null || tribe.techs.includes(q.requires)));
@@ -1118,7 +1179,7 @@ class GameStore {
         msg = `${tribe.name} learned ${pick.name} from ancient ruins!`;
       } else {
         const stars = this.ruinTaper(u.tribe, 6);
-        tribe.stars += stars;
+        this.grantStars(u.tribe, stars, u);
         msg = `${tribe.name} found ${stars} stars in ancient ruins!`;
       }
     } else {
@@ -1130,7 +1191,7 @@ class GameStore {
         msg = `A veteran Warrior joined ${tribe.name} at the ruins!`;
       } else {
         const stars = this.ruinTaper(u.tribe, 6);
-        tribe.stars += stars;
+        this.grantStars(u.tribe, stars, u);
         msg = `${tribe.name} found ${stars} stars in ancient ruins!`;
       }
     }
@@ -1150,8 +1211,7 @@ class GameStore {
     let msg: string;
     if (roll < 0.45) {
       const stars = this.ruinTaper(u.tribe, 12 + Math.floor(roll * 14)); // 12–18 stars, tapered
-      tribe.stars += stars;
-      this.bumpStat(u.tribe, "starsEarned", stars);
+      this.grantStars(u.tribe, stars, u);
       msg = `${tribe.name} claimed the Great Ruin — a hoard of ${stars} stars!`;
     } else if (roll < 0.75) {
       const unknown = TECHS.filter((q) => !tribe.techs.includes(q.id) && (q.requires === null || tribe.techs.includes(q.requires)));
@@ -1159,11 +1219,11 @@ class GameStore {
         const pick = unknown[Math.floor(roll * 100) % unknown.length];
         tribe.techs.push(pick.id);
         const stars = this.ruinTaper(u.tribe, 8);
-        tribe.stars += stars;
+        this.grantStars(u.tribe, stars, u);
         msg = `${tribe.name} claimed the Great Ruin — ${pick.name} and ${stars} stars!`;
       } else {
         const stars = this.ruinTaper(u.tribe, 15);
-        tribe.stars += stars;
+        this.grantStars(u.tribe, stars, u);
         msg = `${tribe.name} claimed the Great Ruin — ${stars} stars!`;
       }
     } else {
@@ -1172,11 +1232,11 @@ class GameStore {
         const nu = makeUnit(s.nextUnitId++, "swordsman", u.tribe, spot.x, spot.y);
         s.units.push(nu);
         const stars = this.ruinTaper(u.tribe, 5);
-        tribe.stars += stars;
+        this.grantStars(u.tribe, stars, u);
         msg = `${tribe.name} claimed the Great Ruin — a veteran Swordsman and ${stars} stars!`;
       } else {
         const stars = this.ruinTaper(u.tribe, 15);
-        tribe.stars += stars;
+        this.grantStars(u.tribe, stars, u);
         msg = `${tribe.name} claimed the Great Ruin — ${stars} stars!`;
       }
     }
@@ -1252,8 +1312,7 @@ class GameStore {
     if (!camp || u.tribe < 0) return;
     s.camps = (s.camps ?? []).filter((c) => c.id !== camp.id);
     const tribe = s.tribes[u.tribe];
-    tribe.stars += 5;
-    this.bumpStat(u.tribe, "starsEarned", 5);
+    this.grantStars(u.tribe, 5, u);
     const msg = `${tribe.name} razed the barbarian camp — 5★ plundered!`;
     s.log.unshift(msg);
     s.worldEvents = [...(s.worldEvents ?? []), { kind: "campRazed", text: msg, turn: s.turn, x: u.x, y: u.y }].slice(-8);
@@ -1345,7 +1404,7 @@ class GameStore {
       if (a.hero) this.grantXp(a, HERO_XP.kill);
       // hero Plunderer perk: loot 2 stars on every kill
       if (a.hero && (a.perks?.includes("plunderer")) && d.tribe >= 0) {
-        this.plunder(a.tribe, d.tribe, PLUNDER_PER_KILL, this.heroName(a));
+        this.plunder(a.tribe, d.tribe, PLUNDER_PER_KILL, this.heroName(a), a);
       }
       // a fallen commander is gone forever — mark the moment
       if (d.hero && d.tribe >= 0) {
@@ -1359,7 +1418,7 @@ class GameStore {
       this.recordReplay({ tribe: a.tribe, kind: "combat", text: `${s.tribes[a.tribe]?.name ?? "Guardian"} ${UNIT_STATS[a.type].name} destroyed ${s.tribes[d.tribe]?.name ?? "Guardian"} ${UNIT_STATS[d.type].name}` });
       // Vessari Raider: plunders 2 stars on every kill
       if (a.type === "raider" && d.tribe >= 0) {
-        this.plunder(a.tribe, d.tribe, PLUNDER_PER_KILL, `${s.tribes[a.tribe].name}'s Raider`);
+        this.plunder(a.tribe, d.tribe, PLUNDER_PER_KILL, `${s.tribes[a.tribe].name}'s Raider`, a);
       }
       // Veterancy: 3 kills promotes the unit — +5 max HP and a full heal
       if (!a.veteran && !a.guardian && a.kills >= 3) {
@@ -1637,8 +1696,7 @@ class GameStore {
         city.walls = true;
         break;
       case "stars":
-        s.tribes[tribe].stars += 5;
-        this.bumpStat(tribe, "starsEarned", 5);
+        this.grantStars(tribe, 5, city);
         break;
       case "borderGrowth":
         city.borderRadius = 2;

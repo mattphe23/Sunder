@@ -2675,8 +2675,18 @@ export class BoardRenderer {
     dt.hasAlpha = true;
     const ctx = dt.getContext();
     ctx.clearRect(0, 0, size, size);
-    const font = label.length > 3 ? "bold 82px Fredoka, sans-serif" : "bold 110px Fredoka, sans-serif";
-    dt.drawText(label, null, 150, font, color, "transparent", true);
+    // Shrink to fit rather than guessing from the character count. The old
+    // rule was `label.length > 3`, which was fine while every label was a bare
+    // number, and wrong the moment star gains arrived: `+5★` is three
+    // characters but the star is nearly twice the width of a digit, so it took
+    // the large font and ran off both edges of the texture. Measure instead.
+    const fit = (px: number) => {
+      ctx.font = `bold ${px}px Fredoka, sans-serif`;
+      return ctx.measureText(label).width;
+    };
+    let px = 110;
+    while (px > 54 && fit(px) > size - 24) px -= 8;
+    dt.drawText(label, null, 150, `bold ${px}px Fredoka, sans-serif`, color, "transparent", true);
     const plane = MeshBuilder.CreatePlane("dmgp", { size: 0.9 }, this.scene);
     const m = new StandardMaterial("dmgm", this.scene);
     m.diffuseTexture = dt;
