@@ -73,7 +73,11 @@ export const PRODUCTS: Product[] = [
   // Their entitlement keys survive in ENT so anyone who already bought one
   // keeps a valid grant and the Ultimate bundle's stored grants still resolve.
   // — map packs ($2.99 each) —
-  { sku: "maps_forgotten_realms", kind: "maps", name: "Forgotten Realms Pack", tagline: "4 AI-forged maps: calderas, terraces, and lost valleys.", priceCents: 299, grants: [ENT.MAPS_FORGOTTEN_REALMS], accent: "#f59e0b" },
+  // "Lost Calderas", not "Forgotten Realms": that name is Wizards of the
+  // Coast's D&D setting, trademarked in exactly this product category, and a
+  // paid video-game product carrying it is a takedown waiting to happen. The
+  // sku and entitlement key keep the old identifier — internal, never rendered.
+  { sku: "maps_forgotten_realms", kind: "maps", name: "Lost Calderas Pack", tagline: "4 AI-forged maps: calderas, terraces, and lost valleys.", priceCents: 299, grants: [ENT.MAPS_FORGOTTEN_REALMS], accent: "#f59e0b" },
   { sku: "maps_shattered_seas", kind: "maps", name: "Shattered Seas Pack", tagline: "4 AI-forged maps: reefs, straits, and island fortresses.", priceCents: 299, grants: [ENT.MAPS_SHATTERED_SEAS], accent: "#22d3ee" },
   // — story mode ($4.99, whole campaign; Chapter II is a free content update) —
   { sku: "story_ch1", kind: "story", name: "Story Mode — The Sundering Saga", tagline: "Two chapters, 10 campaign missions — from the smallest shard to the reforged world.", priceCents: 499, grants: [ENT.STORY_CH1], accent: "#f43f5e" },

@@ -1,0 +1,13 @@
+# pnpm 10 stopped reading the "pnpm" field in package.json — patchedDependencies
+# and overrides live here now. Verified 2026-08-17: the pinned pnpm 10.4.1 read
+# the file enough to demand `packages` but silently ignored the patch settings,
+# so package.json now pins pnpm 11, which applies them (proven on a clean
+# install: wouter@3.7.1 + patch hash recorded in the lockfile).
+packages:
+  - .
+patchedDependencies:
+  wouter@3.7.1: patches/wouter@3.7.1.patch
+# The old package.json overrides also pinned tailwindcss>nanoid to 3.3.7. That
+# rule is dead weight: tailwindcss v4 has zero dependencies (nanoid was a v3
+# transitive), so the pin never matched anything in this tree. Removed rather
+# than retargeted — vite uses nanoid 5, postcss uses nanoid 3.3.18, both fine.

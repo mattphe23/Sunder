@@ -334,7 +334,7 @@ export const VICTORY_PATHS: VictoryPathDef[] = [
   // goal text is rewritten per board in victoryProgress — see tideTarget()
   { id: "tidemastery", name: "Tide Mastery", goal: "Hold the coast's ports", flavor: "Every current answers Nerivane — the tides themselves have chosen a master." },
   { id: "unbrokenwall", name: "Unbroken Wall", goal: "Hold walled cities, unbroken", flavor: "Dravok's ramparts blot out the horizon — the Unbroken Wall stands eternal." },
-  { id: "stormlegend", name: "Storm Legend", goal: "Field 4 veteran units at once", flavor: "Valkyra's thunder never fades — an army of storm-tempered legends darkens the sky." },
+  { id: "stormlegend", name: "Storm Legend", goal: `Field ${STORMLEGEND_TARGET} veteran units at once`, flavor: "Valkyra's thunder never fades — an army of storm-tempered legends darkens the sky." },
   { id: "overgrowth", name: "Overgrowth", goal: "Hold 5 cities", flavor: "Mycelon's spores drift on every wind — the Shatterlands bloom beneath one endless canopy." },
   { id: "ascendance", name: "Ascendance", goal: "Reach 900 score", flavor: "A tribe forged from nothing now defines the age — the Shatterlands kneel to its ascendance." },
 ];

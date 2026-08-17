@@ -21,7 +21,10 @@ export interface MapPack {
 export const MAP_PACKS: MapPack[] = [
   {
     key: "maps.pack1",
-    name: "Forgotten Realms",
+    // renamed from "Forgotten Realms" — that is WotC's D&D setting name and
+    // cannot go on a paid product. Only the display name changes; the
+    // entitlement key (and the product sku) keep the legacy identifier.
+    name: "Lost Calderas",
     maps: [
       { id: "sunken-crown", name: "The Sunken Crown", blurb: "A drowned caldera — one ring of land around a deep inner sea.", seed: 90210, preset: "archipelago", size: 13 },
       { id: "titans-steps", name: "The Titan's Steps", blurb: "Terraced mountain shelves force long flanking marches.", seed: 41977, preset: "highlands", size: 11 },
