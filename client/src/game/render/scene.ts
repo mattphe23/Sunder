@@ -62,6 +62,7 @@ import { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator"
 import "@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent";
 import { GameState, Tile, Unit, idx } from "../core/types";
 import type { FatalitySpec } from "../core/fatality";
+import { captureShareShot } from "./capture";
 import { game } from "../core/state";
 import { reachableTiles, attackableUnits, cityAt, isVisibleTo, plannerSites, tradeRouteTiles, raidedRoadTiles } from "../core/rules";
 import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
@@ -2547,6 +2548,15 @@ export class BoardRenderer {
         ring.dispose();
       },
     }];
+  }
+
+  /**
+   * Grab the current frame as a shareable still. Lives here because capture
+   * needs the scene AND the canvas together, and both are private.
+   */
+  captureShare(caption: { eyebrow: string; title: string; sub: string; tint: string }) {
+    if (this.disposed || !this.canvasEl) return Promise.resolve(null);
+    return captureShareShot(this.scene, this.canvasEl, caption);
   }
 
   /** highlight reachable tiles / attackable enemies for the selected unit */

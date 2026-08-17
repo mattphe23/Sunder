@@ -214,7 +214,30 @@ Cannot be done from the repo:
 - **Export compliance** is pre-answered by the Info.plist key; verify no
   questionnaire appears on the first upload.
 
-## 5. Known, accepted, not blocking
+## 5. The fatality share needs a native plugin
+
+The share card built for fatalities uses the Web Share API
+(`navigator.canShare({ files })` → `navigator.share`). That works in Safari and
+Chrome. Inside Capacitor's WKWebView it is **not dependable**, and the supported
+route is the `@capacitor/share` plugin, which is not a dependency yet. Until it
+is, the iOS build falls through to the download branch — which is close to
+useless on a phone.
+
+This matters more than it looks: the share is the entire reason the feature
+exists. A spectacular moment nobody can export is spectacle wasted.
+
+Adding the plugin is small — `@capacitor/share` plus `@capacitor/filesystem` to
+write the PNG somewhere shareable, then `cap sync`. Worth doing before the
+fatality feature is shown to anyone.
+
+Video is a separate, larger question. Recording the canvas is the obvious build
+and it is the one thing that does not work here: WebKit bug 229611 —
+`MediaRecorder` driven by `canvas.captureStream()` produces a blank video on
+iOS. A clip therefore needs either a client-side encoder (a GIF encoder is
+plausible; Sunder's flat palette compresses almost losslessly) or native
+capture via ReplayKit. Neither is needed for launch.
+
+## 6. Known, accepted, not blocking
 
 - `server/stripe.ts` builds its client at import, so `pnpm test` needs any
   non-empty `STRIPE_SECRET_KEY`. CI sets a placeholder. The lazy-client fix is

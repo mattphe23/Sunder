@@ -5,6 +5,7 @@ import { BoardRenderer } from "./render/scene";
 import { game } from "./core/state";
 import type { FatalitySpec } from "./core/fatality";
 import { cinema } from "./render/cinema";
+import { shareShot, type ShareShot } from "./render/capture";
 import { sound } from "./sound";
 import { unitAt, cityAt, reachableTiles, attackableUnits } from "./core/rules";
 
@@ -23,8 +24,35 @@ export default function GameCanvas() {
   // mirrored into the module-level signal so `GameOver` (a sibling with no
   // shared owner) can hold off until the cinematic is done
   const setCinematic = (spec: FatalitySpec | null) => { cinema.set(spec); setCinematicState(spec); };
+
+  /**
+   * Start a cinematic, and grab the still a beat after the break — early enough
+   * that the shards are still in the air, late enough that the ring has opened.
+   * Capture is fire-and-forget: a failed grab must never hold up the animation
+   * or the game, it just means no share card this time.
+   */
+  const runCinematic = (r: BoardRenderer, spec: FatalitySpec) => {
+    setCinematic(spec);
+    const label = FATALITY_LABEL[spec.kind];
+    const grab = setTimeout(() => {
+      r.captureShare({
+        eyebrow: label.eyebrow,
+        title: spec.victimName,
+        sub: `${spec.againstHuman ? "taken by" : "broken by"} ${spec.killerName}`,
+        tint: label.tint,
+      }).then((img) => { if (img) setShot({ img, spec }); }).catch(() => { /* no card */ });
+    }, 1320);
+    skipRef.current = r.playFatality(game.state, spec, () => {
+      skipRef.current = null;
+      setCinematic(null);
+    });
+    return () => clearTimeout(grab);
+  };
   const skipRef = useRef<(() => void) | null>(null);
   const pendingFatality = useRef<FatalitySpec | null>(null);
+  // The still, offered after the cinematic. Held separately from `cinematic`
+  // because it outlives it — the card stays up after the camera has returned.
+  const [shot, setShot] = useState<{ img: ShareShot; spec: FatalitySpec } | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -70,11 +98,7 @@ export default function GameCanvas() {
             const fat = pendingFatality.current;
             if (fat && fat.unitId === e.defenderId) {
               pendingFatality.current = null;
-              setCinematic(fat);
-              skipRef.current = r.playFatality(s, fat, () => {
-                skipRef.current = null;
-                setCinematic(null);
-              });
+              runCinematic(r, fat);
             } else {
               r.shatterUnit(e.defenderId, e.ax, e.ay, e.dx, e.dy);
             }
@@ -141,11 +165,7 @@ export default function GameCanvas() {
           pendingFatality.current = e.spec;
         } else {
           // a capital falling has no unit to break — play it immediately
-          setCinematic(e.spec);
-          skipRef.current = r.playFatality(s, e.spec, () => {
-            skipRef.current = null;
-            setCinematic(null);
-          });
+          runCinematic(r, e.spec);
         }
       }
       if (e.type === "sfx") {
@@ -247,7 +267,7 @@ export default function GameCanvas() {
           has to aim at a button. */}
       {cinematic && (
         <div
-          className="absolute inset-0 z-40 cursor-pointer select-none"
+          className="absolute inset-0 z-[60] cursor-pointer select-none"
           onPointerDown={() => skipRef.current?.()}
           role="button"
           tabIndex={0}
@@ -273,6 +293,46 @@ export default function GameCanvas() {
           <span className="absolute bottom-[11%] right-5 font-display text-[10px] font-bold uppercase tracking-[0.28em] text-white/45">
             Tap to skip
           </span>
+        </div>
+      )}
+      {/* The share card — the whole point of the feature. It appears after the
+          camera has returned, never during, so it does not compete with the
+          thing it is advertising. Dismissed by tapping anywhere off it. */}
+      {!cinematic && shot && (
+        // z-[60] deliberately: GameOver is z-40 and renders later in the tree,
+        // so an equal z-index loses to it and the card was being painted over
+        // by the victory screen on the one fatality that matters most. Sitting
+        // ABOVE the result is also the better moment to offer a share.
+        <div className="absolute inset-0 z-[60] flex items-end justify-center bg-black/45 p-5 pb-24" onPointerDown={() => setShot(null)}>
+          <div
+            className="w-full max-w-xs animate-[fat-card_220ms_ease-out] overflow-hidden rounded-2xl border border-white/15 bg-[#10102c]/95 shadow-2xl backdrop-blur-md"
+            onPointerDown={(ev) => ev.stopPropagation()}
+          >
+            {/* object-bottom, not object-center: the caption and wordmark live at the
+                bottom of the still, and a centre crop hid exactly the part the
+                player is about to put their name behind. */}
+            <img src={shot.img.dataUrl} alt="" className="block max-h-[40vh] w-full object-cover object-bottom" />
+            <div className="flex items-center gap-2 p-3">
+              <button
+                onClick={async () => {
+                  const res = await shareShot(
+                    shot.img,
+                    `${shot.spec.victimName} fell in Sunder: The Living Forge.`,
+                  );
+                  if (res !== "failed") setShot(null);
+                }}
+                className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-lg bg-amber-400 px-4 font-display text-[12px] font-black uppercase tracking-[0.16em] text-[#1b1b3f] transition-colors hover:bg-amber-300 active:scale-[0.98]"
+              >
+                Share this kill
+              </button>
+              <button
+                onClick={() => setShot(null)}
+                className="min-h-[44px] rounded-lg border border-white/10 px-4 font-display text-[11px] font-bold uppercase tracking-[0.16em] text-slate-300 transition-colors hover:bg-white/10 active:scale-[0.98]"
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </>

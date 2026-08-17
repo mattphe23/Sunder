@@ -225,3 +225,15 @@
     0%, 100% { transform: scaleY(1); }
   }
 }
+
+/* Fatality share card — rises rather than pops, so it reads as an offer after
+   the moment rather than an interruption of it. */
+@keyframes fat-card {
+  0% { transform: translateY(14px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  @keyframes fat-card {
+    0%, 100% { transform: none; opacity: 1; }
+  }
+}
