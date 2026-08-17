@@ -315,3 +315,126 @@ export async function grantEntitlements(userId: number, keys: string[], purchase
   if (fresh.length === 0) return;
   await db.insert(entitlements).values(fresh.map((key) => ({ userId, key, purchaseId })));
 }
+
+// ── Account deletion (App Store Guideline 5.1.1(v)) ─────────────────────────
+// "If your app supports account creation, you must also offer account deletion
+// within the app." Sunder creates an account on OAuth sign-in, so this is a
+// hard requirement for review, not a nicety.
+//
+// Two shapes of data need different handling, and the difference is the whole
+// design:
+//
+//   OWNED   profile, leaderboard entries, entitlements, purchase rows — these
+//           are the user's alone and are deleted outright.
+//   SHARED  async matches — a match has TWO players. Deleting the leaver's row
+//           would destroy a stranger's game and their record of it. Those rows
+//           are anonymised instead: the departing side is reassigned to the
+//           tombstone id and their display name is replaced.
+//
+// Purchases are deleted here even though they are financial records, because
+// Stripe holds the authoritative copy — payment intents, receipts and refund
+// history all live there and are unaffected. What we delete is our own
+// user-linked shadow of it. The consequence for the player is real and the UI
+// has to say so plainly: deleting the account gives up the entitlements those
+// purchases granted.
+
+/** Reserved userId meaning "this account is gone". Real ids autoincrement from 1. */
+export const DELETED_USER_ID = 0;
+export const DELETED_USER_NAME = "Deleted Commander";
+
+export interface DeletionReport {
+  profiles: number;
+  leaderboardEntries: number;
+  entitlements: number;
+  purchases: number;
+  matchesAnonymised: number;
+}
+
+/**
+ * Every column anywhere in the schema that points at a user, and what deletion
+ * does to it.
+ *
+ * This exists to be checked against the live schema by a test. The realistic
+ * way this feature breaks is not a bug in the code below — it is someone
+ * adding a table six months from now with a `userId` on it and never touching
+ * this file. That leaves personal data behind after a deletion the app told
+ * the player was complete, which is both a privacy failure and a false claim
+ * to App Review. The test fails the moment a new user-linked column appears
+ * without a decision recorded here.
+ */
+export const USER_LINKED_COLUMNS: Record<string, "delete" | "anonymise"> = {
+  "users.id": "delete",
+  "profiles.userId": "delete",
+  "leaderboard_entries.userId": "delete",
+  "entitlements.userId": "delete",
+  "purchases.userId": "delete",
+  "matches.hostUserId": "anonymise",
+  "matches.guestUserId": "anonymise",
+  "matches.currentUserId": "anonymise",
+  "matches.winnerUserId": "anonymise",
+  "match_turns.submittedByUserId": "anonymise",
+  // Balance-lab runs: engineering records, not player data. The run's report is
+  // worth keeping — several shipped balance changes cite one — but the link to
+  // whoever pressed the button is not, so the id is tombstoned rather than the
+  // row deleted. (This one was missed on the first pass and caught by the
+  // schema-coverage test, which is exactly what it is for.)
+  "playtest_runs.requestedByUserId": "anonymise",
+};
+
+/**
+ * Erase a user and everything that identifies them, then delete the account.
+ *
+ * Ordering matters: the user row goes LAST, so a failure part-way through
+ * leaves an account that can sign in and retry rather than orphaned rows with
+ * no owner to delete them.
+ */
+export async function deleteAccount(userId: number): Promise<DeletionReport> {
+  // Validate before reaching for the connection: a bad id is a bad id whether
+  // or not a database happens to be configured.
+  if (!userId || userId === DELETED_USER_ID) throw new Error("Refusing to delete the tombstone user");
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const report: DeletionReport = {
+    profiles: 0, leaderboardEntries: 0, entitlements: 0, purchases: 0, matchesAnonymised: 0,
+  };
+
+  // owned rows — gone
+  const owned = await db.select({ id: entitlements.id }).from(entitlements).where(eq(entitlements.userId, userId));
+  report.entitlements = owned.length;
+  await db.delete(entitlements).where(eq(entitlements.userId, userId));
+
+  const bought = await db.select({ id: purchases.id }).from(purchases).where(eq(purchases.userId, userId));
+  report.purchases = bought.length;
+  await db.delete(purchases).where(eq(purchases.userId, userId));
+
+  const prof = await db.select({ id: profiles.id }).from(profiles).where(eq(profiles.userId, userId));
+  report.profiles = prof.length;
+  await db.delete(profiles).where(eq(profiles.userId, userId));
+
+  const board = await db.select({ id: leaderboardEntries.id }).from(leaderboardEntries).where(eq(leaderboardEntries.userId, userId));
+  report.leaderboardEntries = board.length;
+  await db.delete(leaderboardEntries).where(eq(leaderboardEntries.userId, userId));
+
+  // shared rows — anonymised, because the other player is still playing
+  const hosted = await db.select({ id: matches.id }).from(matches).where(eq(matches.hostUserId, userId));
+  const joined = await db.select({ id: matches.id }).from(matches).where(eq(matches.guestUserId, userId));
+  report.matchesAnonymised = hosted.length + joined.length;
+  await db.update(matches)
+    .set({ hostUserId: DELETED_USER_ID, hostName: DELETED_USER_NAME, status: "abandoned" })
+    .where(eq(matches.hostUserId, userId));
+  await db.update(matches)
+    .set({ guestUserId: DELETED_USER_ID, guestName: DELETED_USER_NAME, status: "abandoned" })
+    .where(eq(matches.guestUserId, userId));
+  // "whose turn is it" and "who won" both point at users; neither may outlive one
+  await db.update(matches).set({ currentUserId: DELETED_USER_ID }).where(eq(matches.currentUserId, userId));
+  await db.update(matches).set({ winnerUserId: DELETED_USER_ID }).where(eq(matches.winnerUserId, userId));
+  // turn snapshots are keyed by match, but carry the submitter's id
+  await db.update(matchTurns).set({ submittedByUserId: DELETED_USER_ID }).where(eq(matchTurns.submittedByUserId, userId));
+  // balance-lab runs: keep the report, drop the requester
+  await db.update(playtestRuns).set({ requestedByUserId: DELETED_USER_ID }).where(eq(playtestRuns.requestedByUserId, userId));
+
+  // the account itself, last
+  await db.delete(users).where(eq(users.id, userId));
+  return report;
+}

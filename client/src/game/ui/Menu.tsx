@@ -132,6 +132,7 @@ import {
 } from "recharts";
 
 import { BrandMark, BrandWordmark, BrandBackdrop, ArtOrFallback, useArtAvailable } from "./Brand";
+import { AccountPanel } from "./AccountPanel";
 
 const MENU_BG = "/manus-storage/menu-bg_b1164e9a.png";
 const LOGO = "/manus-storage/sunder-mark_d1dbf156.png";
@@ -477,7 +478,15 @@ export function MainMenu() {
             )}
           </div>
 
-          <div className="mt-4 grid w-full grid-cols-2 gap-4">
+          {/* Two columns only once there is room for two. On a phone each of
+              these rows holds four buttons whose labels ("☠ Imposs.", "11×11")
+              will not shrink below their text, so a half-width column made the
+              row overflow the viewport — the fourth option in each row sat off
+              the right edge, unseen and untappable. It went unnoticed until the
+              15×15 board landed and pushed the map-size row over too. Buttons
+              are min-h-[44px] because that is Apple's minimum tap target and
+              these are the first controls a new player touches. */}
+          <div className="mt-4 grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <p className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
                 <span className="h-1 w-1 rotate-45 bg-amber-400" /> Difficulty
@@ -486,7 +495,7 @@ export function MainMenu() {
                 {(["easy", "normal", "hard", "impossible"] as Difficulty[]).map((d) => (
                   <button key={d} onClick={() => setDifficulty(d)}
                     title={d === "impossible" ? "A ruthless AI brain: threat maps, coordinated strikes, no mercy. It gets NO resource cheats — it simply plays better." : undefined}
-                    className={`flex-1 rounded-md border px-2 py-1.5 font-display text-xs font-bold capitalize transition-colors ${difficulty === d ? (d === "impossible" ? "border-red-400 bg-red-400/20 text-red-200 shadow-[0_0_12px_rgba(248,113,113,0.3)]" : "border-amber-400 bg-amber-400/20 text-amber-200 shadow-[0_0_12px_rgba(255,185,56,0.25)]") : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"}`}>
+                    className={`min-h-[44px] flex-1 rounded-md border px-2 py-1.5 font-display text-xs font-bold capitalize transition-colors ${difficulty === d ? (d === "impossible" ? "border-red-400 bg-red-400/20 text-red-200 shadow-[0_0_12px_rgba(248,113,113,0.3)]" : "border-amber-400 bg-amber-400/20 text-amber-200 shadow-[0_0_12px_rgba(255,185,56,0.25)]") : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"}`}>
                     {d === "impossible" ? "☠ Imposs." : d}
                   </button>
                 ))}
@@ -505,7 +514,7 @@ export function MainMenu() {
               <div className="flex gap-1">
                 {[9, 11, 13, 15].map((sz) => (
                   <button key={sz} onClick={() => setSize(sz)}
-                    className={`flex-1 rounded-md border px-2 py-1.5 font-display text-xs font-bold transition-colors ${size === sz ? "border-emerald-400 bg-emerald-400/20 text-emerald-200 shadow-[0_0_12px_rgba(52,211,153,0.25)]" : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"}`}>
+                    className={`min-h-[44px] flex-1 rounded-md border px-2 py-1.5 font-display text-xs font-bold transition-colors ${size === sz ? "border-emerald-400 bg-emerald-400/20 text-emerald-200 shadow-[0_0_12px_rgba(52,211,153,0.25)]" : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"}`}>
                     {sz}×{sz}
                   </button>
                 ))}
@@ -822,6 +831,13 @@ export function MainMenu() {
                   ))}
                 </div>
               )}
+              {/* Account controls live inside the record because that is where a
+                  player looks for "my stuff". Restoring purchases and deleting
+                  the account are both App Store requirements — see
+                  AccountPanel.tsx and docs/APP-STORE-READINESS.md. */}
+              <div className="mt-3 border-t border-white/10 pt-3">
+                <AccountPanel />
+              </div>
             </div>
           )}
         </div>

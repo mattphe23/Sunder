@@ -54,6 +54,28 @@ export const appRouter = router({
         success: true,
       } as const;
     }),
+
+    /**
+     * Delete the signed-in account and everything identifying it.
+     *
+     * Required by App Store Guideline 5.1.1(v): an app that offers account
+     * creation must offer account deletion inside the app — not a support
+     * email, not a web form. Sunder creates an account on OAuth sign-in, so
+     * this ships or the app does not.
+     *
+     * `confirm` is a deliberate speed bump: the client has to send the literal
+     * string, so no stray mutation call can wipe an account. The real
+     * safeguard is the typed confirmation in the UI.
+     */
+    deleteAccount: protectedProcedure
+      .input(z.object({ confirm: z.literal("DELETE") }))
+      .mutation(async ({ ctx }) => {
+        const report = await db.deleteAccount(ctx.user.id);
+        // sign the now-nonexistent user out of this device before returning
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
+        return { success: true, ...report } as const;
+      }),
   }),
 
   // ── Cloud profile (Commander's Record) ────────────────────────────────────

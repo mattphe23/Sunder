@@ -11,6 +11,7 @@ import { PRODUCTS, formatPrice, ultimateSavings, type Product } from "@shared/pr
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import SkinPreview from "@/components/SkinPreview";
+import { AccountPanel } from "@/game/ui/AccountPanel";
 import { ArrowLeft, Check, Crown, Loader2, Lock, Map as MapIcon, Palette, ScrollText, Shield, Sparkles } from "lucide-react";
 
 const KIND_META: Record<string, { title: string; blurb: string; icon: React.ReactNode }> = {
@@ -166,6 +167,16 @@ export default function Store() {
             </ul>
           </section>
         )}
+
+        {/* Restore and account deletion also live in the Commander's Record on
+            the main menu; they are repeated here because this is the screen an
+            App Review tester opens when checking purchase handling, and a
+            restore mechanism they cannot find is a restore mechanism that does
+            not exist as far as Guideline 3.1.1 is concerned. */}
+        <section>
+          <h2 className="mb-2 font-bold text-white">Your account</h2>
+          <div className="max-w-md"><AccountPanel /></div>
+        </section>
 
         <p className="pb-4 text-center text-[11px] text-white/35">
           Payments are processed securely by Stripe. All purchases are one-time — no subscriptions.
