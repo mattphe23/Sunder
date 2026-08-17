@@ -1,5 +1,34 @@
 # Sunder: The Living Forge — Project TODO
 
+# v54 — the shatter never played (user report: "pieces exploding never showed")
+- [x] ROOT CAUSE: attack() removes the dead unit from state, then emits combat;
+      GameCanvas's refresh subscription ran FIRST on that event and disposed the
+      dead unit's mesh node. The FX handler's shatter was inside a 120ms
+      setTimeout and looked the node up after it was gone — silent no-op, every
+      kill, forever. v34 shipped it on a "no console errors" verification and a
+      no-op produces no errors. Fatalities broke the same way at the 1s BREAK.
+- [x] Fix: FX subscription now registers BEFORE the refresh subscription
+      (emit() dispatches listeners synchronously in insertion order — the
+      shatter's own comment always assumed this order); combat and quake
+      shatters are synchronous at handler time, before any disposal; scene.ts
+      gained prepareShatter() (clone now, burst later) so the fatality's
+      one-second-late BREAK still has pieces to throw.
+- [x] tsc clean + 243 tests green in the clean-room copy. NEEDS one in-browser
+      kill to see the burst with human eyes — the failure mode of this feature
+      is exactly the kind that test suites can't see.
+
+# v53 — hygiene: Lost Calderas rename, pnpm 11 migration, Storm Legend text
+- [x] "Forgotten Realms Pack" → "Lost Calderas Pack" (WotC trademark; display
+      names only, sku + entitlement key keep the legacy internal identifier).
+- [x] pnpm: pinned 10.4.1 silently ignored patchedDependencies in
+      pnpm-workspace.yaml (proven: 10.4.1 no patch, 11.22.0 patch applied).
+      packageManager → pnpm 11.22.0, settings migrated, wouter pinned to the
+      patch's exact 3.7.1, lockfile regenerated WITH the patch hash recorded —
+      any install that skips the patch now fails loudly. Dead tailwindcss>nanoid
+      override removed (tailwind v4 has zero dependencies).
+- [x] Storm Legend static goal text "Field 4" → interpolates STORMLEGEND_TARGET.
+
+
 # v52 — 13x13 default board + Great Ruin taper (crowding levers 1 & 3)
 - [x] Menu default size 11 → 13 for 4-tribe matches (solo + hot-seat). Online
       1v1 keeps 11 (OnlinePanel hardcodes its own size); SIZE_BLURB updated.

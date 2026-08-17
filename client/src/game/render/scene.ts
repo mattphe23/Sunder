@@ -2358,6 +2358,34 @@ export class BoardRenderer {
   shatterUnit(unitId: number, fromX?: number, fromY?: number, toX?: number, toY?: number, power = 1) {
     const node = this.unitMeshes.get(unitId);
     if (!node || this.disposed) return;
+    const pieces = this.cloneShards(node, fromX, fromY, toX, toY, power);
+    if (pieces.length === 0) return;
+    // hide the source immediately; the next engine sync disposes it for real
+    const groundY = node.position.y;
+    node.setEnabled(false);
+    this.animateShards(pieces, groundY, power);
+  }
+
+  /**
+   * Clone the unit's shards NOW and return a launcher that bursts them later.
+   *
+   * The pieces can only be cloned while the source node is alive, and the
+   * board's next sync disposes it — but some deaths need the burst to wait
+   * for a beat (the fatality's break lands a full second after the combat
+   * event that killed the unit). Capture at the live moment, launch on cue.
+   */
+  prepareShatter(unitId: number, fromX?: number, fromY?: number, toX?: number, toY?: number, power = 1): (() => void) | null {
+    const node = this.unitMeshes.get(unitId);
+    if (!node || this.disposed) return null;
+    const pieces = this.cloneShards(node, fromX, fromY, toX, toY, power);
+    if (pieces.length === 0) return null;
+    const groundY = node.position.y;
+    node.setEnabled(false);
+    return () => this.animateShards(pieces, groundY, power);
+  }
+
+  /** clone every geometric child of the node into a free-flying shard */
+  private cloneShards(node: TransformNode, fromX?: number, fromY?: number, toX?: number, toY?: number, power = 1): { m: Mesh; vel: Vector3; spin: Vector3 }[] {
     // push direction: away from the attacker when known, else pure radial burst
     let pushX = 0, pushZ = 0;
     if (fromX !== undefined && fromY !== undefined && toX !== undefined && toY !== undefined) {
@@ -2394,10 +2422,11 @@ export class BoardRenderer {
         spin: new Vector3((Math.random() - 0.5) * 9, (Math.random() - 0.5) * 9, (Math.random() - 0.5) * 9),
       });
     }
-    if (pieces.length === 0) return;
-    // hide the source immediately; the next engine sync disposes it for real
-    node.setEnabled(false);
-    const groundY = node.position.y;
+    return pieces;
+  }
+
+  /** the burst itself: impulse + spin + gravity + bounce + fade */
+  private animateShards(pieces: { m: Mesh; vel: Vector3; spin: Vector3 }[], groundY: number, power = 1) {
     const start = performance.now();
     // A harder throw needs longer in the air, and lighter gravity, or the extra
     // speed is spent before the camera has finished pushing in.
@@ -2463,6 +2492,13 @@ export class BoardRenderer {
     let broke = false;
     let finished = false;
     const junk: { dispose(): void }[] = [];
+    // Clone the victim's shards NOW, at combat time: the board's sync (which
+    // runs right after this handler) disposes the unit's node, and by the
+    // BREAK beat a full second later there would be nothing left to clone.
+    // This was the silent reason the fatality shatter never played.
+    const launchShatter = spec.unitId !== undefined
+      ? this.prepareShatter(spec.unitId, undefined, undefined, undefined, undefined, 1.9)
+      : null;
 
     const finish = () => {
       if (finished) return;
@@ -2504,7 +2540,7 @@ export class BoardRenderer {
       if (!broke && t >= BREAK) {
         broke = true;
         junk.push(...this.fatalityImpact(s, spec));
-        if (spec.unitId !== undefined) this.shatterUnit(spec.unitId, undefined, undefined, undefined, undefined, 1.9);
+        launchShatter?.();
       }
       if (t >= END) finish();
     });

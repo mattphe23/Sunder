@@ -71,15 +71,11 @@ export default function GameCanvas() {
     // brand splash: hold one beat after the first build so the reveal feels intentional
     const bootTimer = setTimeout(() => setBooting(false), 700);
 
-    const unsub = game.subscribe(() => {
-      const s = game.state;
-      if (s.phase === "menu") return;
-      r.buildBoard(s);
-      r.syncUnits(s);
-      r.showHighlights(s);
-    });
-
-    // combat juice: FX driven by game events
+    // combat juice: FX driven by game events. Registered BEFORE the board
+    // refresh subscription on purpose: on a kill the refresh disposes the dead
+    // unit's mesh node, and the shatter can only clone its shards while that
+    // node is alive. FX-first restores the order the shatter was designed for
+    // ("hide the source immediately; the next engine sync disposes it").
     const unsubFx = game.subscribe((e) => {
       const s = game.state;
       if (s.phase === "menu") return;
@@ -87,35 +83,40 @@ export default function GameCanvas() {
         r.lungeUnit(s, e.attackerId, e.dx, e.dy);
         const atk = s.units.find((u) => u.id === e.attackerId);
         sound.play(atk?.type === "catapult" ? "catapult" : "attack");
-        // slight delay so numbers appear at impact
-        setTimeout(() => {
-          // v34 impact FX: survivors flash + recoil; kills shatter into pieces
-          if (e.defenderDied) {
-            // A kill that earned a fatality gets the cinematic INSTEAD of the
-            // ordinary shatter, never both. The engine emits `fatality` before
-            // the `combat` event for the same kill, so by the time we get here
-            // the decision has already been made and is sitting in the ref.
-            const fat = pendingFatality.current;
-            if (fat && fat.unitId === e.defenderId) {
-              pendingFatality.current = null;
-              runCinematic(r, fat);
-            } else {
-              r.shatterUnit(e.defenderId, e.ax, e.ay, e.dx, e.dy);
-            }
-          } else if (e.knockback) {
-            // v36 colossus: the survivor is hurled a full tile — slide the rig to its new home
-            r.hitFlash(e.defenderId);
-            r.slideUnit(s, e.defenderId, e.dx, e.dy, e.knockback.x, e.knockback.y);
+        // Deaths shatter NOW, synchronously — the shards are cloned from the
+        // unit's live node and the refresh (running right after this handler)
+        // disposes it. The old code shattered inside the 120ms timeout, looked
+        // the node up after it was already gone, and silently no-opped: the
+        // explosion never played once.
+        if (e.defenderDied) {
+          // A kill that earned a fatality gets the cinematic INSTEAD of the
+          // ordinary shatter, never both. The engine emits `fatality` before
+          // the `combat` event for the same kill, so by the time we get here
+          // the decision has already been made and is sitting in the ref.
+          const fat = pendingFatality.current;
+          if (fat && fat.unitId === e.defenderId) {
+            pendingFatality.current = null;
+            runCinematic(r, fat);
           } else {
-            r.hitFlash(e.defenderId);
-            r.knockback(e.defenderId, e.ax, e.ay, e.dx, e.dy);
+            r.shatterUnit(e.defenderId, e.ax, e.ay, e.dx, e.dy);
+          }
+        }
+        if (e.retaliation > 0 && e.attackerDied) r.shatterUnit(e.attackerId, e.dx, e.dy, e.ax, e.ay);
+        // slight delay so numbers and survivor reactions appear at impact
+        setTimeout(() => {
+          if (!e.defenderDied) {
+            if (e.knockback) {
+              // v36 colossus: the survivor is hurled a full tile — slide the rig to its new home
+              r.hitFlash(e.defenderId);
+              r.slideUnit(s, e.defenderId, e.dx, e.dy, e.knockback.x, e.knockback.y);
+            } else {
+              r.hitFlash(e.defenderId);
+              r.knockback(e.defenderId, e.ax, e.ay, e.dx, e.dy);
+            }
           }
           // v36 colossus: masonry burst when the walls come down
           if (e.wallCrushed) r.wallCrushBurst(s, e.wallCrushed.x, e.wallCrushed.y);
-          if (e.retaliation > 0) {
-            if (e.attackerDied) r.shatterUnit(e.attackerId, e.dx, e.dy, e.ax, e.ay);
-            else r.hitFlash(e.attackerId);
-          }
+          if (e.retaliation > 0 && !e.attackerDied) r.hitFlash(e.attackerId);
           r.showDamageNumber(s, e.dx, e.dy, e.dmg, "#ff6b6b");
           if (e.retaliation > 0) r.showDamageNumber(s, e.ax, e.ay, e.retaliation, "#ffd76a");
         }, 120);
@@ -129,10 +130,11 @@ export default function GameCanvas() {
         // v37 Colossus Quake: shockwave + shake at the epicenter, then impact FX per victim
         r.quakeFx(s, e.x, e.y);
         sound.play("catapult");
+        // dead victims shatter now — same clone-before-dispose rule as combat
+        for (const v of e.victims) if (v.died) r.shatterUnit(v.id, e.x, e.y, v.x, v.y);
         setTimeout(() => {
           for (const v of e.victims) {
-            if (v.died) r.shatterUnit(v.id, e.x, e.y, v.x, v.y);
-            else {
+            if (!v.died) {
               r.hitFlash(v.id);
               r.knockback(v.id, e.x, e.y, v.x, v.y);
             }
@@ -172,6 +174,17 @@ export default function GameCanvas() {
         sound.play(e.name);
         if (e.name === "heal" && e.x !== undefined && e.y !== undefined) r.healSparkle(s, e.x, e.y);
       }
+    });
+
+    // The board refresh — registered AFTER the FX subscription, so on a kill
+    // the shatter has already cloned the dead unit's shards before this
+    // disposes its node (see the FX handler above).
+    const unsub = game.subscribe(() => {
+      const s = game.state;
+      if (s.phase === "menu") return;
+      r.buildBoard(s);
+      r.syncUnits(s);
+      r.showHighlights(s);
     });
 
     r.onPick = ({ x, y }) => {
