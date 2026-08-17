@@ -19,7 +19,7 @@ After that, releasing is one button in the Actions tab.
 
 | Job in the workflow | Runner | Trigger | Needs Apple credentials | What it does |
 |---|---|---|---|---|
-| `verify` | Linux | every push touching the app | No | Installs, runs 185 tests plus type-check, confirms the committed icon and splash still match the sigil source, and builds the web app |
+| `verify` | Linux | every push touching the app | No | Installs, runs the test suite plus type-check, confirms the committed icon and splash still match the sigil source, and builds the web app |
 | `ios-build` | macOS | after `verify` | No | Syncs the web build into the Xcode project, compiles the real iOS app unsigned, and asserts the web build really landed inside `App.app` |
 | `testflight` | macOS | manual, from the Actions tab | Yes | Archives, signs, exports a `.ipa`, validates it, and uploads it to TestFlight |
 
