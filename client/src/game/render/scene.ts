@@ -206,10 +206,25 @@ export class BoardRenderer {
    * extent so it fills the shot with terrain instead of weather.
    */
   private frameOpeningShot(s: GameState, c: number) {
-    // A phone held upright is a tall, narrow window: the radius that frames the
-    // board on a laptop leaves most of a portrait screen as sky and cloud.
+    // A phone held upright shows LESS of the board at a given camera distance,
+    // not more. Babylon keeps the VERTICAL field of view fixed, so the
+    // horizontal field shrinks in proportion to the aspect ratio — at 430x932
+    // the aspect is 0.46, so a portrait screen sees under a third of the
+    // columns a laptop does from the same radius.
+    //
+    // This used to pull the camera IN on narrow screens, on the reasoning that
+    // a laptop framing "leaves most of a portrait screen as sky and cloud".
+    // The sky was real but the fix was backwards, and it compounded: the
+    // opening shot on a phone sat at radius 9.5 showing roughly three tiles
+    // across, cropping the player's own starting region off both edges while
+    // STILL leaving a band of void at the top. Measured against a sweep at
+    // 9.5 / 13 / 16 / 19 on a 15x15 board — 13 is where the whole explored
+    // area fits with the cloud bank framing it instead of the board bleeding
+    // off-screen.
     const aspect = this.engine.getAspectRatio(this.camera) || 1.6;
-    const maxRadius = aspect < 0.75 ? 9.5 : aspect < 1.1 ? 11 : 13;
+    const widen = aspect < 0.75 ? 1.3 : aspect < 1.1 ? 1.12 : 1;
+    const maxRadius = aspect < 0.75 ? 14 : 13;
+    const minRadius = aspect < 0.75 ? 11 : 8;
 
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, n = 0;
     for (const t of s.tiles) {
@@ -236,8 +251,11 @@ export class BoardRenderer {
     // Enough radius to hold the explored span with a margin, never wider than
     // the aspect budget and never so tight that the board fills the frame edge
     // to edge on turn one.
+    // Radius is assigned AFTER target on purpose: assigning `target` on an
+    // ArcRotateCamera rebuilds alpha/beta/radius from the camera's position, so
+    // anything set before it is silently discarded.
     const span = Math.max(maxX - minX, maxY - minY, 4);
-    this.camera.radius = Math.min(maxRadius, Math.max(8, span * 1.35 + 3.5));
+    this.camera.radius = Math.min(maxRadius, Math.max(minRadius, (span * 1.35 + 3.5) * widen));
   }
 
   private setupCameraLights(canvas: HTMLCanvasElement) {
