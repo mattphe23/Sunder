@@ -474,8 +474,12 @@ function nerivaneRiderV3(spec: CharacterSpec, node: TransformNode, glowMat?: Mat
 
   // ── mount: per-tribe beast in darker hide tones than the rider's armor so
   // the two bodies separate at a glance; recognizable without the rider ──
-  const mDeep = darken(spec.color, 0.34); //  mount hide
-  const mDark = darken(spec.color, 0.24); //  mount belly/fin shadow
+  // v56: values pushed further apart (0.34/0.24 → 0.26/0.17). At 40px the old
+  // pair merged into one mid-dark lump and the rider read as infantry — the
+  // class cue is a LOW DARK horizontal animal with a BRIGHT upright person on
+  // it, and that only survives distance with real value separation.
+  const mDeep = darken(spec.color, 0.26); //  mount hide
+  const mDark = darken(spec.color, 0.17); //  mount belly/fin shadow
   if (spec.defIndex === 1) {
     // Kharzul war-boar: mid body + raised rump, head lifted clear of the
     // shoulders with ears/snout/tusks, four legs planted OUTSIDE the body
@@ -509,19 +513,22 @@ function nerivaneRiderV3(spec: CharacterSpec, node: TransformNode, glowMat?: Mat
     // generic war-steed quadruped: body + rump, raised neck/head with ears
     // and muzzle, four planted legs, tail — tinted per tribe. Small per-tribe
     // accents keep the beasts from being clones.
-    box(spec, "mount", 0.17, 0.12, 0.22, mDeep, unit, 0, 0.15, 0);
-    box(spec, "mount", 0.15, 0.12, 0.1, mDeep, unit, 0, 0.15, -0.14); // rump
-    box(spec, "mount", 0.12, 0.04, 0.18, mDark, unit, 0, 0.085, 0); //   belly
-    const neck = box(spec, "mount", 0.09, 0.12, 0.075, mDeep, unit, 0, 0.2, 0.125);
+    // v56 silhouette pass: stance lowered and head pushed up+forward so the
+    // profile reads as TWO peaks (horse head, human head) at 40px — one peak
+    // is infantry, two is cavalry.
+    box(spec, "mount", 0.17, 0.12, 0.22, mDeep, unit, 0, 0.14, 0);
+    box(spec, "mount", 0.15, 0.12, 0.1, mDeep, unit, 0, 0.14, -0.14); // rump
+    box(spec, "mount", 0.12, 0.04, 0.18, mDark, unit, 0, 0.075, 0); //   belly
+    const neck = box(spec, "mount", 0.09, 0.12, 0.075, mDeep, unit, 0, 0.2, 0.135);
     neck.rotation.x = 0.25;
-    box(spec, "mount", 0.11, 0.09, 0.08, mDeep, unit, 0, 0.26, 0.17);
-    box(spec, "mount", 0.06, 0.05, 0.06, mDark, unit, 0, 0.245, 0.225);
+    box(spec, "mount", 0.11, 0.09, 0.08, mDeep, unit, 0, 0.28, 0.19);
+    box(spec, "mount", 0.06, 0.05, 0.06, mDark, unit, 0, 0.265, 0.25);
     for (const sx of [-0.04, 0.04]) {
-      const ear = wedge(spec, "mount", 0.028, 0.045, 0.024, mDark, unit, sx, 0.32, 0.14);
+      const ear = wedge(spec, "mount", 0.028, 0.045, 0.024, mDark, unit, sx, 0.335, 0.16);
       void ear;
     }
-    for (const [lx, lz] of [[-0.09, 0.1], [0.09, 0.1], [-0.09, -0.14], [0.09, -0.14]] as const) {
-      box(spec, "mount", 0.05, 0.1, 0.05, mDark, unit, lx, 0.095, lz);
+    for (const [lx, lz] of [[-0.1, 0.1], [0.1, 0.1], [-0.1, -0.14], [0.1, -0.14]] as const) {
+      box(spec, "mount", 0.05, 0.1, 0.05, mDark, unit, lx, 0.085, lz);
     }
     const qTail = wedge(spec, "mount", 0.028, 0.06, 0.024, mDark, unit, 0, 0.17, -0.21);
     qTail.rotation.x = Math.PI - 0.5;
@@ -572,10 +579,12 @@ function nerivaneRiderV3(spec: CharacterSpec, node: TransformNode, glowMat?: Mat
   // land-tribe saddle pennant streaming aft — glowing accent, the mounted
   // unit's low horizontal 40px cue (concept adopted from the parallel v44
   // rollout; Nerivane's dorsal fin already serves this role)
+  // v56: 40% bigger. At 40px the old pennant was a 1x2px thread — invisible,
+  // which is half of why the class read as infantry.
   if (spec.defIndex !== 4) {
-    const pole = cyl(spec, "mount", 0.015, 0.015, 0.17, 4, GRIP, unit, 0, 0.28, -0.17);
+    const pole = cyl(spec, "mount", 0.015, 0.015, 0.19, 4, GRIP, unit, 0, 0.3, -0.19);
     void pole;
-    const pennant = box(spec, "mount", 0.02, 0.09, 0.19, c.accent, unit, 0, 0.33, -0.27);
+    const pennant = box(spec, "mount", 0.028, 0.12, 0.26, c.accent, unit, 0, 0.37, -0.31);
     pennant.rotation.x = 0.35;
     if (glowMat) pennant.material = glowMat;
   }

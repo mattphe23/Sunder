@@ -222,11 +222,11 @@ export function runAiTurn(store: StoreLike, tribeIdx: number) {
   // 4. unit actions
   for (const u of [...myUnits()]) {
     if (!s.units.includes(u)) continue; // may have died in retaliation
-    aiUnitAction(store, u, tribeIdx, warTarget);
+    aiUnitAction(store, u, tribeIdx, warTarget, pathId);
   }
 }
 
-function aiUnitAction(store: StoreLike, u: Unit, tribeIdx: number, warTarget: { x: number; y: number; cityId: number } | null = null) {
+function aiUnitAction(store: StoreLike, u: Unit, tribeIdx: number, warTarget: { x: number; y: number; cityId: number } | null = null, pathId: string | undefined = undefined) {
   const s = store.state;
 
   // v20 hero care: a wounded commander is irreplaceable — pull it back toward a
@@ -311,6 +311,21 @@ function aiUnitAction(store: StoreLike, u: Unit, tribeIdx: number, warTarget: { 
       // tidecallers press the advantage from water; bulwarks avoid trading
       if (u.type === "tidecaller" && tileAt(s, u.x, u.y).terrain === "water") score += 4;
       if (u.type === "bulwark") score -= 4;
+      /* v56 path-pursuit: fight toward your win condition, not just toward
+       * damage. Bounded nudges, no hard rails. MEASURED over 240-game batches
+       * on two seed blocks: the conquest variant (bloodforge/overgrowth city
+       * boosts) taught tribes without the army for it to bleed out on city
+       * walls — Mycelon 28/20% → 7/5%, Kharzul 33/38% → 15/14% — and was cut.
+       * What survives contact:
+       *   plunderking: kills with a plunder-capable unit ARE the path
+       *   stormlegend: feed kills to units closing on veteran; protect them
+       *     (half-strength — full strength pushed Valkyra to 32/37% wins) */
+      if (pathId === "plunderking" && r.defenderDies &&
+          (u.type === "raider" || (u.hero && (u.perks ?? []).includes("plunderer")))) score += 14;
+      if (pathId === "stormlegend" && !u.veteran) {
+        if (r.defenderDies && u.kills >= 1) score += 5; // the almost-veteran gets fed
+        if (u.kills >= 2 && (r.attackerDies || r.damageToAttacker >= u.hp)) score -= 10; // and protected
+      }
       // hero risk model: never suicide the commander; leveled heroes press harder
       if (u.hero) {
         if (r.attackerDies || r.damageToAttacker >= u.hp) score -= 100;
@@ -359,7 +374,11 @@ function aiUnitAction(store: StoreLike, u: Unit, tribeIdx: number, warTarget: { 
     // v29 siege awareness: a besieger on our city tile is a priority target to converge on
     const ec = cityAt(s, e.x, e.y);
     const besieging = ec && ec.tribe === tribeIdx;
-    objectives.push({ x: e.x, y: e.y, w: (besieging ? 110 : 40) - dist * 5 });
+    // v56 path-pursuit: a plunder-capable unit hunting its path goes looking
+    // for kills, not just cities — enemy pieces become real objectives
+    const plunderHunt = pathId === "plunderking" &&
+      (u.type === "raider" || (u.hero && (u.perks ?? []).includes("plunderer"))) ? 20 : 0;
+    objectives.push({ x: e.x, y: e.y, w: (besieging ? 110 : 40) + plunderHunt - dist * 5 });
   }
   if (objectives.length === 0) return;
   objectives.sort((a, b) => b.w - a.w);

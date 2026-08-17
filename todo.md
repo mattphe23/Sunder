@@ -1,5 +1,36 @@
 # Sunder: The Living Forge — Project TODO
 
+# v56 — AI path-pursuit (measured, trimmed) + rider silhouette + online trust doc
+- [x] AI path-pursuit (todo's parked note: "paths barely steer the AI"): threaded
+      pathId into aiUnitAction targeting. FIRST VARIANT FAILED THE HARNESS:
+      conquest-path nudges (bloodforge/overgrowth +25 city objectives, +12
+      garrison kills) taught tribes without the army for it to bleed out on
+      city walls — Mycelon 28/20% → 7/5%, Kharzul 33/38% → 15/14% (240g × 2
+      blocks). Cut entirely. Stormlegend feed/protect nudges worked but ran hot
+      (+9 win points for Valkyra) — halved (+5 feed / −10 protect). Kept:
+      plunderking kill nudge (+14 for raider/plunderer kills) + halved
+      stormlegend pair. TRIMMED RESULT (240g × 2 blocks): spread 38/40,
+      Valkyra 23/26% in band, Vessari 23/23%, Mycelon recovered to 18/22%.
+- [x] WATCH: Kharzul runs 37-43% at 13x13 even with zero path nudges — a
+      board-size effect (Bloodforge target stays 4 via scaled() rounding while
+      capturable cities multiply). If a third block confirms >35%,
+      BLOODFORGE_TARGET wants +1 on boards >11 (knob exists).
+- [x] HARVEST_AREA_EXP 240g × 2 blocks (the promised full-size sweep): exp 2.5
+      lands Sunwei at 24.5% mean win rate at 13x13 (2.2 → 21%, 2.8 → 26.5%) —
+      the 60-game "16/29%" readings were noise. 2.5 stands.
+- [x] Rider silhouette pass (characters.ts): mount/rider value split widened
+      (darken 0.34/0.24 → 0.26/0.17 — they merged into one lump at 40px),
+      steed stance lowered, head raised + pushed forward (two peaks = cavalry),
+      saddle pennant +40% (was a 1x2px thread at distance). OPEN: Model Lab
+      40px color/gray + 8-angle check on a real display.
+- [x] docs/ONLINE-CHEAT-SURFACE.md: the honest map. Client-authoritative
+      whole-state snapshots mean "strip enemy fields in match.get" is
+      architecturally impossible (the client simulates its own turn and needs
+      hidden info to do it). Options: (1) label friend-duels trust model, no
+      ranked anything — do now; (2) server-side move receipts re-run through
+      the shared engine — before any public ladder; (3) server-authoritative
+      turns — only when ranked matters. NOT a TestFlight blocker.
+
 # v54 — the shatter never played (user report: "pieces exploding never showed")
 - [x] ROOT CAUSE: attack() removes the dead unit from state, then emits combat;
       GameCanvas's refresh subscription ran FIRST on that event and disposed the
