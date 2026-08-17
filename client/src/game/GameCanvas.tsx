@@ -94,6 +94,10 @@ export default function GameCanvas() {
       }
       if (e.type === "turnStarted" && e.tribe === s.humanTribe && s.turn > 0) sound.play("turn");
       if (e.type === "focusTile") r.focusTile(s, e.x, e.y);
+      if (e.type === "gain") {
+        // slight lift so it clears the hero's crown rather than sitting in it
+        r.showGainNumber(s, e.x, e.y, `+${e.amount} XP`, "#ffd76a");
+      }
       if (e.type === "sfx") {
         sound.play(e.name);
         if (e.name === "heal" && e.x !== undefined && e.y !== undefined) r.healSparkle(s, e.x, e.y);

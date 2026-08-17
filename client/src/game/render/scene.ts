@@ -2659,6 +2659,15 @@ export class BoardRenderer {
   /** floating damage number that rises and fades */
   showDamageNumber(s: GameState, x: number, y: number, amount: number, color = "#ff6b6b") {
     if (amount <= 0) return;
+    this.floatText(s, x, y, `-${amount}`, color);
+  }
+
+  /** a gain floating off a tile — same motion as damage, opposite sign */
+  showGainNumber(s: GameState, x: number, y: number, label: string, color = "#ffd76a") {
+    this.floatText(s, x, y, label, color);
+  }
+
+  private floatText(s: GameState, x: number, y: number, label: string, color: string) {
     const c = this.center(s.size);
     const h = TERRAIN_H[s.tiles[idx(x, y, s.size)].terrain];
     const size = 256;
@@ -2666,7 +2675,8 @@ export class BoardRenderer {
     dt.hasAlpha = true;
     const ctx = dt.getContext();
     ctx.clearRect(0, 0, size, size);
-    dt.drawText(`-${amount}`, null, 150, "bold 110px Fredoka, sans-serif", color, "transparent", true);
+    const font = label.length > 3 ? "bold 82px Fredoka, sans-serif" : "bold 110px Fredoka, sans-serif";
+    dt.drawText(label, null, 150, font, color, "transparent", true);
     const plane = MeshBuilder.CreatePlane("dmgp", { size: 0.9 }, this.scene);
     const m = new StandardMaterial("dmgm", this.scene);
     m.diffuseTexture = dt;

@@ -37,7 +37,11 @@ export type GameEvent =
   | { type: "captured"; cityId: number; tribe: number }
   | { type: "turnStarted"; tribe: number }
   | { type: "focusTile"; x: number; y: number }
-  | { type: "sfx"; name: "plunder" | "heal" | "promote" | "ruin" | "victory" | "defeat" | "catapult" | "treaty" | "levelup"; x?: number; y?: number };
+  | { type: "sfx"; name: "plunder" | "heal" | "promote" | "ruin" | "victory" | "defeat" | "catapult" | "treaty" | "levelup"; x?: number; y?: number }
+  /** a positive number worth floating over the board — the counterpart to the
+   *  damage numbers combat already shows. Carries the amount, which the `sfx`
+   *  events deliberately do not. */
+  | { type: "gain"; kind: "xp"; amount: number; x: number; y: number };
 
 type Listener = (e: GameEvent) => void;
 const SAVE_KEY = "polyforge-save-v1";
@@ -792,6 +796,10 @@ class GameStore {
     const s = this.state;
     if (!u.hero || s.phase !== "playing") return;
     u.xp = (u.xp ?? 0) + amount;
+    // The hero is the unit players track most closely, and until now its XP
+    // moved silently in a panel. This is the one gain where both the amount and
+    // a board position are already to hand.
+    if (amount > 0) this.emit({ type: "gain", kind: "xp", amount, x: u.x, y: u.y });
     let level = u.level ?? 1;
     while (level < HERO_MAX_LEVEL && (u.xp ?? 0) >= HERO_XP_THRESHOLDS[level - 1]) {
       u.xp = (u.xp ?? 0) - HERO_XP_THRESHOLDS[level - 1];
