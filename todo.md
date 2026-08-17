@@ -870,3 +870,61 @@ Kharzul 21.5, Mycelon 20. Spread 30, from 46 at the start of the session.
       made it archipelago-only — and was fixed by counting the coast the board
       actually has. Great Harvest should count the board's actual harvestable
       resources the same way. Measure before shipping.
+
+## Parked — secret fatalities (v1.1 candidate)
+
+- [ ] PARKED. Secret input that upgrades a fatality, plus a one-time hint.
+      Design is settled; only the build is deferred. Parked because it is not on
+      the launch path, and because the input is exactly the kind of thing worth
+      watching a tester FAIL to discover before committing to it.
+
+      THE SHAPE. The secret must not summon a fatality — it upgrades the one
+      you were already getting. Qualifying moment fires, the camera starts its
+      push-in, and an input entered during that beat branches into an elaborate
+      version instead of the standard one.
+
+      Why that shape and not "a secret tap sequence":
+        - Sunder is played by tapping tiles, so every tap is already a game
+          action. Mortal Kombat had a d-pad sitting idle during the victory
+          pose; we have no idle input surface, and a mis-entered code would
+          move a unit. The cinematic window is the ONLY moment input is
+          suspended — which makes it the only unambiguous place to listen.
+        - Scarcity survives. Same triggers, same budget, so knowing the secret
+          cannot turn a rare moment into a routine one.
+        - Knowledge is rewarded with something BETTER, not something MORE,
+          which is the healthier incentive.
+        - The push-in becomes the "FINISH HIM" prompt for free.
+
+      NOT Mortal Kombat choreography. We have no skeletal animation — "skeleton"
+      in characters.ts means a shared MESH TEMPLATE, and units are ~6 primitive
+      types on a transform node. They translate and rotate as rigid bodies; they
+      cannot articulate a limb. Real MK-style moves would mean rigging 15+ unit
+      types and authoring per-victim choreography, which is the combinatorial
+      content problem the whole in-style approach exists to avoid, and it would
+      be the only part of the game not made of flat-shaded primitives.
+      Escalate with camera, timing and the board instead: desaturate everything
+      but the two units, crack the tile and drop the unit through it, a hard
+      slow-motion beat before impact, the killer's banner colour bleeding
+      outward. Also keeps the age rating where it is.
+
+      NOT behind a paywall. Three reasons, in order of weight:
+        1. It charges for our own distribution. The secret and the shareable
+           still ARE the marketing; gating them means the thing that spreads
+           the game only spreads among people who already paid.
+        2. "Discover the hidden thing -> now pay for more of it" is a
+           bait-and-switch SHAPE, and players react to shape rather than to the
+           letter of a policy. Our positioning is the opposite of that, and the
+           Polytopia complaints research says paid gating is the loudest
+           grievance in the genre's biggest game.
+        3. v1 ships with no purchases on iOS at all, so it could not ship
+           anyway, and monetizing a feature before one player has used it is
+           guessing.
+      If it is ever sold: a cosmetic VARIANT (a tribe's signature execution)
+      beside the skins, never a better tier, and never the secret itself.
+
+      THE DISCOVERABILITY PARADOX. A true secret is invisible to everyone who
+      does not read Reddit, and nobody watches you play Sunder the way they
+      watched an arcade cabinet. So make it a mystery, not a secret: the first
+      time a player reaches a qualifying moment, show a one-time hint that
+      something more was possible, without saying what, and never show it
+      again. A secret nobody knows exists generates nothing.
