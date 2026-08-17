@@ -2481,6 +2481,118 @@ export class BoardRenderer {
     rim.isPickable = false;
     rim.parent = this.root;
     this.highlightMeshes.push(rim);
+
+    // The bright part. The fissure says WHICH tile; this says "something is
+    // happening here", which is the job an ornate ground sigil does in every
+    // action game that looks expensive. It is one plane and one cached texture,
+    // and it is drawn bright enough to clear the bloom threshold so the glow
+    // comes free from the pipeline we already run.
+    this.highlightMeshes.push(this.groundSigil(u.x - c, h - 0.4 + 0.07, u.y - c, accent));
+  }
+
+  /** cached sigil textures, keyed by accent — one canvas per tribe colour */
+  private sigilTextures = new Map<string, DynamicTexture>();
+
+  /**
+   * A procedurally drawn arcane ring, flat on the ground and slowly turning.
+   *
+   * Drawn to a canvas rather than modelled, for the same reason the damage
+   * numbers are: a texture costs one plane where this much line work would cost
+   * hundreds of boxes, and the board already runs ~1200 meshes on a phone.
+   */
+  private groundSigil(x: number, y: number, z: number, accent: string): Mesh {
+    let dt = this.sigilTextures.get(accent);
+    if (!dt) {
+      const size = 512;
+      dt = new DynamicTexture("sigil" + accent, { width: size, height: size }, this.scene, true);
+      dt.hasAlpha = true;
+      const ctx = dt.getContext() as unknown as CanvasRenderingContext2D;
+      const mid = size / 2;
+      ctx.clearRect(0, 0, size, size);
+      // Brightness lives here, not in emissiveColor. Lightened toward white so
+      // the additive result clears the 0.88 bloom threshold and actually glows.
+      const ink = lighten(accent, 0.6);
+      ctx.strokeStyle = ink;
+      ctx.fillStyle = ink;
+      ctx.lineCap = "round";
+
+      const circle = (r: number, w: number) => {
+        ctx.lineWidth = w;
+        ctx.beginPath();
+        ctx.arc(mid, mid, r, 0, Math.PI * 2);
+        ctx.stroke();
+      };
+      circle(mid * 0.94, 11);
+      circle(mid * 0.86, 5);
+      circle(mid * 0.54, 5);
+      circle(mid * 0.30, 8);
+
+      // interlocking star polygon between the outer rings — the detail that
+      // reads as "arcane" rather than "selection box"
+      const points = 12;
+      const skip = 5;
+      const r = mid * 0.86;
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      for (let i = 0; i <= points; i++) {
+        const a = ((i * skip) % points) * (Math.PI * 2 / points) - Math.PI / 2;
+        const px = mid + Math.cos(a) * r;
+        const py = mid + Math.sin(a) * r;
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.stroke();
+
+      // node dots on the inner ring, radial ticks between the inner two
+      for (let i = 0; i < points; i++) {
+        const a = i * (Math.PI * 2 / points) - Math.PI / 2;
+        ctx.beginPath();
+        ctx.arc(mid + Math.cos(a) * mid * 0.54, mid + Math.sin(a) * mid * 0.54, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.lineWidth = 9;
+        ctx.beginPath();
+        ctx.moveTo(mid + Math.cos(a) * mid * 0.34, mid + Math.sin(a) * mid * 0.34);
+        ctx.lineTo(mid + Math.cos(a) * mid * 0.46, mid + Math.sin(a) * mid * 0.46);
+        ctx.stroke();
+      }
+      dt.update();
+      this.sigilTextures.set(accent, dt);
+    }
+
+    const plane = MeshBuilder.CreatePlane("sigil", { size: TILE * 1.4 }, this.scene);
+    plane.rotation.x = Math.PI / 2; // lie flat on the ground
+    plane.position = new Vector3(x, y, z);
+    const m = new StandardMaterial("sigilm", this.scene);
+    // ADDITIVE, not alpha-masked. Driving this through diffuse+opacity with
+    // lighting off only masks a flat colour, and the result is a whisper — the
+    // first attempt was barely visible on the board. Additive blending is what
+    // every arcane-circle effect actually uses: the drawn lines ADD light to
+    // whatever is under them, so they read as glow rather than as decal, and
+    // they clear the 0.88 bloom threshold without washing the tile out.
+    // The same material shape showDamageNumber() uses, which is the one thing in
+    // this file already proven to draw a transparent canvas over the board.
+    // Three cleverer attempts failed first: diffuse+opacity with lighting off
+    // rendered a whisper, additive with a tinted emissiveColor lit the whole
+    // quad into a white diamond, and additive with a black emissiveColor drew an
+    // opaque black square because Babylon only enables blending when it already
+    // believes the material is transparent. useAlphaFromDiffuseTexture is what
+    // tells it that. Colour lives in the canvas; white emissive just makes it
+    // self-lit at full strength.
+    m.diffuseTexture = dt;
+    m.useAlphaFromDiffuseTexture = true;
+    m.emissiveColor = Color3.White();
+    m.disableDepthWrite = true;
+    m.backFaceCulling = false;
+    m.zOffset = -3;
+    plane.material = m;
+    plane.isPickable = false;
+    plane.parent = this.root;
+
+    const spin = new Animation("sigilspin", "rotation.z", 30, Animation.ANIMATIONTYPE_FLOAT, Animation.ANIMATIONLOOPMODE_CYCLE);
+    spin.setKeys([{ frame: 0, value: 0 }, { frame: 600, value: Math.PI * 2 }]);
+    plane.animations = [spin];
+    this.scene.beginAnimation(plane, 0, 600, true);
+    return plane;
   }
 
   /**
