@@ -402,6 +402,33 @@ export function attackableUnits(s: GameState, unit: Unit, includeTreatyPartners 
   });
 }
 
+/**
+ * Does this unit have anything it can actually DO this turn?
+ *
+ * The naive (!moved || !attacked) test overcounts: a unit that walked onto an
+ * empty tile with no target in reach is spent in practice, but the old test
+ * kept it in the "units can still act" count — so the end-turn nudge warned
+ * about units with no possible action, the Next-unit cycler visited pieces
+ * that could not do anything, and the renderer's spent-dim never fired for
+ * them. Capture counts as an action (a fresh unit standing on a capturable
+ * city), and so does the Colossus's once-per-game Quake.
+ */
+export function unitHasActions(s: GameState, u: Unit): boolean {
+  if (u.moved && u.attacked) return false;
+  // an attack available right now (attackableUnits already encodes the
+  // attacked and moved&&!dash guards)
+  if (attackableUnits(s, u).length > 0) return true;
+  if (!u.moved) {
+    if (reachableTiles(s, u).length > 0) return true;
+    // capture: a fresh unit standing on a city it does not own may seize it
+    const c = cityAt(s, u.x, u.y);
+    if (c && c.tribe !== u.tribe && !(c.tribe !== null && u.tribe >= 0 && atPeace(s, u.tribe, c.tribe))) return true;
+  }
+  // colossus: the once-per-game quake is an attack replacement worth surfacing
+  if (!u.attacked && u.type === "colossus" && canQuake(s, u)) return true;
+  return false;
+}
+
 export interface CombatResult {
   damageToDefender: number;
   damageToAttacker: number;

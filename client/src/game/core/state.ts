@@ -15,6 +15,7 @@ import {
   POP_PER_LEVEL, canBuildPort, portCost, wallCost, canBuild, atUnitCapacity,
   knockbackDestination, adjacencyPop, marketStars, canQuake, quakeVictims, quakeWallTargets, QUAKE_DAMAGE,
   canBuildRoad, roadCost, connectedCityIds, severedCityIds, scoreBreakdown, type ScoreParts,
+  unitHasActions,
 } from "./rules";
 import { runAiTurn } from "./ai";
 import { evaluateAchievements, AchievementDef } from "./achievements";
@@ -745,8 +746,11 @@ class GameStore {
   unitsWithMoves(): number[] {
     const s = this.state;
     if (s.phase !== "playing" || s.currentTribe !== s.humanTribe) return [];
+    // unitHasActions, not (!moved || !attacked): a unit that walked and has no
+    // target in reach is spent in practice — counting it warned the player
+    // about actions that do not exist (and cycled Next-unit onto dead pieces).
     return s.units
-      .filter((u) => u.tribe === s.humanTribe && !u.guardian && (!u.moved || !u.attacked))
+      .filter((u) => u.tribe === s.humanTribe && !u.guardian && unitHasActions(s, u))
       .map((u) => u.id);
   }
 

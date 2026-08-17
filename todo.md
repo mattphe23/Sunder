@@ -1,5 +1,29 @@
 # Sunder: The Living Forge — Project TODO
 
+# v51 — "can still act" predicate + spent/waiting board emphasis
+- [x] unitHasActions() in rules.ts replaces the naive (!moved || !attacked) test.
+      A unit that walked and has no target in reach is spent in practice; the old
+      test kept it in the end-turn nudge count and the Next-unit cycle (user
+      report: "still says a unit has actions left even if it has already moved
+      and has no ability to attack"). Capture-on-a-fresh-unit and the Colossus
+      Quake count as actions.
+- [x] unitsWithMoves() uses the real predicate — end-turn nudge and Next-unit
+      no longer point at pieces with nothing to do.
+- [x] Renderer dim rework (scene.ts syncUnits): the ACTING tribe's pieces are
+      full-bright while they have a real action and sink to 0.45 when spent;
+      waiting tribes sit at a uniform 0.8. Old rule dimmed only moved&&attacked
+      human units, so spent pieces of every other tribe stayed full-bright —
+      the "everything blends together when crowded" report.
+- [x] scripts/crowding-audit.mts: per-turn income/treasury/unit-density/clump
+      sampling over AI batches (data behind the crowding diagnosis: income
+      2→13★/turn, treasury flat ~5-7★, units plateau ~20, clump ≥30% after T12).
+- [x] server/unithasactions.test.ts (5 specs); 243 tests + tsc green;
+      crowding-audit trajectories identical before/after (engine untouched).
+- [ ] Visual confirmation on a real display (dim tiers 1.0 / 0.8 / 0.45 may want
+      tuning per biome) + decide whether waiting-tribe 0.8 should darken on
+      pangaea (brightest board).
+
+
 History note: v10–v13 granular plans (all verified complete) are preserved in git history of this
 file. This version consolidates the audit done after the v19 checkpoint (7d70bcb0): every item
 below was checked against the actual codebase before being marked.

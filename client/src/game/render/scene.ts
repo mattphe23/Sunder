@@ -64,7 +64,7 @@ import { GameState, Tile, Unit, idx } from "../core/types";
 import type { FatalitySpec } from "../core/fatality";
 import { captureShareShot } from "./capture";
 import { game } from "../core/state";
-import { reachableTiles, attackableUnits, cityAt, isVisibleTo, plannerSites, tradeRouteTiles, raidedRoadTiles } from "../core/rules";
+import { reachableTiles, attackableUnits, cityAt, isVisibleTo, plannerSites, tradeRouteTiles, raidedRoadTiles, unitHasActions } from "../core/rules";
 import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import { PALETTE, darken, lighten, biomeFor, BiomePalette } from "./palette";
 
@@ -1801,9 +1801,17 @@ export class BoardRenderer {
       if (!node.position.equalsWithEpsilon(target, 0.01)) {
         this.animateMove(node, target);
       }
-      // dim exhausted units
-      const dim = u.moved && u.attacked && u.tribe === s.humanTribe;
-      node.getChildMeshes().forEach((m) => (m.visibility = dim ? 0.55 : 1));
+      // Spent/waiting emphasis, three tiers: the tribe currently ACTING keeps
+      // its actionable pieces at full pop and sinks each one as it spends its
+      // last real action; every waiting tribe sits at a uniform 0.8. The old
+      // rule dimmed only moved&&attacked HUMAN units, so a walked-but-targetless
+      // unit — and every AI piece, always — stayed full-bright, which is how a
+      // 20-unit board turned into a field of equally loud pieces. unitHasActions
+      // (not raw flags) because a unit with no legal move, target, capture or
+      // quake IS spent even when a flag is technically free.
+      const acting = u.tribe === s.currentTribe;
+      const vis = acting ? (unitHasActions(s, u) ? 1 : 0.45) : 0.8;
+      node.getChildMeshes().forEach((m) => (m.visibility = vis));
     }
     const toRemove: number[] = [];
     this.unitMeshes.forEach((node, id) => {
