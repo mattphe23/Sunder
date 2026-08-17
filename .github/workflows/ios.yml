@@ -171,6 +171,27 @@ jobs:
             || { echo "::error::only $COUNT files under $APP/public — the web build looks truncated"; exit 1; }
           echo "$COUNT files under public/, index.html present."
 
+      # Same class of failure, higher stakes. The privacy manifest is wired into
+      # project.pbxproj in three places, and only one of them — membership of
+      # the Resources build phase — actually puts the file in the bundle. Drop
+      # that one and the repo still holds a perfectly good PrivacyInfo.xcprivacy
+      # that ships in nothing, the build still goes green, and you find out from
+      # a rejection email. It is also a declaration about user data, so
+      # "probably in there" is not a good enough standard.
+      - name: The privacy manifest really landed inside App.app
+        run: |
+          APP=$(find build/Build/Products -maxdepth 3 -name 'App.app' -type d | head -1)
+          test -f "$APP/PrivacyInfo.xcprivacy" \
+            || { echo "::error::$APP/PrivacyInfo.xcprivacy missing — the file is not in the app target's Resources build phase"; exit 1; }
+          plutil -lint "$APP/PrivacyInfo.xcprivacy" \
+            || { echo "::error::PrivacyInfo.xcprivacy is not a valid plist"; exit 1; }
+          # Guards against shipping an EMPTY manifest, which would be a false
+          # declaration rather than a harmless omission: the app collects
+          # account data and has to say so.
+          plutil -extract NSPrivacyCollectedDataTypes raw -o - "$APP/PrivacyInfo.xcprivacy" >/dev/null \
+            || { echo "::error::NSPrivacyCollectedDataTypes missing from the manifest"; exit 1; }
+          echo "Privacy manifest present and valid."
+
   # ---------------------------------------------------------------------------
   # testflight — manual, requires the seven secrets
   # ---------------------------------------------------------------------------
