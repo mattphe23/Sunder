@@ -286,7 +286,7 @@ export default function GameCanvas() {
             <span className="font-display text-xl font-black tracking-wide text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]">
               {cinematic.victimName}
             </span>
-            <span className="text-[11px] font-medium text-white/60">
+            <span className="text-sm font-semibold text-white/90 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">
               {cinematic.againstHuman ? "taken by" : "broken by"} {cinematic.killerName}
             </span>
           </div>

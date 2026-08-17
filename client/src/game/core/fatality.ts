@@ -48,6 +48,26 @@ export interface FatalitySpec {
  */
 export const FATALITY_BUDGET = 2;
 
+/* Cross-match cadence: a cinematic may play at most once inside this window.
+ * The per-match rules make a single match stop being a habit, but a player who
+ * grinds several matches an hour was still able to watch the same capital fall
+ * three times an evening. This approximates "the player has not seen it
+ * recently" without tracking match boundaries. `final` is exempt — nothing
+ * follows it, so it can never outstay its welcome. */
+const COOLDOWN_KEY = "polyforge-fatality-last";
+export const FATALITY_COOLDOWN_MS = 5 * 60_000;
+function lastPlayed(): number {
+  try { return Number(localStorage.getItem(COOLDOWN_KEY)) || 0; }
+  catch { return 0; }
+}
+function recordPlayed(): void {
+  try { localStorage.setItem(COOLDOWN_KEY, String(Date.now())); }
+  catch { /* private mode */ }
+}
+function withinCooldown(): boolean {
+  return Date.now() - lastPlayed() < FATALITY_COOLDOWN_MS;
+}
+
 /** Fatalities are cinematic, so a headless or spectated board must never wait on one. */
 function humanIsInvolved(s: GameState, victimTribe: number, killerTribe: number): boolean {
   return s.humanTribe >= 0 && (victimTribe === s.humanTribe || killerTribe === s.humanTribe);
@@ -74,14 +94,16 @@ export function fatalityAllowed(s: GameState, kind: FatalityKind, victimTribe: n
   // Checked here rather than in the renderer so a player who turned them off
   // does not silently burn the match's budget on cinematics nobody sees.
   if (!fatalitiesEnabled()) return false;
-  if (kind === "final") return true;
+  if (kind === "final") return true; // nothing follows it — exempt from budget AND cross-match cooldown
+  if (withinCooldown()) return false;
   if (s.fatalityTurn === s.turn) return false;
   return (s.fatalitiesPlayed ?? 0) < FATALITY_BUDGET;
 }
 
 /** Record that one played, so the budget and the once-per-turn rule mean something. */
 export function markFatality(s: GameState, kind: FatalityKind): void {
-  if (kind === "final") return; // outside the budget by design
+  recordPlayed(); // every cinematic — including `final` — refreshes the cross-match cooldown
+  if (kind === "final") return;
   s.fatalitiesPlayed = (s.fatalitiesPlayed ?? 0) + 1;
   s.fatalityTurn = s.turn;
 }

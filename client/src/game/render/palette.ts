@@ -21,7 +21,7 @@ export const PALETTE = {
     // mountain top pulled toward mossy slate so peaks (not plates) read gray.
     grass: { top: "#84c95e", side: "#47823a" },
     forest: { top: "#4a9e4e", side: "#2c6b34" }, // forest floor under trees
-    mountain: { top: "#79b055", side: "#47823a" }, // land-family green; the massif carries the "mountain" read, not the plate
+    mountain: { top: "#8f98aa", side: "#5b6477" }, // slate rock plate — cool grey-blue so peaks read as peaks, not a third green (colorblind-safe vs grass/forest)
     water: { top: "#3fa0e8", side: "#2b6fb0" }, // shallow / coastal
     ocean: { top: "#2458b8", side: "#193f8a" }, // deep
   } as Record<string, TerrainSwatch>,
@@ -95,8 +95,8 @@ export const BIOMES: Record<string, BiomePalette> = {
   archipelago: {
     terrain: {
       grass: { top: "#8fd463", side: "#4a8a3c" },
-      forest: { top: "#4fae55", side: "#2f7a3c" },
-      mountain: { top: "#a1a98c", side: "#4a8a3c" },
+      forest: { top: "#3f8a43", side: "#296a33" }, // deepened value step — clear grass/forest separation for deutan/protan players
+      mountain: { top: "#9aa393", side: "#5f6a5e" }, // olive slate — matches the biome's rock family, off the green ramp
       water: { top: "#3fbce0", side: "#2b84a8" },
       ocean: { top: "#1f60c0", side: "#164694" },
     },
@@ -116,7 +116,7 @@ export const BIOMES: Record<string, BiomePalette> = {
     terrain: {
       grass: { top: "#79a86e", side: "#41663c" },
       forest: { top: "#3f8a4c", side: "#265939" },
-      mountain: { top: "#8e9bad", side: "#4e5d6b" },
+      mountain: { top: "#8e9bad", side: "#4e5d6b" }, // already slate — the correct alpine rock (unchanged)
       water: { top: "#52a4d8", side: "#3a72a4" },
       ocean: { top: "#1e4aa0", side: "#153678" },
     },
@@ -136,7 +136,7 @@ export const BIOMES: Record<string, BiomePalette> = {
     terrain: {
       grass: { top: "#aebf5e", side: "#647436" },
       forest: { top: "#6b9a44", side: "#40632c" },
-      mountain: { top: "#b2a288", side: "#647436" },
+      mountain: { top: "#a89b82", side: "#5f5746" }, // ochre slate — savanna rock, off the green ramp
       water: { top: "#3f9cd4", side: "#2b6ca2" },
       ocean: { top: "#2254a8", side: "#183c7e" },
     },
