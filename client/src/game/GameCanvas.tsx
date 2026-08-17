@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { BoardRenderer } from "./render/scene";
 import { game } from "./core/state";
+import type { FatalitySpec } from "./core/fatality";
+import { cinema } from "./render/cinema";
 import { sound } from "./sound";
 import { unitAt, cityAt, reachableTiles, attackableUnits } from "./core/rules";
 
@@ -14,6 +16,15 @@ export default function GameCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<BoardRenderer | null>(null);
   const [booting, setBooting] = useState(true);
+  // The fatality currently on screen, and the function that ends it early.
+  // Held in a ref as well as state because the event handler that decides
+  // whether to suppress the ordinary shatter runs outside React's render.
+  const [cinematic, setCinematicState] = useState<FatalitySpec | null>(null);
+  // mirrored into the module-level signal so `GameOver` (a sibling with no
+  // shared owner) can hold off until the cinematic is done
+  const setCinematic = (spec: FatalitySpec | null) => { cinema.set(spec); setCinematicState(spec); };
+  const skipRef = useRef<(() => void) | null>(null);
+  const pendingFatality = useRef<FatalitySpec | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -52,7 +63,21 @@ export default function GameCanvas() {
         setTimeout(() => {
           // v34 impact FX: survivors flash + recoil; kills shatter into pieces
           if (e.defenderDied) {
-            r.shatterUnit(e.defenderId, e.ax, e.ay, e.dx, e.dy);
+            // A kill that earned a fatality gets the cinematic INSTEAD of the
+            // ordinary shatter, never both. The engine emits `fatality` before
+            // the `combat` event for the same kill, so by the time we get here
+            // the decision has already been made and is sitting in the ref.
+            const fat = pendingFatality.current;
+            if (fat && fat.unitId === e.defenderId) {
+              pendingFatality.current = null;
+              setCinematic(fat);
+              skipRef.current = r.playFatality(s, fat, () => {
+                skipRef.current = null;
+                setCinematic(null);
+              });
+            } else {
+              r.shatterUnit(e.defenderId, e.ax, e.ay, e.dx, e.dy);
+            }
           } else if (e.knockback) {
             // v36 colossus: the survivor is hurled a full tile — slide the rig to its new home
             r.hitFlash(e.defenderId);
@@ -108,6 +133,20 @@ export default function GameCanvas() {
         } as const;
         const g = GAIN[e.kind];
         r.showGainNumber(s, e.x, e.y, g.label, g.color);
+      }
+      if (e.type === "fatality") {
+        if (e.spec.unitId !== undefined) {
+          // wait for the combat event so the cinematic starts on impact rather
+          // than a frame before the blow lands
+          pendingFatality.current = e.spec;
+        } else {
+          // a capital falling has no unit to break — play it immediately
+          setCinematic(e.spec);
+          skipRef.current = r.playFatality(s, e.spec, () => {
+            skipRef.current = null;
+            setCinematic(null);
+          });
+        }
       }
       if (e.type === "sfx") {
         sound.play(e.name);
@@ -201,6 +240,49 @@ export default function GameCanvas() {
           <div className="h-full w-1/2 animate-[splash-sweep_0.9s_ease-in-out_infinite] rounded bg-amber-400" />
         </div>
       </div>
+      {/* Fatality overlay — letterbox bars, the line, and a skip.
+          Deliberately sparse: the cinematic is the board, and anything drawn
+          over it competes with the thing it is meant to frame. The whole
+          surface is the skip target, so a player who does not want it never
+          has to aim at a button. */}
+      {cinematic && (
+        <div
+          className="absolute inset-0 z-40 cursor-pointer select-none"
+          onPointerDown={() => skipRef.current?.()}
+          role="button"
+          tabIndex={0}
+          aria-label="Skip"
+          onKeyDown={(ev) => { if (ev.key === "Escape" || ev.key === "Enter" || ev.key === " ") skipRef.current?.(); }}
+        >
+          <div className="absolute inset-x-0 top-0 h-[9%] animate-[fat-bar_260ms_ease-out] bg-black/85" />
+          <div className="absolute inset-x-0 bottom-0 h-[9%] animate-[fat-bar_260ms_ease-out] bg-black/85" />
+          <div className="absolute inset-x-0 top-[11%] flex flex-col items-center gap-1 px-6 text-center">
+            <span
+              className="font-display text-[10px] font-black uppercase tracking-[0.4em]"
+              style={{ color: FATALITY_LABEL[cinematic.kind].tint }}
+            >
+              {FATALITY_LABEL[cinematic.kind].eyebrow}
+            </span>
+            <span className="font-display text-xl font-black tracking-wide text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]">
+              {cinematic.victimName}
+            </span>
+            <span className="text-[11px] font-medium text-white/60">
+              {cinematic.againstHuman ? "taken by" : "broken by"} {cinematic.killerName}
+            </span>
+          </div>
+          <span className="absolute bottom-[11%] right-5 font-display text-[10px] font-bold uppercase tracking-[0.28em] text-white/45">
+            Tap to skip
+          </span>
+        </div>
+      )}
     </>
   );
 }
+
+/** Eyebrow copy per trigger. Kept out of the component so the three cases are
+ *  readable side by side — they are the only thing that distinguishes them. */
+const FATALITY_LABEL: Record<FatalitySpec["kind"], { eyebrow: string; tint: string }> = {
+  commander: { eyebrow: "Commander Slain", tint: "#ff8a8a" },
+  capital: { eyebrow: "Capital Sundered", tint: "#ffd76a" },
+  final: { eyebrow: "The Sundering", tint: "#9fd8ff" },
+};

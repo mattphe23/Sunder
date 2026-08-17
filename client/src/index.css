@@ -209,3 +209,19 @@
   0% { transform: translateX(-100%); }
   100% { transform: translateX(200%); }
 }
+
+/* Fatality letterbox — the bars slide in rather than appear, so the cut to
+   cinematic reads as a camera move and not as a modal opening on top of the
+   game. Scaled on Y from zero height, which costs no layout. */
+@keyframes fat-bar {
+  0% { transform: scaleY(0); }
+  100% { transform: scaleY(1); }
+}
+/* Honour the OS setting: the cinematic itself is already suppressed by
+   fatalitiesEnabled(), but the bars can still be reached by a cinematic that
+   was in flight when the setting changed. */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes fat-bar {
+    0%, 100% { transform: scaleY(1); }
+  }
+}

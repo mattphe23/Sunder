@@ -61,6 +61,7 @@ import { DefaultRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPi
 import { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator";
 import "@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent";
 import { GameState, Tile, Unit, idx } from "../core/types";
+import type { FatalitySpec } from "../core/fatality";
 import { game } from "../core/state";
 import { reachableTiles, attackableUnits, cityAt, isVisibleTo, plannerSites, tradeRouteTiles, raidedRoadTiles } from "../core/rules";
 import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
@@ -115,6 +116,8 @@ export class BoardRenderer {
   private fxMeshes: Mesh[] = [];
   private disposed = false;
   private cameraInitialized = false;
+  /** kept so a cinematic can detach and re-attach camera control */
+  private canvasEl!: HTMLCanvasElement;
   private cameraGameSig = "";
   private shadowGen: ShadowGenerator | null = null;
   private pipeline: DefaultRenderingPipeline | null = null;
@@ -262,6 +265,7 @@ export class BoardRenderer {
     this.camera = new ArcRotateCamera(
       "cam", -Math.PI / 2.6, Math.PI / 3.4, 16, Vector3.Zero(), this.scene
     );
+    this.canvasEl = canvas;
     this.camera.attachControl(canvas, true);
     this.camera.lowerRadiusLimit = 7;
     this.camera.upperRadiusLimit = 30;
@@ -2335,7 +2339,14 @@ export class BoardRenderer {
   }
 
   /** v34: shatter death — clone the unit's pieces, burst them with impulse + spin + gravity + fade */
-  shatterUnit(unitId: number, fromX?: number, fromY?: number, toX?: number, toY?: number) {
+  /**
+   * @param power 1 = the ordinary death that plays on every kill. Above 1 the
+   *   pieces are thrown harder, fall slower and linger — the fatality reuses
+   *   this rather than duplicating the shatter, so a unit always comes apart
+   *   into the same pieces whichever death it gets. Same parts, more drama, is
+   *   the whole reason a cinematic can stay in style.
+   */
+  shatterUnit(unitId: number, fromX?: number, fromY?: number, toX?: number, toY?: number, power = 1) {
     const node = this.unitMeshes.get(unitId);
     if (!node || this.disposed) return;
     // push direction: away from the attacker when known, else pure radial burst
@@ -2363,13 +2374,13 @@ export class BoardRenderer {
         shard.material = pm;
       }
       const ang = Math.random() * Math.PI * 2;
-      const speed = 0.5 + Math.random() * 0.8;
+      const speed = (0.5 + Math.random() * 0.8) * power;
       pieces.push({
         m: shard,
         vel: new Vector3(
-          Math.cos(ang) * speed * 0.6 + pushX * 1.0,
-          1.5 + Math.random() * 1.1,
-          Math.sin(ang) * speed * 0.6 + pushZ * 1.0,
+          Math.cos(ang) * speed * 0.6 + pushX * power,
+          (1.5 + Math.random() * 1.1) * power,
+          Math.sin(ang) * speed * 0.6 + pushZ * power,
         ),
         spin: new Vector3((Math.random() - 0.5) * 9, (Math.random() - 0.5) * 9, (Math.random() - 0.5) * 9),
       });
@@ -2379,12 +2390,15 @@ export class BoardRenderer {
     node.setEnabled(false);
     const groundY = node.position.y;
     const start = performance.now();
-    const DURATION = 700;
+    // A harder throw needs longer in the air, and lighter gravity, or the extra
+    // speed is spent before the camera has finished pushing in.
+    const DURATION = 700 * power;
+    const gravity = 6.5 / power;
     const obs = this.scene.onBeforeRenderObservable.add(() => {
       const dt = Math.min(0.05, this.scene.getEngine().getDeltaTime() / 1000);
       const t = (performance.now() - start) / DURATION;
       for (const p of pieces) {
-        p.vel.y -= 6.5 * dt; // gravity
+        p.vel.y -= gravity * dt;
         p.m.position.addInPlace(p.vel.scale(dt));
         if (p.m.position.y < groundY && p.vel.y < 0) {
           p.m.position.y = groundY;
@@ -2403,6 +2417,136 @@ export class BoardRenderer {
         }
       }
     });
+  }
+
+
+  /**
+   * The fatality cinematic — camera push-in, a beat, then the unit comes apart
+   * harder than usual, then the camera drifts back out. ~2.6 seconds.
+   *
+   * Everything here is built from parts the game already has: the same unit
+   * meshes, the same shatter turned up via `power`, the same emissive-plane
+   * trick the ground sigil and floating numbers use. That is the reason this
+   * can exist at all. A pre-rendered cutscene would need one clip per
+   * victim/killer/terrain combination, would be the only asset in the game not
+   * made of flat-shaded parts, and would go stale the moment a unit silhouette
+   * changed.
+   *
+   * Returns a cancel function. Calling it jumps straight to the end state:
+   * camera restored, FX disposed, `onDone` fired exactly once. Skipping is
+   * indistinguishable from watching, because the engine applied the outcome
+   * before this was ever called — nothing here can change the board, so nothing
+   * here can be missed.
+   */
+  playFatality(s: GameState, spec: FatalitySpec, onDone: () => void): () => void {
+    const cam = this.camera;
+    const c = this.center(s.size);
+    const home = { target: cam.target.clone(), radius: cam.radius, beta: cam.beta, alpha: cam.alpha };
+    const focus = new Vector3(spec.x - c, 0, spec.y - c);
+    // The player must not be able to fight the camera mid-shot; a stray drag
+    // during the push-in would otherwise leave the board somewhere odd.
+    cam.detachControl();
+
+    const PUSH = 560;    // camera closes
+    const BREAK = 1000;  // the hit lands
+    const END = 2600;
+    const t0 = performance.now();
+    let broke = false;
+    let finished = false;
+    const junk: { dispose(): void }[] = [];
+
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      this.scene.onBeforeRenderObservable.remove(obs);
+      for (const j of junk) { try { j.dispose(); } catch { /* already gone */ } }
+      if (!this.disposed) {
+        cam.target = home.target;
+        cam.radius = home.radius;
+        cam.beta = home.beta;
+        cam.alpha = home.alpha;
+        if (this.canvasEl) cam.attachControl(this.canvasEl, true);
+      }
+      onDone();
+    };
+
+    const obs = this.scene.onBeforeRenderObservable.add(() => {
+      if (this.disposed) { finish(); return; }
+      const t = performance.now() - t0;
+
+      if (t < PUSH) {
+        // ease-out, so the move decelerates into the held frame
+        const k = 1 - Math.pow(1 - t / PUSH, 3);
+        cam.target = Vector3.Lerp(home.target, focus, k);
+        cam.radius = home.radius + (6.2 - home.radius) * k;
+        cam.beta = home.beta + (Math.PI / 4.4 - home.beta) * k;
+      } else if (t < END) {
+        // hold through the break, then drift back out
+        const k = Math.max(0, (t - BREAK) / (END - BREAK));
+        const e = k * k;
+        cam.target = Vector3.Lerp(focus, home.target, e);
+        cam.radius = 6.2 + (home.radius - 6.2) * e;
+        cam.beta = Math.PI / 4.4 + (home.beta - Math.PI / 4.4) * e;
+        // a slow orbit through the held beat — enough to feel alive, not enough
+        // to lose which way the board faces
+        cam.alpha = home.alpha + 0.16 * Math.min(1, (t - PUSH) / (END - PUSH));
+      }
+
+      if (!broke && t >= BREAK) {
+        broke = true;
+        junk.push(...this.fatalityImpact(s, spec));
+        if (spec.unitId !== undefined) this.shatterUnit(spec.unitId, undefined, undefined, undefined, undefined, 1.9);
+      }
+      if (t >= END) finish();
+    });
+
+    return finish;
+  }
+
+  /**
+   * The hit: an expanding shockwave ring on the tile, in the killer's colour.
+   * Unlit emissive so the bloom pass picks it up, same as the ground sigil.
+   * Returned rather than fire-and-forget so a skip mid-shot can dispose it.
+   */
+  private fatalityImpact(s: GameState, spec: FatalitySpec): { dispose(): void }[] {
+    const c = this.center(s.size);
+    const h = TERRAIN_H[s.tiles[idx(spec.x, spec.y, s.size)].terrain];
+    const accent = spec.killerTribe >= 0 ? (s.tribes[spec.killerTribe]?.color ?? "#ffd76a") : "#ffd76a";
+
+    // A torus, not a disc. A filled disc scaled up washes a flat colour across
+    // several tiles and reads as a rendering fault; a ring reads as a
+    // shockwave, which is the whole point of the shape.
+    const ring = MeshBuilder.CreateTorus("fatring", { diameter: 1, thickness: 0.1, tessellation: 48 }, this.scene);
+    ring.position = new Vector3(spec.x - c, h - 0.4 + 0.06, spec.y - c);
+    const rm = new StandardMaterial("fatringm", this.scene);
+    rm.emissiveColor = Color3.FromHexString(accent);
+    rm.diffuseColor = Color3.Black();
+    rm.alpha = 0.85;
+    rm.disableDepthWrite = true;
+    rm.backFaceCulling = false;
+    ring.material = rm;
+    ring.isPickable = false;
+    ring.parent = this.root;
+
+    const start = performance.now();
+    const LIFE = 620;
+    const obs = this.scene.onBeforeRenderObservable.add(() => {
+      const t = (performance.now() - start) / LIFE;
+      if (t >= 1 || this.disposed) { this.scene.onBeforeRenderObservable.remove(obs); return; }
+      const k = 1 - Math.pow(1 - t, 2);
+      // widen in the ground plane only — scaling the tube thickness too would
+      // turn the ring into a doughnut standing off the terrain
+      ring.scaling.set(1 + k * 7, 1, 1 + k * 7);
+      rm.alpha = 0.9 * (1 - t);
+    });
+
+    return [{
+      dispose: () => {
+        this.scene.onBeforeRenderObservable.remove(obs);
+        rm.dispose();
+        ring.dispose();
+      },
+    }];
   }
 
   /** highlight reachable tiles / attackable enemies for the selected unit */

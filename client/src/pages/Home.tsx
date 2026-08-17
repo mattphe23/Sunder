@@ -11,6 +11,7 @@ import { HandoffScreen } from "@/game/ui/Handoff";
 import { DiplomacyPanel, IncomingOfferModal } from "@/game/ui/Diplomacy";
 import { WorldEventCards, HeroFallenCard } from "@/game/ui/WorldEvents";
 import { OnlineGame } from "@/game/online/OnlineGame";
+import { useCinema } from "@/game/render/cinema";
 
 // Babylon (~5MB minified) loads as its own async chunk only when a game
 // starts — keeps the menu snappy and the entry bundle small for deploys.
@@ -21,6 +22,10 @@ export default function Home() {
   const s = g.state;
   const [techOpen, setTechOpen] = useState(false);
   const [diploOpen, setDiploOpen] = useState(false);
+  // The engine flips to "gameover" before the match-ending cinematic has drawn
+  // a frame, so the victory screen used to bury the best moment in the game.
+  // The state change stands; the presentation waits. See render/cinema.ts.
+  const cinematic = useCinema();
 
   // ambient music: plays on the menu, fades out in-game; kick() satisfies autoplay policies
   useEffect(() => {
@@ -58,7 +63,7 @@ export default function Home() {
       <FactionIntro />
       <HandoffScreen />
       <IncomingOfferModal />
-      {s.phase === "gameover" && <GameOver />}
+      {s.phase === "gameover" && !cinematic && <GameOver />}
     </div>
   );
 }

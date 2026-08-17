@@ -439,6 +439,13 @@ export interface GameState {
    *  to null, so a live count shrinks as the game is played — see harvestTarget,
    *  whose goal would otherwise lower itself toward whoever is chasing it. */
   resourceEndowment?: number;
+  /** Cinematic kills spent this match, against FATALITY_BUDGET. On the state
+   *  rather than in the renderer so it survives a save/load — reloading a match
+   *  must not hand the player a fresh allowance. See core/fatality.ts. */
+  fatalitiesPlayed?: number;
+  /** Turn the last one played, so a single assault that takes a commander AND a
+   *  capital does not stage two cinematics back to back. */
+  fatalityTurn?: number;
   phase: Phase;
   size: number;
   seed: number;

@@ -29,6 +29,7 @@ import { runWorldPhase, worldUnitIntents, campAt } from "./events";
 import { recordGameResult } from "./profile";
 import { checkPathVictory } from "./victory";
 import { evaluateMission, markMissionDone, computeMissionStars, recordMissionStars, type StarBreakdown } from "./story";
+import { fatalityAllowed, markFatality, type FatalityKind, type FatalitySpec } from "./fatality";
 export type GameEvent =
   | { type: "changed" }
   | { type: "unitMoved"; unitId: number; fromX: number; fromY: number; toX: number; toY: number }
@@ -49,7 +50,15 @@ export type GameEvent =
    * is information the fog is meant to withhold; it would also mean a screenful
    * of numbers during every AI turn.
    */
-  | { type: "gain"; kind: "xp" | "stars" | "heal"; amount: number; x: number; y: number };
+  | { type: "gain"; kind: "xp" | "stars" | "heal"; amount: number; x: number; y: number }
+  /**
+   * A kill that earned the cinematic. Rare by construction — see
+   * core/fatality.ts for the rules that decide, and why they are all reasons to
+   * NOT play one. The renderer stages it; the engine has already applied the
+   * outcome by the time this is emitted, so nothing waits on the animation and
+   * a skipped cinematic cannot desync the board.
+   */
+  | { type: "fatality"; spec: FatalitySpec };
 
 type Listener = (e: GameEvent) => void;
 const SAVE_KEY = "polyforge-save-v1";
@@ -883,6 +892,36 @@ class GameStore {
   /* ---------- v17 hero death drama ---------- */
 
   /** stage the fallen-commander event card when the human is involved (their hero died, or they slew a rival's) */
+  /**
+   * Offer a moment to the fatality system, which decides whether it is rare
+   * enough to earn the cinematic. Returns whether one was staged.
+   *
+   * Emitted AFTER the engine has already applied the outcome, always. Nothing
+   * waits on the animation, so a skipped or disabled cinematic cannot leave the
+   * board in a different state from a played one — the renderer is being told
+   * what happened, not asked for permission.
+   */
+  private stageFatality(
+    kind: FatalityKind,
+    at: { x: number; y: number; unitId?: number },
+    victim: { tribe: number; name: string },
+    killer: { tribe: number; name: string },
+  ): boolean {
+    const s = this.state;
+    if (!fatalityAllowed(s, kind, victim.tribe, killer.tribe)) return false;
+    markFatality(s, kind);
+    this.emit({
+      type: "fatality",
+      spec: {
+        kind, x: at.x, y: at.y, unitId: at.unitId,
+        victimTribe: victim.tribe, killerTribe: killer.tribe,
+        victimName: victim.name, killerName: killer.name,
+        againstHuman: victim.tribe === s.humanTribe,
+      },
+    });
+    return true;
+  }
+
   private stageHeroFallen(fallen: Unit, killer: Unit) {
     const s = this.state;
     const wasHuman = fallen.tribe === s.humanTribe;
@@ -1414,6 +1453,15 @@ class GameStore {
         this.recordRecap({ kind: "fallen", text: `${s.tribes[d.tribe].name}'s commander ${dn} has fallen`, tribe: a.tribe >= 0 ? a.tribe : d.tribe });
         this.recordReplay({ tribe: d.tribe, kind: "combat", text: `Commander ${dn} of ${s.tribes[d.tribe].name} fell in battle` });
         this.stageHeroFallen(d, a);
+        // A commander is gone for good — no respawn, and the tribe carries
+        // `heroFell` for the rest of the match. If any single kill earns three
+        // seconds, it is this one.
+        this.stageFatality(
+          "commander",
+          { x: d.x, y: d.y, unitId: d.id },
+          { tribe: d.tribe, name: dn },
+          { tribe: a.tribe, name: a.hero ? this.heroName(a) : (s.tribes[a.tribe]?.name ?? "the wilds") },
+        );
       }
       this.recordReplay({ tribe: a.tribe, kind: "combat", text: `${s.tribes[a.tribe]?.name ?? "Guardian"} ${UNIT_STATS[a.type].name} destroyed ${s.tribes[d.tribe]?.name ?? "Guardian"} ${UNIT_STATS[d.type].name}` });
       // Vessari Raider: plunders 2 stars on every kill
@@ -1635,6 +1683,18 @@ class GameStore {
     }
     if (wasCapital && prevOwner !== null) this.checkElimination();
     this.checkDominationWin();
+    // Staged after the win check on purpose: that is what tells us whether this
+    // capital was merely a capital or the blow that ended the match. The
+    // "final" kind is outside the budget — nothing follows it, so it can never
+    // outstay its welcome.
+    if (wasCapital && prevOwner !== null && prevOwner >= 0) {
+      this.stageFatality(
+        s.phase === "gameover" ? "final" : "capital",
+        { x: city.x, y: city.y },
+        { tribe: prevOwner, name: city.name },
+        { tribe: u.tribe, name: s.tribes[u.tribe].name },
+      );
+    }
     this.emit({ type: "changed" });
   }
 
