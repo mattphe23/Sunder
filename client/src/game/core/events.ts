@@ -129,7 +129,14 @@ export function runWorldPhase(s: GameState, makeUnit: (type: Unit["type"], tribe
     camp.nextActionTurn = s.turn + (leaderIdx !== null ? 1 : 2);
     if (camp.strength < CAMP_RAID_STRENGTH) {
       camp.strength++;
-      events.push({ kind: "campGrew", text: `The barbarian camp at (${camp.x}, ${camp.y}) grows bolder…`, turn: s.turn, x: camp.x, y: camp.y });
+      // v56: one growth toast per camp, at the moment it matters — reaching
+      // raid strength means the NEXT action is a raid, so this is the
+      // actionable warning. The per-tick "grows bolder…" was 8.8 toasts/game,
+      // 35% of all world noise, with nothing to decide attached
+      // (scripts/interruption-audit.mts). Board + minimap still show growth.
+      if (camp.strength === CAMP_RAID_STRENGTH) {
+        events.push({ kind: "campGrew", text: `The barbarian camp at (${camp.x}, ${camp.y}) bristles with weapons — a raid is coming!`, turn: s.turn, x: camp.x, y: camp.y });
+      }
     } else {
       // raid: spawn 1-2 warriors adjacent to the camp aimed at the nearest city
       const r2 = eventRng(s.seed, s.turn, camp.id + 100);
@@ -160,7 +167,9 @@ export function runWorldPhase(s: GameState, makeUnit: (type: Unit["type"], tribe
   for (const st of [...s.storms]) {
     if (s.turn >= st.expiresTurn) {
       s.storms = s.storms.filter((x) => x.id !== st.id);
-      events.push({ kind: "stormFaded", text: "The storm over the sea breaks apart.", turn: s.turn, x: st.x, y: st.y });
+      // v56: no stormFaded toast. A storm leaving is the definition of
+      // non-actionable information (2.8 toasts/game), and the cloud visibly
+      // leaving the board IS the feedback.
       continue;
     }
     const r3 = eventRng(s.seed, s.turn, st.id + 300);

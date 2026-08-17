@@ -1,5 +1,22 @@
 # Sunder: The Living Forge — Project TODO
 
+# v57 — interruption budget: kill the modal/toast noise (user request)
+- [x] scripts/interruption-audit.mts measured every stop-or-toast surface per
+      seat (48 games, 13x13): city reward choices 5.7/seat (Polytopia-core
+      decisions — keep blocking), hero perks 0.9 (rare, earned — keep),
+      hero-fallen 0.07 (keep), recap now ~10% of turns post-triage (keep).
+      The noise was in the world-event toasts: ~26/game, and two kinds were
+      pure non-actionable text.
+- [x] campGrew: was per-tick "grows bolder…" (8.8/game, 35% of all toasts).
+      Now fires ONCE per camp, at raid strength, reworded to what it is: the
+      raid-warning ("bristles with weapons — a raid is coming!"). Board +
+      minimap already show growth; no information lost.
+- [x] stormFaded: killed (2.8/game of "the storm broke apart" — the cloud
+      visibly leaving the board IS the feedback). stormMoved was already
+      UI-filtered. Total toast volume 26 → ~15/game, and every remaining one
+      carries something to decide.
+- [x] Kinds stay in the WorldEventKind union so old saves deserialize.
+
 # v56 — AI path-pursuit (measured, trimmed) + rider silhouette + online trust doc
 - [x] AI path-pursuit (todo's parked note: "paths barely steer the AI"): threaded
       pathId into aiUnitAction targeting. FIRST VARIANT FAILED THE HARNESS:
