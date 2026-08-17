@@ -62,8 +62,8 @@ function AdminLabLink() {
  */
 const SIZE_BLURB: Record<number, string> = {
   9: "Knife fight — you are in contact by turn 2, with no room to build. Expect someone to be knocked out.",
-  11: "Standard — tight borders and an early scrap. The size everything is balanced around.",
-  13: "Room to breathe — a few turns of build-up before the first blow lands.",
+  11: "Compact — tight borders and an early scrap. The duel size: online 1v1 plays here.",
+  13: "Standard — a few turns of build-up before the first blow lands. The default for four tribes.",
   15: "Frontier — twice the land per tribe, real expansion, and almost nobody is eliminated.",
 };
 
@@ -198,7 +198,13 @@ export function MainMenu() {
   const [mode, setMode] = useState<"solo" | "hotseat">("solo");
   const [players, setPlayers] = useState<number[]>([0, 1]); // hot-seat: selected tribe indices in seat order
   const [difficulty, setDifficulty] = useState<Difficulty>("normal");
-  const [size, setSize] = useState(11);
+  // v52: 13x13 is the default for 4-tribe matches. The crowding audit
+  // (scripts/crowding-audit.mts) put ~20 units on ~99 land tiles from turn 15
+  // on an 11x11 — one piece per five tiles, a third of them in dense clumps.
+  // 13x13 drops that to ~14 per 100 without touching a single balance number.
+  // Online 1v1 keeps 11x11 (OnlinePanel hardcodes its own size), and the
+  // buttons below still let the player pick anything.
+  const [size, setSize] = useState(13);
   const [preset, setPreset] = useState<MapPreset>("continents");
   const [hallOpen, setHallOpen] = useState(false);
   const [hallTab, setHallTab] = useState<Difficulty>("normal");

@@ -1253,7 +1253,12 @@ class GameStore {
     const roll = rng(s.seed + s.turn * 131 + u.x * 17 + u.y * 41)();
     let msg: string;
     if (roll < 0.45) {
-      const stars = this.ruinTaper(u.tribe, 12 + Math.floor(roll * 14)); // 12–18 stars, tapered
+      // v52 taper: 12–18 → 8–12. A great ruin used to pay 2–3 full turns of
+      // mid-game income in one step — windfall stars that skip the
+      // harvest-vs-army tension and land exactly when the board is at peak
+      // crowding (see scripts/crowding-audit.mts). Still the biggest single
+      // ruin payout, no longer a treasury event.
+      const stars = this.ruinTaper(u.tribe, 8 + Math.floor(roll * 11)); // 8–12 stars, tapered
       this.grantStars(u.tribe, stars, u);
       msg = `${tribe.name} claimed the Great Ruin — a hoard of ${stars} stars!`;
     } else if (roll < 0.75) {
@@ -1261,11 +1266,11 @@ class GameStore {
       if (unknown.length > 0) {
         const pick = unknown[Math.floor(roll * 100) % unknown.length];
         tribe.techs.push(pick.id);
-        const stars = this.ruinTaper(u.tribe, 8);
+        const stars = this.ruinTaper(u.tribe, 6);
         this.grantStars(u.tribe, stars, u);
         msg = `${tribe.name} claimed the Great Ruin — ${pick.name} and ${stars} stars!`;
       } else {
-        const stars = this.ruinTaper(u.tribe, 15);
+        const stars = this.ruinTaper(u.tribe, 10);
         this.grantStars(u.tribe, stars, u);
         msg = `${tribe.name} claimed the Great Ruin — ${stars} stars!`;
       }
@@ -1274,11 +1279,11 @@ class GameStore {
       if (spot) {
         const nu = makeUnit(s.nextUnitId++, "swordsman", u.tribe, spot.x, spot.y);
         s.units.push(nu);
-        const stars = this.ruinTaper(u.tribe, 5);
+        const stars = this.ruinTaper(u.tribe, 4);
         this.grantStars(u.tribe, stars, u);
         msg = `${tribe.name} claimed the Great Ruin — a veteran Swordsman and ${stars} stars!`;
       } else {
-        const stars = this.ruinTaper(u.tribe, 15);
+        const stars = this.ruinTaper(u.tribe, 10);
         this.grantStars(u.tribe, stars, u);
         msg = `${tribe.name} claimed the Great Ruin — ${stars} stars!`;
       }

@@ -1,5 +1,30 @@
 # Sunder: The Living Forge — Project TODO
 
+# v52 — 13x13 default board + Great Ruin taper (crowding levers 1 & 3)
+- [x] Menu default size 11 → 13 for 4-tribe matches (solo + hot-seat). Online
+      1v1 keeps 11 (OnlinePanel hardcodes its own size); SIZE_BLURB updated.
+      Crowding audit at 13x13: 5.7 vs 8.0 units/100 land at turn 0, 10.0 vs
+      13.4 at turn 5, 17.1 vs 19.5 at turn 10 — the felt relief lands in the
+      first 12 turns, which is where "crowded" was being decided.
+- [x] Great Ruin star taper: hoard 12–18 → 8–12, tech bonus 8 → 6, fallbacks
+      15 → 10, swordsman bonus 5 → 4. Windfalls skip the harvest-vs-army
+      tension and land at peak crowding; income curve untouched.
+- [x] Great Harvest area-corrected divisor (HARVEST_AREA_EXP 2.5, env knob
+      SUNDER_HARVEST_AREA_EXP). Measured necessity: at 13x13 the flat 2.2
+      completed in 13% of Sunwei's games (43% at 11x11), and no global divisor
+      serves both sizes (3.0 → 13x13 29% but 11x11 48%). Anchored at the 11x11
+      reference board, so 11x11 outcomes are byte-identical (verified: 42%/66
+      spread before and after). 13x13 Sunwei 13% → 29% (b7000), 3% → 16%
+      (b9000); 15x15 35% no cliff. b9000 still Sunwei-lean — seed-level
+      variance per the parked Sunwei note; re-sweep the exponent at 240-game
+      blocks before touching anything else.
+- [x] Win-spread, paired seed blocks, taper+size vs baseline (80g each):
+      b7000 spread 65 → 40, paths flatten (bloodforge 4% → 16%, greatharvest
+      21% → 6% pre-Sunwei-fix); match length unchanged (21.2 → 21.0 turns,
+      cap-hit 19% → 18%). Bigger board ≠ longer game.
+- [x] 243 tests + tsc green (board-targets drift test covers the new divisor).
+
+
 # v51 — "can still act" predicate + spent/waiting board emphasis
 - [x] unitHasActions() in rules.ts replaces the naive (!moved || !attacked) test.
       A unit that walked and has no target in reach is spent in practice; the old

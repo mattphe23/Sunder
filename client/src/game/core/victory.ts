@@ -86,6 +86,16 @@ export const HARVEST_TARGET = knob("SUNDER_HARVEST_TARGET", 15);
 /** resource tiles per city level Great Harvest demands — see harvestTarget() */
 export const HARVEST_DIVISOR = knob("SUNDER_HARVEST_DIVISOR", 2.2);
 /**
+ * How strongly the Great Harvest divisor breathes with board area — see
+ * harvestTarget(). 2.5 fitted from the 11x11/13x13 completion gap; env knob
+ * exists so the exponent can be re-swept like every other constant here.
+ */
+const HARVEST_AREA_EXP = knob("SUNDER_HARVEST_AREA_EXP", 2.5);
+function harvestAreaExp(): number {
+  const env = typeof process !== "undefined" ? process.env?.SUNDER_HARVEST_AREA_EXP : undefined;
+  return env === undefined ? HARVEST_AREA_EXP : Number(env);
+}
+/**
  * Score Ascendance demands — the generic path every forged tribe inherits.
  *
  * This was 900 and it was a win button. Measured over 60 games with a forged
@@ -218,7 +228,17 @@ export function harvestTarget(s: GameState): number {
   //
   // Falls back to a live count for saves written before the endowment existed.
   const resources = s.resourceEndowment ?? s.tiles.reduce((n, t) => n + (t.resource ? 1 : 0), 0);
-  return Math.max(8, Math.min(22, Math.ceil(resources / HARVEST_DIVISOR)));
+  // v52: area-corrected divisor. Endowment grows with board AREA, but a
+  // tribe's capacity to turn resources into city levels inside a fixed-length
+  // match does not — the flat 2.2 completed in 43% of Sunwei's 11x11 games
+  // but 13% at 13x13 (60-game batches, same seed block), and no single global
+  // divisor serves both sizes (3.0 lands 13x13 at 29% but lifts 11x11 to 48%).
+  // Anchoring at the 11x11 reference board (boardScale = 1 there by
+  // construction) keeps every 11x11-tuned number byte-identical and only
+  // breathes with area: exponent 2.5 ≈ divisor 3.0 at 13x13, 3.8 at 15x15,
+  // 1.6 at 9x9.
+  const divisor = HARVEST_DIVISOR * Math.pow(boardScale(s), harvestAreaExp());
+  return Math.max(8, Math.min(22, Math.ceil(resources / divisor)));
 }
 
 
