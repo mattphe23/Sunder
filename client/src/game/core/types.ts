@@ -368,16 +368,38 @@ export interface Tribe {
   heroFell?: boolean;
 }
 
+/**
+ * Banner colours.
+ *
+ * Units are tinted by nothing but `TRIBE_DEFS[i].color`, so on the board
+ * ownership is carried by colour alone — which makes colour-vision deficiency a
+ * playability question, not a polish one.
+ *
+ * These were re-picked by searching for the set that maximises the MINIMUM
+ * pairwise CIE76 ΔE across normal, protanopic and deuteranopic simulation, with
+ * each tribe held inside its named hue (drift <= 8 degrees) and forbidden from
+ * losing chroma, so nothing goes muddy. Worst pair went from ΔE 4.9 to 14.8.
+ *
+ * The two pairs that were genuinely unreadable were Kharzul/Dravok (4.9 under
+ * deuteranopia) and Sunwei/Mycelon (5.6) — both now above 14. Vessari, Nerivane
+ * and Valkyra came out unchanged: they were never the problem.
+ *
+ * If you re-pick these, measure in Lab rather than RGB. RGB distance says
+ * Kharzul/Dravok are 45 apart, which is how a pair that is nearly identical to
+ * a deuteranope reads as comfortably separated. And check NORMAL vision after:
+ * an earlier attempt fixed a CVD-only pair by moving Valkyra onto Auren, ΔE
+ * 10.4 apart for everyone.
+ */
 export const TRIBE_DEFS = [
-  { name: "Auren", color: "#3d7bff", colorName: "Imperial Blue", passive: "scholars" as FactionPassive, passiveDesc: "Scholars — technologies cost 10% less", startTech: "organization" as TechId },
-  { name: "Kharzul", color: "#e04747", colorName: "Crimson", passive: "forgeborn" as FactionPassive, passiveDesc: "Forgeborn — units deal +15% attack damage", startTech: "hunting" as TechId },
-  { name: "Sunwei", color: "#ffb938", colorName: "Amber", passive: "harvesters" as FactionPassive, passiveDesc: "Harvesters — harvesting resources costs 1 less star", startTech: "climbing" as TechId },
+  { name: "Auren", color: "#306eff", colorName: "Imperial Blue", passive: "scholars" as FactionPassive, passiveDesc: "Scholars — technologies cost 10% less", startTech: "organization" as TechId },
+  { name: "Kharzul", color: "#f74456", colorName: "Crimson", passive: "forgeborn" as FactionPassive, passiveDesc: "Forgeborn — units deal +15% attack damage", startTech: "hunting" as TechId },
+  { name: "Sunwei", color: "#f3a71f", colorName: "Amber", passive: "harvesters" as FactionPassive, passiveDesc: "Harvesters — harvesting resources costs 1 less star", startTech: "climbing" as TechId },
   { name: "Vessari", color: "#9d5ce8", colorName: "Violet", passive: "outriders" as FactionPassive, passiveDesc: "Outriders — all units gain +1 movement on grass", startTech: "riding" as TechId },
   { name: "Nerivane", color: "#2dd4bf", colorName: "Tidal Teal", passive: "tideborn" as FactionPassive, passiveDesc: "Tideborn — ports cost 1 star, boats move +1, coastal cities earn +1 star", startTech: "sailing" as TechId },
-  { name: "Dravok", color: "#a8763e", colorName: "Ochre", passive: "stonebound" as FactionPassive, passiveDesc: "Stonebound — city walls cost 2 less and defenders in cities gain +10% defense", startTech: "shields" as TechId },
+  { name: "Dravok", color: "#976227", colorName: "Ochre", passive: "stonebound" as FactionPassive, passiveDesc: "Stonebound — city walls cost 2 less and defenders in cities gain +10% defense", startTech: "shields" as TechId },
   // ── premium tribes (store unlocks; humans need the entitlement to select) ──
   { name: "Valkyra", color: "#38bdf8", colorName: "Storm Blue", passive: "stormborn" as FactionPassive, passiveDesc: "Stormborn — enemy retaliation against your attacks is halved", startTech: "archery" as TechId },
-  { name: "Mycelon", color: "#a3e635", colorName: "Spore Green", passive: "sporebound" as FactionPassive, passiveDesc: "Sporebound — units recover +2 extra HP when resting in friendly territory", startTech: "freeSpirit" as TechId },
+  { name: "Mycelon", color: "#99ed47", colorName: "Spore Green", passive: "sporebound" as FactionPassive, passiveDesc: "Sporebound — units recover +2 extra HP when resting in friendly territory", startTech: "freeSpirit" as TechId },
 ] as const;
 
 /** TRIBE_DEFS indices that require a store entitlement for human selection. */

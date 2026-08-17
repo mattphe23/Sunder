@@ -32,6 +32,7 @@ const realRandom = Math.random;
 import { game } from "../client/src/game/core/state";
 import { runAiTurn } from "../client/src/game/core/ai";
 import { scoreBreakdown, starIncome } from "../client/src/game/core/rules";
+import { TRIBE_DEFS } from "../client/src/game/core/types";
 
 type Difficulty = "easy" | "normal" | "hard" | "impossible";
 type Preset = "continents" | "pangaea" | "highlands" | "archipelago";
@@ -131,10 +132,25 @@ const presets: Preset[] = ["continents", "pangaea"];
 const seeds = [3, 7, 11, 19, 23, 31, 42, 57, 71, 99];
 const size = 11;
 
-// Phase A: default roster [0,1,2,3] across the difficulty/preset matrix.
-// Phase B (--rotate): rotated rosters so every tribe def visits every slot —
-// separates tribe strength from slot/turn-order advantage. All 6 defs play.
+// Phase A (default): the difficulty/preset matrix, with the roster ROTATED per
+// game so every tribe def visits every turn-order slot.
+//
+// It used to pin the roster to [0,1,2,3], which quietly made the fast run a
+// measurement of turn order rather than of tribe strength — the same tribes sat
+// in the same seats every game, and the same four never played at all. The gap
+// is not subtle: pinned, Sunwei read 10% and Kharzul 35%; rotated, they are 23%
+// and 26%. Anyone reading the default output was being misled, which is worse
+// than having no number, so rotation is now the default and `--fixed` restores
+// the old behaviour for anyone who explicitly wants it.
+const fixedRoster = process.argv.includes("--fixed");
+// Phase B (--rotate): a dedicated rotation sweep at one difficulty/preset,
+// for when you want depth on tribe strength rather than breadth across maps.
 const rotate = process.argv.includes("--rotate");
+
+/** Roster for game `i`, walking the whole def list so no tribe is left out. */
+function rotatedRoster(i: number): number[] {
+  return [0, 1, 2, 3].map((slot) => (slot + i) % TRIBE_DEFS.length);
+}
 // Phase C (--archi): v40 Nerivane verification — Nerivane (def 4) placed in
 // every slot, run on BOTH archipelago (home turf) and continents (the map
 // class where it won 8% pre-v40), so the coastal-income buff's map dependence
@@ -171,9 +187,13 @@ if (archi) {
   process.exit(0);
 }
 if (rotate) {
+  // Derived, not hardcoded: this table used to stop at def 5, so the two tribes
+  // freed from the premium tier were never simulated at all.
   const rosters: number[][] = [
-    [0, 1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 0],
-    [4, 5, 0, 1], [5, 0, 1, 2], [3, 2, 1, 0], [5, 4, 3, 2],
+    ...Array.from({ length: TRIBE_DEFS.length }, (_, i) => rotatedRoster(i)),
+    // two reversed seatings, to catch anything that depends on adjacency order
+    rotatedRoster(0).slice().reverse(),
+    rotatedRoster(Math.floor(TRIBE_DEFS.length / 2)).slice().reverse(),
   ];
   const rotSeeds = [3, 7, 11, 19, 23, 31, 42, 57, 71, 99];
   const totalR = rosters.length * rotSeeds.length;
@@ -197,11 +217,17 @@ if (rotate) {
   process.exit(0);
 }
 const total = difficulties.length * presets.length * seeds.length;
+let gameIndex = 0;
 for (const difficulty of difficulties) {
   for (const preset of presets) {
     for (const seed of seeds) {
       try {
-        const rec = simulate(seed, difficulty, preset, size);
+        const roster = fixedRoster ? undefined : rotatedRoster(gameIndex++);
+        const rec = simulate(seed, difficulty, preset, size, roster);
+        // Recorded on the row rather than recomputed downstream. An earlier
+        // analysis script rebuilt the roster with its own hardcoded modulus and
+        // credited two tribes' games to the wrong names.
+        if (roster) (rec as unknown as { roster: number[] }).roster = roster;
         fs.appendFileSync(outFile, JSON.stringify(rec) + "\n");
         done++;
         console.log(`[${done}/${total}] ${difficulty}/${preset}/seed=${seed} → ${rec.phase} t${rec.turns} winner=${rec.winnerName ?? "-"} path=${rec.winPath ?? "-"} (${rec.durationMs}ms)`);
