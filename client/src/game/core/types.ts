@@ -429,6 +429,27 @@ export interface RecapEntry {
   tribe: number;
 }
 
+/**
+ * The recap entries worth interrupting the player for.
+ *
+ * Measured over 482 rounds (scripts/recap-audit.mts): the modal opened on 93%
+ * of turns with 5.9 entries, 82% of them routine AI-vs-AI combat — a
+ * tap-to-dismiss ritual, not an alert. Only ~8% of turns carried something
+ * that changes the player's situation: a city of theirs lost, a treaty
+ * broken, a commander fallen, or a Great Ruin event (a rival's hero may now
+ * carry the Relic against you). The modal now opens only for these; the rest
+ * stays in the recap data as a summary line and in the log.
+ */
+export const RECAP_HIGH_SIGNAL: ReadonlySet<RecapEntry["kind"]> = new Set<RecapEntry["kind"]>([
+  "cityLost",
+  "treatyBroken",
+  "fallen",
+  "greatRuin",
+]);
+
+export const recapHasHighSignal = (entries: RecapEntry[]): boolean =>
+  entries.some((e) => RECAP_HIGH_SIGNAL.has(e.kind));
+
 /** running per-tribe match statistics, shown on the game-over screen */
 export interface TribeStats {
   battlesWon: number;

@@ -1,7 +1,7 @@
 // Sunder HUD — Isoglow glass panels over the indigo void; amber star accent.
 import { useGame } from "../useGame";
 import { game } from "../core/state";
-import { UNIT_STATS, TECHS, HERO_PERKS, HERO_XP_THRESHOLDS, HERO_MAX_LEVEL, BUILDINGS, REWARD_INFO, rewardChoicesForLevel } from "../core/types";
+import { UNIT_STATS, TECHS, HERO_PERKS, HERO_XP_THRESHOLDS, HERO_MAX_LEVEL, BUILDINGS, REWARD_INFO, rewardChoicesForLevel, RECAP_HIGH_SIGNAL } from "../core/types";
 import {
   techCost, canResearch, trainableUnits, starIncome, cityAt, canHarvest,
   harvestCost, canBuildPort, portCost, wallCost, canBuild, unitCapacity, unitCount,
@@ -106,6 +106,11 @@ export function TurnRecap() {
   const g = useGame();
   const s = g.state;
   if (!s.showRecap || s.recap.length === 0 || s.phase !== "playing") return null;
+  // The modal only opens for high-signal turns (see RECAP_HIGH_SIGNAL in
+  // types.ts), so it shows only those entries — plus one summary line for the
+  // routine clashes it no longer lists. An alarm, not a newsletter.
+  const highs = s.recap.filter((e) => RECAP_HIGH_SIGNAL.has(e.kind));
+  const others = s.recap.length - highs.length;
   const icon = (kind: string) => {
     switch (kind) {
       case "combat": return <Swords className="h-3.5 w-3.5 text-red-400" />;
@@ -129,7 +134,7 @@ export function TurnRecap() {
           </button>
         </div>
         <div className="max-h-64 space-y-1.5 overflow-y-auto">
-          {s.recap.map((e, i) => (
+          {highs.map((e, i) => (
             <div
               key={i}
               className={`flex items-start gap-2 rounded-md border-l-4 bg-white/5 px-2.5 py-1.5 text-xs text-slate-200 ${e.kind === "cityLost" ? "border-red-400/70" : ""}`}
@@ -139,6 +144,11 @@ export function TurnRecap() {
               <span>{e.text}</span>
             </div>
           ))}
+          {others > 0 && (
+            <div className="px-2.5 py-1 text-[11px] italic text-slate-400">
+              +{others} other {others === 1 ? "clash" : "clashes"} this turn — skirmishes and border moves, nothing of yours lost.
+            </div>
+          )}
         </div>
         <Button size="sm" className="mt-3 w-full bg-amber-400 font-display font-bold text-[#1b1b3f] hover:bg-amber-300" onClick={() => game.dismissRecap()}>
           To battle

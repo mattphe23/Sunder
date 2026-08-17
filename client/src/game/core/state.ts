@@ -8,6 +8,7 @@ import {
   emptyStats, ReplayEntry, HeroPerkId, HERO_PERKS, HERO_PERK_POOL,
   HERO_XP_THRESHOLDS, HERO_MAX_LEVEL, HERO_XP, HERO_NAMES,
   City, CityReward, BuildingType, BUILDINGS, rewardChoicesForLevel, REWARD_INFO, PLUNDER_PER_KILL,
+  recapHasHighSignal,
 } from "./types";
 import {
   reachableTiles, attackableUnits, previewCombat, combatModifiers, techCost, canResearch,
@@ -481,8 +482,11 @@ class GameStore {
       this.checkVictoryPaths();
       if (s.phase !== "playing") return;
     }
-    // turn replay: show what rivals did while the human waited
-    if (!hotseat && tribe.isHuman && s.recap.length > 0) {
+    // turn replay: interrupt only when rivals did something that changes the
+    // player's situation (city lost, treaty broken, commander fallen, great
+    // ruin). Routine combat/capture/ruin entries no longer open the modal —
+    // 93% of turns used to, at 5.9 entries each (scripts/recap-audit.mts).
+    if (!hotseat && tribe.isHuman && recapHasHighSignal(s.recap)) {
       s.showRecap = true;
     }
     const income = starIncome(s, tribeIdx) + this.aiBonus(tribeIdx);
