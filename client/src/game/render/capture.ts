@@ -6,6 +6,10 @@
 // That is WKWebView, which is the entire iOS app. So video is off the table
 // until it is built natively, and the share has to be a still.
 //
+// The delivery has the same shape of problem: the Web Share API is not
+// dependable inside WKWebView either, so the native build goes through
+// @capacitor/share and writes the PNG to disk first. See shareShot().
+//
 // A still is a smaller thing than a clip, but it is not a consolation prize
 // here: the cinematic holds on one framing for most of a second, so there is a
 // real peak frame to take, and a flat-shaded board survives being a PNG far
@@ -150,20 +154,66 @@ function dataUrlToFile(dataUrl: string, name: string): File | null {
 
 export type ShareResult = "shared" | "downloaded" | "failed";
 
+const FILE_NAME = "sunder-fatality.png";
+
 /**
- * Hand the still to the OS share sheet, falling back to a download.
+ * Native share, via the OS sheet.
  *
- * `navigator.canShare({ files })` is the only reliable test — several browsers
- * expose `navigator.share` but reject files, and feature-detecting the method
- * alone throws at the point of use instead of falling back cleanly.
+ * iOS will not share a data: URL — the sheet needs a real file on disk — so the
+ * PNG is written to the cache directory first and shared by URI. Cache rather
+ * than Documents on purpose: this is a throwaway the system can reclaim, and
+ * anything in Documents shows up in the Files app forever.
  *
- * NOTE for the native build: inside Capacitor's WKWebView the Web Share API is
- * not dependable, and the supported route is the @capacitor/share plugin, which
- * is not a dependency yet. Until it is, iOS lands on the download branch. See
- * docs/APP-STORE-READINESS.md.
+ * Everything is imported dynamically so the plugins never enter the web
+ * bundle's critical path; on a browser this function is not reached at all.
+ */
+async function shareNative(shot: ShareShot, text: string): Promise<ShareResult> {
+  try {
+    const [{ Share }, { Filesystem, Directory }] = await Promise.all([
+      import("@capacitor/share"),
+      import("@capacitor/filesystem"),
+    ]);
+    const base64 = shot.dataUrl.split(",")[1];
+    await Filesystem.writeFile({ path: FILE_NAME, data: base64, directory: Directory.Cache });
+    const { uri } = await Filesystem.getUri({ path: FILE_NAME, directory: Directory.Cache });
+    await Share.share({ text, files: [uri] });
+    return "shared";
+  } catch (e) {
+    // Dismissing the sheet rejects on iOS. That is a choice, not a failure, and
+    // it must not fall through to a second attempt the player did not ask for.
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/cancel|abort|dismiss/i.test(msg)) return "shared";
+    return "failed";
+  }
+}
+
+/**
+ * Hand the still to the OS share sheet.
+ *
+ * Three routes, in order, because no single one covers where this runs:
+ *
+ *   NATIVE   @capacitor/share. Required, not preferred: inside Capacitor's
+ *            WKWebView the Web Share API is not dependable, and the download
+ *            fallback below is close to useless on a phone — which is where
+ *            this feature is supposed to earn its keep.
+ *   WEB      navigator.share with files. `canShare({ files })` is the only
+ *            reliable test; several browsers expose `share` but reject files,
+ *            and feature-detecting the method alone throws at the point of use
+ *            instead of falling back cleanly.
+ *   DESKTOP  a download, which is the honest behaviour on a machine with no
+ *            share sheet.
  */
 export async function shareShot(shot: ShareShot, text: string): Promise<ShareResult> {
-  const file = dataUrlToFile(shot.dataUrl, "sunder-fatality.png");
+  try {
+    const { Capacitor } = await import("@capacitor/core");
+    if (Capacitor.isNativePlatform()) {
+      const res = await shareNative(shot, text);
+      // A native failure falls through to the web attempt rather than dead-ending
+      if (res !== "failed") return res;
+    }
+  } catch { /* not a Capacitor build */ }
+
+  const file = dataUrlToFile(shot.dataUrl, FILE_NAME);
   const nav = navigator as Navigator & { canShare?: (d: unknown) => boolean };
   if (file && typeof nav.share === "function" && nav.canShare?.({ files: [file] })) {
     try {
@@ -178,7 +228,7 @@ export async function shareShot(shot: ShareShot, text: string): Promise<ShareRes
   try {
     const a = document.createElement("a");
     a.href = shot.dataUrl;
-    a.download = "sunder-fatality.png";
+    a.download = FILE_NAME;
     a.click();
     return "downloaded";
   } catch {

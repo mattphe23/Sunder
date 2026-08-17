@@ -145,10 +145,15 @@ Adding 15×15 is what pushed the second row over. Fixed, and both rows now take
 This is the one open item, and it is a business call rather than a bug.
 
 **Where things stand.** The store sells skins, map packs and the campaign
-through Stripe Checkout. There is no IAP plugin in `package.json`, no
-RevenueCat, and — worth knowing — **no native-platform detection anywhere in the
-client**. The iOS build will show the same store page and open the same Stripe
-URL as the web build.
+through Stripe Checkout. There is no IAP plugin in `package.json` and no
+RevenueCat, so the iOS build will show the same store page and open the same
+Stripe URL as the web build.
+
+(This section previously said there was no native-platform detection anywhere
+in the client. That is no longer true: the fatality share added
+`Capacitor.isNativePlatform()` in `render/capture.ts`, so the check now exists
+and only the policy is missing. Whichever option below you pick, gating the
+store is a small change on top of it.)
 
 **What the rules currently say.** Guideline 3.1.1 still requires in-app purchase
 for digital content. But following the 2025 US court order, Apple's own text now
@@ -196,8 +201,8 @@ lands, and add IAP in 1.1 with the benefit of knowing whether it is worth 15%.
 Option C is also the only one of the three that needs no research into what
 Apple's appeal does next.
 
-Whichever you choose, the platform check is needed either way. That is the
-first piece of work when you have decided.
+The platform check already exists (see above), so whichever you choose is now a
+question of policy rather than plumbing.
 
 ---
 
@@ -214,28 +219,30 @@ Cannot be done from the repo:
 - **Export compliance** is pre-answered by the Info.plist key; verify no
   questionnaire appears on the first upload.
 
-## 5. The fatality share needs a native plugin
+## 5. The fatality share
 
-The share card built for fatalities uses the Web Share API
-(`navigator.canShare({ files })` → `navigator.share`). That works in Safari and
-Chrome. Inside Capacitor's WKWebView it is **not dependable**, and the supported
-route is the `@capacitor/share` plugin, which is not a dependency yet. Until it
-is, the iOS build falls through to the download branch — which is close to
-useless on a phone.
+Shipped and routed three ways, because no single one covers where this runs:
 
-This matters more than it looks: the share is the entire reason the feature
-exists. A spectacular moment nobody can export is spectacle wasted.
+- **Native (iOS)** — `@capacitor/share`. Required rather than preferred: the
+  Web Share API is not dependable inside WKWebView, and the download fallback is
+  close to useless on a phone, which is where the feature is meant to earn its
+  keep. The PNG is written to the **cache** directory first because iOS will not
+  share a `data:` URL, and cache rather than Documents so it does not sit in the
+  Files app forever.
+- **Web** — `navigator.share` with files, gated on `canShare({ files })`.
+- **Desktop** — a download, the honest behaviour with no share sheet.
 
-Adding the plugin is small — `@capacitor/share` plus `@capacitor/filesystem` to
-write the PNG somewhere shareable, then `cap sync`. Worth doing before the
-fatality feature is shown to anyone.
+`@capacitor/share` and `@capacitor/filesystem` are dependencies now, so the next
+`cap sync ios` picks them up. **Not yet verified on a real device** — the whole
+path has only run in a desktop browser, which never reaches the native branch.
+Worth being the first thing checked on the first TestFlight build.
 
-Video is a separate, larger question. Recording the canvas is the obvious build
-and it is the one thing that does not work here: WebKit bug 229611 —
+Video remains a separate, larger question. Recording the canvas is the obvious
+build and it is the one thing that does not work here (WebKit bug 229611:
 `MediaRecorder` driven by `canvas.captureStream()` produces a blank video on
-iOS. A clip therefore needs either a client-side encoder (a GIF encoder is
-plausible; Sunder's flat palette compresses almost losslessly) or native
-capture via ReplayKit. Neither is needed for launch.
+iOS). A clip needs either a client-side encoder — a GIF encoder is plausible,
+since Sunder's flat palette compresses almost losslessly — or native capture via
+ReplayKit. Neither is needed for launch.
 
 ## 6. Known, accepted, not blocking
 
