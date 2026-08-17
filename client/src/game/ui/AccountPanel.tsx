@@ -19,12 +19,25 @@
 // server has its own guard); it is to make sure nobody gives up their unlocks
 // with a mis-tap, because the unlocks really do go.
 import { useState } from "react";
+import { Link } from "wouter";
 import { toast } from "sonner";
 import { Loader2, RotateCcw, ShieldAlert, Trash2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useEntitlements } from "@/hooks/useEntitlements";
 import { startLogin } from "@/const";
+
+/** The policy has to be reachable from inside the app, not only from the
+ *  App Store listing — a reviewer looks for it where account controls live. */
+function PrivacyLink() {
+  return (
+    <Link href="/privacy">
+      <span className="mt-2 block cursor-pointer text-center text-[10px] text-slate-500 underline-offset-2 hover:text-slate-300 hover:underline">
+        Privacy policy
+      </span>
+    </Link>
+  );
+}
 
 export function AccountPanel() {
   const { isAuthenticated, user } = useAuth();
@@ -57,6 +70,7 @@ export function AccountPanel() {
         >
           Sign in
         </button>
+        <PrivacyLink />
       </div>
     );
   }
@@ -135,6 +149,7 @@ export function AccountPanel() {
           </div>
         )}
       </div>
+      <PrivacyLink />
     </div>
   );
 }

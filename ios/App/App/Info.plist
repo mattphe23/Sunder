@@ -71,5 +71,16 @@
 	<false/>
 	<key>UIStatusBarStyle</key>
 	<string>UIStatusBarStyleLightContent</string>
+	<!-- Export compliance. Declared here rather than answered by hand, because
+	     the answer never changes and App Store Connect otherwise asks it on
+	     every single upload — including every TestFlight build.
+
+	     This is a regulatory declaration, not a way to silence the prompt, so
+	     it has to stay true: Sunder implements no cryptography of its own. All
+	     it does is talk HTTPS to its own API and to Stripe through the system
+	     networking stack, which is exempt. If custom encryption is ever added,
+	     this key has to be revisited before the next submission. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>

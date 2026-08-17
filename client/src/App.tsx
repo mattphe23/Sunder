@@ -8,6 +8,7 @@ import { TurnAlerts } from "./game/online/TurnAlerts";
 import Home from "./pages/Home";
 import ModelLab from "./pages/ModelLab";
 import PlaytestLab from "./pages/PlaytestLab";
+import Privacy from "./pages/Privacy";
 import Store from "./pages/Store";
 import Story from "./pages/Story";
 
@@ -18,6 +19,9 @@ function Router() {
       <Route path={"/"} component={Home} />
       <Route path={"/store"} component={Store} />
       <Route path={"/story"} component={Story} />
+      {/* Required by App Store Guideline 5.1.1(i); also the URL that goes in
+          the App Store Connect listing's Privacy Policy field. */}
+      <Route path={"/privacy"} component={Privacy} />
       <Route path={"/playtest-lab"} component={PlaytestLab} />
       <Route path={"/model-lab"} component={ModelLab} />
       <Route path={"/404"} component={NotFound} />
