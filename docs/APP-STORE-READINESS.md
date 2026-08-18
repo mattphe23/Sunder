@@ -34,10 +34,39 @@ visible on every App Store listing forever. If "Sunder" is meant to read as a
 studio rather than a person, that argues for Organization — but a D-U-N-S
 number is a multi-day errand and will delay the first TestFlight build.
 
-**Suggestion:** if you already have any legal entity, enrol as that. If you do
-not, enrol Individual now to unblock TestFlight, and treat a studio entity as a
-later, deliberate migration. Do not create an entity at midnight to save face on
-a seller name.
+#### The part that actually decides it: EU trader disclosure
+
+The seller *name* is the smaller half of this. Under the EU's Digital Services
+Act, a developer classed as a **trader** must have their **address, phone number
+and email published on the App Store product page** in all 27 EU territories.
+Apple verifies the details and displays them. There is no option to be a trader
+and withhold the phone number — publishing it is the point of the rule, and apps
+without a trader status set are removed from the EU App Store.
+
+For an Individual, those are your home address and personal phone, public.
+
+Apple treats developers earning through an upfront price or in-app purchase as
+traders. So if v1 ships **free with no purchases on iOS** — which is the
+recommendation in §3 anyway — you may legitimately be a non-trader and avoid the
+disclosure entirely. That is a reprieve with an expiry date, not an exemption:
+the moment IAP is added, the address goes up.
+
+**An entity alone does not fix this.** File with your home address as the
+business address, act as your own registered agent, and you have published your
+home address on a public state registry as well. Privacy needs three things
+together: the entity, a registered agent service, and a business address that is
+not your home.
+
+**Suggestion:** if privacy matters to you, form the entity first and use the
+D-U-N-S wait productively — there is a month of TestFlight testing ahead
+regardless, and that is the real critical path, not the submission date. If it
+does not, enrol Individual now to unblock TestFlight. What does not work is
+enrolling Individual and "upgrading later": Individual cannot be converted to
+Organization, so that path is a second account plus an app transfer.
+
+Entity type and state have tax consequences worth ten minutes with an
+accountant, and US beneficial-ownership reporting rules changed during 2025 —
+confirm the current position rather than trusting a summary.
 
 ### Sign the Paid Applications Agreement immediately
 
