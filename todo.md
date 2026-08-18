@@ -1077,3 +1077,34 @@ Kharzul 21.5, Mycelon 20. Spread 30, from 46 at the start of the session.
       time a player reaches a qualifying moment, show a one-time hint that
       something more was possible, without saying what, and never show it
       again. A secret nobody knows exists generates nothing.
+
+## Blocking the 13x13 default — Bloodforge does not scale with the board
+
+- [ ] BLOODFORGE_TARGET must scale with the board's city count before 13x13 can
+      become the default map size.
+
+      The crowding case for a bigger default is good (scripts/crowding-audit.mts:
+      ~20 units on ~99 land tiles from turn 15 at 11x11, a third of them clumped;
+      13x13 gives ~14 per 100). It is held only because board size turns out not
+      to be balance-neutral.
+
+      Measured on identical code and seeds, changing only `size`
+      (160 games, hard, rotated rosters, seeds 90210+):
+
+                   11x11    13x13
+        Kharzul     22.5%    42.5%
+        Auren       23.8%    11.3%
+        spread      20.0     31.3
+
+      Kharzul nearly doubles, Auren halves, and the spread goes from 20 points to
+      31. Bloodforge asks for 4 cities CAPTURED; a larger board carries more
+      cities, so the same 4 is a materially cheaper goal. boardScale() was
+      supposed to absorb exactly this, and cannot: scaling an integer target of 4
+      by the area factor rounds back to 4. Every other path has a large enough
+      target for the rounding to disappear, which is why only Bloodforge broke.
+
+      Fix is to make the target a function of cities on the board rather than a
+      constant — the same move that fixed Great Harvest, which now scales with
+      the resource endowment. Re-measure at 11x11 AND 13x13 before flipping the
+      default: 11x11 must not move, since it is the board every other target was
+      swept against.

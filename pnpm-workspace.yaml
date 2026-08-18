@@ -5,6 +5,18 @@
 # install: wouter@3.7.1 + patch hash recorded in the lockfile).
 packages:
   - .
+# esbuild's postinstall links its platform-specific binary; vite cannot build
+# without it. pnpm 11 refuses to run a dependency's build scripts until they are
+# approved here, and — unlike pnpm 10, which only warned — it exits NON-ZERO
+# when it finds unapproved ones.
+#
+# That made `pnpm install --frozen-lockfile` fail with ERR_PNPM_IGNORED_BUILDS,
+# which is the first command every CI job runs, so every job died before
+# reaching a test. Reproduced on a clean checkout with CI=true. pnpm also
+# rewrites this file with a `set this to true or false` placeholder when it hits
+# that state, so a CI run would have dirtied its own working tree too.
+allowBuilds:
+  esbuild: true
 patchedDependencies:
   wouter@3.7.1: patches/wouter@3.7.1.patch
 # The old package.json overrides also pinned tailwindcss>nanoid to 3.3.7. That

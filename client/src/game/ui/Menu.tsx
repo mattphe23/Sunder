@@ -198,13 +198,29 @@ export function MainMenu() {
   const [mode, setMode] = useState<"solo" | "hotseat">("solo");
   const [players, setPlayers] = useState<number[]>([0, 1]); // hot-seat: selected tribe indices in seat order
   const [difficulty, setDifficulty] = useState<Difficulty>("normal");
-  // v52: 13x13 is the default for 4-tribe matches. The crowding audit
-  // (scripts/crowding-audit.mts) put ~20 units on ~99 land tiles from turn 15
-  // on an 11x11 — one piece per five tiles, a third of them in dense clumps.
-  // 13x13 drops that to ~14 per 100 without touching a single balance number.
-  // Online 1v1 keeps 11x11 (OnlinePanel hardcodes its own size), and the
-  // buttons below still let the player pick anything.
-  const [size, setSize] = useState(13);
+  // HELD AT 11x11 — the 13x13 default is right in principle and cannot ship yet.
+  //
+  // The crowding case for it is sound: scripts/crowding-audit.mts put ~20 units
+  // on ~99 land tiles from turn 15 on an 11x11, a third of them in dense clumps,
+  // and 13x13 drops that to ~14 per 100.
+  //
+  // But board size is not balance-neutral, and at 13x13 it is badly skewed.
+  // Measured on the same code and the same seeds, changing only `size`
+  // (160 games, hard, rotated rosters, seeds 90210+):
+  //
+  //              11x11    13x13
+  //   Kharzul    22.5%    42.5%
+  //   Auren      23.8%    11.3%
+  //   spread     20.0     31.3
+  //
+  // Kharzul nearly doubles and Auren halves. The cause is Bloodforge: it asks
+  // for 4 cities CAPTURED, a bigger board carries more cities, and boardScale()
+  // cannot correct it because scaling 4 by the area factor rounds straight back
+  // to 4. That is a defect in the path-scaling work, not in this default.
+  //
+  // Flip this to 13 once BLOODFORGE_TARGET scales with the board's city count
+  // (see todo.md). The size buttons still offer 13x13 to anyone who wants it.
+  const [size, setSize] = useState(11);
   const [preset, setPreset] = useState<MapPreset>("continents");
   const [hallOpen, setHallOpen] = useState(false);
   const [hallTab, setHallTab] = useState<Difficulty>("normal");
