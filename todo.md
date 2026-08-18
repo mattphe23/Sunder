@@ -1,5 +1,28 @@
 # Sunder: The Living Forge — Project TODO
 
+# v58 — graphics pass: contact grounding everywhere + decor density
+- [x] Contact grounding: on an unlit flat-shaded board nothing casts anything,
+      so every tree/ruin/building hovered over its tile (Polytopia darkens
+      under every cluster). New groundDisc() decor helper + contactShadowMat()
+      refactor: soft shadow pools under every tree trunk, ruins, great ruin,
+      economy buildings, and barbarian camps. batchDecor merges each tile's
+      discs into ONE mesh (+≤1 draw call/tile). Fogged tiles get NO disc —
+      grounding says "solid and near", fog reads distant and flat. Cities
+      (plaza plate) and mountains (base skirt) were already grounded by
+      construction; ports sit on water and stay ungrounded.
+- [x] Decor density: bare-grass micro-decor coverage 40% → 65%, up to 3 tufts
+      per tile, pebbles at ~1-in-7, and a rare warm blossom accent (berry
+      color); forest-floor underbrush on ~35% of forests. All existing cached
+      materials — the per-tile-per-material merge absorbs most of it.
+      Polytopia's tiles carry fields/tufts/critters on most of them; the
+      sparsity here was half the reported "void".
+- [x] tsc clean + 248 tests green. PERF NOTE for the mobile profile pass:
+      ~+1 mesh/tile after merge on a fully explored board (discs) plus the
+      added micro-decor — measure against the 1189-mesh 13x13 baseline on
+      real silicon before shipping to TestFlight.
+- [ ] Visual confirmation on a real display (shadow alpha 0.26 may want ±0.05
+      per biome; pangaea's bright sand may want the disc lighter).
+
 # v57 — interruption budget: kill the modal/toast noise (user request)
 - [x] scripts/interruption-audit.mts measured every stop-or-toast surface per
       seat (48 games, 13x13): city reward choices 5.7/seat (Polytopia-core

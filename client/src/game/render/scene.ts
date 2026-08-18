@@ -1063,6 +1063,8 @@ export class BoardRenderer {
         const pz = t.y - c + (i === 3 ? -0.32 : ((i * 7) % 3 - 1) * 0.24);
         const seed = (i * 13 + t.x * 5 + t.y * 3) % 3;
         const leafHex = i === 1 ? this.bio.tree.canopyB : i === 0 ? this.bio.tree.canopyA : this.bio.tree.canopyLight;
+        // v58 grounding: a contact disc under every trunk (merged per tile)
+        if (visible) this.groundDisc(decor, px, top + 0.012, pz, 0.15, md);
         if (kind === "palm") {
           // palm: tall leaning bare trunk + radiating frond blades
           const th = 0.34 + seed * 0.07;
@@ -1121,26 +1123,60 @@ export class BoardRenderer {
           }
         }
       }
+      // v58 density: forest-floor underbrush between the trunks (~35% of
+      // forests) — the canopy floats over a floor, not over bare green
+      const ub = (t.x * 29 + t.y * 43) % 20;
+      if (ub < 7) {
+        for (let k = 0; k <= (ub & 1); k++) {
+          const shrub = MeshBuilder.CreateCylinder("shrub", { diameterTop: 0, diameterBottom: 0.12, height: 0.09, tessellation: 4 }, this.scene);
+          shrub.position = new Vector3(
+            t.x - c + ((ub * 7 + k * 5) % 9) * 0.07 - 0.28,
+            top + 0.045,
+            t.y - c + ((ub * 11 + k * 3) % 7) * 0.08 - 0.24
+          );
+          shrub.rotation.y = ub * 0.5 + k;
+          shrub.material = this.mat(this.bio.tree.canopyB);
+          shrub.metadata = md; shrub.parent = this.root; decor.push(shrub);
+        }
+      }
     }
     if (t.terrain === "grass" && !t.resource && !t.building && !t.ruin && !t.greatRuin && !t.road && t.cityId === null) {
-      // micro-decor: seeded tufts + the odd pebble so bare plains aren't empty
-      const g = (t.x * 53 + t.y * 97) % 10;
-      if (g < 4) {
+      // micro-decor: seeded tufts, pebbles and the rare blossom so bare plains
+      // aren't empty. v58: coverage 40% → 65% and up to 3 tufts — Polytopia's
+      // tiles carry fields, tufts and critters on most of them, and the
+      // sparsity here was half the "void" the user reported. Everything uses
+      // existing cached materials, so the per-tile merge absorbs it.
+      const g = (t.x * 53 + t.y * 97) % 20;
+      if (g < 13) {
         const md = { tile: true, x: t.x, y: t.y };
-        const spots: [number, number][] = [[0.28 - (g % 3) * 0.24, -0.3 + (g % 4) * 0.18], [-0.24 + (g % 2) * 0.4, 0.26 - (g % 3) * 0.14]];
-        for (let i = 0; i <= (g & 1); i++) {
+        const spots: [number, number][] = [
+          [0.28 - (g % 3) * 0.24, -0.3 + (g % 4) * 0.18],
+          [-0.24 + (g % 2) * 0.4, 0.26 - (g % 3) * 0.14],
+          [0.08 - (g % 5) * 0.05, 0.04 + (g % 3) * 0.09],
+        ];
+        const tuftCount = g % 3 === 0 ? 3 : 1 + (g & 1);
+        for (let i = 0; i < tuftCount; i++) {
           const tuft = MeshBuilder.CreateCylinder("tuft", { diameterTop: 0, diameterBottom: 0.1, height: 0.1, tessellation: 4 }, this.scene);
           tuft.position = new Vector3(t.x - c + spots[i][0], top + 0.05, t.y - c + spots[i][1]);
           tuft.rotation.y = g * 0.7 + i;
           tuft.material = this.mat(this.bio.tree.canopyLight);
           tuft.metadata = md; tuft.parent = this.root; decor.push(tuft);
         }
-        if (g === 3) {
+        if (g % 7 === 3) {
           const pebble = MeshBuilder.CreateIcoSphere("pebble", { radius: 0.045, subdivisions: 1 }, this.scene);
           pebble.position = new Vector3(t.x - c - spots[0][0] * 0.7, top + 0.028, t.y - c - spots[0][1] * 0.7);
           pebble.scaling.y = 0.6;
           pebble.material = this.mat(this.bio.rock.shadow);
           pebble.metadata = md; pebble.parent = this.root; decor.push(pebble);
+        }
+        // rare blossom: one warm accent point on the plain — the world carries
+        // tiny sparks of color, not just greens
+        if (g === 8) {
+          const blossom = MeshBuilder.CreateIcoSphere("blossom", { radius: 0.035, subdivisions: 1 }, this.scene);
+          blossom.position = new Vector3(t.x - c + spots[2][0], top + 0.05, t.y - c + spots[2][1]);
+          blossom.scaling.y = 0.7;
+          blossom.material = this.mat(PALETTE.fruit.berry);
+          blossom.metadata = md; blossom.parent = this.root; decor.push(blossom);
         }
       }
     }
@@ -1339,6 +1375,8 @@ export class BoardRenderer {
       // v35 economy buildings — small structures replacing the harvested look
       const bx = t.x - c, bz = t.y - c;
       const md = { tile: true, x: t.x, y: t.y };
+      // v58 grounding: one shadow pool under the structure (merged per tile)
+      if (visible) this.groundDisc(decor, bx, top + 0.012, bz, 0.26, md);
       if (t.building === "hut") {
         // lumber hut: timber cabin with a dark gable roof
         const base = MeshBuilder.CreateBox("bld", { width: 0.34, depth: 0.28, height: 0.18 }, this.scene);
@@ -1461,6 +1499,8 @@ export class BoardRenderer {
       // rubble, and a glowing amber relic hovering at the center.
       const md = { tile: true, x: t.x, y: t.y };
       const stoneA = "#8f93b8", stoneB = "#767a9e", stoneC = "#5f6386";
+      // v58 grounding: the temple remnant sits on a soft shadow pool
+      if (visible) this.groundDisc(decor, t.x - c + 0.05, top + 0.012, t.y - c - 0.03, 0.36, md);
       // cracked plinth: two offset slabs read as broken paving
       const slabA = MeshBuilder.CreateBox("ruinplinth", { width: 0.55, depth: 0.4, height: 0.07 }, this.scene);
       slabA.position = new Vector3(t.x - c - 0.06, top + 0.035, t.y - c + 0.04);
@@ -1521,6 +1561,8 @@ export class BoardRenderer {
     }
     if (t.greatRuin) {
       // GREAT RUIN: golden twin obelisks flanking a floating radiant core
+      // v58 grounding: the monument anchors to a wide shadow pool
+      if (visible) this.groundDisc(decor, t.x - c, top + 0.012, t.y - c, 0.44, { tile: true, x: t.x, y: t.y });
       let goldMat = this.mats.get("greatruin-gold");
       if (!goldMat) {
         goldMat = new StandardMaterial("greatruin-gold", this.scene);
@@ -1862,6 +1904,8 @@ export class BoardRenderer {
   private buildCampMesh(strength: number): TransformNode {
     const node = new TransformNode("camp", this.scene);
     node.parent = this.root;
+    // v58 grounding: the camp anchors to the tile like every other structure
+    this.addContactShadow(node, 0.34);
     const tentMat = this.mat("#6b4a32");
     const tents = Math.min(3, strength + 1);
     const offs = [[-0.18, -0.1], [0.2, -0.14], [0.02, 0.2]];
@@ -1953,15 +1997,8 @@ export class BoardRenderer {
     return node;
   }
 
-  /**
-   * A soft dark disc on the ground under a figure.
-   *
-   * Without it the units read as stickers hovering over the tile rather than
-   * standing on it — the board is unlit and flat-shaded, so nothing else in the
-   * scene casts anything. This is the cheapest possible grounding cue: one
-   * shared unlit material, one 8-sided disc, no shadow map.
-   */
-  private addContactShadow(parent: TransformNode, radius = 0.30) {
+  /** the one shared contact-shadow material (black, alpha 0.26, unlit) */
+  private contactShadowMat(): StandardMaterial {
     let m = this.mats.get("contact-shadow");
     if (!m) {
       m = new StandardMaterial("contact-shadow", this.scene);
@@ -1972,14 +2009,47 @@ export class BoardRenderer {
       m.alpha = 0.26;
       this.mats.set("contact-shadow", m);
     }
+    return m;
+  }
+
+  /**
+   * A soft dark disc on the ground under a figure.
+   *
+   * Without it the units read as stickers hovering over the tile rather than
+   * standing on it — the board is unlit and flat-shaded, so nothing else in the
+   * scene casts anything. This is the cheapest possible grounding cue: one
+   * shared unlit material, one 8-sided disc, no shadow map.
+   */
+  private addContactShadow(parent: TransformNode, radius = 0.30) {
     const disc = MeshBuilder.CreateDisc("shadow", { radius, tessellation: 8 }, this.scene);
     disc.rotation.x = Math.PI / 2;
     disc.position.y = 0.012; // clear of the tile top without floating visibly
-    disc.material = m;
+    disc.material = this.contactShadowMat();
     disc.parent = parent;
     disc.isPickable = false;
     disc.receiveShadows = false;
     return disc;
+  }
+
+  /**
+   * v58 contact grounding for STATIC decor — a ground disc pushed into the
+   * tile's decor list. On an unlit flat-shaded board nothing casts anything,
+   * so without it every tree, ruin and building hovers over its tile (the
+   * unit shadow already proved the cue; Polytopia darkens under every
+   * cluster). Because batchDecor merges per tile per material, all of a
+   * tile's discs collapse into ONE mesh — at most +1 draw call per tile.
+   * Fogged tiles get no disc: grounding says "solid and near", and the fog
+   * is meant to read distant and flat.
+   */
+  private groundDisc(decor: Mesh[], x: number, y: number, z: number, r: number, md: unknown) {
+    const disc = MeshBuilder.CreateDisc("ground", { radius: r, tessellation: 8 }, this.scene);
+    disc.rotation.x = Math.PI / 2;
+    disc.position = new Vector3(x, y, z);
+    disc.material = this.contactShadowMat();
+    disc.metadata = md;
+    disc.isPickable = false;
+    disc.parent = this.root;
+    decor.push(disc);
   }
 
   private buildUnitMesh(s: GameState, u: Unit): TransformNode {
