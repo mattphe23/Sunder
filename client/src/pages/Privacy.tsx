@@ -6,9 +6,10 @@
 //
 // ⚠ TWO THINGS MUST BE SET BEFORE SUBMITTING (see docs/APP-STORE-READINESS.md):
 //
-//   1. CONTACT below is a placeholder. Apple requires a working contact, and a
-//      privacy policy with a dead address is worse than none. Point it at a
-//      real inbox you are willing to publish.
+//   1. CONTACT is support@islandroadco.com — Island Road Studios' published
+//      address. It must be a MONITORED mailbox before submission: Apple
+//      requires a working contact, and under the EU DSA a trader's contact is
+//      published on the App Store product page.
 //   2. This is written to match what the code actually does, not to be legal
 //      advice. Read it against your own situation before you publish it —
 //      particularly if the App Store age rating ends up 4+ or the app is
@@ -25,7 +26,7 @@ import { Link } from "wouter";
 import { ArrowLeft } from "lucide-react";
 
 /** Published contact address. MUST be a real, monitored inbox before launch. */
-const CONTACT = "support@example.com";
+const CONTACT = "support@islandroadco.com";
 
 const UPDATED = "August 2026";
 
