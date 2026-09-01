@@ -23,11 +23,11 @@ domain as the work email on the account. Two things to finish first:
 
 - **`support@islandroadco.com` must actually receive mail.** A published address
   that bounces is worse than none, and it is the address a reviewer may use.
-- **Put the registered legal name in the footer** once the entity exists. The
-  company reads as "Island Road Studios" but the domain is `islandroadco.com`;
-  if the registered name comes back as something like "Island Road Studios LLC",
-  a reviewer checking that the domain belongs to the organization is the person
-  most likely to query the mismatch. Naming it explicitly costs one line.
+- **The registered legal name is in the footer** of all three pages: "Island
+  Road Studios LLC". This exists because the trading name ("Island Road
+  Studios") does not match the domain (`islandroadco.com`), and a reviewer
+  verifying that the domain belongs to the organization is the person most
+  likely to query that. If the entity is ever renamed, change it here too.
 
 ## Keeping the privacy policy in step
 
