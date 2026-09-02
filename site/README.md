@@ -8,13 +8,41 @@ Static site. Three pages, no build step, no dependencies.
 | `support.html` | The **Support URL** required by App Store Connect |
 | `privacy.html` | The **Privacy Policy URL** required by App Store Connect |
 
-## Deploying to Cloudflare Pages
+## Deploying
 
-1. Cloudflare dashboard → **Workers & Pages** → **Create** → **Pages** → connect this repo.
-2. **Build command:** leave empty. **Build output directory:** `site`.
-3. **Custom domains** → add `islandroadco.com` and `www.islandroadco.com`.
+Nothing is compiled. The only moving part is a static file server.
 
-Nothing is compiled, so the deploy is a file copy.
+### Railway (current)
+
+Set the service's **Root Directory** to `site`. Nixpacks then reads
+`site/package.json`, installs `serve`, and runs `npm start`, which binds
+Railway's injected `$PORT`:
+
+```
+serve . -l ${PORT:-8080}
+```
+
+That is why the package.json exists — without it Railway falls back to the
+repo root, which builds and starts **Sunder's Express server** instead of this
+site. The tell is `/privacy.html`: the game has a `/privacy` SPA route but
+nothing at `/privacy.html`, so that URL 404s under the wrong deploy and returns
+200 under the right one.
+
+When Railway asks for a **port**, it is asking which port inside the container
+to route to. Leave it on whatever Railway detects — the start command binds
+`$PORT`, so hardcoding a number will break routing.
+
+`serve.json` sets `cleanUrls: false` on purpose. Without it `serve` redirects
+`/support.html` to `/support`, which works but puts a 301 in front of every
+internal link and in front of the URLs registered in App Store Connect. With it
+off, the `.html` paths return 200 directly, exactly as they would on Cloudflare
+Pages, Netlify or any other static host — so the site behaves the same if it
+ever moves.
+
+### Any static host (Cloudflare Pages, Netlify, Vercel)
+
+Build command empty, output directory `site`. `package.json` and `serve.json`
+are ignored by these and do no harm.
 
 ## Before Apple verification
 
