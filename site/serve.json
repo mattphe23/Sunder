@@ -1,6 +1,10 @@
 {
+  "rewrites": [
+    { "source": "/", "destination": "/index.html" }
+  ],
   "cleanUrls": false,
   "trailingSlash": false,
+  "directoryListing": false,
   "headers": [
     {
       "source": "**/*.@(html|css|png)",

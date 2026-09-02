@@ -4,7 +4,7 @@
   "private": true,
   "description": "Static site for islandroadco.com — Island Road Studios",
   "scripts": {
-    "start": "serve . -l ${PORT:-8080}"
+    "start": "serve public -c ../serve.json -l ${PORT:-8080}"
   },
   "dependencies": {
     "serve": "^14.2.4"

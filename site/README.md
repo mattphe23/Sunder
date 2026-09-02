@@ -1,12 +1,17 @@
 # islandroadco.com — Island Road Studios
 
-Static site. Three pages, no build step, no dependencies.
+Static site. Three pages, no build step.
+
+Everything served to the public lives in `public/`. Everything above it —
+`package.json`, `serve.json`, `node_modules`, this README — is deployment
+machinery and sits deliberately outside the web root, so none of it is
+fetchable.
 
 | File | Serves as |
 |---|---|
-| `index.html` | The company site Apple checks during Organization enrolment |
-| `support.html` | The **Support URL** required by App Store Connect |
-| `privacy.html` | The **Privacy Policy URL** required by App Store Connect |
+| `public/index.html` | The company site Apple checks during Organization enrolment |
+| `public/support.html` | The **Support URL** required by App Store Connect |
+| `public/privacy.html` | The **Privacy Policy URL** required by App Store Connect |
 
 ## Deploying
 
@@ -19,8 +24,11 @@ Set the service's **Root Directory** to `site`. Nixpacks then reads
 Railway's injected `$PORT`:
 
 ```
-serve . -l ${PORT:-8080}
+serve public -c ../serve.json -l ${PORT:-8080}
 ```
+
+`-c` is resolved relative to the **served** directory, not the working
+directory — hence `../serve.json`, not `serve.json`.
 
 That is why the package.json exists — without it Railway falls back to the
 repo root, which builds and starts **Sunder's Express server** instead of this
@@ -39,10 +47,27 @@ off, the `.html` paths return 200 directly, exactly as they would on Cloudflare
 Pages, Netlify or any other static host — so the site behaves the same if it
 ever moves.
 
+The `rewrites` entry mapping `/` to `/index.html` is **load-bearing, and only
+because `cleanUrls` is off.** In serve-handler, the lookup that resolves a
+directory to its index file runs inside
+
+```js
+if (!stats && (cleanUrl || rewrittenPath))   // src/index.js
+```
+
+so turning `cleanUrls` off turns off index resolution as a side effect. Without
+the rewrite, `/` falls through to a **directory listing** of the served folder.
+That returns 200, so a status-code-only smoke test passes while the homepage is
+a file browser — which is exactly how it reached production once.
+`directoryListing: false` is belt-and-braces against the same failure.
+
+Test the homepage by its `<title>`, never by its status code.
+
 ### Any static host (Cloudflare Pages, Netlify, Vercel)
 
-Build command empty, output directory `site`. `package.json` and `serve.json`
-are ignored by these and do no harm.
+Build command empty, output directory `site/public`. These hosts serve
+`index.html` for `/` natively and do not read `serve.json`, so the rewrite is
+not needed there.
 
 ## Before Apple verification
 
