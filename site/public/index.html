@@ -9,7 +9,25 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=JetBrains+Mono:wght@400;700&display=swap">
 <link rel="stylesheet" href="/style.css">
 <title>Island Road Studios</title>
-<meta name="description" content="Island Road Studios is an independent game studio. We make Sunder: The Living Forge.">
+<meta name="description" content="Island Road Studios is an independent game studio in the United States, making Sunder: The Living Forge — a turn-based strategy game for iOS and the web.">
+<meta property="og:title" content="Island Road Studios">
+<meta property="og:description" content="An independent game studio making Sunder: The Living Forge.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://islandroadco.com/">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "Island Road Studios LLC",
+  "alternateName": "Island Road Studios",
+  "url": "https://islandroadco.com/",
+  "email": "support@islandroadco.com",
+  "logo": "https://islandroadco.com/assets/sunder-mark.png",
+  "description": "Independent game studio making Sunder: The Living Forge.",
+  "foundingDate": "2026",
+  "address": { "@type": "PostalAddress", "addressRegion": "GA", "addressCountry": "US" }
+}
+</script>
 </head>
 <body>
 <div class="wrap">
@@ -24,20 +42,69 @@
 
   <main>
     <h1>We make small strategy games with a lot behind them.</h1>
-    <p class="lede">Island Road Studios is an independent studio. One game so far, built slowly and measured carefully.</p>
+    <p class="lede">Island Road Studios is an independent game studio in the United States. One game so far, built slowly and measured carefully.</p>
+
+    <h2>The studio</h2>
+    <p>Island Road Studios LLC is a small independent developer registered in Georgia, United States. We build turn-based strategy games — the kind you can finish on a train, that still reward a second look at the board.</p>
+    <p>We are not a publisher and we do not take outside work. Everything on this site is our own, and the one game we have is the one we are still working on.</p>
 
     <h2>What we're making</h2>
     <div class="work">
       <img src="/assets/sunder-mark.png" alt="Sunder app icon">
       <div>
         <h3>Sunder: The Living Forge</h3>
-        <p>A turn-based strategy game about outthinking rival powers in the Shatterlands — a world split apart, waiting to be forged anew. Eight factions, each free, each with its own way of winning.</p>
+        <p>A turn-based strategy game about outthinking rival powers in the Shatterlands — a world split apart, waiting to be forged anew.</p>
         <div class="tags">
           <span class="tag">iOS</span><span class="tag">Web</span><span class="tag">Turn-based strategy</span><span class="tag">In development</span>
         </div>
       </div>
     </div>
-    <p>Every faction in Sunder is free, and nothing you can buy will win you a match. Balance is measured across thousands of simulated games rather than guessed at, and the results are written down.</p>
+
+    <p>A match is short by design. You start with one city and a handful of units on a procedurally generated map, and you have a fixed number of turns to build a larger claim than three rivals. Research, expansion, terrain and timing all pull against each other, and the turn limit means you cannot have all of them.</p>
+
+    <h3>How it plays</h3>
+    <ul class="plain">
+      <li><strong>Four map types</strong> — continents, archipelago, highlands and pangaea, each generated fresh from a seed.</li>
+      <li><strong>Daily and weekly challenges</strong> — everyone plays the same seeded board, ranked on a global leaderboard.</li>
+      <li><strong>Asynchronous duels</strong> — play a friend a turn at a time, across devices, without either of you waiting.</li>
+      <li><strong>No account required</strong> — the whole game plays offline. Signing in only carries your record between devices.</li>
+    </ul>
+
+    <h2>The eight factions</h2>
+    <p>Every faction is free. None of them is unlocked by paying, and nothing you can buy will win you a match. Each one bends the same rules in a different direction:</p>
+
+    <div class="facs">
+      <div class="fac"><span class="sw" style="--c:#306eff"></span><div><b>Auren</b><small>Scholars — technologies cost 10% less</small></div></div>
+      <div class="fac"><span class="sw" style="--c:#f74456"></span><div><b>Kharzul</b><small>Forgeborn — units deal +15% attack damage</small></div></div>
+      <div class="fac"><span class="sw" style="--c:#f3a71f"></span><div><b>Sunwei</b><small>Harvesters — harvesting resources costs 1 less star</small></div></div>
+      <div class="fac"><span class="sw" style="--c:#9d5ce8"></span><div><b>Vessari</b><small>Outriders — all units gain +1 movement on grass</small></div></div>
+      <div class="fac"><span class="sw" style="--c:#2dd4bf"></span><div><b>Nerivane</b><small>Tideborn — cheap ports, faster boats, richer coasts</small></div></div>
+      <div class="fac"><span class="sw" style="--c:#976227"></span><div><b>Dravok</b><small>Stonebound — cheaper walls, tougher city defenders</small></div></div>
+      <div class="fac"><span class="sw" style="--c:#38bdf8"></span><div><b>Valkyra</b><small>Stormborn — enemy retaliation is halved</small></div></div>
+      <div class="fac"><span class="sw" style="--c:#99ed47"></span><div><b>Mycelon</b><small>Sporebound — units recover +2 HP resting at home</small></div></div>
+    </div>
+
+    <h2>How we build it</h2>
+    <p>The phrase "a lot behind them" is the part we care about. Three examples of what that means in practice:</p>
+
+    <h3>Balance is measured, not guessed</h3>
+    <p>When we change a faction, we do not ship it on instinct. A headless simulator plays the game against itself — hundreds of seeded, fully deterministic AI-vs-AI matches per change, with the faction roster rotated between turn-order slots so that a faction's strength can be told apart from the advantage of moving first. A change that looks good and measures flat does not ship.</p>
+
+    <h3>The board is readable if you are colourblind</h3>
+    <p>Ownership on the board is carried by colour, which makes colour-vision deficiency a playability question rather than a polish one. Every pair of faction colours is measured under simulated protanopia and deuteranopia, in a perceptual colour space rather than raw RGB, and an automated test fails the build if any two factions come too close together. An earlier palette that looked fine to us put two factions within a hair of each other for a deuteranope; the test exists because we shipped that once.</p>
+
+    <h3>Nothing is sold that changes the outcome</h3>
+    <p>Every faction, map type and mode is available to every player. We would rather sell you nothing than sell you an advantage.</p>
+
+    <h2>Development log</h2>
+    <p>Sunder has been in active development since July 2026 — 168 commits and 34 test suites so far. Recent work:</p>
+    <ol class="log">
+      <li><time datetime="2026-08-18">18 Aug 2026</time> Contact shadows across the whole board, so units read as standing on the ground rather than floating above it.</li>
+      <li><time datetime="2026-08-17">17 Aug 2026</time> Fatalities — a rare, earned cinematic on a decisive kill. Budgeted to at most twice a match, always skippable, and off during ranked challenge runs.</li>
+      <li><time datetime="2026-08-17">17 Aug 2026</time> Fixed the opening camera on phones, which had been framing the board backwards on narrow screens.</li>
+      <li><time datetime="2026-08-17">17 Aug 2026</time> In-app account deletion, a written privacy policy, and the iOS privacy manifest.</li>
+      <li><time datetime="2026-08-16">16 Aug 2026</time> Great Harvest now scales with the resources actually on the board instead of a flat number.</li>
+    </ol>
 
     <h2>Get in touch</h2>
     <div class="contact">
@@ -48,8 +115,8 @@
   </main>
 
   <footer>
-    <span>&copy; 2026 Island Road Studios LLC</span>
-    <span><a href="/support.html">Support</a> · <a href="/privacy.html">Privacy</a></span>
+    <span>&copy; 2026 Island Road Studios LLC &middot; Georgia, United States</span>
+    <span><a href="/support.html">Support</a> &middot; <a href="/privacy.html">Privacy</a></span>
   </footer>
 </div>
 </body>

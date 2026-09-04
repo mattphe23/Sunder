@@ -115,6 +115,54 @@ a:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; border-r
 .contact p:last-child { margin-bottom: 0; }
 .addr { font-family: "JetBrains Mono", monospace; font-size: 1.02rem; font-weight: 700; color: var(--ink); }
 
+/* ---- plain feature list ---- */
+.plain { list-style: none; padding: 0; margin: 0 0 1.15rem; }
+.plain li {
+  position: relative; padding-left: 1.1rem; margin-bottom: .55rem;
+  color: var(--ink-soft); font-size: .98rem;
+}
+.plain li::before {
+  content: ""; position: absolute; left: 0; top: .62em;
+  width: 5px; height: 5px; border-radius: 50%; background: var(--tide);
+}
+
+/* ---- faction grid ----
+   The swatch is the faction's real in-game colour, pulled from TRIBE_DEFS. If a
+   colour is repainted in the game, repaint it here too — this table is the only
+   place on the site that claims to show what the board looks like. */
+.facs {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: .5rem;
+  margin: 1.3rem 0 1.5rem;
+}
+.fac {
+  display: flex; gap: .7rem; align-items: flex-start;
+  padding: .7rem .85rem; background: var(--surface);
+  border: 1px solid var(--line); border-radius: 4px;
+}
+.fac .sw {
+  flex: none; width: 14px; height: 14px; margin-top: .18rem;
+  border-radius: 3px; background: var(--c);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.18);
+}
+.fac b {
+  display: block; font-family: "Bricolage Grotesque", sans-serif;
+  font-size: .92rem; font-weight: 700; color: var(--ink); letter-spacing: -.01em;
+}
+.fac small { display: block; font-size: .8rem; line-height: 1.45; color: var(--muted); }
+@media (max-width: 34rem) { .facs { grid-template-columns: 1fr; } }
+
+/* ---- development log ---- */
+.log { list-style: none; padding: 0; margin: 1.2rem 0 0; }
+.log li {
+  padding: .8rem 0 .85rem; border-top: 1px solid var(--line);
+  color: var(--ink-soft); font-size: .96rem;
+}
+.log li:last-child { border-bottom: 1px solid var(--line); }
+.log time {
+  display: block; font-family: "JetBrains Mono", monospace;
+  font-size: .74rem; color: var(--tide); margin-bottom: .2rem;
+}
+
 /* ---- footer ---- */
 footer {
   margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid var(--line);
