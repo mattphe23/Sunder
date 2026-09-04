@@ -163,6 +163,12 @@ a:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; border-r
   font-size: .74rem; color: var(--tide); margin-bottom: .2rem;
 }
 
+.postal {
+  margin: 1rem 0 0; padding-top: .9rem; border-top: 1px solid var(--line);
+  font-size: .88rem; line-height: 1.6; color: var(--muted);
+}
+.postal strong { color: var(--ink-soft); }
+
 /* ---- footer ---- */
 footer {
   margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid var(--line);
