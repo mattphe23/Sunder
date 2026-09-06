@@ -86,6 +86,26 @@ const LAND_SKIRT = 0.34;
 // beneath the board — sells the "island floating over the abyss" look.
 const SHADOW_Y = -0.78;
 
+// ---- Stage 2 / Rung 1.5 -----------------------------------------------------
+// Terrain takes the directional key; units stay flat and fully saturated.
+//
+// A uniform relight was tried first and rejected: lighting everything removed
+// the figure/ground separation the units had been riding on, and they sank into
+// the landscape. They were only reading because they were the sole saturated
+// elements in a flat frame. So the split is deliberate — landscape recedes into
+// shading, actors stay graphic and gain their own edge cues instead.
+/** how far terrain is pulled toward grey so it sits behind the actors */
+const TERRAIN_DESAT = 0.14;
+/** dark keyline around unit meshes; replaces the contrast flat shading gave */
+const UNIT_OUTLINE = 0.018;
+/** width of the territory border bar laid along an ownership edge.
+ *  0.085 was the first try and read as a thick curb that out-shouted the units
+ *  — the point of the edge is precision, not volume, so it is the thinnest bar
+ *  that still holds its colour at phone zoom. */
+const BORDER_W = 0.052;
+/** ambient-only owner tint left in the tile fill; the edge carries precision */
+const OWNER_FILL_TINT = 0.14;
+
 /** flat triangular prism (fins, sails, shards) — a 3-tess cone, z-squashed */
 function wedgeMesh(scene: Scene, name: string, w: number, h: number, d: number): Mesh {
   const m = MeshBuilder.CreateCylinder(name, { diameterTop: 0, diameterBottom: w, height: h, tessellation: 3 }, scene);
@@ -407,6 +427,45 @@ export class BoardRenderer {
   }
 
   /**
+   * Stage 2 terrain: LIT slab material, slightly desaturated.
+   *
+   * Terrain used to be unlit (see mat()), which threw away every depth cue the
+   * geometry carried. Elevation, occlusion and cliff faces all read as flat
+   * colour steps — the reason Highlands, whose defining feature IS elevation,
+   * photographed worst of the four map types.
+   *
+   * Desaturating by TERRAIN_DESAT pushes the landscape back so the saturated end
+   * of the palette belongs to units and territory borders. Same ambient-floor
+   * trick as litMat: floor + diffuse * lights lands near the palette value on a
+   * lit face, so shading darkens the shaded faces rather than blowing out the
+   * lit ones.
+   */
+  terrainMat(hex: string): StandardMaterial {
+    const key = "terr:" + hex;
+    let m = this.mats.get(key);
+    if (!m) {
+      const base = Color3.FromHexString(hex);
+      const grey = (base.r + base.g + base.b) / 3;
+      const recede = Color3.Lerp(base, new Color3(grey, grey, grey), TERRAIN_DESAT);
+      m = new StandardMaterial("m" + key, this.scene);
+      // Exposure is solved, not guessed. Measured against a render: a tile top
+      // faces straight up and collects ~1.2 from hemi(0.62) + sun(0.72), so the
+      // first attempt (0.52 / 0.58, copied from litMat's prop tuning) put grass
+      // at #a3e977 against a palette value of #84c95e — 1.22x overbright, which
+      // made terrain LOUDER than before and cancelled the desaturation.
+      //   lit  face: 0.46 + 0.45 * 1.20 = 1.00  (lands on the palette value)
+      //   shaded   : 0.46 + 0.45 * 0.35 = 0.62  (enough drop to read as form)
+      m.emissiveColor = recede.scale(0.46);
+      m.diffuseColor = recede.scale(0.45);
+      m.specularColor = Color3.Black();
+      m.disableLighting = false;
+      m.maxSimultaneousLights = 2; // key + fill only: smaller shader on mobile
+      this.mats.set(key, m);
+    }
+    return m;
+  }
+
+  /**
    * Crisp per-face shading. Babylon's default fragment shader computes a
    * geometric normal from screen-space derivatives whenever the NORMAL
    * attribute is absent, so dropping normals gives exact flat shading with
@@ -470,8 +529,11 @@ export class BoardRenderer {
    * per-face submeshes and keeps the picking metadata on the body.
    */
   private buildSlab(name: string, x: number, z: number, h: number, topHex: string, sideHex: string, fogged: boolean): Mesh {
-    const topMat = fogged ? this.foggedMat(topHex) : this.mat(topHex);
-    const sideMat = fogged ? this.foggedMat(sideHex) : this.mat(sideHex);
+    // Stage 2: slabs take the light (terrainMat) instead of the flat unlit
+    // palette step. Fogged tiles stay unlit — fog-of-war is a graphic state,
+    // not a lighting one, and shading it would fight the wash.
+    const topMat = fogged ? this.foggedMat(topHex) : this.terrainMat(topHex);
+    const sideMat = fogged ? this.foggedMat(sideHex) : this.terrainMat(sideHex);
     // v33 diorama: extend the slab body downward by a fixed skirt so land
     // cliffs read chunky above water and the void — the "board game piece" look.
     const bodyH = h + LAND_SKIRT;
@@ -479,7 +541,7 @@ export class BoardRenderer {
     // terrain's own side color at the top, exposed earth below. This is what
     // makes the board read as a slab of world floating in the void rather
     // than a green plate.
-    const soilMat = fogged ? this.foggedMat(this.bio.soil) : this.mat(this.bio.soil);
+    const soilMat = fogged ? this.foggedMat(this.bio.soil) : this.terrainMat(this.bio.soil);
     const body = MeshBuilder.CreateBox(name, { width: TILE * 0.96, depth: TILE * 0.96, height: bodyH }, this.scene);
     // top face must stay at the original y (= h - 0.4), so center sits lower
     body.position = new Vector3(x, h - 0.4 - bodyH / 2, z);
@@ -988,6 +1050,47 @@ export class BoardRenderer {
           ledge.material = ledgeMat;
           ledge.isPickable = false;
           ledge.parent = box;
+        }
+      }
+
+      // ---- territory border ------------------------------------------------
+      // Ownership is drawn as an edge on the tile cap, not as a wash through
+      // the fill. An edge carries FULL faction saturation over a small area, so
+      // it stays discriminable however many tribes exist — which matters when
+      // tribes are the thing being sold — and it leaves the fill free to keep
+      // meaning terrain. Same per-edge neighbour walk as the shore band above.
+      //
+      // Only the outline of a territory is drawn: interior edges, where the
+      // neighbour shares this owner, are skipped, so a claimed region reads as
+      // one enclosed shape rather than a grid of boxed tiles.
+      const mine = this.ownerTribeOf(s, t);
+      if (mine !== null && !fogged) {
+        const bodyH = h + LAND_SKIRT;
+        const tribe = s.tribes[mine];
+        const borderMat = tribe ? this.mat(tribe.color) : null;
+        if (borderMat) {
+          for (const [dx, dy] of dirs) {
+            const nx = t.x + dx, ny = t.y + dy;
+            const offBoard = nx < 0 || ny < 0 || nx >= s.size || ny >= s.size;
+            const nb = offBoard ? null : s.tiles[idx(nx, ny, s.size)];
+            if (nb && this.ownerTribeOf(s, nb) === mine) continue; // interior
+            // Shortened along the run by one border width so perpendicular
+            // segments meet instead of overlapping — the first version doubled
+            // up at every corner and left a visibly chunky post there.
+            const edge = MeshBuilder.CreateBox("tborder", {
+              width: dx !== 0 ? BORDER_W : TILE * 0.965 - BORDER_W * 2,
+              depth: dy !== 0 ? BORDER_W : TILE * 0.965 - BORDER_W * 2,
+              height: 0.03,
+            }, this.scene);
+            edge.position = new Vector3(
+              dx * ((TILE * 0.965) / 2 - BORDER_W / 2),
+              bodyH / 2 + 0.02,
+              dy * ((TILE * 0.965) / 2 - BORDER_W / 2),
+            );
+            edge.material = borderMat;
+            edge.isPickable = false;
+            edge.parent = box;
+          }
         }
       }
     }
@@ -1777,19 +1880,43 @@ export class BoardRenderer {
     return out;
   }
 
+  /**
+   * Terrain colour, with a WHISPER of the owner's colour mixed in.
+   *
+   * This tint used to be the only ownership signal, at 0.22. That made it carry
+   * a load it could not bear: the tile top already encodes terrain type, so the
+   * same channel was doing two jobs, and a 22% mix compressed the difference
+   * between two factions to about a fifth of their palette separation — Valkyra
+   * and Nerivane sit 62 apart in RGB and landed ~14 apart once mixed into grass,
+   * which is invisible across a large flat area. Worse, it could not scale:
+   * adding tribes adds hues that collide, and raising the mix only makes every
+   * faction louder while eating terrain readability.
+   *
+   * Ownership is now drawn as an EDGE instead (see the border pass in
+   * buildTile). The fill keeps a light tint purely as an ambient "roughly mine"
+   * read at a glance — fill for ambience, edge for precision, the way political
+   * boundaries sit over physical terrain on a map.
+   */
   private tileColor(s: GameState, t: Tile): string {
     let base = this.bio.terrain[t.terrain].top;
-    // tint owned borders toward owner color
     if (t.ownerCityId !== null) {
       const owner = s.cities[t.ownerCityId];
       if (owner.tribe !== null && (t.terrain === "grass" || t.terrain === "forest")) {
         const oc = Color3.FromHexString(s.tribes[owner.tribe].color);
         const bc = Color3.FromHexString(base);
-        const mixed = Color3.Lerp(bc, oc, 0.22);
+        const mixed = Color3.Lerp(bc, oc, OWNER_FILL_TINT);
         base = mixed.toHexString();
       }
     }
     return base;
+  }
+
+  /** owning tribe of a tile, or null for unclaimed ground */
+  private ownerTribeOf(s: GameState, t: Tile): number | null {
+    if (t.ownerCityId === null) return null;
+    const c = s.cities[t.ownerCityId];
+    if (!c || c.tribe === null || c.tribe === undefined) return null;
+    return c.tribe;
   }
 
   /** sync units to state (create/update/remove + animate moves) */
@@ -2113,8 +2240,12 @@ export class BoardRenderer {
       (finMat as StandardMaterial).disableLighting = true;
       this.mats.set(glowKey, finMat);
     }
+    // Stage 2 / Rung 1.5: units go UNLIT at full palette saturation while the
+    // terrain takes the light. The board is information first — the actors have
+    // to stay the most graphic thing on it, and shading them alongside the
+    // landscape is exactly what made them disappear in the uniform-relight test.
     const rig = buildCharacter(
-      { scene: this.scene, mat: (hex) => this.litMat(hex), color: col, defIndex, type: u.type },
+      { scene: this.scene, mat: (hex) => this.mat(hex), color: col, defIndex, type: u.type },
       node,
       { orbMat, finMat },
     );
@@ -2184,6 +2315,17 @@ export class BoardRenderer {
       this.scene.beginAnimation(crest, 0, 90, true);
     }
     node.getChildMeshes().forEach((m) => this.addShadows(m as Mesh));
+    // Stage 2 keyline. Runs here, at the end, so late additions (the hero's
+    // crown and spinning crest) are outlined too — and BEFORE the contact
+    // shadow, which must not get an outline or it reads as a hard ring drawn
+    // on the ground. With terrain now lit and units unlit, this edge is what
+    // separates the figure from the tile.
+    for (const cm of node.getChildMeshes()) {
+      const m = cm as Mesh;
+      m.renderOutline = true;
+      m.outlineWidth = UNIT_OUTLINE;
+      m.outlineColor = Color3.FromHexString("#0b0b1e");
+    }
     // after the caster pass: the ground disc stands in for a shadow, it must
     // not cast one of its own
     this.addContactShadow(node);
