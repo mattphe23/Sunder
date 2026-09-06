@@ -1074,11 +1074,15 @@ export class BoardRenderer {
             const offBoard = nx < 0 || ny < 0 || nx >= s.size || ny >= s.size;
             const nb = offBoard ? null : s.tiles[idx(nx, ny, s.size)];
             if (nb && this.ownerTribeOf(s, nb) === mine) continue; // interior
-            // Shortened along the run by one border width so perpendicular
-            // segments meet instead of overlapping — the first version doubled
-            // up at every corner and left a visibly chunky post there.
+            // Corner handling: ONE axis runs full width, the other is trimmed
+            // by a border width at each end. Shortening both (the first fix for
+            // the doubled-up corner posts) overcorrected and left a
+            // BORDER_W-square hole at every convex corner — each bar reached
+            // only +/-0.440 while sitting at +/-0.466. Running the x-bars full
+            // length closes that hole exactly, with the z-bars stopping where
+            // they begin, so corners are neither gapped nor double-thick.
             const edge = MeshBuilder.CreateBox("tborder", {
-              width: dx !== 0 ? BORDER_W : TILE * 0.965 - BORDER_W * 2,
+              width: dx !== 0 ? BORDER_W : TILE * 0.965,
               depth: dy !== 0 ? BORDER_W : TILE * 0.965 - BORDER_W * 2,
               height: 0.03,
             }, this.scene);
