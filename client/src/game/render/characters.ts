@@ -43,13 +43,69 @@ const BONE = "#e8e2d2";
 
 // per-faction costume flavor: accent color + headgear style.
 // defIndex matches TRIBE_DEFS order: Auren, Kharzul, Sunwei, Vessari, Nerivane, Dravok.
+/**
+ * Ornament kit for a tribe.
+ *
+ * `headgear` was the only slot for a long time, on the reasoning — correct, and
+ * still true — that it is the one costume feature readable at play distance.
+ * The other three slots come from a zone-allocation study over paintovers of
+ * real captures: head, back and lower body each produce a silhouette that stays
+ * separable in greyscale at ~45px, roughly a unit on a phone. That gives three
+ * independent axes instead of one, which is what lets tribe nine be a new
+ * SILHOUETTE rather than one more hue — and hue is exhausted, since the eight
+ * tribe colours already collide with each other and with terrain.
+ *
+ * Every new slot is optional, and absent means "none", so the eight shipped
+ * tribes render exactly as before until a kit is filled deliberately.
+ *
+ * Read ORNAMENT_BUDGET below before adding a shape. Short version: spend
+ * upward, never outward.
+ */
 export interface Costume {
   accent: string;
   headgear: "circlet" | "horns" | "straw" | "hood" | "crest" | "helm" | "wings" | "cap" | "none";
+  /** shoulders and spine — hangs behind, must not flare at the hem */
+  back?: "cape" | "swept-wings" | "mantle" | "none";
+  /** waist to ankle — the band that actually collides with neighbouring tiles */
+  lower?: "skirt" | "greaves" | "none";
+  /** carried standard; the most legible ornament at every zoom, so rationed */
+  pennant?: "swallowtail" | "square" | "ragged" | "none";
 }
+
+/**
+ * Measured ornament budgets, in the rig's own world units.
+ *
+ * Derived from buildRig(): the base puck is 0.44 across, and the head crown
+ * sits near 0.575. The ratios came from measuring bounding boxes of ornament
+ * studies against an unornamented figure of the same armature.
+ *
+ * The load-bearing finding is that WIDTH AT GROUND LEVEL is the expensive axis
+ * and height is nearly free. On a grid board the tile beside a unit is
+ * occupied while the space above it is empty sky, so upward ornament costs
+ * nothing and sideways ornament collides — with the neighbouring tile and with
+ * other units. A full cape measured 1.32x at the ground band, worse than the
+ * flared skirt everyone expected to be the offender, because it falls the
+ * whole height and flares at the hem. Hence: capes stop above the ankle and
+ * taper inward.
+ */
+const ORNAMENT_BUDGET = {
+  /** base puck diameter — the real contact patch with the tile */
+  footprint: 0.44,
+  /** cap on any ornament's width in the ground band (1.15x footprint) */
+  groundMax: 0.44 * 1.15,
+  /** crown of the head on the bare rig */
+  height: 0.575,
+  /** cap on total silhouette height (1.10x) */
+  heightMax: 0.575 * 1.1,
+} as const;
 const COSTUMES: Costume[] = [
   { accent: "#9fc4ff", headgear: "circlet" }, // Auren — scholars, silver-blue circlet
-  { accent: "#ffb3a0", headgear: "horns" },   // Kharzul — forgeborn, horned helm
+  // Kharzul is the reference kit: the first tribe with all four slots filled,
+  // and the pattern the other seven follow. Horns (outward-extending head),
+  // tapered cape (back), swallowtail pennant. Lower is deliberately left empty
+  // — three filled slots already separate at 45px, and holding one in reserve
+  // means a later tribe can differ from Kharzul on an axis Kharzul does not use.
+  { accent: "#ffb3a0", headgear: "horns", back: "cape", pennant: "swallowtail" },
   { accent: "#ffe08a", headgear: "straw" },   // Sunwei — harvesters, wide straw hat
   { accent: "#d4b3ff", headgear: "hood" },    // Vessari — outriders, riding hood
   { accent: "#a0f0e4", headgear: "crest" },   // Nerivane — tideborn, fin crest
@@ -806,6 +862,21 @@ function mycelonCapEmblem(spec: CharacterSpec, parent: TransformNode, y: number,
 
 /** per-tribe v3 headgear: Nerivane crystal crest (default), Kharzul horns */
 function v3Headgear(spec: CharacterSpec, parent: TransformNode, headY: number, glowMat?: Material, tall = false) {
+  // The costume slots hang here, not off buildHeadgear().
+  //
+  // buildHeadgear is the LEGACY path: buildCharacter early-returns to the v3
+  // builders for every real tribe (defIndex 0-7) on warrior, archer, defender
+  // and rider, so buildHeadgear only ever runs for raiders, forged tribes and
+  // a few older unit types. Hooking the slots there left them dead code on
+  // exactly the infantry the kit exists for — which typechecked perfectly and
+  // showed up only when a rendered Kharzul warrior had no cape on it.
+  //
+  // nerivaneBodyV3 is misleadingly named: it is the SHARED v3 skeleton for all
+  // eight tribes, and this is its one per-tribe dispatch point.
+  const shoulderY = headY - 0.115; // v3 body: chest block at 0.355, head at 0.47
+  buildBack(spec, parent, shoulderY);
+  buildLower(spec, parent);
+  buildPennant(spec, parent, shoulderY);
   switch (spec.defIndex) {
     case 0: circletArcsV3(spec, parent, headY, glowMat, tall); break;
     case 1: boneHornsV3(spec, parent, headY, tall); break;
@@ -1106,9 +1177,141 @@ function buildRig(spec: CharacterSpec, parent: TransformNode, opts: RigOptions =
   return { shoulderY, headY };
 }
 
-/** per-faction headgear above the head */
+/**
+ * Back slot: shoulders and spine. Reads as a mass behind the figure from the
+ * board's three-quarter camera, which is the angle that actually matters.
+ *
+ * Everything here stops at BACK_HEM and tapers, because a cape that reaches the
+ * ground is the widest ornament measured — worse than a flared skirt. Ending
+ * above the ankle keeps the whole slot out of the ground band entirely.
+ */
+const BACK_HEM = 0.13; // lowest y any back ornament may reach
+
+function buildBack(spec: CharacterSpec, parent: TransformNode, shoulderY: number) {
+  const c = costumeFor(spec.defIndex);
+  switch (c.back) {
+    case "cape": {
+      // A single tapered slab hung behind the spine. Narrower at the hem than
+      // at the shoulders — the inverse of a real cape, and the reason this one
+      // stays inside budget while a naturalistic one does not.
+      const top = shoulderY + 0.02;
+      const h = top - BACK_HEM;
+      // Sits BEHIND the torso and NARROWER than it. Two earlier versions failed
+      // the same way: at 0.30 and then 0.26 wide the cape was broader than the
+      // 0.24 torso, so from the board's three-quarter angle it wrapped the
+      // figure into a single dark mass instead of layering behind it.
+      //
+      // The colour matters as much as the width, and it has to clear the two
+      // value steps the v3 skeleton already uses: plates at darken(0.45) and
+      // fauld/trim at darken(0.32). The first attempt used 0.45 exactly — the
+      // same value as the armour it hangs behind — so the cape rendered
+      // correctly, sat inside budget, and was completely invisible. With units
+      // unlit there is no shading to separate two identical values.
+      const cape = cyl(spec, "cape", 0.20, 0.13, h, 6, darken(spec.color, 0.24), parent, 0, BACK_HEM + h / 2, 0.10);
+      cape.scaling.z = 0.22; // flatten front-to-back so it reads as cloth, not a barrel
+      cape.rotation.x = -0.06;
+      break;
+    }
+    case "swept-wings": {
+      // Swept BACK and up, not spread. Spread wings measured 1.38x width even
+      // after folding; sweeping them along the spine keeps the cost vertical.
+      for (const sx of [-0.085, 0.085]) {
+        const w = wedge(spec, "wing", 0.10, 0.26, 0.03, c.accent, parent, sx, shoulderY - 0.02, 0.06);
+        w.rotation.z = sx > 0 ? -0.45 : 0.45;
+        w.rotation.x = -0.5;
+      }
+      break;
+    }
+    case "mantle": {
+      // Shoulder-only: the cheapest back read, and the one that leaves the
+      // lower body free for a second slot.
+      for (const sx of [-0.10, 0.10]) {
+        const m = box(spec, "mantle", 0.10, 0.055, 0.13, c.accent, parent, sx, shoulderY - 0.01, 0.02);
+        m.rotation.z = sx > 0 ? -0.28 : 0.28;
+      }
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+/**
+ * Lower slot: waist to ankle. This is the collision-critical band, so shapes
+ * here are held to ORNAMENT_BUDGET.groundMax and checked against it.
+ */
+function buildLower(spec: CharacterSpec, parent: TransformNode) {
+  const c = costumeFor(spec.defIndex);
+  switch (c.lower) {
+    case "skirt": {
+      // Flares, but stops short of the puck so the widest point sits at hip
+      // height rather than at the contact patch. Measured studies showed a
+      // skirt respecting the hip band exactly and only widening at the hem —
+      // so the hem is what gets capped.
+      const hem = Math.min(0.30, ORNAMENT_BUDGET.groundMax);
+      cyl(spec, "skirt", 0.20, hem, 0.16, 8, darken(spec.color, 0.72), parent, 0, 0.16, 0);
+      break;
+    }
+    case "greaves": {
+      for (const sx of [-0.06, 0.06]) {
+        box(spec, "greave", 0.075, 0.07, 0.085, c.accent, parent, sx, 0.10, 0);
+      }
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+/**
+ * Pennant slot: a carried standard.
+ *
+ * The most legible ornament at every zoom tested — large, high contrast, and
+ * silhouetted against sky instead of against a busy tile. It is also the most
+ * expensive if handled badly: held out to the side it was the single biggest
+ * contributor to silhouette width. So the pole rides close to the body and the
+ * flag flies from the top, where width is free.
+ */
+function buildPennant(spec: CharacterSpec, parent: TransformNode, shoulderY: number) {
+  const c = costumeFor(spec.defIndex);
+  if (!c.pennant || c.pennant === "none") return;
+  const px = 0.115; // close in; the spear already occupies the other side
+  const poleTop = shoulderY + 0.20;
+  cyl(spec, "pole", 0.012, 0.012, 0.42, 5, WOOD_DARK, parent, px, shoulderY - 0.01, 0.02);
+  const fy = poleTop - 0.03;
+  switch (c.pennant) {
+    case "swallowtail": {
+      const f = wedge(spec, "flag", 0.10, 0.09, 0.012, c.accent, parent, px + 0.055, fy, 0.02);
+      f.rotation.z = -Math.PI / 2;
+      break;
+    }
+    case "square":
+      box(spec, "flag", 0.10, 0.075, 0.012, c.accent, parent, px + 0.055, fy, 0.02);
+      break;
+    case "ragged": {
+      // two offset strips read as torn at 45px where notches do not
+      box(spec, "flag", 0.10, 0.042, 0.012, c.accent, parent, px + 0.055, fy + 0.022, 0.02);
+      box(spec, "flag", 0.075, 0.034, 0.012, c.accent, parent, px + 0.042, fy - 0.018, 0.02);
+      break;
+    }
+  }
+}
+
+/**
+ * per-faction costume above and around the rig.
+ *
+ * Named for headgear because that was once all it did; it now places the whole
+ * kit. shoulderY is derived rather than passed because buildRig() always sets
+ * headY = shoulderY + 0.09, and threading a second argument through ten call
+ * sites bought nothing. If that offset ever changes in buildRig, change it here
+ * too — the two are a pair.
+ */
 function buildHeadgear(spec: CharacterSpec, parent: TransformNode, headY: number) {
   const c = costumeFor(spec.defIndex);
+  const shoulderY = headY - 0.09;
+  buildBack(spec, parent, shoulderY);
+  buildLower(spec, parent);
+  buildPennant(spec, parent, shoulderY);
   switch (c.headgear) {
     case "circlet":
       cyl(spec, "gear", 0.16, 0.16, 0.025, 10, c.accent, parent, 0, headY + 0.07, 0);
