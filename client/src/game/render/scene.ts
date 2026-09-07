@@ -37,6 +37,11 @@ const UNIT_SCALE = 1.34;
 // side-effect registrations the barrel used to pull in implicitly
 import "@babylonjs/core/Animations/animatable";
 import "@babylonjs/core/Culling/ray";
+// Registers the outline renderer. Without this side-effect import the
+// mesh.renderOutline flag set in buildUnitMesh is a silent no-op: the property
+// exists on AbstractMesh, but nothing draws it. Cost the unit keyline an entire
+// review cycle — it typechecked and rendered nothing.
+import "@babylonjs/core/Rendering/outlineRenderer";
 // post-process pipeline shaders (image processing, bloom, FXAA) — without
 // these the pipeline compiles broken vertex shaders at runtime
 import "@babylonjs/core/Shaders/imageProcessing.fragment";
@@ -94,8 +99,13 @@ const SHADOW_Y = -0.78;
 // the landscape. They were only reading because they were the sole saturated
 // elements in a flat frame. So the split is deliberate — landscape recedes into
 // shading, actors stay graphic and gain their own edge cues instead.
-/** how far terrain is pulled toward grey so it sits behind the actors */
-const TERRAIN_DESAT = 0.14;
+/** how far terrain is pulled toward grey so it sits behind the actors.
+ *  Raised from 0.14: at that value grass still read as bright saturated green
+ *  and competed with the units instead of receding behind them. */
+const TERRAIN_DESAT = 0.24;
+/** gain applied to unlit unit colour, restoring what litMat used to deliver.
+ *  See unitMat() — without it units render ~17% darker than the art intends. */
+const UNIT_GAIN = 1.2;
 /** dark keyline around unit meshes; replaces the contrast flat shading gave */
 const UNIT_OUTLINE = 0.018;
 /** width of the territory border bar laid along an ownership edge.
@@ -421,6 +431,37 @@ export class BoardRenderer {
       m.specularColor = Color3.Black();
       m.disableLighting = false;
       m.maxSimultaneousLights = 2; // key + fill only: smaller shader on mobile
+      this.mats.set(key, m);
+    }
+    return m;
+  }
+
+  /**
+   * Stage 2 units: UNLIT, and brightened to the value the art was authored for.
+   *
+   * The v3 skeleton paints armour at darken(tribeColor, 0.45) and trim at 0.32.
+   * Those steps were tuned while units used litMat, which delivers roughly
+   * emissive 0.46 + diffuse 0.62 * light — about 1.2x on a lit face. Switching
+   * units to plain mat() for the flat look dropped them to exactly 0.45x, so
+   * every figure got ~17% darker at the same moment terrain came UP onto the
+   * light. The result inverted the intended figure/ground: terrain read bright
+   * and saturated, units read as near-black silhouettes. Dark-on-bright is a
+   * far weaker read at 45px than bright-on-muted, and it degrades as territory
+   * fills the screen with green.
+   *
+   * So: keep units unlit, but restore the ~1.2x that litMat used to supply.
+   * Units advance, terrain recedes, and the flat graphic look is preserved.
+   */
+  unitMat(hex: string): StandardMaterial {
+    const key = "unit:" + hex;
+    let m = this.mats.get(key);
+    if (!m) {
+      const base = Color3.FromHexString(hex).scale(UNIT_GAIN);
+      m = new StandardMaterial("m" + key, this.scene);
+      m.emissiveColor = new Color3(Math.min(1, base.r), Math.min(1, base.g), Math.min(1, base.b));
+      m.diffuseColor = Color3.Black();
+      m.specularColor = Color3.Black();
+      m.disableLighting = true;
       this.mats.set(key, m);
     }
     return m;
@@ -1094,6 +1135,27 @@ export class BoardRenderer {
             edge.material = borderMat;
             edge.isPickable = false;
             edge.parent = box;
+            // Dark keyline under every border, not a per-faction exception.
+            // Border and terrain can collide in colour: measured worst pair is
+            // Valkyra storm blue #38bdf8 against shallow water #3fa0e8, only
+            // ~34 apart in RGB — a coastal Valkyra border would vanish, and on
+            // Archipelago coastline is everywhere. (Auren #306eff sits ~57 from
+            // shallow and ~75 from deep, so the flagged blue-on-blue case is
+            // real but not the worst one.) A keyline under all of them costs
+            // one mesh and removes the whole class of problem.
+            const key2 = MeshBuilder.CreateBox("tborderkey", {
+              width: dx !== 0 ? BORDER_W + 0.028 : TILE * 0.965,
+              depth: dy !== 0 ? BORDER_W + 0.028 : TILE * 0.965 - BORDER_W * 2,
+              height: 0.022,
+            }, this.scene);
+            key2.position = new Vector3(
+              dx * ((TILE * 0.965) / 2 - BORDER_W / 2),
+              bodyH / 2 + 0.012,
+              dy * ((TILE * 0.965) / 2 - BORDER_W / 2),
+            );
+            key2.material = this.mat("#12121f");
+            key2.isPickable = false;
+            key2.parent = box;
           }
         }
       }
@@ -2249,7 +2311,7 @@ export class BoardRenderer {
     // to stay the most graphic thing on it, and shading them alongside the
     // landscape is exactly what made them disappear in the uniform-relight test.
     const rig = buildCharacter(
-      { scene: this.scene, mat: (hex) => this.mat(hex), color: col, defIndex, type: u.type },
+      { scene: this.scene, mat: (hex) => this.unitMat(hex), color: col, defIndex, type: u.type },
       node,
       { orbMat, finMat },
     );
