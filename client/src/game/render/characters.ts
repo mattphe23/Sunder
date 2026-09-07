@@ -98,6 +98,34 @@ const ORNAMENT_BUDGET = {
   /** cap on total silhouette height (1.10x) */
   heightMax: 0.575 * 1.1,
 } as const;
+
+/**
+ * Armour plate value, as a fraction of the tribe's banner colour.
+ *
+ * Was 0.45 across every v3 builder, authored when units drew through the old
+ * lit material and picked up its ~1.2x exposure. Under Stage 2's unlit unitMat
+ * that same 0.45 lands the torso at a plum-brown that does not read as the
+ * tribe: a Kharzul warrior standing inside its own crimson territory border is
+ * visibly a different colour from the border. Measured on a fixed seed, the
+ * crimson-family pixel count on a warrior close-up went 40,186 -> 109,999 when
+ * this moved to 0.75, and only 5.25% of the frame changed, so the cost is paid
+ * entirely by units and not by terrain.
+ *
+ * This does NOT chase luminance parity with grass; that target is unreachable.
+ * Desaturated grass sits at L 170, and darken() is a pure per-channel scale, so
+ * Auren, Kharzul, Vessari and Dravok would each need a ratio above 1.0 — i.e.
+ * brighter than their own banner — to match it. Units separate here by chroma
+ * (S 0.60-0.87 against terrain's 0.42-0.44), by the outline, and by the contact
+ * shadow. They are meant to read dark-on-light; they are not meant to read
+ * brown.
+ *
+ * PLATE_DEEP stays clear of PLATE_SHADOW so the helm and fauld still step down
+ * against the torso — at 0.45/0.32 those two were close enough to mush.
+ */
+const PLATE_DEEP = 0.75;
+/** shadow step under the plate (fauld, trim, helm) — unchanged from v3 */
+const PLATE_SHADOW = 0.32;
+
 const COSTUMES: Costume[] = [
   { accent: "#9fc4ff", headgear: "circlet" }, // Auren — scholars, silver-blue circlet
   // Kharzul is the reference kit: the first tribe with all four slots filled,
@@ -381,8 +409,8 @@ const GRIP = "#4d4741";
  * Warrior is the approved reference; do not retune here for other classes.
  */
 function nerivaneBodyV3(spec: CharacterSpec, node: TransformNode, glowMat?: Material, tallHeadgear = false): { headY: number; shoulderY: number; deep: string; deeper: string } {
-  const deep = darken(spec.color, 0.45); // dark sea-armor plates
-  const deeper = darken(spec.color, 0.32); // shadow step (fauld, trim)
+  const deep = darken(spec.color, PLATE_DEEP); // dark sea-armor plates
+  const deeper = darken(spec.color, PLATE_SHADOW); // shadow step (fauld, trim)
 
   // fractured stone base with tribe-glow fissure (lineup mockup convention)
   fracturedStoneBase(spec, node, glowMat);
@@ -517,8 +545,8 @@ function nerivaneDefenderV3(spec: CharacterSpec, node: TransformNode, glowMat?: 
  *  dorsal fin, vertical tail crescent); the rider reuses the shared head,
  *  crest, and emblem helpers at reduced scale. */
 function nerivaneRiderV3(spec: CharacterSpec, node: TransformNode, glowMat?: Material): { headY: number; shoulderY: number } {
-  const deep = darken(spec.color, 0.45);
-  const deeper = darken(spec.color, 0.32);
+  const deep = darken(spec.color, PLATE_DEEP);
+  const deeper = darken(spec.color, PLATE_SHADOW);
   const c = costumeFor(spec.defIndex);
   fracturedStoneBase(spec, node, glowMat);
 
@@ -906,8 +934,8 @@ function v3Emblem(spec: CharacterSpec, parent: TransformNode, y: number, z: numb
 /** shared upper body for robed/caped classes: chest block, plate + emblem,
  *  pauldrons, head — same locked values as nerivaneBodyV3 from the waist up */
 function nerivaneUpperV3(spec: CharacterSpec, node: TransformNode, glowMat?: Material, tallCrest = false): { headY: number; shoulderY: number; deep: string; deeper: string } {
-  const deep = darken(spec.color, 0.45);
-  const deeper = darken(spec.color, 0.32);
+  const deep = darken(spec.color, PLATE_DEEP);
+  const deeper = darken(spec.color, PLATE_SHADOW);
   const chestBlock = box(spec, "torso", 0.22, 0.14, 0.135, deep, node, 0, 0.355, 0);
   chestBlock.rotation.x = 0.09;
   const shoulderY = 0.425;
@@ -926,8 +954,8 @@ function nerivaneUpperV3(spec: CharacterSpec, node: TransformNode, glowMat?: Mat
 
 /** Tidecaller v3: flared robe, tall three-shard crest, trident to ~1.3H. */
 function nerivaneTidecallerV3(spec: CharacterSpec, node: TransformNode, glowMat?: Material): { headY: number; shoulderY: number } {
-  const deep = darken(spec.color, 0.45);
-  const deeper = darken(spec.color, 0.32);
+  const deep = darken(spec.color, PLATE_DEEP);
+  const deeper = darken(spec.color, PLATE_SHADOW);
   fracturedStoneBase(spec, node, glowMat);
   // flared robe: wide ground flare + tapered skirt instead of legs
   const flare = cyl(spec, "robe", 0.27, 0.33, 0.08, 6, deeper, node, 0, 0.09, 0);
@@ -952,8 +980,8 @@ function nerivaneTidecallerV3(spec: CharacterSpec, node: TransformNode, glowMat?
 /** Nereth (hero) v3: shared skeleton + cape, gold crown, tall crest, and the
  *  wave-spear carried as a banner standard with a tribe pennant. */
 function nerivaneHeroV3(spec: CharacterSpec, node: TransformNode, glowMat?: Material): { headY: number; shoulderY: number } {
-  const deep = darken(spec.color, 0.45);
-  const deeper = darken(spec.color, 0.32);
+  const deep = darken(spec.color, PLATE_DEEP);
+  const deeper = darken(spec.color, PLATE_SHADOW);
   const GOLD = "#e7b552";
   fracturedStoneBase(spec, node, glowMat);
   // legs/boots + waist identical to the locked skeleton
@@ -1016,8 +1044,8 @@ function kharzulBerserkerV3(spec: CharacterSpec, node: TransformNode, glowMat?: 
 
 /** Arcanist v3 (Auren unique): robed mystic, tall circlet, raised orb. */
 function aurenArcanistV3(spec: CharacterSpec, node: TransformNode, glowMat?: Material, orbMat?: Material): { headY: number; shoulderY: number; orb: Mesh } {
-  const deeper = darken(spec.color, 0.32);
-  const deep = darken(spec.color, 0.45);
+  const deeper = darken(spec.color, PLATE_SHADOW);
+  const deep = darken(spec.color, PLATE_DEEP);
   fracturedStoneBase(spec, node, glowMat);
   const flare = cyl(spec, "robe", 0.27, 0.33, 0.08, 6, deeper, node, 0, 0.09, 0);
   flare.rotation.y = Math.PI / 6;
@@ -1052,8 +1080,8 @@ function sunweiWardenV3(spec: CharacterSpec, node: TransformNode, glowMat?: Mate
 /** Raider v3 (Vessari unique): war-steed + seated rider with raised sword
  *  and a saddle pennant — the plunderer reads faster and lighter. */
 function vessariRaiderV3(spec: CharacterSpec, node: TransformNode, glowMat?: Material): { headY: number; shoulderY: number } {
-  const deep = darken(spec.color, 0.45);
-  const deeper = darken(spec.color, 0.32);
+  const deep = darken(spec.color, PLATE_DEEP);
+  const deeper = darken(spec.color, PLATE_SHADOW);
   const c = costumeFor(spec.defIndex);
   void c;
   fracturedStoneBase(spec, node, glowMat);
