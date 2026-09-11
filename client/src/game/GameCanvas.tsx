@@ -59,6 +59,18 @@ export default function GameCanvas() {
     if (!canvas) return;
     const r = new BoardRenderer(canvas);
     rendererRef.current = r;
+    // Dev-only handle for the offscreen capture rigs (board shots, unit
+    // close-ups, store screenshots). They used to reach the scene through
+    // Babylon's EngineStore, imported at runtime as '/@id/@babylonjs/core' --
+    // but scene.ts deliberately imports submodules only, so that barrel is
+    // never in Vite's optimized deps and resolves solely off a warm dep cache.
+    // After a dev-server restart it fails with "Failed to fetch dynamically
+    // imported module", which reads exactly like a renderer crash and is not
+    // one. Importing the submodules instead swaps that for a subtler failure:
+    // the raw module is a different instance from the app's, so its
+    // EngineStore.Instances comes back empty. A direct handle sidesteps both.
+    // Stripped from production builds by the import.meta.env.DEV guard.
+    if (import.meta.env.DEV) (window as unknown as { __sunder?: BoardRenderer }).__sunder = r;
 
     const refresh = () => {
       const s = game.state;

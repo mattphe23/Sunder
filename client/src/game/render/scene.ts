@@ -328,9 +328,47 @@ export class BoardRenderer {
     sun.diffuse = Color3.FromHexString("#fff3e0");
     sun.specular = Color3.Black();
     sun.position = new Vector3(8, 14, -6);
-    // Stage 1: no shadow generator — Polytopia-style flat boards get depth
-    // from palette value steps, not shadow maps. Blob shadows land in Stage 3.
-    this.shadowGen = null;
+    // Stage 3: the sun casts. The Stage 1 note here said flat boards get their
+    // depth from palette value steps rather than shadow maps -- true while
+    // terrain was UNLIT, because a shadow map has nothing to land on when every
+    // face is emissive. Stage 2 lit the terrain (see terrainMat), so the
+    // rationale expired with it: a figure standing on a lit slab now has a
+    // surface that can take its shadow, and that contact is the depth cue the
+    // drop-shadow planes under the tiles cannot give.
+    //
+    // Sized for a phone, not a desktop: 1024 is the largest map worth paying
+    // for at this camera distance.
+    //
+    // Filter choice is a portability call, not an aesthetic one. The obvious
+    // pick for a soft toy shadow is useBlurExponentialShadowMap -- one blur
+    // pass instead of a per-pixel comparison kernel. It renders NOTHING here.
+    // ESM blurs a float render target, which needs linear filtering on float
+    // textures, and engine caps report textureFloatRender true but
+    // textureFloatLinear absent. The generator comes up healthy (casters and
+    // receivers both register) and silently produces no shadow -- a failure
+    // with no error attached to it.
+    //
+    // Poisson sampling sidesteps that: it jitters taps on an ordinary depth
+    // texture, so it needs no float-linear support anywhere, and it still
+    // gives a soft edge rather than a hard contact line.
+    const gen = new ShadowGenerator(1024, sun);
+    gen.usePoissonSampling = true;
+    gen.setDarkness(0.42); // toy-world shadow: present, never black
+    // Tuned on the board, not guessed: at bias 0.0015 with no normalBias the
+    // flat slabs self-shadow and the whole tile top goes dark rather than
+    // taking a cast shadow. normalBias is what large coplanar faces need --
+    // it offsets along the surface normal, which is the axis the acne is on.
+    gen.bias = 0.006;
+    gen.normalBias = 0.02;
+    // Let Babylon fit the depth range to the casters every frame. Pinning it by
+    // hand (shadowMinZ 1 / shadowMaxZ 42, on the theory that a fixed range
+    // steadies the edges) is what kept this from rendering at all: measured,
+    // the scene occupies 14.7 to 18.7 in light space, so a 1..42 range spends
+    // the whole depth buffer on empty void and leaves the comparison no
+    // precision in the 4 units that matter. Nothing ever tests as occluded.
+    sun.autoUpdateExtends = true;
+    sun.autoCalcShadowZBounds = true;
+    this.shadowGen = gen;
   }
 
   /** post-processing: bloom for glows, FXAA, filmic tone mapping, slight contrast */
@@ -361,6 +399,19 @@ export class BoardRenderer {
 
   /** drop expensive effects on software renderers or sustained low FPS */
   private setupAdaptiveQuality() {
+    // 0) capture override. The offscreen rigs run headless Chromium on
+    //    SwiftShader, which trips the software-GL branch below and disposes the
+    //    shadow generator, bloom and vignette before a single frame is taken.
+    //    Every verification shot and every store screenshot produced that way
+    //    has been a LOW-QUALITY render of the board -- which is fine for an
+    //    A/B where both sides are degraded equally, and wrong for anything
+    //    meant to show what the game looks like. Those rigs care about
+    //    fidelity, not frame rate, so they opt back in with ?fx=full.
+    //    Dev-only: a production build must never let a URL disable the
+    //    perf guard on a real phone.
+    try {
+      if (import.meta.env.DEV && new URLSearchParams(location.search).get("fx") === "full") return;
+    } catch { /* no location (worker/SSR) — fall through to the normal path */ }
     // 1) immediate: software GL (SwiftShader/llvmpipe) can never afford the full pipeline
     try {
       const gl = this.engine._gl as WebGLRenderingContext | undefined;
@@ -555,11 +606,25 @@ export class BoardRenderer {
     return m;
   }
 
-  /** register a mesh as a shadow caster (and receiver for tiles) */
-  private addShadows(m: Mesh, receiveOnly = false) {
+  /**
+   * Register a mesh as a shadow caster.
+   *
+   * Replaces an addShadows() helper that took a receiveOnly flag and set
+   * receiveShadows on everything. The call sites were always there -- units,
+   * camp tents, guardians and batched decor all registered themselves. What was
+   * missing was the generator: shadowGen was initialised to null and never
+   * assigned, so every one of those calls hit the early return and did nothing,
+   * and applyLowQuality's dispose branch could never fire.
+   *
+   * Splitting cast from receive is deliberate, because here the two sets are
+   * nearly disjoint. Terrain (terrainMat) and decor (litMat) are lit and can
+   * receive; figures draw through unitMat with disableLighting, which skips the
+   * lighting path entirely, so receiveShadows on a figure is a silent no-op.
+   * Setting it anyway is how the old helper hid that asymmetry.
+   */
+  private castShadow(m: Mesh) {
     if (!this.shadowGen) return;
-    if (!receiveOnly) this.shadowGen.addShadowCaster(m);
-    m.receiveShadows = true;
+    this.shadowGen.addShadowCaster(m);
   }
 
   /**
@@ -596,6 +661,15 @@ export class BoardRenderer {
     cap.position = new Vector3(0, bodyH / 2 + 0.001, 0);
     cap.material = topMat;
     cap.parent = body;
+    // Only the lit faces can take a shadow: a StandardMaterial with
+    // disableLighting skips the lighting path entirely, so receiveShadows on a
+    // fogged (unlit) tile is a silent no-op rather than a subtle bug. The cap
+    // is the surface figures stand on and does the real work; the turf band
+    // catches what a mountain throws onto the cliff beside it.
+    if (!fogged) {
+      cap.receiveShadows = true;
+      turf.receiveShadows = true;
+    }
     return body;
   }
 
@@ -1892,7 +1966,22 @@ export class BoardRenderer {
       });
     }
     const batched = this.batchDecor(decor, t);
-    batched.forEach((m) => this.addShadows(m));
+    // Decor draws through litMat, so unlike the figures it can do both halves:
+    // a forest casts onto the tile under it and takes the shadow a mountain
+    // throws across it. Registered after batching so the shadow map walks one
+    // merged mesh per material instead of every trunk and cone separately.
+    //
+    // Casting is gated on `visible`. Decor on an explored-but-unseen tile is
+    // dimmed to visibility 0.6 just above, and a half-transparent mesh still
+    // casts a FULLY OPAQUE shadow -- the shadow map only records depth, it
+    // never consults visibility. Left ungated, the terrain under the fog line
+    // threw a hard black slab across the board that read as a rendering fault,
+    // not as weather. Fog is a graphic state; it has no business casting.
+    // Receiving is safe either way, so it stays unconditional.
+    batched.forEach((m) => {
+      if (visible) this.castShadow(m);
+      m.receiveShadows = true;
+    });
     this.decorMeshes.set(key, batched);
   }
 
@@ -2109,7 +2198,7 @@ export class BoardRenderer {
       tent.material = tentMat;
       tent.parent = node;
       tent.isPickable = false;
-      this.addShadows(tent);
+      this.castShadow(tent);
     }
     // fire: glowing ember sphere
     let fireMat = this.mats.get("camp-fire");
@@ -2277,7 +2366,7 @@ export class BoardRenderer {
         p.isPickable = false;
       }
       node.metadata = { awake: !!u.awake };
-      node.getChildMeshes().forEach((m) => this.addShadows(m as Mesh));
+      node.getChildMeshes().forEach((m) => this.castShadow(m as Mesh));
       return node;
     }
     // v17: camp raiders are tribeless — dark iron & bone palette
@@ -2380,7 +2469,7 @@ export class BoardRenderer {
       crest.animations = [spin];
       this.scene.beginAnimation(crest, 0, 90, true);
     }
-    node.getChildMeshes().forEach((m) => this.addShadows(m as Mesh));
+    node.getChildMeshes().forEach((m) => this.castShadow(m as Mesh));
     // Stage 2 keyline. Runs here, at the end, so late additions (the hero's
     // crown and spinning crest) are outlined too — and BEFORE the contact
     // shadow, which must not get an outline or it reads as a hard ring drawn
