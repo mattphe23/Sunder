@@ -1,118 +1,390 @@
-// v42 Model Lab — the designer's acceptance harness.
-// "Every model must pass at 40px in color, grayscale, and eight rotational
-// views before its portraits are exported."
-// Renders the six Nerivane classes straight from the board meshes via the
-// portrait pipeline and lays out the acceptance grid. Dev/review tool — linked
-// from nowhere; visit /model-lab directly.
-import { useEffect, useState } from "react";
-import { createPortraitSession, NERIVANE_PORTRAIT_SET, PORTRAIT_EXPORT_SIZES } from "@/game/render/portraits";
+// Model Lab — the designer's acceptance harness.
+// Every model must pass at 40px in color, grayscale, and eight rotational views
+// before it can graduate from review-only status to a live board unit.
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { UnitType } from "@/game/core/types";
+import { NERIVANE_WARRIOR_PILOT } from "@/game/render/importedModelRegistry";
+import {
+  renderNerivaneWarriorPilot,
+  type ImportedPortraitResult,
+} from "@/game/render/importedPortraits";
+import {
+  createPortraitSession,
+  NERIVANE_PORTRAIT_SET,
+  PORTRAIT_EXPORT_SIZES,
+} from "@/game/render/portraits";
 
 const LABELS: Record<string, string> = {
-  warrior: "Warrior", archer: "Archer", defender: "Defender", rider: "Rider",
-  tidecaller: "Tidecaller", berserker: "Berserker", arcanist: "Arcanist",
-  warden: "Warden", raider: "Raider", bulwark: "Bulwark", hero: "Hero",
+  warrior: "Warrior",
+  archer: "Archer",
+  defender: "Defender",
+  rider: "Rider",
+  tidecaller: "Tidecaller",
+  berserker: "Berserker",
+  arcanist: "Arcanist",
+  warden: "Warden",
+  raider: "Raider",
+  bulwark: "Bulwark",
+  hero: "Hero",
 };
-// dev harness: ?tribe=<TRIBE_DEFS index> renders another tribe's set (default Nerivane)
+
+// Dev harness: ?tribe=<TRIBE_DEFS index> renders another tribe's set.
 const TRIBE = (() => {
-  const t = parseInt(new URLSearchParams(window.location.search).get("tribe") ?? "4", 10);
-  return Number.isFinite(t) && t >= 0 && t <= 7 ? t : 4;
+  const tribe = parseInt(
+    new URLSearchParams(window.location.search).get("tribe") ?? "4",
+    10
+  );
+  return Number.isFinite(tribe) && tribe >= 0 && tribe <= 7 ? tribe : 4;
 })();
-// unique unit per tribe index (acceptance set swaps the fifth slot)
-const UNIQUES: Record<number, UnitType> = { 0: "arcanist", 1: "berserker", 2: "warden", 3: "raider", 4: "tidecaller", 5: "bulwark" };
-const ANGLES = Array.from({ length: 8 }, (_, i) => (i / 8) * Math.PI * 2);
+
+const UNIQUES: Record<number, UnitType> = {
+  0: "arcanist",
+  1: "berserker",
+  2: "warden",
+  3: "raider",
+  4: "tidecaller",
+  5: "bulwark",
+};
+const ANGLES = Array.from(
+  { length: 8 },
+  (_, index) => (index / 8) * Math.PI * 2
+);
+const SCENARIO_ASSET_URL = `https://app.scenario.com/assets?openAssetId=${NERIVANE_WARRIOR_PILOT.assetId}`;
 
 interface Row {
   type: UnitType;
-  master: string;          // 3/4 master portrait (png data url)
-  angles: string[];        // 8 rotational views (128px webp)
+  master: string;
+  angles: string[];
   exports: Record<number, string>;
+}
+
+function SmallReadabilityPair({ src, label }: { src: string; label: string }) {
+  return (
+    <div className="flex items-end gap-3">
+      <div className="flex flex-col items-center gap-1">
+        <img
+          src={src}
+          alt={`${label} at 40 pixels`}
+          style={{ width: 40, height: 40 }}
+          className="rounded bg-[#101030]"
+        />
+        <span className="text-[10px] text-slate-400">40px color</span>
+      </div>
+      <div className="flex flex-col items-center gap-1">
+        <img
+          src={src}
+          alt={`${label} in grayscale at 40 pixels`}
+          style={{ width: 40, height: 40, filter: "grayscale(1)" }}
+          className="rounded bg-[#101030]"
+        />
+        <span className="text-[10px] text-slate-400">40px gray</span>
+      </div>
+    </div>
+  );
+}
+
+function RotationStrip({ angles, label }: { angles: string[]; label: string }) {
+  return (
+    <div className="flex flex-wrap items-end gap-1">
+      {angles.map((angle, index) => (
+        <div key={index} className="flex flex-col items-center gap-1">
+          <img
+            src={angle}
+            alt={`${label} at ${index * 45} degrees`}
+            style={{ width: 56, height: 56 }}
+            className="rounded bg-[#101030]"
+          />
+          <span className="text-[10px] text-slate-500">{index * 45}°</span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export default function ModelLab() {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const [pilot, setPilot] = useState<ImportedPortraitResult | null>(null);
+  const [pilotError, setPilotError] = useState<string | null>(null);
+
+  const setForTribe = useMemo(
+    () =>
+      NERIVANE_PORTRAIT_SET.map(type =>
+        type === "tidecaller" ? UNIQUES[TRIBE] : type
+      ).filter((type): type is UnitType => !!type),
+    []
+  );
 
   useEffect(() => {
-    // stagger renders so the tab stays responsive
     let cancelled = false;
     (async () => {
       const session = createPortraitSession();
-      if (!session) { setFailed(true); return; }
-      // throwaway warm-up capture: compiles the pipeline so every real
-      // capture (including the first class's angle sweep) reads back solid
+      if (!session) {
+        setFailed(true);
+        return;
+      }
       await session.capture(TRIBE, "warrior", { sizes: [64] });
-      const out: Row[] = [];
-      const setForTribe: UnitType[] = NERIVANE_PORTRAIT_SET
-        .map((t) => (t === "tidecaller" ? UNIQUES[TRIBE] : t))
-        .filter((t): t is UnitType => !!t);
+      const output: Row[] = [];
       for (const type of setForTribe) {
-        await new Promise((r) => setTimeout(r, 10));
-        if (cancelled) { session.dispose(); return; }
+        await new Promise(resolve => setTimeout(resolve, 10));
+        if (cancelled) {
+          session.dispose();
+          return;
+        }
         const master = await session.capture(TRIBE, type);
         const angles: string[] = [];
         for (const yaw of ANGLES) {
-          const p = await session.capture(TRIBE, type, { yaw, sizes: [128] });
-          angles.push(p.webp[128] ?? "");
+          const portrait = await session.capture(TRIBE, type, {
+            yaw,
+            sizes: [128],
+          });
+          angles.push(portrait.webp[128] ?? "");
         }
-        out.push({ type, master: master.masterPng, angles, exports: master.webp });
-        if (!cancelled) setRows([...out]);
+        output.push({
+          type,
+          master: master.masterPng,
+          angles,
+          exports: master.webp,
+        });
+        if (!cancelled) setRows([...output]);
       }
       session.dispose();
     })();
-    return () => { cancelled = true; };
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [setForTribe]);
 
-  if (failed) return <div className="p-8 text-red-400">WebGL unavailable — portraits cannot render in this browser.</div>;
+  useEffect(() => {
+    if (!rows || rows.length !== setForTribe.length) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await renderNerivaneWarriorPilot();
+        if (!cancelled) {
+          if (result) setPilot(result);
+          else
+            setPilotError(
+              "WebGL could not initialize the imported-model renderer."
+            );
+        }
+      } catch (error) {
+        if (!cancelled)
+          setPilotError(
+            error instanceof Error
+              ? error.message
+              : "The imported GLB could not be rendered."
+          );
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [rows, setForTribe.length]);
 
+  if (failed)
+    return (
+      <div className="p-8 text-red-400">
+        WebGL unavailable — portraits cannot render in this browser.
+      </div>
+    );
+
+  const baseline = rows?.find(row => row.type === "warrior");
   return (
-    <div className="min-h-screen bg-[#141433] text-slate-100 p-6 space-y-8">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-bold">Model Lab — tribe {TRIBE} acceptance</h1>
-        <p className="text-sm text-slate-400">
-          Rendered live from the board meshes via the portrait pipeline (orthographic 3/4, transparent,
-          shared feet baseline). Pass criteria: class identity must survive at 40px in color, grayscale,
-          and all eight rotational views.
+    <div className="min-h-screen space-y-8 bg-[#141433] p-6 text-slate-100">
+      <header className="space-y-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-2xl font-bold">
+            Model Lab — tribe {TRIBE} acceptance
+          </h1>
+          <span className="rounded-full bg-cyan-300/10 px-3 py-1 text-xs font-semibold text-cyan-200">
+            Review harness only
+          </span>
+        </div>
+        <p className="max-w-4xl text-sm text-slate-400">
+          Live board meshes and imported candidates share the same orthographic
+          framing, transparent background, feet baseline, 40px test, and
+          eight-view rotation strip. Imported candidates do not replace gameplay
+          models until they pass review.
         </p>
       </header>
+
+      {TRIBE === 4 && (
+        <section className="space-y-5 rounded-2xl border border-cyan-300/20 bg-[#1c1c46] p-5 shadow-2xl shadow-black/20">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
+                3D pipeline pilot
+              </p>
+              <h2 className="mt-1 text-xl font-semibold">
+                Nerivane Warrior: current procedural mesh vs Scenario GLB
+              </h2>
+              <p className="mt-1 max-w-3xl text-sm text-slate-400">
+                Generated from the approved front, true-left, and back
+                turnaround. The three-quarter reference was deliberately
+                excluded from the right-view slot because it is not a true 270°
+                orthographic view.
+              </p>
+            </div>
+            <a href={SCENARIO_ASSET_URL} target="_blank" rel="noreferrer">
+              <Button variant="outline" size="sm">
+                Scenario asset
+              </Button>
+            </a>
+          </div>
+
+          {!baseline && (
+            <div className="text-sm text-slate-400">
+              Rendering procedural baseline…
+            </div>
+          )}
+          {baseline && !pilot && !pilotError && (
+            <div className="text-sm text-slate-400">
+              Loading and framing imported GLB…
+            </div>
+          )}
+          {pilotError && (
+            <div className="rounded-lg bg-red-950/40 p-3 text-sm text-red-300">
+              Imported-model preview failed: {pilotError}
+            </div>
+          )}
+
+          {baseline && pilot && (
+            <>
+              <div className="grid gap-4 lg:grid-cols-2">
+                {[
+                  {
+                    name: "Current procedural Warrior",
+                    source: baseline.master,
+                  },
+                  {
+                    name: NERIVANE_WARRIOR_PILOT.name,
+                    source: pilot.masterPng,
+                  },
+                ].map(item => (
+                  <article
+                    key={item.name}
+                    className="rounded-xl bg-[#101030] p-4"
+                  >
+                    <h3 className="mb-3 text-sm font-semibold text-slate-200">
+                      {item.name}
+                    </h3>
+                    <div className="flex flex-wrap items-end gap-6">
+                      <img
+                        src={item.source}
+                        alt={item.name}
+                        className="h-48 w-48 rounded-lg bg-[#0b0b27] object-contain"
+                      />
+                      <SmallReadabilityPair
+                        src={item.source}
+                        label={item.name}
+                      />
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              <div className="space-y-4 rounded-xl bg-[#101030] p-4">
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Current procedural rotation
+                  </p>
+                  <RotationStrip
+                    angles={baseline.angles}
+                    label="Current procedural Warrior"
+                  />
+                </div>
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-cyan-300">
+                    Imported GLB rotation
+                  </p>
+                  <RotationStrip
+                    angles={pilot.angles}
+                    label="Imported Scenario Warrior"
+                  />
+                </div>
+              </div>
+
+              <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-5">
+                <div className="rounded-lg bg-[#101030] p-3">
+                  <dt className="text-slate-500">Vertices</dt>
+                  <dd className="font-semibold">
+                    {NERIVANE_WARRIOR_PILOT.vertices.toLocaleString()}
+                  </dd>
+                </div>
+                <div className="rounded-lg bg-[#101030] p-3">
+                  <dt className="text-slate-500">Triangles</dt>
+                  <dd className="font-semibold">
+                    {NERIVANE_WARRIOR_PILOT.triangles.toLocaleString()}
+                  </dd>
+                </div>
+                <div className="rounded-lg bg-[#101030] p-3">
+                  <dt className="text-slate-500">GLB size</dt>
+                  <dd className="font-semibold">
+                    {(NERIVANE_WARRIOR_PILOT.sourceBytes / 1024 / 1024).toFixed(
+                      2
+                    )}{" "}
+                    MB
+                  </dd>
+                </div>
+                <div className="rounded-lg bg-[#101030] p-3">
+                  <dt className="text-slate-500">PBR maps</dt>
+                  <dd className="font-semibold">
+                    3 × {NERIVANE_WARRIOR_PILOT.textureResolution}px
+                  </dd>
+                </div>
+                <div className="rounded-lg bg-[#101030] p-3">
+                  <dt className="text-slate-500">Status</dt>
+                  <dd className="font-semibold text-amber-300">Candidate</dd>
+                </div>
+              </dl>
+            </>
+          )}
+        </section>
+      )}
+
       {!rows && <div className="text-slate-400">Rendering models…</div>}
-      {rows?.map((r) => (
-        <section key={r.type} className="rounded-xl bg-[#1c1c46] p-4 space-y-3">
+      {rows?.map(row => (
+        <section
+          key={row.type}
+          className="space-y-3 rounded-xl bg-[#1c1c46] p-4"
+        >
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">{LABELS[r.type] ?? r.type}</h2>
+            <h2 className="text-lg font-semibold">
+              {LABELS[row.type] ?? row.type}
+            </h2>
             <div className="flex gap-2">
-              {PORTRAIT_EXPORT_SIZES.map((s) => (
-                <a key={s} href={r.exports[s]} download={`nerivane-${r.type}-${s}.webp`}>
-                  <Button variant="outline" size="sm">{s}px</Button>
+              {PORTRAIT_EXPORT_SIZES.map(size => (
+                <a
+                  key={size}
+                  href={row.exports[size]}
+                  download={`nerivane-${row.type}-${size}.webp`}
+                >
+                  <Button variant="outline" size="sm">
+                    {size}px
+                  </Button>
                 </a>
               ))}
-              <a href={r.master} download={`nerivane-${r.type}-1024.png`}>
+              <a href={row.master} download={`nerivane-${row.type}-1024.png`}>
                 <Button size="sm">Master PNG</Button>
               </a>
             </div>
           </div>
-          <div className="flex items-end gap-6 flex-wrap">
-            {/* master at display size */}
-            <img src={r.master} alt="" className="w-40 h-40 bg-[#101030] rounded-lg" />
-            {/* 40px acceptance: color + grayscale */}
-            <div className="flex flex-col items-center gap-1">
-              <img src={r.master} alt="" style={{ width: 40, height: 40 }} className="bg-[#101030] rounded" />
-              <span className="text-[10px] text-slate-400">40px color</span>
-            </div>
-            <div className="flex flex-col items-center gap-1">
-              <img src={r.master} alt="" style={{ width: 40, height: 40, filter: "grayscale(1)" }} className="bg-[#101030] rounded" />
-              <span className="text-[10px] text-slate-400">40px gray</span>
-            </div>
-            {/* eight rotational views */}
-            <div className="flex gap-1 items-end">
-              {r.angles.map((a, i) => (
-                <div key={i} className="flex flex-col items-center gap-1">
-                  <img src={a} alt="" style={{ width: 56, height: 56 }} className="bg-[#101030] rounded" />
-                  <span className="text-[10px] text-slate-500">{i * 45}°</span>
-                </div>
-              ))}
-            </div>
+          <div className="flex flex-wrap items-end gap-6">
+            <img
+              src={row.master}
+              alt={`${LABELS[row.type] ?? row.type} master render`}
+              className="h-40 w-40 rounded-lg bg-[#101030]"
+            />
+            <SmallReadabilityPair
+              src={row.master}
+              label={LABELS[row.type] ?? row.type}
+            />
+            <RotationStrip
+              angles={row.angles}
+              label={LABELS[row.type] ?? row.type}
+            />
           </div>
         </section>
       ))}
