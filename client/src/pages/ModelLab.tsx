@@ -448,18 +448,18 @@ export default function ModelLab() {
         <section className="space-y-5 rounded-2xl border border-amber-300/20 bg-[#1c1c46] p-5 shadow-2xl shadow-black/20">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">
-                Repeatability pilot
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
+                Approved second class
               </p>
               <h2 className="mt-1 text-xl font-semibold">
-                Nerivane Archer: Scenario P2 v1 review
+                Nerivane Archer: Scenario P2 v1 approved
               </h2>
               <p className="mt-1 max-w-3xl text-sm text-slate-400">
                 The second P2 unit tests whether the approved Warrior language
                 repeats across a distinct class. It preserves the faceted mask,
                 teal armor, pale crest, and fractured base while using the bow
-                and quiver as the Archer silhouette. It remains a review
-                candidate until visual approval.
+                and quiver as the Archer silhouette. It passed visual review and
+                is now the locked Archer target.
               </p>
             </div>
             <a
@@ -497,8 +497,8 @@ export default function ModelLab() {
                   {
                     name: NERIVANE_ARCHER_PILOT.name,
                     source: p2Archer.masterPng,
-                    status: "Review candidate",
-                    statusClass: "bg-amber-300/15 text-amber-200",
+                    status: "Approved visual target",
+                    statusClass: "bg-cyan-300/15 text-cyan-200",
                   },
                 ].map(item => (
                   <article
@@ -597,8 +597,8 @@ export default function ModelLab() {
                 </div>
                 <div className="rounded-lg bg-[#101030] p-3">
                   <dt className="text-slate-500">Status</dt>
-                  <dd className="font-semibold text-amber-300">
-                    Awaiting visual approval
+                  <dd className="font-semibold text-cyan-300">
+                    Approved visual target
                   </dd>
                 </div>
               </dl>

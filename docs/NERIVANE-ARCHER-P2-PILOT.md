@@ -2,11 +2,11 @@
 
 ## Decision status
 
-**Review candidate — technically accepted, awaiting the user's visual approval.**
+**Approved visual target — user-approved on September 29, 2026.**
 
 The Archer demonstrates that the approved Scenario Tripo P2 Warrior workflow can repeat across a second class without collapsing back into the procedural block-figure look. It retains the same tapered silhouette, faceted bone mask, pale aqua crest, layered teal armor, and fractured stone base while establishing a readable Archer identity through the tall recurve bow and back quiver.
 
-This does **not** replace the production Archer yet. The existing gameplay model remains the default. Both the Model Lab and real-board comparison are opt-in review paths.
+The Archer is now locked as the visual target beside the approved P2 Warrior. This approval covers art direction, silhouette, and board-scale readability; the existing gameplay model remains the default until the later production conversion and animation pass. Both the Model Lab and real-board comparison remain opt-in review paths.
 
 ## Reproducible pipeline
 
@@ -32,15 +32,15 @@ This does **not** replace the production Archer yet. The existing gameplay model
 
 ## Audited runtime metrics
 
-| Metric | Archer P2 v1 |
-|---|---:|
-| GLB size | 2,788,280 bytes (2.66 MiB) |
-| Vertices | 7,011 |
-| Triangles | 4,797 |
-| Runtime primitives / draw calls | 1 |
-| Materials | 1 |
-| Embedded textures | 3 |
-| Texture resolution | 2048 × 2048 |
+| Metric                          |               Archer P2 v1 |
+| ------------------------------- | -------------------------: |
+| GLB size                        | 2,788,280 bytes (2.66 MiB) |
+| Vertices                        |                      7,011 |
+| Triangles                       |                      4,797 |
+| Runtime primitives / draw calls |                          1 |
+| Materials                       |                          1 |
+| Embedded textures               |                          3 |
+| Texture resolution              |                2048 × 2048 |
 
 The geometry and file size pass the established imported-unit pilot limits. A single runtime primitive is especially favorable for board scenes containing multiple units. The 2048-pixel PBR texture set is acceptable for the review pilot but should be tested at 1024 pixels during production optimization; most of its detail is not visible at normal board scale.
 
@@ -69,6 +69,6 @@ The geometry and file size pass the established imported-unit pilot limits. A si
 
 The live-board route is development-only and converts the starting Nerivane Warrior to an Archer solely for visual review. Normal game rules and normal production rendering are unchanged.
 
-## Recommended next step after approval
+## Recommended next step
 
 Treat the Warrior and Archer together as the locked Nerivane P2 pair. Produce the **Defender** next because its shield gives the strongest test of whether the shared P2 body can support a radically different class silhouette. Do not batch the full roster until Defender also passes the same Model Lab and real-board acceptance checks.

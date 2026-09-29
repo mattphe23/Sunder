@@ -28,9 +28,9 @@ describe("imported model pilot registry", () => {
     expect(NERIVANE_WARRIOR_GOLDEN_V2.decision).toBe("rejected-study");
   });
 
-  it("keeps the second P2 class inside the same budget without silently approving it", () => {
+  it("keeps the approved Archer target inside the same mobile budget", () => {
     expect(passesImportedModelPilotBudget(NERIVANE_ARCHER_PILOT)).toBe(true);
-    expect(NERIVANE_ARCHER_PILOT.decision).toBe("review-candidate");
+    expect(NERIVANE_ARCHER_PILOT.decision).toBe("approved-target");
     expect(NERIVANE_ARCHER_PILOT.assetId).toBe(
       "asset_dZ5ekBi5ta4RuMv642v4kEwg"
     );

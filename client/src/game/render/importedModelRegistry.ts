@@ -38,7 +38,7 @@ export const NERIVANE_ARCHER_PILOT: ImportedModelCandidate = {
   runtimePrimitives: 1,
   sourceBytes: 2_788_280,
   textureResolution: 2_048,
-  decision: "review-candidate",
+  decision: "approved-target",
 };
 
 export const NERIVANE_WARRIOR_GOLDEN_V2: ImportedModelCandidate = {
