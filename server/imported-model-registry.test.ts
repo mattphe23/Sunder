@@ -10,6 +10,7 @@ import {
 describe("imported model pilot registry", () => {
   it("keeps the Nerivane Warrior candidate deployment-safe and within the review budget", () => {
     expect(passesImportedModelPilotBudget(NERIVANE_WARRIOR_PILOT)).toBe(true);
+    expect(NERIVANE_WARRIOR_PILOT.decision).toBe("approved-target");
     expect(NERIVANE_WARRIOR_PILOT.modelUrl).toMatch(
       /^\/manus-storage\/.+\.glb$/
     );
@@ -23,6 +24,7 @@ describe("imported model pilot registry", () => {
     expect(NERIVANE_WARRIOR_GOLDEN_V2.sourceBytes).toBeLessThan(100 * 1024);
     expect(NERIVANE_WARRIOR_GOLDEN_V2.runtimePrimitives).toBe(3);
     expect(NERIVANE_WARRIOR_GOLDEN_V2.textureResolution).toBe(0);
+    expect(NERIVANE_WARRIOR_GOLDEN_V2.decision).toBe("rejected-study");
   });
 
   it("rejects candidates that exceed the triangle budget", () => {

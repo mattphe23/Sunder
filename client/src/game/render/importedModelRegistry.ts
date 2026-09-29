@@ -7,6 +7,7 @@ export interface ImportedModelCandidate {
   runtimePrimitives: number;
   sourceBytes: number;
   textureResolution: number;
+  decision: "approved-target" | "rejected-study";
 }
 
 export const IMPORTED_MODEL_PILOT_LIMITS = {
@@ -25,6 +26,7 @@ export const NERIVANE_WARRIOR_PILOT: ImportedModelCandidate = {
   runtimePrimitives: 1,
   sourceBytes: 2_413_564,
   textureResolution: 2_048,
+  decision: "approved-target",
 };
 
 export const NERIVANE_WARRIOR_GOLDEN_V2: ImportedModelCandidate = {
@@ -36,6 +38,7 @@ export const NERIVANE_WARRIOR_GOLDEN_V2: ImportedModelCandidate = {
   runtimePrimitives: 3,
   sourceBytes: 71_032,
   textureResolution: 0,
+  decision: "rejected-study",
 };
 
 export function passesImportedModelPilotBudget(

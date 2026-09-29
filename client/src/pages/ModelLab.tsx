@@ -134,10 +134,9 @@ function BoardContextTile({ src, label }: { src: string; label: string }) {
 export default function ModelLab() {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [failed, setFailed] = useState(false);
-  const [rawPilot, setRawPilot] = useState<ImportedPortraitResult | null>(null);
-  const [goldenPilot, setGoldenPilot] = useState<ImportedPortraitResult | null>(
-    null
-  );
+  const [p2Pilot, setP2Pilot] = useState<ImportedPortraitResult | null>(null);
+  const [blenderStudy, setBlenderStudy] =
+    useState<ImportedPortraitResult | null>(null);
   const [pilotError, setPilotError] = useState<string | null>(null);
 
   const setForTribe = useMemo(
@@ -199,8 +198,8 @@ export default function ModelLab() {
         );
         if (!cancelled) {
           if (rawResult && goldenResult) {
-            setRawPilot(rawResult);
-            setGoldenPilot(goldenResult);
+            setP2Pilot(rawResult);
+            setBlenderStudy(goldenResult);
           } else {
             setPilotError(
               "WebGL could not initialize the imported-model renderer."
@@ -241,10 +240,10 @@ export default function ModelLab() {
           </span>
         </div>
         <p className="max-w-4xl text-sm text-slate-400">
-          Live board meshes and imported candidates share the same orthographic
-          framing, transparent background, feet baseline, 40px test, and
-          eight-view rotation strip. Imported candidates do not replace gameplay
-          models until they pass review.
+          All three models share the same orthographic framing, transparent
+          background, feet baseline, 40px test, and eight-view rotation strip.
+          P2 v1 has passed visual review and is the approved target; replacing
+          the normal gameplay lineup remains a separate production step.
         </p>
       </header>
 
@@ -253,16 +252,16 @@ export default function ModelLab() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
-                Golden-unit pipeline
+                Approved visual direction
               </p>
               <h2 className="mt-1 text-xl font-semibold">
-                Nerivane Warrior: procedural vs raw Tripo vs Blender v2
+                Nerivane Warrior: Scenario P2 v1 approved
               </h2>
               <p className="mt-1 max-w-3xl text-sm text-slate-400">
-                The golden candidate uses the raw generation as a proportion
-                reference, then rebuilds the unit as 32 clean modular parts with
-                broader masses, flat faction-value blocks, a shorter crest, and
-                a separate weapon and fractured base.
+                The Scenario P2 v1 model is the locked visual target for its
+                tapered silhouette, armor layering, mask-and-crest relationship,
+                and character. Blender v2 is retained below only as a rejected
+                optimization study and must not steer future unit design.
               </p>
             </div>
             <a href={SCENARIO_ASSET_URL} target="_blank" rel="noreferrer">
@@ -277,7 +276,7 @@ export default function ModelLab() {
               Rendering procedural baseline…
             </div>
           )}
-          {baseline && (!rawPilot || !goldenPilot) && !pilotError && (
+          {baseline && (!p2Pilot || !blenderStudy) && !pilotError && (
             <div className="text-sm text-slate-400">
               Loading and framing imported GLBs…
             </div>
@@ -288,30 +287,43 @@ export default function ModelLab() {
             </div>
           )}
 
-          {baseline && rawPilot && goldenPilot && (
+          {baseline && p2Pilot && blenderStudy && (
             <>
               <div className="grid gap-4 lg:grid-cols-3">
                 {[
                   {
                     name: "Current procedural Warrior",
                     source: baseline.master,
+                    status: "Current live model",
+                    statusClass: "bg-slate-300/10 text-slate-300",
                   },
                   {
                     name: NERIVANE_WARRIOR_PILOT.name,
-                    source: rawPilot.masterPng,
+                    source: p2Pilot.masterPng,
+                    status: "Approved visual target",
+                    statusClass: "bg-cyan-300/15 text-cyan-200",
                   },
                   {
                     name: NERIVANE_WARRIOR_GOLDEN_V2.name,
-                    source: goldenPilot.masterPng,
+                    source: blenderStudy.masterPng,
+                    status: "Rejected study",
+                    statusClass: "bg-rose-300/10 text-rose-200",
                   },
                 ].map(item => (
                   <article
                     key={item.name}
                     className="rounded-xl bg-[#101030] p-4"
                   >
-                    <h3 className="mb-3 text-sm font-semibold text-slate-200">
-                      {item.name}
-                    </h3>
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                      <h3 className="text-sm font-semibold text-slate-200">
+                        {item.name}
+                      </h3>
+                      <span
+                        className={`rounded-full px-2 py-1 text-[10px] font-semibold ${item.statusClass}`}
+                      >
+                        {item.status}
+                      </span>
+                    </div>
                     <div className="flex flex-wrap items-end gap-6">
                       <img
                         src={item.source}
@@ -339,20 +351,20 @@ export default function ModelLab() {
                 </div>
                 <div>
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-cyan-300">
-                    Raw Tripo GLB rotation
+                    Approved P2 v1 rotation
                   </p>
                   <RotationStrip
-                    angles={rawPilot.angles}
-                    label="Raw Scenario Warrior"
+                    angles={p2Pilot.angles}
+                    label="Approved Scenario P2 Warrior"
                   />
                 </div>
                 <div>
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-emerald-300">
-                    Blender golden v2 rotation
+                    Rejected Blender v2 study
                   </p>
                   <RotationStrip
-                    angles={goldenPilot.angles}
-                    label="Blender Golden Warrior v2"
+                    angles={blenderStudy.angles}
+                    label="Rejected Blender Warrior v2 study"
                   />
                 </div>
               </div>
@@ -364,25 +376,25 @@ export default function ModelLab() {
                 <div className="flex flex-wrap justify-center gap-6 sm:justify-start">
                   <BoardContextTile src={baseline.master} label="Procedural" />
                   <BoardContextTile
-                    src={rawPilot.masterPng}
-                    label="Raw Tripo"
+                    src={p2Pilot.masterPng}
+                    label="Approved P2 v1"
                   />
                   <BoardContextTile
-                    src={goldenPilot.masterPng}
-                    label="Blender golden v2"
+                    src={blenderStudy.masterPng}
+                    label="Rejected Blender study"
                   />
                 </div>
               </div>
 
               <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-6">
                 <div className="rounded-lg bg-[#101030] p-3">
-                  <dt className="text-slate-500">Raw triangles</dt>
+                  <dt className="text-slate-500">Approved triangles</dt>
                   <dd className="font-semibold">
                     {NERIVANE_WARRIOR_PILOT.triangles.toLocaleString()}
                   </dd>
                 </div>
                 <div className="rounded-lg bg-[#101030] p-3">
-                  <dt className="text-slate-500">Raw GLB</dt>
+                  <dt className="text-slate-500">Approved GLB</dt>
                   <dd className="font-semibold">
                     {(NERIVANE_WARRIOR_PILOT.sourceBytes / 1024 / 1024).toFixed(
                       2
@@ -391,20 +403,20 @@ export default function ModelLab() {
                   </dd>
                 </div>
                 <div className="rounded-lg bg-[#101030] p-3">
-                  <dt className="text-slate-500">Golden triangles</dt>
+                  <dt className="text-slate-500">Study triangles</dt>
                   <dd className="font-semibold">
                     {NERIVANE_WARRIOR_GOLDEN_V2.triangles.toLocaleString()}
                   </dd>
                 </div>
                 <div className="rounded-lg bg-[#101030] p-3">
-                  <dt className="text-slate-500">Golden GLB</dt>
+                  <dt className="text-slate-500">Study GLB</dt>
                   <dd className="font-semibold">
                     {(NERIVANE_WARRIOR_GOLDEN_V2.sourceBytes / 1024).toFixed(1)}{" "}
                     KB
                   </dd>
                 </div>
                 <div className="rounded-lg bg-[#101030] p-3">
-                  <dt className="text-slate-500">Golden runtime</dt>
+                  <dt className="text-slate-500">Study runtime</dt>
                   <dd className="font-semibold">
                     {NERIVANE_WARRIOR_GOLDEN_V2.runtimePrimitives} draw calls ·
                     no textures
@@ -413,7 +425,7 @@ export default function ModelLab() {
                 <div className="rounded-lg bg-[#101030] p-3">
                   <dt className="text-slate-500">Status</dt>
                   <dd className="font-semibold text-emerald-300">
-                    Golden candidate
+                    P2 v1 approved
                   </dd>
                 </div>
               </dl>
