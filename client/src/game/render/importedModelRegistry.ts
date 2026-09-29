@@ -50,7 +50,7 @@ export const NERIVANE_DEFENDER_PILOT: ImportedModelCandidate = {
   runtimePrimitives: 1,
   sourceBytes: 3_042_840,
   textureResolution: 2_048,
-  decision: "review-candidate",
+  decision: "approved-target",
 };
 
 export const NERIVANE_WARRIOR_GOLDEN_V2: ImportedModelCandidate = {

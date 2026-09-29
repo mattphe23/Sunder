@@ -2,9 +2,9 @@
 
 ## Decision status
 
-**Review candidate — awaiting visual sign-off.**
+**Approved target.**
 
-The Defender was produced with the same controlled Scenario pipeline that yielded the approved Nerivane Warrior and Archer. It is integrated into Model Lab and an opt-in live-board route for comparison, but it does not replace the procedural gameplay model by default.
+The user approved Scenario Tripo P2 Defender v1 after reviewing the complete Model Lab comparison and the imported model on the live board. It is the third accepted P2 class after Warrior and Archer. The opt-in review route remains available for regression checks; normal gameplay is still unchanged until the approved set is ready for a deliberate rollout.
 
 ## Design target
 
@@ -53,12 +53,15 @@ The mesh remains below the pilot limits of 10,000 triangles, eight runtime primi
 
 The live-board query converts only the deterministic development starter into a Defender and swaps only that Nerivane unit to the imported GLB. Normal gameplay is unchanged.
 
-## Acceptance questions
+## Acceptance result
 
-1. Does the tower shield remain obvious at 40 pixels?
-2. Does the mask-and-crest silhouette remain consistent with the approved Warrior and Archer?
-3. Is the shield broad enough to communicate defense without making the body disappear?
-4. Do the rear and side views avoid fused shield/body geometry or unreadable negative space?
-5. Does the imported model sit naturally on the real board at the same visual scale as other units?
+The approved model passes the review gates:
 
-If approved, change the registry decision from `review-candidate` to `approved-target` and lock the Defender as the third accepted P2 class. If rejected, preserve this asset and its measurements as a reproducible study rather than silently replacing it.
+- the shield remains immediately recognizable at 40 pixels in color and grayscale;
+- the mask, crest, teal armor, and fractured base match the approved Warrior and Archer family;
+- the broad shield communicates defense without erasing the body silhouette;
+- side and rear rotations remain readable;
+- the imported model sits naturally on the deterministic live board;
+- the one-draw-call mesh remains within every mobile pilot budget.
+
+The registry decision is locked to `approved-target`. The next controlled P2 class is the **Nerivane Rider**, where mount silhouette and rider/mount separation become the primary acceptance risks.

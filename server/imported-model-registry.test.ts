@@ -39,9 +39,9 @@ describe("imported model pilot registry", () => {
     expect(NERIVANE_ARCHER_PILOT.triangles).toBeLessThan(5_000);
   });
 
-  it("keeps the Defender review candidate inside the same mobile budget", () => {
+  it("keeps the approved Defender target inside the same mobile budget", () => {
     expect(passesImportedModelPilotBudget(NERIVANE_DEFENDER_PILOT)).toBe(true);
-    expect(NERIVANE_DEFENDER_PILOT.decision).toBe("review-candidate");
+    expect(NERIVANE_DEFENDER_PILOT.decision).toBe("approved-target");
     expect(NERIVANE_DEFENDER_PILOT.assetId).toBe(
       "asset_TPq7DNz9t2ndxB7mWrgGWZBf"
     );

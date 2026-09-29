@@ -622,18 +622,17 @@ export default function ModelLab() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">
-                Third-class review
+                Third approved P2 class
               </p>
               <h2 className="mt-1 text-xl font-semibold">
                 Nerivane Defender: Scenario P2 v1
               </h2>
               <p className="mt-1 max-w-3xl text-sm text-slate-400">
-                The third P2 unit tests the approved faction language on a
-                broad, defensive silhouette. The shield must remain unmistakable
-                at 40 pixels while the faceted mask, pale crest, teal armor, and
-                fractured base still read as the same Nerivane family. This
-                model is integrated for review but is not approved until visual
-                sign-off.
+                The third approved P2 unit extends the locked Nerivane faction
+                language to a broad defensive silhouette. Its shield remains
+                unmistakable at 40 pixels while the faceted mask, pale crest,
+                teal armor, and fractured base keep it in the same family as the
+                approved Warrior and Archer.
               </p>
             </div>
             <a
@@ -671,7 +670,7 @@ export default function ModelLab() {
                   {
                     name: NERIVANE_DEFENDER_PILOT.name,
                     source: p2Defender.masterPng,
-                    status: "Review candidate",
+                    status: "Approved target",
                     statusClass: "bg-emerald-300/15 text-emerald-200",
                   },
                 ].map(item => (
@@ -774,7 +773,7 @@ export default function ModelLab() {
                 <div className="rounded-lg bg-[#101030] p-3">
                   <dt className="text-slate-500">Status</dt>
                   <dd className="font-semibold text-emerald-300">
-                    Awaiting visual sign-off
+                    User approved
                   </dd>
                 </div>
               </dl>
