@@ -59,6 +59,10 @@ jspm_packages/
 # TypeScript cache
 *.tsbuildinfo
 
+# Python / Blender helper-script cache
+__pycache__/
+*.py[cod]
+
 # Optional npm cache directory
 .npm
 
@@ -122,4 +126,3 @@ ios/App/Podfile.lock
 ios/App/App.xcworkspace/xcuserdata/
 ios/App/App.xcodeproj/xcuserdata/
 ios/DerivedData/
-

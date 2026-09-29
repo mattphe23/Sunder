@@ -15,6 +15,8 @@ import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import type { Node } from "@babylonjs/core/node";
+import { SceneLoader } from "@babylonjs/core/Loading/sceneLoader";
 import { PointerEventTypes } from "@babylonjs/core/Events/pointerEvents";
 import { Animation } from "@babylonjs/core/Animations/animation";
 import { EasingFunction, CubicEase } from "@babylonjs/core/Animations/easing";
@@ -22,7 +24,8 @@ import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTexture";
 import { buildCharacter, skinFor, tribeGlow, setCustomCostume, Costume } from "./characters";
-
+import { NERIVANE_WARRIOR_GOLDEN_V2 } from "./importedModelRegistry";
+import "@babylonjs/loaders/glTF";
 /**
  * How large a figure stands on its tile.
  *
@@ -143,6 +146,9 @@ export class BoardRenderer {
   private shadowGen: ShadowGenerator | null = null;
   private pipeline: DefaultRenderingPipeline | null = null;
   private lowQuality = false;
+  private readonly goldenWarriorPreview =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("golden-warrior") === "1";
   private waterMats: StandardMaterial[] = [];
   private shimmerT = 0;
   /** sea life + surface motion: bobbing fish, drifting glints, cloud puffs */
@@ -2163,6 +2169,74 @@ export class BoardRenderer {
   }
 
   /**
+   * Review-only swap used by `?golden-warrior=1`. The stable unit node remains
+   * the animation/picking anchor, so movement, visibility, hit flash, and camera
+   * behavior exercise the authored candidate in the real board renderer. Normal
+   * gameplay never enters this path.
+   */
+  private async replaceWithGoldenWarrior(parent: TransformNode) {
+    const existingChildren = parent.getChildren();
+    try {
+      const url = NERIVANE_WARRIOR_GOLDEN_V2.modelUrl;
+      const slash = url.lastIndexOf("/") + 1;
+      const imported = await SceneLoader.ImportMeshAsync(
+        null,
+        url.slice(0, slash),
+        url.slice(slash),
+        this.scene,
+      );
+      if (this.disposed || parent.isDisposed()) {
+        imported.meshes.forEach((mesh) => mesh.dispose());
+        imported.transformNodes.forEach((node) => node.dispose());
+        return;
+      }
+
+      const visibleMeshes = imported.meshes.filter((mesh) => mesh.getTotalVertices() > 0);
+      if (visibleMeshes.length === 0) throw new Error("Golden Warrior GLB contained no renderable meshes.");
+
+      const minimum = new Vector3(Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
+      const maximum = new Vector3(Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY);
+      for (const mesh of visibleMeshes) {
+        mesh.computeWorldMatrix(true);
+        const bounds = mesh.getBoundingInfo().boundingBox;
+        minimum.minimizeInPlace(bounds.minimumWorld);
+        maximum.maximizeInPlace(bounds.maximumWorld);
+      }
+      const height = maximum.y - minimum.y;
+      if (!Number.isFinite(height) || height <= 0) throw new Error("Golden Warrior GLB had invalid bounds.");
+
+      const candidateRoot = new TransformNode("golden-warrior-v2", this.scene);
+      candidateRoot.parent = parent;
+      const importedNodes: Node[] = [...imported.transformNodes, ...imported.meshes];
+      const importedNodeSet = new Set(importedNodes);
+      for (const importedNode of importedNodes) {
+        if (!importedNode.parent || !importedNodeSet.has(importedNode.parent)) importedNode.parent = candidateRoot;
+      }
+
+      const scale = 0.62 / height;
+      candidateRoot.scaling.setAll(scale);
+      candidateRoot.position.set(
+        -((minimum.x + maximum.x) / 2) * scale,
+        -minimum.y * scale,
+        -((minimum.z + maximum.z) / 2) * scale,
+      );
+
+      existingChildren.forEach((child) => child.dispose());
+      for (const importedMesh of visibleMeshes) {
+        importedMesh.isPickable = false;
+        importedMesh.renderOutline = true;
+        importedMesh.outlineWidth = UNIT_OUTLINE;
+        importedMesh.outlineColor = Color3.FromHexString("#0b0b1e");
+        this.addShadows(importedMesh as Mesh);
+      }
+      this.addContactShadow(parent, 0.34);
+      parent.metadata = { ...(parent.metadata ?? {}), goldenWarriorPreview: true };
+    } catch (error) {
+      console.warn("Golden Warrior review preview failed; using procedural mesh.", error);
+    }
+  }
+
+  /**
    * v58 contact grounding for STATIC decor — a ground disc pushed into the
    * tile's decor list. On an unlit flat-shaded board nothing casts anything,
    * so without it every tree, ruin and building hovers over its tile (the
@@ -2334,6 +2408,9 @@ export class BoardRenderer {
     // not cast one of its own
     this.addContactShadow(node);
     node.scaling.setAll(UNIT_SCALE);
+    if (this.goldenWarriorPreview && defIndex === 4 && u.type === "warrior" && !u.boat) {
+      void this.replaceWithGoldenWarrior(node);
+    }
     return node;
   }
 

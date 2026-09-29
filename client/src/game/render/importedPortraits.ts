@@ -8,8 +8,12 @@ import { Engine } from "@babylonjs/core/Engines/engine";
 import { Scene } from "@babylonjs/core/scene";
 import { SceneLoader } from "@babylonjs/core/Loading/sceneLoader";
 import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+import type { Node } from "@babylonjs/core/node";
 import "@babylonjs/loaders/glTF";
-import { NERIVANE_WARRIOR_PILOT } from "./importedModelRegistry";
+import {
+  NERIVANE_WARRIOR_PILOT,
+  type ImportedModelCandidate,
+} from "./importedModelRegistry";
 
 export interface ImportedPortraitResult {
   masterPng: string;
@@ -40,7 +44,9 @@ function canvasToWebp(canvas: HTMLCanvasElement, size: number) {
  * the same orthographic framing used by the procedural portrait renderer.
  * This is intentionally a review harness: no live board unit is replaced.
  */
-export async function renderNerivaneWarriorPilot(): Promise<ImportedPortraitResult | null> {
+export async function renderImportedModel(
+  candidate: ImportedModelCandidate
+): Promise<ImportedPortraitResult | null> {
   const canvas = document.createElement("canvas");
   canvas.width = MASTER_SIZE;
   canvas.height = MASTER_SIZE;
@@ -102,7 +108,7 @@ export async function renderNerivaneWarriorPilot(): Promise<ImportedPortraitResu
   scene.activeCamera = camera;
 
   try {
-    const url = NERIVANE_WARRIOR_PILOT.modelUrl;
+    const url = candidate.modelUrl;
     const slash = url.lastIndexOf("/") + 1;
     const imported = await SceneLoader.ImportMeshAsync(
       null,
@@ -111,8 +117,15 @@ export async function renderNerivaneWarriorPilot(): Promise<ImportedPortraitResu
       scene
     );
     const root = new TransformNode("imported-warrior-root", scene);
+    const importedNodes: Node[] = [
+      ...imported.transformNodes,
+      ...imported.meshes,
+    ];
+    const importedNodeSet = new Set(importedNodes);
+    for (const node of importedNodes) {
+      if (!node.parent || !importedNodeSet.has(node.parent)) node.parent = root;
+    }
     for (const mesh of imported.meshes) {
-      if (!mesh.parent) mesh.parent = root;
       mesh.alwaysSelectAsActiveMesh = true;
       mesh.computeWorldMatrix(true);
     }
@@ -169,4 +182,8 @@ export async function renderNerivaneWarriorPilot(): Promise<ImportedPortraitResu
     scene.dispose();
     engine.dispose();
   }
+}
+
+export function renderNerivaneWarriorPilot() {
+  return renderImportedModel(NERIVANE_WARRIOR_PILOT);
 }

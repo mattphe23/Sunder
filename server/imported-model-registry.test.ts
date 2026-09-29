@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   IMPORTED_MODEL_PILOT_LIMITS,
+  NERIVANE_WARRIOR_GOLDEN_V2,
   NERIVANE_WARRIOR_PILOT,
   passesImportedModelPilotBudget,
   type ImportedModelCandidate,
@@ -12,6 +13,16 @@ describe("imported model pilot registry", () => {
     expect(NERIVANE_WARRIOR_PILOT.modelUrl).toMatch(
       /^\/manus-storage\/.+\.glb$/
     );
+  });
+
+  it("keeps the authored golden unit far below the geometry and file-size budgets", () => {
+    expect(passesImportedModelPilotBudget(NERIVANE_WARRIOR_GOLDEN_V2)).toBe(
+      true
+    );
+    expect(NERIVANE_WARRIOR_GOLDEN_V2.triangles).toBeLessThan(1_000);
+    expect(NERIVANE_WARRIOR_GOLDEN_V2.sourceBytes).toBeLessThan(100 * 1024);
+    expect(NERIVANE_WARRIOR_GOLDEN_V2.runtimePrimitives).toBe(3);
+    expect(NERIVANE_WARRIOR_GOLDEN_V2.textureResolution).toBe(0);
   });
 
   it("rejects candidates that exceed the triangle budget", () => {

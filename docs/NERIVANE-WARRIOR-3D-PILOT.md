@@ -68,6 +68,61 @@ Use this GLB as a proportion and topology test, not as the final production asse
 7. Keep the model under 10,000 triangles and test it at 40px before rigging.
 8. Rig only after the silhouette and material pass clearly outperform the procedural baseline.
 
+## Golden Warrior v2 — completed Blender pass
+
+The recommended second pass is now implemented as a deterministic Blender build
+in `scripts/build-golden-warrior.py`. The raw Tripo output was audited first and
+found to contain **898 disconnected components** inside one fused primitive.
+That topology was retained as a proportion reference rather than treated as a
+riggable production source.
+
+The authored v2 implements the requested cleanup:
+
+- torso, shoulders, hands, boots, mask, and weapon are deliberately broader;
+- the ordinary Warrior crest is shorter than the Tidecaller/Nereth hierarchy;
+- the chest carries one oversized bone-and-aqua droplet instead of texture noise;
+- body, spear, and fractured base remain separate runtime meshes;
+- nine flat material regions are baked into vertex colors, eliminating texture
+  memory while preserving large palette blocks;
+- the editable source `.blend` preserves all 32 authored parts, while the runtime
+  `.blend` and GLB consolidate them to three meshes.
+
+Run the builder from the repository root with
+`blender --background --python scripts/build-golden-warrior.py`. Outputs default
+to a sibling `sunder-art-pipeline/nerivane-warrior/model` directory outside the
+web bundle; set `SUNDER_ART_OUTPUT` to choose another directory.
+
+### Final v2 asset record
+
+- **WebDev storage path:** `/manus-storage/nerivane-warrior-golden-v2_7b699d63.glb`
+- **SHA-256:** `0b5f5732bf7ab5105f013f17b84b28265926523f593a6af639e9674731378fcf`
+- **GLB size:** 71,032 bytes (69.4 KB)
+- **Uploaded vertices:** 1,578
+- **Triangles:** 720
+- **Runtime mesh primitives / draw calls:** 3
+- **Material:** one shared vertex-color material
+- **Textures:** none
+- **Animations:** none
+
+### Review status
+
+The v2 clearly outperforms the raw Tripo candidate at 40px: it has stronger mass,
+clearer value separation, a more stable grayscale silhouette, and a real Sunder
+base. It is now a **golden candidate**, not yet the live default. The current
+procedural Warrior remains the production baseline until the team chooses between
+the procedural unit's sharper chest rune and taller crest versus v2's cleaner,
+rounder authored silhouette.
+
+Use these routes for the decision:
+
+- `/model-lab` — three-way master, 40px color/grayscale, rotation, and occupied-hex comparison;
+- `/?devgame=6104,11,4,highlands&golden-warrior=1` — opt-in real-board preview;
+- the same `devgame` URL without `golden-warrior=1` — unchanged procedural baseline.
+
+The live preview deliberately remains query-gated. Movement, visibility, shadows,
+outlines, hit flash, and shatter paths run through the normal board unit node, but
+the candidate is not used in ordinary matches.
+
 ## Verification
 
 - TypeScript: `pnpm check`
@@ -75,3 +130,4 @@ Use this GLB as a proportion and topology test, not as the final production asse
 - Full suite: `CI=true pnpm test`
 - Production build: `NODE_OPTIONS='--max-old-space-size=2048' pnpm build`
 - Visual review: open `/model-lab` with the default Nerivane tribe (`tribe=4`)
+- Real-board review: open `/?devgame=6104,11,4,highlands&golden-warrior=1`

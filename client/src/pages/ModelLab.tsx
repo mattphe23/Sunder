@@ -4,9 +4,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { UnitType } from "@/game/core/types";
-import { NERIVANE_WARRIOR_PILOT } from "@/game/render/importedModelRegistry";
 import {
-  renderNerivaneWarriorPilot,
+  NERIVANE_WARRIOR_GOLDEN_V2,
+  NERIVANE_WARRIOR_PILOT,
+} from "@/game/render/importedModelRegistry";
+import {
+  renderImportedModel,
   type ImportedPortraitResult,
 } from "@/game/render/importedPortraits";
 import {
@@ -102,10 +105,39 @@ function RotationStrip({ angles, label }: { angles: string[]; label: string }) {
   );
 }
 
+function BoardContextTile({ src, label }: { src: string; label: string }) {
+  return (
+    <div className="space-y-2">
+      <div className="relative h-28 w-36 overflow-hidden rounded-xl border border-cyan-200/10 bg-gradient-to-b from-[#0a1734] via-[#102f4b] to-[#08152c]">
+        <div
+          className="absolute bottom-2 left-1/2 h-16 w-28 -translate-x-1/2 bg-gradient-to-br from-[#20706b] via-[#175750] to-[#103a43] shadow-[0_12px_24px_rgba(0,0,0,0.45)]"
+          style={{
+            clipPath:
+              "polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%)",
+          }}
+        />
+        <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-[#06091f] to-transparent" />
+        <img
+          src={src}
+          alt={`${label} in approximate board context`}
+          className="absolute bottom-3 left-1/2 h-16 w-16 -translate-x-1/2 object-contain drop-shadow-[0_5px_4px_rgba(0,0,0,0.75)]"
+        />
+        <div className="absolute right-2 top-2 h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_9px_#55e6d5]" />
+      </div>
+      <p className="max-w-36 text-center text-[10px] leading-tight text-slate-400">
+        {label}
+      </p>
+    </div>
+  );
+}
+
 export default function ModelLab() {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [failed, setFailed] = useState(false);
-  const [pilot, setPilot] = useState<ImportedPortraitResult | null>(null);
+  const [rawPilot, setRawPilot] = useState<ImportedPortraitResult | null>(null);
+  const [goldenPilot, setGoldenPilot] = useState<ImportedPortraitResult | null>(
+    null
+  );
   const [pilotError, setPilotError] = useState<string | null>(null);
 
   const setForTribe = useMemo(
@@ -161,13 +193,19 @@ export default function ModelLab() {
     let cancelled = false;
     (async () => {
       try {
-        const result = await renderNerivaneWarriorPilot();
+        const rawResult = await renderImportedModel(NERIVANE_WARRIOR_PILOT);
+        const goldenResult = await renderImportedModel(
+          NERIVANE_WARRIOR_GOLDEN_V2
+        );
         if (!cancelled) {
-          if (result) setPilot(result);
-          else
+          if (rawResult && goldenResult) {
+            setRawPilot(rawResult);
+            setGoldenPilot(goldenResult);
+          } else {
             setPilotError(
               "WebGL could not initialize the imported-model renderer."
             );
+          }
         }
       } catch (error) {
         if (!cancelled)
@@ -215,16 +253,16 @@ export default function ModelLab() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
-                3D pipeline pilot
+                Golden-unit pipeline
               </p>
               <h2 className="mt-1 text-xl font-semibold">
-                Nerivane Warrior: current procedural mesh vs Scenario GLB
+                Nerivane Warrior: procedural vs raw Tripo vs Blender v2
               </h2>
               <p className="mt-1 max-w-3xl text-sm text-slate-400">
-                Generated from the approved front, true-left, and back
-                turnaround. The three-quarter reference was deliberately
-                excluded from the right-view slot because it is not a true 270°
-                orthographic view.
+                The golden candidate uses the raw generation as a proportion
+                reference, then rebuilds the unit as 32 clean modular parts with
+                broader masses, flat faction-value blocks, a shorter crest, and
+                a separate weapon and fractured base.
               </p>
             </div>
             <a href={SCENARIO_ASSET_URL} target="_blank" rel="noreferrer">
@@ -239,9 +277,9 @@ export default function ModelLab() {
               Rendering procedural baseline…
             </div>
           )}
-          {baseline && !pilot && !pilotError && (
+          {baseline && (!rawPilot || !goldenPilot) && !pilotError && (
             <div className="text-sm text-slate-400">
-              Loading and framing imported GLB…
+              Loading and framing imported GLBs…
             </div>
           )}
           {pilotError && (
@@ -250,9 +288,9 @@ export default function ModelLab() {
             </div>
           )}
 
-          {baseline && pilot && (
+          {baseline && rawPilot && goldenPilot && (
             <>
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid gap-4 lg:grid-cols-3">
                 {[
                   {
                     name: "Current procedural Warrior",
@@ -260,7 +298,11 @@ export default function ModelLab() {
                   },
                   {
                     name: NERIVANE_WARRIOR_PILOT.name,
-                    source: pilot.masterPng,
+                    source: rawPilot.masterPng,
+                  },
+                  {
+                    name: NERIVANE_WARRIOR_GOLDEN_V2.name,
+                    source: goldenPilot.masterPng,
                   },
                 ].map(item => (
                   <article
@@ -297,30 +339,50 @@ export default function ModelLab() {
                 </div>
                 <div>
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-cyan-300">
-                    Imported GLB rotation
+                    Raw Tripo GLB rotation
                   </p>
                   <RotationStrip
-                    angles={pilot.angles}
-                    label="Imported Scenario Warrior"
+                    angles={rawPilot.angles}
+                    label="Raw Scenario Warrior"
+                  />
+                </div>
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-emerald-300">
+                    Blender golden v2 rotation
+                  </p>
+                  <RotationStrip
+                    angles={goldenPilot.angles}
+                    label="Blender Golden Warrior v2"
                   />
                 </div>
               </div>
 
-              <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-5">
-                <div className="rounded-lg bg-[#101030] p-3">
-                  <dt className="text-slate-500">Vertices</dt>
-                  <dd className="font-semibold">
-                    {NERIVANE_WARRIOR_PILOT.vertices.toLocaleString()}
-                  </dd>
+              <div className="rounded-xl bg-[#101030] p-4">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  Approximate occupied-hex scale
+                </p>
+                <div className="flex flex-wrap justify-center gap-6 sm:justify-start">
+                  <BoardContextTile src={baseline.master} label="Procedural" />
+                  <BoardContextTile
+                    src={rawPilot.masterPng}
+                    label="Raw Tripo"
+                  />
+                  <BoardContextTile
+                    src={goldenPilot.masterPng}
+                    label="Blender golden v2"
+                  />
                 </div>
+              </div>
+
+              <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-6">
                 <div className="rounded-lg bg-[#101030] p-3">
-                  <dt className="text-slate-500">Triangles</dt>
+                  <dt className="text-slate-500">Raw triangles</dt>
                   <dd className="font-semibold">
                     {NERIVANE_WARRIOR_PILOT.triangles.toLocaleString()}
                   </dd>
                 </div>
                 <div className="rounded-lg bg-[#101030] p-3">
-                  <dt className="text-slate-500">GLB size</dt>
+                  <dt className="text-slate-500">Raw GLB</dt>
                   <dd className="font-semibold">
                     {(NERIVANE_WARRIOR_PILOT.sourceBytes / 1024 / 1024).toFixed(
                       2
@@ -329,14 +391,30 @@ export default function ModelLab() {
                   </dd>
                 </div>
                 <div className="rounded-lg bg-[#101030] p-3">
-                  <dt className="text-slate-500">PBR maps</dt>
+                  <dt className="text-slate-500">Golden triangles</dt>
                   <dd className="font-semibold">
-                    3 × {NERIVANE_WARRIOR_PILOT.textureResolution}px
+                    {NERIVANE_WARRIOR_GOLDEN_V2.triangles.toLocaleString()}
+                  </dd>
+                </div>
+                <div className="rounded-lg bg-[#101030] p-3">
+                  <dt className="text-slate-500">Golden GLB</dt>
+                  <dd className="font-semibold">
+                    {(NERIVANE_WARRIOR_GOLDEN_V2.sourceBytes / 1024).toFixed(1)}{" "}
+                    KB
+                  </dd>
+                </div>
+                <div className="rounded-lg bg-[#101030] p-3">
+                  <dt className="text-slate-500">Golden runtime</dt>
+                  <dd className="font-semibold">
+                    {NERIVANE_WARRIOR_GOLDEN_V2.runtimePrimitives} draw calls ·
+                    no textures
                   </dd>
                 </div>
                 <div className="rounded-lg bg-[#101030] p-3">
                   <dt className="text-slate-500">Status</dt>
-                  <dd className="font-semibold text-amber-300">Candidate</dd>
+                  <dd className="font-semibold text-emerald-300">
+                    Golden candidate
+                  </dd>
                 </div>
               </dl>
             </>
