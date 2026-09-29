@@ -24,7 +24,11 @@ import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTexture";
 import { buildCharacter, skinFor, tribeGlow, setCustomCostume, Costume } from "./characters";
-import { NERIVANE_WARRIOR_PILOT } from "./importedModelRegistry";
+import {
+  NERIVANE_ARCHER_PILOT,
+  NERIVANE_WARRIOR_PILOT,
+  type ImportedModelCandidate,
+} from "./importedModelRegistry";
 import "@babylonjs/loaders/glTF";
 /**
  * How large a figure stands on its tile.
@@ -149,6 +153,9 @@ export class BoardRenderer {
   private readonly p2WarriorPreview =
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("p2-warrior") === "1";
+  private readonly p2ArcherPreview =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("p2-archer") === "1";
   private waterMats: StandardMaterial[] = [];
   private shimmerT = 0;
   /** sea life + surface motion: bobbing fish, drifting glints, cloud puffs */
@@ -2169,15 +2176,19 @@ export class BoardRenderer {
   }
 
   /**
-   * Review-only swap used by `?p2-warrior=1`. The stable unit node remains
-   * the animation/picking anchor, so movement, visibility, hit flash, and camera
-   * behavior exercise the authored candidate in the real board renderer. Normal
-   * gameplay never enters this path.
+   * Review-only swap used by the `?p2-warrior=1` and `?p2-archer=1` routes. The
+   * stable unit node remains the animation/picking anchor, so movement,
+   * visibility, hit flash, and camera behavior exercise each candidate in the
+   * real board renderer. Normal gameplay never enters this path.
    */
-  private async replaceWithP2Warrior(parent: TransformNode) {
+  private async replaceWithP2Unit(
+    parent: TransformNode,
+    candidate: ImportedModelCandidate,
+    previewKey: "p2WarriorPreview" | "p2ArcherPreview",
+  ) {
     const existingChildren = parent.getChildren();
     try {
-      const url = NERIVANE_WARRIOR_PILOT.modelUrl;
+      const url = candidate.modelUrl;
       const slash = url.lastIndexOf("/") + 1;
       const imported = await SceneLoader.ImportMeshAsync(
         null,
@@ -2192,7 +2203,7 @@ export class BoardRenderer {
       }
 
       const visibleMeshes = imported.meshes.filter((mesh) => mesh.getTotalVertices() > 0);
-      if (visibleMeshes.length === 0) throw new Error("P2 Warrior GLB contained no renderable meshes.");
+      if (visibleMeshes.length === 0) throw new Error(`${candidate.name} GLB contained no renderable meshes.`);
 
       const minimum = new Vector3(Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY);
       const maximum = new Vector3(Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY);
@@ -2203,9 +2214,9 @@ export class BoardRenderer {
         maximum.maximizeInPlace(bounds.maximumWorld);
       }
       const height = maximum.y - minimum.y;
-      if (!Number.isFinite(height) || height <= 0) throw new Error("P2 Warrior GLB had invalid bounds.");
+      if (!Number.isFinite(height) || height <= 0) throw new Error(`${candidate.name} GLB had invalid bounds.`);
 
-      const candidateRoot = new TransformNode("p2-warrior-v1", this.scene);
+      const candidateRoot = new TransformNode(candidate.name.toLowerCase().replace(/\s+/g, "-"), this.scene);
       candidateRoot.parent = parent;
       const importedNodes: Node[] = [...imported.transformNodes, ...imported.meshes];
       const importedNodeSet = new Set(importedNodes);
@@ -2230,9 +2241,9 @@ export class BoardRenderer {
         this.addShadows(importedMesh as Mesh);
       }
       this.addContactShadow(parent, 0.34);
-      parent.metadata = { ...(parent.metadata ?? {}), p2WarriorPreview: true };
+      parent.metadata = { ...(parent.metadata ?? {}), [previewKey]: true };
     } catch (error) {
-      console.warn("P2 Warrior review preview failed; using procedural mesh.", error);
+      console.warn(`${candidate.name} review preview failed; using procedural mesh.`, error);
     }
   }
 
@@ -2409,7 +2420,10 @@ export class BoardRenderer {
     this.addContactShadow(node);
     node.scaling.setAll(UNIT_SCALE);
     if (this.p2WarriorPreview && defIndex === 4 && u.type === "warrior" && !u.boat) {
-      void this.replaceWithP2Warrior(node);
+      void this.replaceWithP2Unit(node, NERIVANE_WARRIOR_PILOT, "p2WarriorPreview");
+    }
+    if (this.p2ArcherPreview && defIndex === 4 && u.type === "archer" && !u.boat) {
+      void this.replaceWithP2Unit(node, NERIVANE_ARCHER_PILOT, "p2ArcherPreview");
     }
     return node;
   }

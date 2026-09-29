@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   IMPORTED_MODEL_PILOT_LIMITS,
+  NERIVANE_ARCHER_PILOT,
   NERIVANE_WARRIOR_GOLDEN_V2,
   NERIVANE_WARRIOR_PILOT,
   passesImportedModelPilotBudget,
@@ -25,6 +26,16 @@ describe("imported model pilot registry", () => {
     expect(NERIVANE_WARRIOR_GOLDEN_V2.runtimePrimitives).toBe(3);
     expect(NERIVANE_WARRIOR_GOLDEN_V2.textureResolution).toBe(0);
     expect(NERIVANE_WARRIOR_GOLDEN_V2.decision).toBe("rejected-study");
+  });
+
+  it("keeps the second P2 class inside the same budget without silently approving it", () => {
+    expect(passesImportedModelPilotBudget(NERIVANE_ARCHER_PILOT)).toBe(true);
+    expect(NERIVANE_ARCHER_PILOT.decision).toBe("review-candidate");
+    expect(NERIVANE_ARCHER_PILOT.assetId).toBe(
+      "asset_dZ5ekBi5ta4RuMv642v4kEwg"
+    );
+    expect(NERIVANE_ARCHER_PILOT.runtimePrimitives).toBe(1);
+    expect(NERIVANE_ARCHER_PILOT.triangles).toBeLessThan(5_000);
   });
 
   it("rejects candidates that exceed the triangle budget", () => {

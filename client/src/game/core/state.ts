@@ -2178,6 +2178,14 @@ if (typeof window !== "undefined") {
         preset: preset as MapPreset,
         roster,
       });
+      // The opening roster normally contains only a Warrior. The explicit Archer
+      // art-review route converts that one local starter without changing rules.
+      if (new URLSearchParams(window.location.search).get("p2-archer") === "1") {
+        const starter = game.state.units.find(
+          (unit) => unit.tribe === game.state.humanTribe && unit.type === "warrior",
+        );
+        if (starter) starter.type = "archer";
+      }
       game.state.showIntro = false;
       game.emit({ type: "changed" });
     }

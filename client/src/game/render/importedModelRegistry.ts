@@ -7,7 +7,7 @@ export interface ImportedModelCandidate {
   runtimePrimitives: number;
   sourceBytes: number;
   textureResolution: number;
-  decision: "approved-target" | "rejected-study";
+  decision: "approved-target" | "review-candidate" | "rejected-study";
 }
 
 export const IMPORTED_MODEL_PILOT_LIMITS = {
@@ -27,6 +27,18 @@ export const NERIVANE_WARRIOR_PILOT: ImportedModelCandidate = {
   sourceBytes: 2_413_564,
   textureResolution: 2_048,
   decision: "approved-target",
+};
+
+export const NERIVANE_ARCHER_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Archer v1",
+  assetId: "asset_dZ5ekBi5ta4RuMv642v4kEwg",
+  modelUrl: "/manus-storage/nerivane-archer-tripo-p2-v1_6578b495.glb",
+  vertices: 7_011,
+  triangles: 4_797,
+  runtimePrimitives: 1,
+  sourceBytes: 2_788_280,
+  textureResolution: 2_048,
+  decision: "review-candidate",
 };
 
 export const NERIVANE_WARRIOR_GOLDEN_V2: ImportedModelCandidate = {
