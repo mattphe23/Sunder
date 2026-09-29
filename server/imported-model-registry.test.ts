@@ -3,6 +3,7 @@ import {
   IMPORTED_MODEL_PILOT_LIMITS,
   NERIVANE_ARCHER_PILOT,
   NERIVANE_DEFENDER_PILOT,
+  NERIVANE_RIDER_PILOT,
   NERIVANE_WARRIOR_GOLDEN_V2,
   NERIVANE_WARRIOR_PILOT,
   passesImportedModelPilotBudget,
@@ -47,6 +48,14 @@ describe("imported model pilot registry", () => {
     );
     expect(NERIVANE_DEFENDER_PILOT.runtimePrimitives).toBe(1);
     expect(NERIVANE_DEFENDER_PILOT.triangles).toBeLessThan(6_000);
+  });
+
+  it("keeps the Rider review candidate inside the same mobile budget", () => {
+    expect(passesImportedModelPilotBudget(NERIVANE_RIDER_PILOT)).toBe(true);
+    expect(NERIVANE_RIDER_PILOT.decision).toBe("review-candidate");
+    expect(NERIVANE_RIDER_PILOT.assetId).toBe("asset_hppRhFGzZxpLErL7XoyyV6r8");
+    expect(NERIVANE_RIDER_PILOT.runtimePrimitives).toBe(1);
+    expect(NERIVANE_RIDER_PILOT.triangles).toBeLessThan(6_000);
   });
 
   it("rejects candidates that exceed the triangle budget", () => {

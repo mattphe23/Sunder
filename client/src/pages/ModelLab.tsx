@@ -7,6 +7,7 @@ import type { UnitType } from "@/game/core/types";
 import {
   NERIVANE_ARCHER_PILOT,
   NERIVANE_DEFENDER_PILOT,
+  NERIVANE_RIDER_PILOT,
   NERIVANE_WARRIOR_GOLDEN_V2,
   NERIVANE_WARRIOR_PILOT,
 } from "@/game/render/importedModelRegistry";
@@ -58,6 +59,7 @@ const ANGLES = Array.from(
 const WARRIOR_SCENARIO_ASSET_URL = `https://app.scenario.com/assets?openAssetId=${NERIVANE_WARRIOR_PILOT.assetId}`;
 const ARCHER_SCENARIO_ASSET_URL = `https://app.scenario.com/assets?openAssetId=${NERIVANE_ARCHER_PILOT.assetId}`;
 const DEFENDER_SCENARIO_ASSET_URL = `https://app.scenario.com/assets?openAssetId=${NERIVANE_DEFENDER_PILOT.assetId}`;
+const RIDER_SCENARIO_ASSET_URL = `https://app.scenario.com/assets?openAssetId=${NERIVANE_RIDER_PILOT.assetId}`;
 
 interface Row {
   type: UnitType;
@@ -143,6 +145,7 @@ export default function ModelLab() {
   const [p2Defender, setP2Defender] = useState<ImportedPortraitResult | null>(
     null
   );
+  const [p2Rider, setP2Rider] = useState<ImportedPortraitResult | null>(null);
   const [blenderStudy, setBlenderStudy] =
     useState<ImportedPortraitResult | null>(null);
   const [pilotError, setPilotError] = useState<string | null>(null);
@@ -208,12 +211,20 @@ export default function ModelLab() {
         const defenderResult = await renderImportedModel(
           NERIVANE_DEFENDER_PILOT
         );
+        const riderResult = await renderImportedModel(NERIVANE_RIDER_PILOT);
         if (!cancelled) {
-          if (rawResult && goldenResult && archerResult && defenderResult) {
+          if (
+            rawResult &&
+            goldenResult &&
+            archerResult &&
+            defenderResult &&
+            riderResult
+          ) {
             setP2Pilot(rawResult);
             setBlenderStudy(goldenResult);
             setP2Archer(archerResult);
             setP2Defender(defenderResult);
+            setP2Rider(riderResult);
           } else {
             setPilotError(
               "WebGL could not initialize the imported-model renderer."
@@ -244,6 +255,7 @@ export default function ModelLab() {
   const baseline = rows?.find(row => row.type === "warrior");
   const baselineArcher = rows?.find(row => row.type === "archer");
   const baselineDefender = rows?.find(row => row.type === "defender");
+  const baselineRider = rows?.find(row => row.type === "rider");
   return (
     <div className="min-h-screen space-y-8 bg-[#141433] p-6 text-slate-100">
       <header className="space-y-2">
@@ -774,6 +786,164 @@ export default function ModelLab() {
                   <dt className="text-slate-500">Status</dt>
                   <dd className="font-semibold text-emerald-300">
                     User approved
+                  </dd>
+                </div>
+              </dl>
+            </>
+          )}
+        </section>
+      )}
+
+      {TRIBE === 4 && (
+        <section className="space-y-5 rounded-2xl border border-violet-300/20 bg-[#1c1c46] p-5 shadow-2xl shadow-black/20">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">
+                Fourth P2 class — review candidate
+              </p>
+              <h2 className="mt-1 text-xl font-semibold">
+                Nerivane Rider: Scenario P2 v1
+              </h2>
+              <p className="mt-1 max-w-3xl text-sm text-slate-400">
+                The Rider extends the approved Nerivane language to a mounted
+                silhouette. This review focuses on immediate rider-versus-mount
+                separation, a compact aquatic profile, readable spear geometry,
+                and a footprint that remains clear on one occupied hex.
+              </p>
+            </div>
+            <a href={RIDER_SCENARIO_ASSET_URL} target="_blank" rel="noreferrer">
+              <Button variant="outline" size="sm">
+                Scenario asset
+              </Button>
+            </a>
+          </div>
+
+          {(!baselineRider || !p2Rider) && !pilotError && (
+            <div className="text-sm text-slate-400">
+              Rendering procedural and imported Rider candidates…
+            </div>
+          )}
+          {pilotError && (
+            <div className="rounded-lg bg-red-950/40 p-3 text-sm text-red-300">
+              Imported-model preview failed: {pilotError}
+            </div>
+          )}
+
+          {baselineRider && p2Rider && (
+            <>
+              <div className="grid gap-4 lg:grid-cols-2">
+                {[
+                  {
+                    name: "Current procedural Rider",
+                    source: baselineRider.master,
+                    status: "Current live model",
+                    statusClass: "bg-slate-300/10 text-slate-300",
+                  },
+                  {
+                    name: NERIVANE_RIDER_PILOT.name,
+                    source: p2Rider.masterPng,
+                    status: "Review candidate",
+                    statusClass: "bg-violet-300/15 text-violet-200",
+                  },
+                ].map(item => (
+                  <article
+                    key={item.name}
+                    className="rounded-xl bg-[#101030] p-4"
+                  >
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                      <h3 className="text-sm font-semibold text-slate-200">
+                        {item.name}
+                      </h3>
+                      <span
+                        className={`rounded-full px-2 py-1 text-[10px] font-semibold ${item.statusClass}`}
+                      >
+                        {item.status}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-end gap-6">
+                      <img
+                        src={item.source}
+                        alt={item.name}
+                        className="h-48 w-48 rounded-lg bg-[#0b0b27] object-contain"
+                      />
+                      <SmallReadabilityPair
+                        src={item.source}
+                        label={item.name}
+                      />
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              <div className="space-y-4 rounded-xl bg-[#101030] p-4">
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Current procedural Rider rotation
+                  </p>
+                  <RotationStrip
+                    angles={baselineRider.angles}
+                    label="Current procedural Rider"
+                  />
+                </div>
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-violet-300">
+                    P2 Rider v1 rotation
+                  </p>
+                  <RotationStrip
+                    angles={p2Rider.angles}
+                    label="Scenario P2 Rider v1"
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-xl bg-[#101030] p-4">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  Approximate occupied-hex scale
+                </p>
+                <div className="flex flex-wrap justify-center gap-6 sm:justify-start">
+                  <BoardContextTile
+                    src={baselineRider.master}
+                    label="Procedural Rider"
+                  />
+                  <BoardContextTile
+                    src={p2Rider.masterPng}
+                    label="P2 Rider v1"
+                  />
+                </div>
+              </div>
+
+              <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-5">
+                <div className="rounded-lg bg-[#101030] p-3">
+                  <dt className="text-slate-500">Triangles</dt>
+                  <dd className="font-semibold">
+                    {NERIVANE_RIDER_PILOT.triangles.toLocaleString()}
+                  </dd>
+                </div>
+                <div className="rounded-lg bg-[#101030] p-3">
+                  <dt className="text-slate-500">GLB</dt>
+                  <dd className="font-semibold">
+                    {(NERIVANE_RIDER_PILOT.sourceBytes / 1024 / 1024).toFixed(
+                      2
+                    )}{" "}
+                    MB
+                  </dd>
+                </div>
+                <div className="rounded-lg bg-[#101030] p-3">
+                  <dt className="text-slate-500">Runtime</dt>
+                  <dd className="font-semibold">
+                    {NERIVANE_RIDER_PILOT.runtimePrimitives} draw call
+                  </dd>
+                </div>
+                <div className="rounded-lg bg-[#101030] p-3">
+                  <dt className="text-slate-500">Texture</dt>
+                  <dd className="font-semibold">
+                    {NERIVANE_RIDER_PILOT.textureResolution}px PBR
+                  </dd>
+                </div>
+                <div className="rounded-lg bg-[#101030] p-3">
+                  <dt className="text-slate-500">Status</dt>
+                  <dd className="font-semibold text-violet-300">
+                    Awaiting visual approval
                   </dd>
                 </div>
               </dl>

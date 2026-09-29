@@ -2181,11 +2181,13 @@ if (typeof window !== "undefined") {
       // The opening roster normally contains only a Warrior. Explicit class
       // art-review routes convert that local starter without changing rules.
       const reviewParams = new URLSearchParams(window.location.search);
-      const reviewType = reviewParams.get("p2-defender") === "1"
-        ? "defender"
-        : reviewParams.get("p2-archer") === "1"
-          ? "archer"
-          : null;
+      const reviewType = reviewParams.get("p2-rider") === "1"
+        ? "rider"
+        : reviewParams.get("p2-defender") === "1"
+          ? "defender"
+          : reviewParams.get("p2-archer") === "1"
+            ? "archer"
+            : null;
       if (reviewType) {
         const starter = game.state.units.find(
           (unit) => unit.tribe === game.state.humanTribe && unit.type === "warrior",
