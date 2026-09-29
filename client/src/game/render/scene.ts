@@ -26,6 +26,7 @@ import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTextur
 import { buildCharacter, skinFor, tribeGlow, setCustomCostume, Costume } from "./characters";
 import {
   NERIVANE_ARCHER_PILOT,
+  NERIVANE_DEFENDER_PILOT,
   NERIVANE_WARRIOR_PILOT,
   type ImportedModelCandidate,
 } from "./importedModelRegistry";
@@ -156,6 +157,9 @@ export class BoardRenderer {
   private readonly p2ArcherPreview =
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("p2-archer") === "1";
+  private readonly p2DefenderPreview =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("p2-defender") === "1";
   private waterMats: StandardMaterial[] = [];
   private shimmerT = 0;
   /** sea life + surface motion: bobbing fish, drifting glints, cloud puffs */
@@ -2176,7 +2180,8 @@ export class BoardRenderer {
   }
 
   /**
-   * Review-only swap used by the `?p2-warrior=1` and `?p2-archer=1` routes. The
+   * Review-only swap used by the `?p2-warrior=1`, `?p2-archer=1`, and
+   * `?p2-defender=1` routes. The
    * stable unit node remains the animation/picking anchor, so movement,
    * visibility, hit flash, and camera behavior exercise each candidate in the
    * real board renderer. Normal gameplay never enters this path.
@@ -2184,7 +2189,7 @@ export class BoardRenderer {
   private async replaceWithP2Unit(
     parent: TransformNode,
     candidate: ImportedModelCandidate,
-    previewKey: "p2WarriorPreview" | "p2ArcherPreview",
+    previewKey: "p2WarriorPreview" | "p2ArcherPreview" | "p2DefenderPreview",
   ) {
     const existingChildren = parent.getChildren();
     try {
@@ -2424,6 +2429,9 @@ export class BoardRenderer {
     }
     if (this.p2ArcherPreview && defIndex === 4 && u.type === "archer" && !u.boat) {
       void this.replaceWithP2Unit(node, NERIVANE_ARCHER_PILOT, "p2ArcherPreview");
+    }
+    if (this.p2DefenderPreview && defIndex === 4 && u.type === "defender" && !u.boat) {
+      void this.replaceWithP2Unit(node, NERIVANE_DEFENDER_PILOT, "p2DefenderPreview");
     }
     return node;
   }

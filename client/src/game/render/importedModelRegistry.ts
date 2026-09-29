@@ -41,6 +41,18 @@ export const NERIVANE_ARCHER_PILOT: ImportedModelCandidate = {
   decision: "approved-target",
 };
 
+export const NERIVANE_DEFENDER_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Defender v1",
+  assetId: "asset_TPq7DNz9t2ndxB7mWrgGWZBf",
+  modelUrl: "/manus-storage/nerivane-defender-tripo-p2-v1_5c6aee77.glb",
+  vertices: 6_751,
+  triangles: 5_247,
+  runtimePrimitives: 1,
+  sourceBytes: 3_042_840,
+  textureResolution: 2_048,
+  decision: "review-candidate",
+};
+
 export const NERIVANE_WARRIOR_GOLDEN_V2: ImportedModelCandidate = {
   name: "Blender Golden Warrior v2",
   assetId: "asset_S3nV1cxW54UkqNKXcU5Vtdpz",

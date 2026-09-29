@@ -2178,13 +2178,19 @@ if (typeof window !== "undefined") {
         preset: preset as MapPreset,
         roster,
       });
-      // The opening roster normally contains only a Warrior. The explicit Archer
-      // art-review route converts that one local starter without changing rules.
-      if (new URLSearchParams(window.location.search).get("p2-archer") === "1") {
+      // The opening roster normally contains only a Warrior. Explicit class
+      // art-review routes convert that local starter without changing rules.
+      const reviewParams = new URLSearchParams(window.location.search);
+      const reviewType = reviewParams.get("p2-defender") === "1"
+        ? "defender"
+        : reviewParams.get("p2-archer") === "1"
+          ? "archer"
+          : null;
+      if (reviewType) {
         const starter = game.state.units.find(
           (unit) => unit.tribe === game.state.humanTribe && unit.type === "warrior",
         );
-        if (starter) starter.type = "archer";
+        if (starter) starter.type = reviewType;
       }
       game.state.showIntro = false;
       game.emit({ type: "changed" });

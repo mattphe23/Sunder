@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import type { UnitType } from "@/game/core/types";
 import {
   NERIVANE_ARCHER_PILOT,
+  NERIVANE_DEFENDER_PILOT,
   NERIVANE_WARRIOR_GOLDEN_V2,
   NERIVANE_WARRIOR_PILOT,
 } from "@/game/render/importedModelRegistry";
@@ -56,6 +57,7 @@ const ANGLES = Array.from(
 );
 const WARRIOR_SCENARIO_ASSET_URL = `https://app.scenario.com/assets?openAssetId=${NERIVANE_WARRIOR_PILOT.assetId}`;
 const ARCHER_SCENARIO_ASSET_URL = `https://app.scenario.com/assets?openAssetId=${NERIVANE_ARCHER_PILOT.assetId}`;
+const DEFENDER_SCENARIO_ASSET_URL = `https://app.scenario.com/assets?openAssetId=${NERIVANE_DEFENDER_PILOT.assetId}`;
 
 interface Row {
   type: UnitType;
@@ -138,6 +140,9 @@ export default function ModelLab() {
   const [failed, setFailed] = useState(false);
   const [p2Pilot, setP2Pilot] = useState<ImportedPortraitResult | null>(null);
   const [p2Archer, setP2Archer] = useState<ImportedPortraitResult | null>(null);
+  const [p2Defender, setP2Defender] = useState<ImportedPortraitResult | null>(
+    null
+  );
   const [blenderStudy, setBlenderStudy] =
     useState<ImportedPortraitResult | null>(null);
   const [pilotError, setPilotError] = useState<string | null>(null);
@@ -200,11 +205,15 @@ export default function ModelLab() {
           NERIVANE_WARRIOR_GOLDEN_V2
         );
         const archerResult = await renderImportedModel(NERIVANE_ARCHER_PILOT);
+        const defenderResult = await renderImportedModel(
+          NERIVANE_DEFENDER_PILOT
+        );
         if (!cancelled) {
-          if (rawResult && goldenResult && archerResult) {
+          if (rawResult && goldenResult && archerResult && defenderResult) {
             setP2Pilot(rawResult);
             setBlenderStudy(goldenResult);
             setP2Archer(archerResult);
+            setP2Defender(defenderResult);
           } else {
             setPilotError(
               "WebGL could not initialize the imported-model renderer."
@@ -234,6 +243,7 @@ export default function ModelLab() {
 
   const baseline = rows?.find(row => row.type === "warrior");
   const baselineArcher = rows?.find(row => row.type === "archer");
+  const baselineDefender = rows?.find(row => row.type === "defender");
   return (
     <div className="min-h-screen space-y-8 bg-[#141433] p-6 text-slate-100">
       <header className="space-y-2">
@@ -246,10 +256,10 @@ export default function ModelLab() {
           </span>
         </div>
         <p className="max-w-4xl text-sm text-slate-400">
-          All three models share the same orthographic framing, transparent
+          Every candidate shares the same orthographic framing, transparent
           background, feet baseline, 40px test, and eight-view rotation strip.
-          P2 v1 has passed visual review and is the approved target; replacing
-          the normal gameplay lineup remains a separate production step.
+          Approved P2 models are locked visual targets; replacing the normal
+          gameplay lineup remains a separate production step.
         </p>
       </header>
 
@@ -599,6 +609,172 @@ export default function ModelLab() {
                   <dt className="text-slate-500">Status</dt>
                   <dd className="font-semibold text-cyan-300">
                     Approved visual target
+                  </dd>
+                </div>
+              </dl>
+            </>
+          )}
+        </section>
+      )}
+
+      {TRIBE === 4 && (
+        <section className="space-y-5 rounded-2xl border border-emerald-300/20 bg-[#1c1c46] p-5 shadow-2xl shadow-black/20">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">
+                Third-class review
+              </p>
+              <h2 className="mt-1 text-xl font-semibold">
+                Nerivane Defender: Scenario P2 v1
+              </h2>
+              <p className="mt-1 max-w-3xl text-sm text-slate-400">
+                The third P2 unit tests the approved faction language on a
+                broad, defensive silhouette. The shield must remain unmistakable
+                at 40 pixels while the faceted mask, pale crest, teal armor, and
+                fractured base still read as the same Nerivane family. This
+                model is integrated for review but is not approved until visual
+                sign-off.
+              </p>
+            </div>
+            <a
+              href={DEFENDER_SCENARIO_ASSET_URL}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Button variant="outline" size="sm">
+                Scenario asset
+              </Button>
+            </a>
+          </div>
+
+          {(!baselineDefender || !p2Defender) && !pilotError && (
+            <div className="text-sm text-slate-400">
+              Rendering procedural and imported Defender candidates…
+            </div>
+          )}
+          {pilotError && (
+            <div className="rounded-lg bg-red-950/40 p-3 text-sm text-red-300">
+              Imported-model preview failed: {pilotError}
+            </div>
+          )}
+
+          {baselineDefender && p2Defender && (
+            <>
+              <div className="grid gap-4 lg:grid-cols-2">
+                {[
+                  {
+                    name: "Current procedural Defender",
+                    source: baselineDefender.master,
+                    status: "Current live model",
+                    statusClass: "bg-slate-300/10 text-slate-300",
+                  },
+                  {
+                    name: NERIVANE_DEFENDER_PILOT.name,
+                    source: p2Defender.masterPng,
+                    status: "Review candidate",
+                    statusClass: "bg-emerald-300/15 text-emerald-200",
+                  },
+                ].map(item => (
+                  <article
+                    key={item.name}
+                    className="rounded-xl bg-[#101030] p-4"
+                  >
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                      <h3 className="text-sm font-semibold text-slate-200">
+                        {item.name}
+                      </h3>
+                      <span
+                        className={`rounded-full px-2 py-1 text-[10px] font-semibold ${item.statusClass}`}
+                      >
+                        {item.status}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-end gap-6">
+                      <img
+                        src={item.source}
+                        alt={item.name}
+                        className="h-48 w-48 rounded-lg bg-[#0b0b27] object-contain"
+                      />
+                      <SmallReadabilityPair
+                        src={item.source}
+                        label={item.name}
+                      />
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              <div className="space-y-4 rounded-xl bg-[#101030] p-4">
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Current procedural Defender rotation
+                  </p>
+                  <RotationStrip
+                    angles={baselineDefender.angles}
+                    label="Current procedural Defender"
+                  />
+                </div>
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-emerald-300">
+                    P2 Defender v1 rotation
+                  </p>
+                  <RotationStrip
+                    angles={p2Defender.angles}
+                    label="Scenario P2 Defender v1"
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-xl bg-[#101030] p-4">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  Approximate occupied-hex scale
+                </p>
+                <div className="flex flex-wrap justify-center gap-6 sm:justify-start">
+                  <BoardContextTile
+                    src={baselineDefender.master}
+                    label="Procedural Defender"
+                  />
+                  <BoardContextTile
+                    src={p2Defender.masterPng}
+                    label="P2 Defender v1"
+                  />
+                </div>
+              </div>
+
+              <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-5">
+                <div className="rounded-lg bg-[#101030] p-3">
+                  <dt className="text-slate-500">Triangles</dt>
+                  <dd className="font-semibold">
+                    {NERIVANE_DEFENDER_PILOT.triangles.toLocaleString()}
+                  </dd>
+                </div>
+                <div className="rounded-lg bg-[#101030] p-3">
+                  <dt className="text-slate-500">GLB</dt>
+                  <dd className="font-semibold">
+                    {(
+                      NERIVANE_DEFENDER_PILOT.sourceBytes /
+                      1024 /
+                      1024
+                    ).toFixed(2)}{" "}
+                    MB
+                  </dd>
+                </div>
+                <div className="rounded-lg bg-[#101030] p-3">
+                  <dt className="text-slate-500">Runtime</dt>
+                  <dd className="font-semibold">
+                    {NERIVANE_DEFENDER_PILOT.runtimePrimitives} draw call
+                  </dd>
+                </div>
+                <div className="rounded-lg bg-[#101030] p-3">
+                  <dt className="text-slate-500">Texture</dt>
+                  <dd className="font-semibold">
+                    {NERIVANE_DEFENDER_PILOT.textureResolution}px PBR
+                  </dd>
+                </div>
+                <div className="rounded-lg bg-[#101030] p-3">
+                  <dt className="text-slate-500">Status</dt>
+                  <dd className="font-semibold text-emerald-300">
+                    Awaiting visual sign-off
                   </dd>
                 </div>
               </dl>
