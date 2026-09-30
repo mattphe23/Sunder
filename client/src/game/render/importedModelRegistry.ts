@@ -62,7 +62,7 @@ export const NERIVANE_RIDER_PILOT: ImportedModelCandidate = {
   runtimePrimitives: 1,
   sourceBytes: 2_608_272,
   textureResolution: 2_048,
-  decision: "review-candidate",
+  decision: "rejected-study",
 };
 
 export const NERIVANE_RIDER_AQUATIC_V2: ImportedModelCandidate = {
@@ -74,7 +74,7 @@ export const NERIVANE_RIDER_AQUATIC_V2: ImportedModelCandidate = {
   runtimePrimitives: 1,
   sourceBytes: 2_785_372,
   textureResolution: 2_048,
-  decision: "review-candidate",
+  decision: "approved-target",
 };
 
 export const NERIVANE_WARRIOR_GOLDEN_V2: ImportedModelCandidate = {

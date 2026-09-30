@@ -809,7 +809,7 @@ export default function ModelLab() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">
-                Fourth P2 class — aquatic refinement review
+                Fourth P2 class — aquatic v2 approved
               </p>
               <h2 className="mt-1 text-xl font-semibold">
                 Nerivane Rider: P2 v1 versus aquatic v2
@@ -868,13 +868,13 @@ export default function ModelLab() {
                   {
                     name: NERIVANE_RIDER_PILOT.name,
                     source: p2Rider.masterPng,
-                    status: "P2 v1 benchmark",
+                    status: "Retained study",
                     statusClass: "bg-violet-300/15 text-violet-200",
                   },
                   {
                     name: NERIVANE_RIDER_AQUATIC_V2.name,
                     source: p2RiderV2.masterPng,
-                    status: "Aquatic revision",
+                    status: "Approved visual target",
                     statusClass: "bg-cyan-300/15 text-cyan-200",
                   },
                 ].map(item => (
@@ -998,8 +998,8 @@ export default function ModelLab() {
                 </div>
                 <div className="rounded-lg bg-[#101030] p-3">
                   <dt className="text-slate-500">Decision</dt>
-                  <dd className="font-semibold text-violet-300">
-                    Awaiting v1 / v2 choice
+                  <dd className="font-semibold text-cyan-300">
+                    Aquatic v2 approved
                   </dd>
                 </div>
               </dl>

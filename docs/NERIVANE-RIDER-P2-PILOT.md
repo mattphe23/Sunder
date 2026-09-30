@@ -2,9 +2,9 @@
 
 ## Decision status
 
-**Two review candidates — v1 established the direction; aquatic v2 awaits selection.**
+**Aquatic v2 is the approved visual target. Rider v1 remains a retained comparison study.**
 
-Scenario Tripo P2 Rider v1 established a much stronger mounted silhouette. Following review feedback that its mount could read more aquatic, a controlled v2 changes only the mount direction: longer fish-like body, broad lateral fins, tapered tail, and a cleaner marine profile. Both versions are integrated into Model Lab and separate opt-in live-board routes. Normal gameplay remains unchanged while they are compared.
+Scenario Tripo P2 Rider v1 established a much stronger mounted silhouette. Following review feedback that its mount could read more aquatic, a controlled v2 changed only the mount direction: longer fish-like body, broad lateral fins, tapered tail, and a cleaner marine profile. The user approved aquatic v2 after the direct Model Lab and matched live-board comparison. Both versions remain on separate opt-in review routes; normal gameplay is unchanged by this art-direction decision.
 
 ## Design target
 
@@ -86,4 +86,4 @@ The candidate must pass the same baseline tests as the approved Warrior, Archer,
 - the live-board scale does not overpower neighboring infantry;
 - the one-draw-call mesh remains within every mobile pilot budget.
 
-The registry intentionally keeps both models at `review-candidate` until the v1-versus-v2 visual choice is recorded.
+The registry locks aquatic v2 as `approved-target` and keeps v1 as `rejected-study` for reference. Approval establishes the art direction, **not** a default-runtime replacement or shipping/mobile-performance sign-off. Next production candidate: the Nerivane Tidecaller, preserving its towering crest, robe, and oversized three-pronged trident.

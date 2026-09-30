@@ -51,19 +51,19 @@ describe("imported model pilot registry", () => {
     expect(NERIVANE_DEFENDER_PILOT.triangles).toBeLessThan(6_000);
   });
 
-  it("keeps the Rider review candidate inside the same mobile budget", () => {
+  it("retains Rider v1 as a non-production benchmark inside the mobile budget", () => {
     expect(passesImportedModelPilotBudget(NERIVANE_RIDER_PILOT)).toBe(true);
-    expect(NERIVANE_RIDER_PILOT.decision).toBe("review-candidate");
+    expect(NERIVANE_RIDER_PILOT.decision).toBe("rejected-study");
     expect(NERIVANE_RIDER_PILOT.assetId).toBe("asset_hppRhFGzZxpLErL7XoyyV6r8");
     expect(NERIVANE_RIDER_PILOT.runtimePrimitives).toBe(1);
     expect(NERIVANE_RIDER_PILOT.triangles).toBeLessThan(6_000);
   });
 
-  it("keeps the aquatic Rider v2 comparison candidate inside the mobile budget", () => {
+  it("locks aquatic Rider v2 as the approved target inside the mobile budget", () => {
     expect(passesImportedModelPilotBudget(NERIVANE_RIDER_AQUATIC_V2)).toBe(
       true
     );
-    expect(NERIVANE_RIDER_AQUATIC_V2.decision).toBe("review-candidate");
+    expect(NERIVANE_RIDER_AQUATIC_V2.decision).toBe("approved-target");
     expect(NERIVANE_RIDER_AQUATIC_V2.assetId).toBe(
       "asset_kLxCjo8ZUZRUuFvkYtKYCwoP"
     );
