@@ -2184,11 +2184,13 @@ if (typeof window !== "undefined") {
       const reviewType = reviewParams.get("p2-rider") === "1" ||
         reviewParams.get("p2-rider-v2") === "1"
         ? "rider"
-        : reviewParams.get("p2-defender") === "1"
-          ? "defender"
-          : reviewParams.get("p2-archer") === "1"
-            ? "archer"
-            : null;
+        : reviewParams.get("p2-tidecaller") === "1"
+          ? "tidecaller"
+          : reviewParams.get("p2-defender") === "1"
+            ? "defender"
+            : reviewParams.get("p2-archer") === "1"
+              ? "archer"
+              : null;
       if (reviewType) {
         const starter = game.state.units.find(
           (unit) => unit.tribe === game.state.humanTribe && unit.type === "warrior",

@@ -9,6 +9,7 @@ import {
   NERIVANE_DEFENDER_PILOT,
   NERIVANE_RIDER_AQUATIC_V2,
   NERIVANE_RIDER_PILOT,
+  NERIVANE_TIDECALLER_PILOT,
   NERIVANE_WARRIOR_GOLDEN_V2,
   NERIVANE_WARRIOR_PILOT,
 } from "@/game/render/importedModelRegistry";
@@ -62,6 +63,7 @@ const ARCHER_SCENARIO_ASSET_URL = `https://app.scenario.com/assets?openAssetId=$
 const DEFENDER_SCENARIO_ASSET_URL = `https://app.scenario.com/assets?openAssetId=${NERIVANE_DEFENDER_PILOT.assetId}`;
 const RIDER_SCENARIO_ASSET_URL = `https://app.scenario.com/assets?openAssetId=${NERIVANE_RIDER_PILOT.assetId}`;
 const RIDER_V2_SCENARIO_ASSET_URL = `https://app.scenario.com/assets?openAssetId=${NERIVANE_RIDER_AQUATIC_V2.assetId}`;
+const TIDECALLER_SCENARIO_ASSET_URL = `https://app.scenario.com/assets?openAssetId=${NERIVANE_TIDECALLER_PILOT.assetId}`;
 
 interface Row {
   type: UnitType;
@@ -151,6 +153,8 @@ export default function ModelLab() {
   const [p2RiderV2, setP2RiderV2] = useState<ImportedPortraitResult | null>(
     null
   );
+  const [p2Tidecaller, setP2Tidecaller] =
+    useState<ImportedPortraitResult | null>(null);
   const [blenderStudy, setBlenderStudy] =
     useState<ImportedPortraitResult | null>(null);
   const [pilotError, setPilotError] = useState<string | null>(null);
@@ -220,6 +224,9 @@ export default function ModelLab() {
         const riderV2Result = await renderImportedModel(
           NERIVANE_RIDER_AQUATIC_V2
         );
+        const tidecallerResult = await renderImportedModel(
+          NERIVANE_TIDECALLER_PILOT
+        );
         if (!cancelled) {
           if (
             rawResult &&
@@ -227,7 +234,8 @@ export default function ModelLab() {
             archerResult &&
             defenderResult &&
             riderResult &&
-            riderV2Result
+            riderV2Result &&
+            tidecallerResult
           ) {
             setP2Pilot(rawResult);
             setBlenderStudy(goldenResult);
@@ -235,6 +243,7 @@ export default function ModelLab() {
             setP2Defender(defenderResult);
             setP2Rider(riderResult);
             setP2RiderV2(riderV2Result);
+            setP2Tidecaller(tidecallerResult);
           } else {
             setPilotError(
               "WebGL could not initialize the imported-model renderer."
@@ -266,6 +275,7 @@ export default function ModelLab() {
   const baselineArcher = rows?.find(row => row.type === "archer");
   const baselineDefender = rows?.find(row => row.type === "defender");
   const baselineRider = rows?.find(row => row.type === "rider");
+  const baselineTidecaller = rows?.find(row => row.type === "tidecaller");
   return (
     <div className="min-h-screen space-y-8 bg-[#141433] p-6 text-slate-100">
       <header className="space-y-2">
@@ -1000,6 +1010,170 @@ export default function ModelLab() {
                   <dt className="text-slate-500">Decision</dt>
                   <dd className="font-semibold text-cyan-300">
                     Aquatic v2 approved
+                  </dd>
+                </div>
+              </dl>
+            </>
+          )}
+        </section>
+      )}
+
+      {TRIBE === 4 && (
+        <section className="space-y-5 rounded-2xl border border-sky-300/20 bg-[#1c1c46] p-5 shadow-2xl shadow-black/20">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-300">
+                Fifth P2 class — review candidate
+              </p>
+              <h2 className="mt-1 text-xl font-semibold">
+                Nerivane Tidecaller: procedural versus Scenario P2 v1
+              </h2>
+              <p className="mt-1 max-w-3xl text-sm text-slate-400">
+                Judge its extraordinary crest, flared robe, and three-pronged
+                trident at 40 pixels, in grayscale, from every side, and on one
+                hex. This is an opt-in visual review, not a gameplay replacement
+                or an approved target yet.
+              </p>
+            </div>
+            <a
+              href={TIDECALLER_SCENARIO_ASSET_URL}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Button variant="outline" size="sm">
+                Scenario asset
+              </Button>
+            </a>
+          </div>
+
+          {(!baselineTidecaller || !p2Tidecaller) && !pilotError && (
+            <div className="text-sm text-slate-400">
+              Rendering procedural and imported Tidecaller comparisons…
+            </div>
+          )}
+          {pilotError && (
+            <div className="rounded-lg bg-red-950/40 p-3 text-sm text-red-300">
+              Imported-model preview failed: {pilotError}
+            </div>
+          )}
+
+          {baselineTidecaller && p2Tidecaller && (
+            <>
+              <div className="grid gap-4 lg:grid-cols-2">
+                {[
+                  {
+                    name: "Current procedural Tidecaller",
+                    source: baselineTidecaller.master,
+                    status: "Current live model",
+                    statusClass: "bg-slate-300/10 text-slate-300",
+                  },
+                  {
+                    name: NERIVANE_TIDECALLER_PILOT.name,
+                    source: p2Tidecaller.masterPng,
+                    status: "Awaiting visual decision",
+                    statusClass: "bg-sky-300/15 text-sky-200",
+                  },
+                ].map(item => (
+                  <article
+                    key={item.name}
+                    className="rounded-xl bg-[#101030] p-4"
+                  >
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                      <h3 className="text-sm font-semibold text-slate-200">
+                        {item.name}
+                      </h3>
+                      <span
+                        className={`rounded-full px-2 py-1 text-[10px] font-semibold ${item.statusClass}`}
+                      >
+                        {item.status}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-end gap-6">
+                      <img
+                        src={item.source}
+                        alt={item.name}
+                        className="h-48 w-48 rounded-lg bg-[#0b0b27] object-contain"
+                      />
+                      <SmallReadabilityPair
+                        src={item.source}
+                        label={item.name}
+                      />
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              <div className="space-y-4 rounded-xl bg-[#101030] p-4">
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Current procedural Tidecaller rotation
+                  </p>
+                  <RotationStrip
+                    angles={baselineTidecaller.angles}
+                    label="Current procedural Tidecaller"
+                  />
+                </div>
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-sky-300">
+                    P2 Tidecaller v1 rotation
+                  </p>
+                  <RotationStrip
+                    angles={p2Tidecaller.angles}
+                    label="Scenario P2 Tidecaller v1"
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-xl bg-[#101030] p-4">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  Approximate occupied-hex scale
+                </p>
+                <div className="flex flex-wrap justify-center gap-6 sm:justify-start">
+                  <BoardContextTile
+                    src={baselineTidecaller.master}
+                    label="Procedural Tidecaller"
+                  />
+                  <BoardContextTile
+                    src={p2Tidecaller.masterPng}
+                    label="P2 Tidecaller v1"
+                  />
+                </div>
+              </div>
+
+              <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-5">
+                <div className="rounded-lg bg-[#101030] p-3">
+                  <dt className="text-slate-500">Triangles</dt>
+                  <dd className="font-semibold">
+                    {NERIVANE_TIDECALLER_PILOT.triangles.toLocaleString()}
+                  </dd>
+                </div>
+                <div className="rounded-lg bg-[#101030] p-3">
+                  <dt className="text-slate-500">GLB</dt>
+                  <dd className="font-semibold">
+                    {(
+                      NERIVANE_TIDECALLER_PILOT.sourceBytes /
+                      1024 /
+                      1024
+                    ).toFixed(2)}{" "}
+                    MB
+                  </dd>
+                </div>
+                <div className="rounded-lg bg-[#101030] p-3">
+                  <dt className="text-slate-500">Runtime</dt>
+                  <dd className="font-semibold">
+                    {NERIVANE_TIDECALLER_PILOT.runtimePrimitives} draw call
+                  </dd>
+                </div>
+                <div className="rounded-lg bg-[#101030] p-3">
+                  <dt className="text-slate-500">Texture</dt>
+                  <dd className="font-semibold">
+                    {NERIVANE_TIDECALLER_PILOT.textureResolution}px PBR
+                  </dd>
+                </div>
+                <div className="rounded-lg bg-[#101030] p-3">
+                  <dt className="text-slate-500">Status</dt>
+                  <dd className="font-semibold text-sky-300">
+                    Visual review pending
                   </dd>
                 </div>
               </dl>

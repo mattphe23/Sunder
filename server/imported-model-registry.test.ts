@@ -5,6 +5,7 @@ import {
   NERIVANE_DEFENDER_PILOT,
   NERIVANE_RIDER_AQUATIC_V2,
   NERIVANE_RIDER_PILOT,
+  NERIVANE_TIDECALLER_PILOT,
   NERIVANE_WARRIOR_GOLDEN_V2,
   NERIVANE_WARRIOR_PILOT,
   passesImportedModelPilotBudget,
@@ -69,6 +70,18 @@ describe("imported model pilot registry", () => {
     );
     expect(NERIVANE_RIDER_AQUATIC_V2.runtimePrimitives).toBe(1);
     expect(NERIVANE_RIDER_AQUATIC_V2.triangles).toBeLessThan(5_000);
+  });
+
+  it("keeps Tidecaller P2 v1 a review candidate within the mobile budget", () => {
+    expect(passesImportedModelPilotBudget(NERIVANE_TIDECALLER_PILOT)).toBe(
+      true
+    );
+    expect(NERIVANE_TIDECALLER_PILOT.decision).toBe("review-candidate");
+    expect(NERIVANE_TIDECALLER_PILOT.assetId).toBe(
+      "asset_ts7XdES84Kv4U3w9YKRVkJ8S"
+    );
+    expect(NERIVANE_TIDECALLER_PILOT.runtimePrimitives).toBe(1);
+    expect(NERIVANE_TIDECALLER_PILOT.triangles).toBeLessThan(6_000);
   });
 
   it("rejects candidates that exceed the triangle budget", () => {
