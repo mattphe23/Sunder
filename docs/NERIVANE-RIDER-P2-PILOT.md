@@ -2,9 +2,9 @@
 
 ## Decision status
 
-**Review candidate — awaiting user approval.**
+**Two review candidates — v1 established the direction; aquatic v2 awaits selection.**
 
-Scenario Tripo P2 Rider v1 has been generated from the approved Nerivane lineup, audited, and integrated into both Model Lab and an opt-in live-board route. Normal gameplay remains unchanged while the candidate is reviewed.
+Scenario Tripo P2 Rider v1 established a much stronger mounted silhouette. Following review feedback that its mount could read more aquatic, a controlled v2 changes only the mount direction: longer fish-like body, broad lateral fins, tapered tail, and a cleaner marine profile. Both versions are integrated into Model Lab and separate opt-in live-board routes. Normal gameplay remains unchanged while they are compared.
 
 ## Design target
 
@@ -32,6 +32,10 @@ The complete local production record is preserved at:
 
 `/home/ubuntu/sunder-art-pipeline/nerivane-rider/scenario-record.txt`
 
+The aquatic refinement record is preserved at:
+
+`/home/ubuntu/sunder-art-pipeline/nerivane-rider/scenario-record-v2.txt`
+
 ## Generated asset
 
 | Field              |                                                    Value |
@@ -47,12 +51,28 @@ The complete local production record is preserved at:
 
 The mesh remains below the pilot limits of 10,000 triangles, eight runtime primitives, 5 MB, and 2048-pixel textures.
 
+## Aquatic v2 asset
+
+| Field              |                                                    Value |
+| ------------------ | -------------------------------------------------------: |
+| Scenario asset     |                         `asset_kLxCjo8ZUZRUuFvkYtKYCwoP` |
+| WebDev path        | `/manus-storage/nerivane-rider-tripo-p2-v2_b6bf26e0.glb` |
+| Source size        |                                          2,785,372 bytes |
+| Vertices           |                                                    5,973 |
+| Triangles          |                                                    4,987 |
+| Runtime primitives |                                                        1 |
+| Embedded textures  |                                              3 × 2048 px |
+| Budget result      |                                                     Pass |
+
+Aquatic v2 is slightly smaller geometrically than v1 while keeping the same one-draw-call runtime structure and texture ceiling.
+
 ## Review routes
 
 - Model Lab: `/model-lab?tribe=4`
-- Live-board comparison: `/?devgame=6104,11,4,highlands&p2-rider=1`
+- Live-board v1: `/?devgame=6104,11,4,highlands&p2-rider=1`
+- Live-board aquatic v2: `/?devgame=6104,11,4,highlands&p2-rider-v2=1`
 
-The live-board query converts only the deterministic development starter into a Rider and swaps only that Nerivane unit to the imported GLB. Normal gameplay is unchanged.
+Each live-board query converts only the deterministic development starter into a Rider and swaps only that Nerivane unit to the selected imported GLB. Normal gameplay is unchanged.
 
 ## Acceptance focus
 
@@ -66,4 +86,4 @@ The candidate must pass the same baseline tests as the approved Warrior, Archer,
 - the live-board scale does not overpower neighboring infantry;
 - the one-draw-call mesh remains within every mobile pilot budget.
 
-The registry intentionally keeps this model at `review-candidate` until visual approval is recorded.
+The registry intentionally keeps both models at `review-candidate` until the v1-versus-v2 visual choice is recorded.
