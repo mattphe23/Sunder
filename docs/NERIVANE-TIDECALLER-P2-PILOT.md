@@ -2,7 +2,7 @@
 
 ## Decision status
 
-**Review candidate, not yet an approved visual target.** The approved Warrior, Archer, Defender, and aquatic Rider v2 remain unchanged. This Tidecaller is integrated into Model Lab and an opt-in deterministic board route only; ordinary matches continue to use the procedural unit.
+**Approved visual target: Scenario Tripo P2 Tidecaller v1.** After seeing the direct procedural/P2 comparison and live-board capture, the owner called out this model's exceptional detail and praised the result. The approved Warrior, Archer, Defender, and aquatic Rider v2 remain unchanged. Approval locks the art direction; it does **not** enable imported models in ordinary matches. The Tidecaller remains available in Model Lab and the opt-in deterministic board route, while default gameplay continues to use the procedural unit.
 
 ## Locked design target
 
@@ -43,7 +43,7 @@ The development route converts only the deterministic human starter to a Tidecal
 
 The P2 figure is a substantial improvement in material cohesion and character finish: the tall swept crest, layered robe, pale mask, and coherent stone base make it read as a caster rather than a basic soldier. The eight-angle and grayscale views remain recognizable. On a clear grass hex, the imported model loaded correctly, stood on its base, and retained its teal/ivory palette. Its actual swap was confirmed by the `p2TidecallerPreview` unit metadata and successful GLB response; there were no browser page errors.
 
-Two differences warrant the owner's judgment before approval: it is notably slimmer and quieter at 40 pixels than the bulky procedural baseline, and the near-black three-prong trident becomes staff-like against a dark background. The robe flare and crest are strong, but the weapon may need a brighter bone or aqua treatment if the class must be instantly identified by its trident. A nearby procedural unit and city can overpower it on the occupied board. These are visual tradeoffs, not asset-budget failures.
+The approved P2 look is notably slimmer and quieter at 40 pixels than the bulky procedural baseline, and its near-black three-prong trident can read as a staff against a dark background. The owner chose the model after seeing these comparisons; a brighter trident remains an optional later polish pass, **not** a condition of the present approval. A nearby procedural unit and city can overpower it on the occupied board. These are visual tradeoffs, not asset-budget failures.
 
 Review captures in the working art-pipeline folder (not committed assets): `review/tidecaller-procedural-vs-p2.png` and `review/tidecaller-live-board-clear-grass.png`. For the latter, only the review camera and model node were temporarily positioned on an explored empty grass tile; the game rules and saved state were not altered.
 
@@ -55,4 +55,4 @@ Review captures in the working art-pipeline folder (not committed assets): `revi
 - Does the faceted mask, teal/ivory palette, and fractured base match the approved family?
 - Does the live-board model remain correctly grounded and reasonably scaled during camera rotations?
 
-Keep the candidate as `review-candidate` until the user judges the pasted direct comparison. Approval of art direction does not automatically enable the model for default gameplay.
+The owner approved this visual direction after reviewing the pasted direct comparison. The registry records it as `approved-target`; default gameplay remains procedural pending a separate rollout and real-device performance evaluation. The next character in the Nerivane lineup is Nereth, whose distinctive crown, cape, and hero-scale silhouette should be tested with the same reversible Scenario-to-Model-Lab pipeline before any production switch.

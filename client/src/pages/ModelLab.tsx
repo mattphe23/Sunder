@@ -1023,7 +1023,7 @@ export default function ModelLab() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-300">
-                Fifth P2 class — review candidate
+                Fifth P2 class — approved visual direction
               </p>
               <h2 className="mt-1 text-xl font-semibold">
                 Nerivane Tidecaller: procedural versus Scenario P2 v1
@@ -1031,8 +1031,8 @@ export default function ModelLab() {
               <p className="mt-1 max-w-3xl text-sm text-slate-400">
                 Judge its extraordinary crest, flared robe, and three-pronged
                 trident at 40 pixels, in grayscale, from every side, and on one
-                hex. This is an opt-in visual review, not a gameplay replacement
-                or an approved target yet.
+                hex. The P2 look is approved; this remains an opt-in visual
+                comparison, not a default gameplay replacement.
               </p>
             </div>
             <a
@@ -1070,7 +1070,7 @@ export default function ModelLab() {
                   {
                     name: NERIVANE_TIDECALLER_PILOT.name,
                     source: p2Tidecaller.masterPng,
-                    status: "Awaiting visual decision",
+                    status: "Approved visual target",
                     statusClass: "bg-sky-300/15 text-sky-200",
                   },
                 ].map(item => (
@@ -1173,7 +1173,7 @@ export default function ModelLab() {
                 <div className="rounded-lg bg-[#101030] p-3">
                   <dt className="text-slate-500">Status</dt>
                   <dd className="font-semibold text-sky-300">
-                    Visual review pending
+                    Approved visual target
                   </dd>
                 </div>
               </dl>

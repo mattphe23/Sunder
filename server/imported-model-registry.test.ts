@@ -72,11 +72,11 @@ describe("imported model pilot registry", () => {
     expect(NERIVANE_RIDER_AQUATIC_V2.triangles).toBeLessThan(5_000);
   });
 
-  it("keeps Tidecaller P2 v1 a review candidate within the mobile budget", () => {
+  it("locks Tidecaller P2 v1 as the approved target inside the mobile budget", () => {
     expect(passesImportedModelPilotBudget(NERIVANE_TIDECALLER_PILOT)).toBe(
       true
     );
-    expect(NERIVANE_TIDECALLER_PILOT.decision).toBe("review-candidate");
+    expect(NERIVANE_TIDECALLER_PILOT.decision).toBe("approved-target");
     expect(NERIVANE_TIDECALLER_PILOT.assetId).toBe(
       "asset_ts7XdES84Kv4U3w9YKRVkJ8S"
     );
