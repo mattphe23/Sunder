@@ -85,9 +85,9 @@ describe("imported model pilot registry", () => {
     expect(NERIVANE_TIDECALLER_PILOT.triangles).toBeLessThan(6_000);
   });
 
-  it("keeps Nereth P2 v1 review-only and deployment-safe within the pilot budget", () => {
+  it("locks Nereth P2 v1 as the approved target inside the pilot budget", () => {
     expect(passesImportedModelPilotBudget(NERIVANE_NERETH_PILOT)).toBe(true);
-    expect(NERIVANE_NERETH_PILOT.decision).toBe("review-candidate");
+    expect(NERIVANE_NERETH_PILOT.decision).toBe("approved-target");
     expect(NERIVANE_NERETH_PILOT.assetId).toBe(
       "asset_VPV6Feg41fyc1si5xKTdwZXG"
     );

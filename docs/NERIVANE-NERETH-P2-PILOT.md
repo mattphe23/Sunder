@@ -2,7 +2,7 @@
 
 ## Decision status
 
-**Review candidate — awaiting owner approval.** Scenario Tripo P2 Nereth v1 is imported into the designer's Model Lab and is opt-in on a deterministic development board. Neither the ordinary hero visual nor the game rules have changed. The Warrior, Archer, Defender, aquatic Rider v2 and Tidecaller visual directions remain approved separately.
+**Approved visual target (owner decision, 2026-09-30).** After reviewing the procedural/P2 comparison and live-board image, the owner said: “I approve your direction. I like it.” Scenario Tripo P2 Nereth v1 remains opt-in on the development board. **Art approval is not a production rollout:** neither the ordinary hero visual nor the game rules have changed. The Warrior, Archer, Defender, aquatic Rider v2 and Tidecaller visual directions remain approved separately.
 
 ## Locked art target
 
@@ -34,7 +34,7 @@ These are asset-level limits; they do not establish performance on a phone or ap
 
 ## Review routes
 
-- Model Lab: `/model-lab?tribe=4#nereth-comparison` — current procedural Nereth versus the imported candidate, full portrait, 40px color/grayscale, eight rotations and approximate occupied-hex thumbnails.
+- Model Lab: `/model-lab?tribe=4#nereth-comparison` — current procedural Nereth versus the approved imported visual target, full portrait, 40px color/grayscale, eight rotations and approximate occupied-hex thumbnails.
 - Deterministic development board: `/?devgame=6104,11,4,highlands&p2-nereth=1` — the standard Nerivane hero spawned alongside the capital is visually replaced. **No extra hero is spawned and the Warrior starter is not converted.** The `devgame` starter route exists only in development; the P2 renderer swap is also gated by `p2-nereth=1`. No normal-match visual is changed without that explicit query flag.
 
 ## Acceptance questions
@@ -51,6 +51,6 @@ These are asset-level limits; they do not establish performance on a phone or ap
 - The Model Lab captured 24 Nereth comparison images (2 full-size, 4 40px, 16 rotations, 2 occupied-hex tiles); the import rendered without page errors. Evidence: `nereth-procedural-vs-p2.png` in the external `review/` art workspace.
 - On development seed `6104`, the existing human hero `u2` at `(9, 6)` was replaced in the real Babylon scene (`p2NerethPreview: true`) and the eight other match units remained intact. Evidence: `nereth-live-board-focused.png` and its unaltered-pixel crop `nereth-live-board-detail.png` in that same workspace. The capture rotates/zooms the camera only; it does not modify the game state.
 - Negative control: the same seed without `p2-nereth=1` retained its single procedural hero, set **zero** Nereth preview flags and made **zero** requests for the Nereth GLB.
-- The P2 hero has a more cohesive banner-spear, cape, and mask, with visible rune fissures and distinct gold/aqua crown-crest layering. The **slimmer silhouette and much smaller crown/emblem at 40px** may read less strongly than the blocky procedural hero; side/back angles and nearby terrain should be judged by the owner. No subjective approval has been inferred.
+- The P2 hero has a more cohesive banner-spear, cape, and mask, with visible rune fissures and distinct gold/aqua crown-crest layering. The **slimmer silhouette and much smaller crown/emblem at 40px** may read less strongly than the blocky procedural hero; this is a documented readability consideration for any later production rollout, not a reason to override the owner's art approval.
 
-**Visual decision: pending.** Show the comparison and live-board images directly to the owner. An approve/revise response is required before changing the candidate's decision from `review-candidate`.
+**Visual decision: approved.** The registry decision is `approved-target`; the only in-game swap remains `p2-nereth=1`. Bringing any imported model into default gameplay across the Nerivane lineup is a separate decision and requires follow-up implementation and QA.

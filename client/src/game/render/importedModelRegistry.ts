@@ -98,7 +98,7 @@ export const NERIVANE_NERETH_PILOT: ImportedModelCandidate = {
   runtimePrimitives: 1,
   sourceBytes: 3_124_068,
   textureResolution: 2_048,
-  decision: "review-candidate",
+  decision: "approved-target",
 };
 
 export const NERIVANE_WARRIOR_GOLDEN_V2: ImportedModelCandidate = {

@@ -1193,8 +1193,8 @@ export default function ModelLab() {
         <section id="nereth-comparison" className="space-y-5 rounded-2xl border border-amber-300/20 bg-[#1c1c46] p-5 shadow-2xl shadow-black/20">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">
-                Nerivane hero — visual review pending
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-300">
+                Nerivane hero — approved visual target
               </p>
               <h2 className="mt-1 text-xl font-semibold">
                 Nereth: procedural versus Scenario P2 v1
@@ -1202,8 +1202,8 @@ export default function ModelLab() {
               <p className="mt-1 max-w-3xl text-sm text-slate-400">
                 Judge the gold crown, swept aqua crest, deep-teal cape, banner-spear,
                 faceted mask, and fractured base at 40 pixels, in grayscale, across
-                eight views and on a hex. This imported GLB is a review candidate,
-                not a default gameplay replacement or an approved target.
+                eight views and on a hex. P2 v1 is approved as the visual target;
+                ordinary gameplay still uses the procedural hero unless explicitly previewed.
               </p>
             </div>
             <a href={NERETH_SCENARIO_ASSET_URL} target="_blank" rel="noreferrer">
@@ -1235,8 +1235,8 @@ export default function ModelLab() {
                   {
                     name: NERIVANE_NERETH_PILOT.name,
                     source: p2Nereth.masterPng,
-                    status: "Awaiting visual decision",
-                    statusClass: "bg-amber-300/15 text-amber-200",
+                    status: "Approved visual target",
+                    statusClass: "bg-sky-300/15 text-sky-200",
                   },
                 ].map(item => (
                   <article key={item.name} className="rounded-xl bg-[#101030] p-4">
@@ -1298,7 +1298,7 @@ export default function ModelLab() {
                 </div>
                 <div className="rounded-lg bg-[#101030] p-3">
                   <dt className="text-slate-500">Status</dt>
-                  <dd className="font-semibold text-amber-300">Visual review pending</dd>
+                  <dd className="font-semibold text-sky-300">Approved visual target</dd>
                 </div>
               </dl>
             </>
