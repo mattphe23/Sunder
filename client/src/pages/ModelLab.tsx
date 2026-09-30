@@ -10,6 +10,7 @@ import {
   NERIVANE_RIDER_AQUATIC_V2,
   NERIVANE_RIDER_PILOT,
   NERIVANE_TIDECALLER_PILOT,
+  NERIVANE_NERETH_PILOT,
   NERIVANE_WARRIOR_GOLDEN_V2,
   NERIVANE_WARRIOR_PILOT,
 } from "@/game/render/importedModelRegistry";
@@ -64,6 +65,7 @@ const DEFENDER_SCENARIO_ASSET_URL = `https://app.scenario.com/assets?openAssetId
 const RIDER_SCENARIO_ASSET_URL = `https://app.scenario.com/assets?openAssetId=${NERIVANE_RIDER_PILOT.assetId}`;
 const RIDER_V2_SCENARIO_ASSET_URL = `https://app.scenario.com/assets?openAssetId=${NERIVANE_RIDER_AQUATIC_V2.assetId}`;
 const TIDECALLER_SCENARIO_ASSET_URL = `https://app.scenario.com/assets?openAssetId=${NERIVANE_TIDECALLER_PILOT.assetId}`;
+const NERETH_SCENARIO_ASSET_URL = `https://app.scenario.com/assets?openAssetId=${NERIVANE_NERETH_PILOT.assetId}`;
 
 interface Row {
   type: UnitType;
@@ -155,6 +157,7 @@ export default function ModelLab() {
   );
   const [p2Tidecaller, setP2Tidecaller] =
     useState<ImportedPortraitResult | null>(null);
+  const [p2Nereth, setP2Nereth] = useState<ImportedPortraitResult | null>(null);
   const [blenderStudy, setBlenderStudy] =
     useState<ImportedPortraitResult | null>(null);
   const [pilotError, setPilotError] = useState<string | null>(null);
@@ -227,6 +230,7 @@ export default function ModelLab() {
         const tidecallerResult = await renderImportedModel(
           NERIVANE_TIDECALLER_PILOT
         );
+        const nerethResult = await renderImportedModel(NERIVANE_NERETH_PILOT);
         if (!cancelled) {
           if (
             rawResult &&
@@ -235,7 +239,8 @@ export default function ModelLab() {
             defenderResult &&
             riderResult &&
             riderV2Result &&
-            tidecallerResult
+            tidecallerResult &&
+            nerethResult
           ) {
             setP2Pilot(rawResult);
             setBlenderStudy(goldenResult);
@@ -244,6 +249,7 @@ export default function ModelLab() {
             setP2Rider(riderResult);
             setP2RiderV2(riderV2Result);
             setP2Tidecaller(tidecallerResult);
+            setP2Nereth(nerethResult);
           } else {
             setPilotError(
               "WebGL could not initialize the imported-model renderer."
@@ -276,6 +282,7 @@ export default function ModelLab() {
   const baselineDefender = rows?.find(row => row.type === "defender");
   const baselineRider = rows?.find(row => row.type === "rider");
   const baselineTidecaller = rows?.find(row => row.type === "tidecaller");
+  const baselineNereth = rows?.find(row => row.type === "hero");
   return (
     <div className="min-h-screen space-y-8 bg-[#141433] p-6 text-slate-100">
       <header className="space-y-2">
@@ -1175,6 +1182,123 @@ export default function ModelLab() {
                   <dd className="font-semibold text-sky-300">
                     Approved visual target
                   </dd>
+                </div>
+              </dl>
+            </>
+          )}
+        </section>
+      )}
+
+      {TRIBE === 4 && (
+        <section id="nereth-comparison" className="space-y-5 rounded-2xl border border-amber-300/20 bg-[#1c1c46] p-5 shadow-2xl shadow-black/20">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">
+                Nerivane hero — visual review pending
+              </p>
+              <h2 className="mt-1 text-xl font-semibold">
+                Nereth: procedural versus Scenario P2 v1
+              </h2>
+              <p className="mt-1 max-w-3xl text-sm text-slate-400">
+                Judge the gold crown, swept aqua crest, deep-teal cape, banner-spear,
+                faceted mask, and fractured base at 40 pixels, in grayscale, across
+                eight views and on a hex. This imported GLB is a review candidate,
+                not a default gameplay replacement or an approved target.
+              </p>
+            </div>
+            <a href={NERETH_SCENARIO_ASSET_URL} target="_blank" rel="noreferrer">
+              <Button variant="outline" size="sm">Scenario asset</Button>
+            </a>
+          </div>
+
+          {(!baselineNereth || !p2Nereth) && !pilotError && (
+            <div className="text-sm text-slate-400">
+              Rendering procedural and imported Nereth comparisons…
+            </div>
+          )}
+          {pilotError && (
+            <div className="rounded-lg bg-red-950/40 p-3 text-sm text-red-300">
+              Imported-model preview failed: {pilotError}
+            </div>
+          )}
+
+          {baselineNereth && p2Nereth && (
+            <>
+              <div className="grid gap-4 lg:grid-cols-2">
+                {[
+                  {
+                    name: "Current procedural Nereth",
+                    source: baselineNereth.master,
+                    status: "Current live model",
+                    statusClass: "bg-slate-300/10 text-slate-300",
+                  },
+                  {
+                    name: NERIVANE_NERETH_PILOT.name,
+                    source: p2Nereth.masterPng,
+                    status: "Awaiting visual decision",
+                    statusClass: "bg-amber-300/15 text-amber-200",
+                  },
+                ].map(item => (
+                  <article key={item.name} className="rounded-xl bg-[#101030] p-4">
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                      <h3 className="text-sm font-semibold text-slate-200">{item.name}</h3>
+                      <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${item.statusClass}`}>
+                        {item.status}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-end gap-6">
+                      <img src={item.source} alt={item.name} className="h-48 w-48 rounded-lg bg-[#0b0b27] object-contain" />
+                      <SmallReadabilityPair src={item.source} label={item.name} />
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              <div className="space-y-4 rounded-xl bg-[#101030] p-4">
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Current procedural Nereth rotation
+                  </p>
+                  <RotationStrip angles={baselineNereth.angles} label="Current procedural Nereth" />
+                </div>
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-amber-300">
+                    P2 Nereth v1 rotation
+                  </p>
+                  <RotationStrip angles={p2Nereth.angles} label="Scenario P2 Nereth v1" />
+                </div>
+              </div>
+
+              <div className="rounded-xl bg-[#101030] p-4">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  Approximate occupied-hex scale
+                </p>
+                <div className="flex flex-wrap justify-center gap-6 sm:justify-start">
+                  <BoardContextTile src={baselineNereth.master} label="Procedural Nereth" />
+                  <BoardContextTile src={p2Nereth.masterPng} label="P2 Nereth v1" />
+                </div>
+              </div>
+
+              <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-5">
+                <div className="rounded-lg bg-[#101030] p-3">
+                  <dt className="text-slate-500">Triangles</dt>
+                  <dd className="font-semibold">{NERIVANE_NERETH_PILOT.triangles.toLocaleString()}</dd>
+                </div>
+                <div className="rounded-lg bg-[#101030] p-3">
+                  <dt className="text-slate-500">GLB</dt>
+                  <dd className="font-semibold">{(NERIVANE_NERETH_PILOT.sourceBytes / 1024 / 1024).toFixed(2)} MB</dd>
+                </div>
+                <div className="rounded-lg bg-[#101030] p-3">
+                  <dt className="text-slate-500">Runtime</dt>
+                  <dd className="font-semibold">{NERIVANE_NERETH_PILOT.runtimePrimitives} draw call</dd>
+                </div>
+                <div className="rounded-lg bg-[#101030] p-3">
+                  <dt className="text-slate-500">Texture</dt>
+                  <dd className="font-semibold">{NERIVANE_NERETH_PILOT.textureResolution}px PBR</dd>
+                </div>
+                <div className="rounded-lg bg-[#101030] p-3">
+                  <dt className="text-slate-500">Status</dt>
+                  <dd className="font-semibold text-amber-300">Visual review pending</dd>
                 </div>
               </dl>
             </>

@@ -6,6 +6,7 @@ import {
   NERIVANE_RIDER_AQUATIC_V2,
   NERIVANE_RIDER_PILOT,
   NERIVANE_TIDECALLER_PILOT,
+  NERIVANE_NERETH_PILOT,
   NERIVANE_WARRIOR_GOLDEN_V2,
   NERIVANE_WARRIOR_PILOT,
   passesImportedModelPilotBudget,
@@ -82,6 +83,19 @@ describe("imported model pilot registry", () => {
     );
     expect(NERIVANE_TIDECALLER_PILOT.runtimePrimitives).toBe(1);
     expect(NERIVANE_TIDECALLER_PILOT.triangles).toBeLessThan(6_000);
+  });
+
+  it("keeps Nereth P2 v1 review-only and deployment-safe within the pilot budget", () => {
+    expect(passesImportedModelPilotBudget(NERIVANE_NERETH_PILOT)).toBe(true);
+    expect(NERIVANE_NERETH_PILOT.decision).toBe("review-candidate");
+    expect(NERIVANE_NERETH_PILOT.assetId).toBe(
+      "asset_VPV6Feg41fyc1si5xKTdwZXG"
+    );
+    expect(NERIVANE_NERETH_PILOT.modelUrl).toMatch(
+      /^\/manus-storage\/.+\.glb$/
+    );
+    expect(NERIVANE_NERETH_PILOT.runtimePrimitives).toBe(1);
+    expect(NERIVANE_NERETH_PILOT.triangles).toBeLessThan(5_000);
   });
 
   it("rejects candidates that exceed the triangle budget", () => {

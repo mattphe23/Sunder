@@ -30,6 +30,7 @@ import {
   NERIVANE_RIDER_AQUATIC_V2,
   NERIVANE_RIDER_PILOT,
   NERIVANE_TIDECALLER_PILOT,
+  NERIVANE_NERETH_PILOT,
   NERIVANE_WARRIOR_PILOT,
   type ImportedModelCandidate,
 } from "./importedModelRegistry";
@@ -172,6 +173,9 @@ export class BoardRenderer {
   private readonly p2TidecallerPreview =
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("p2-tidecaller") === "1";
+  private readonly p2NerethPreview =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("p2-nereth") === "1";
   private waterMats: StandardMaterial[] = [];
   private shimmerT = 0;
   /** sea life + surface motion: bobbing fish, drifting glints, cloud puffs */
@@ -2194,7 +2198,7 @@ export class BoardRenderer {
   /**
    * Review-only swap used by the `?p2-warrior=1`, `?p2-archer=1`,
    * `?p2-defender=1`, `?p2-rider=1`, `?p2-rider-v2=1`, and
-   * `?p2-tidecaller=1` routes. The
+   * `?p2-tidecaller=1`, and `?p2-nereth=1` routes. The
    * stable unit node remains the animation/picking anchor, so movement,
    * visibility, hit flash, and camera behavior exercise each candidate in the
    * real board renderer. Normal gameplay never enters this path.
@@ -2208,7 +2212,8 @@ export class BoardRenderer {
       | "p2DefenderPreview"
       | "p2RiderPreview"
       | "p2RiderV2Preview"
-      | "p2TidecallerPreview",
+      | "p2TidecallerPreview"
+      | "p2NerethPreview",
   ) {
     const existingChildren = parent.getChildren();
     try {
@@ -2459,6 +2464,11 @@ export class BoardRenderer {
     }
     if (this.p2TidecallerPreview && defIndex === 4 && u.type === "tidecaller" && !u.boat) {
       void this.replaceWithP2Unit(node, NERIVANE_TIDECALLER_PILOT, "p2TidecallerPreview");
+    }
+    // Nereth is the existing Nerivane hero, not a newly spawned unit. Keep
+    // the review route visual-only: no rule, save, or starter-unit mutation.
+    if (this.p2NerethPreview && defIndex === 4 && u.type === "hero" && u.hero && !u.boat) {
+      void this.replaceWithP2Unit(node, NERIVANE_NERETH_PILOT, "p2NerethPreview");
     }
     return node;
   }

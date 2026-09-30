@@ -89,6 +89,18 @@ export const NERIVANE_TIDECALLER_PILOT: ImportedModelCandidate = {
   decision: "approved-target",
 };
 
+export const NERIVANE_NERETH_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Nereth v1",
+  assetId: "asset_VPV6Feg41fyc1si5xKTdwZXG",
+  modelUrl: "/manus-storage/nerivane-nereth-tripo-p2-v1_0847ff85.glb",
+  vertices: 6_178,
+  triangles: 4_566,
+  runtimePrimitives: 1,
+  sourceBytes: 3_124_068,
+  textureResolution: 2_048,
+  decision: "review-candidate",
+};
+
 export const NERIVANE_WARRIOR_GOLDEN_V2: ImportedModelCandidate = {
   name: "Blender Golden Warrior v2",
   assetId: "asset_S3nV1cxW54UkqNKXcU5Vtdpz",
