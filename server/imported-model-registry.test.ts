@@ -30,6 +30,7 @@ import {
   SUNWEI_WARRIOR_PILOT,
   VALKYRA_ARCHER_PILOT,
   VALKYRA_DEFENDER_PILOT,
+  VALKYRA_RIDER_PILOT,
   VALKYRA_WARRIOR_PILOT,
   VESSARI_ARCHER_PILOT,
   VESSARI_DEFENDER_PILOT,
@@ -343,6 +344,23 @@ describe("imported model pilot registry", () => {
       tribeIndex: 6,
       unitType: "defender",
       candidate: VALKYRA_DEFENDER_PILOT,
+    });
+  });
+
+  it("keeps Valkyra Rider's audited ram mount budgeted, review-only and mapped to tribe 6 Rider", () => {
+    expect(passesImportedModelPilotBudget(VALKYRA_RIDER_PILOT)).toBe(true);
+    expect(VALKYRA_RIDER_PILOT.decision).toBe("review-candidate");
+    expect(VALKYRA_RIDER_PILOT.assetId).toBe("asset_y2kpW68gPiYkmmmwGpUkrZtg");
+    expect(VALKYRA_RIDER_PILOT.modelUrl).toBe("/manus-storage/valkyra-rider-tripo-p2-v1_16fb5bf0.glb");
+    expect(VALKYRA_RIDER_PILOT.vertices).toBe(7_791);
+    expect(VALKYRA_RIDER_PILOT.triangles).toBe(4_937);
+    expect(VALKYRA_RIDER_PILOT.runtimePrimitives).toBe(1);
+    expect(VALKYRA_RIDER_PILOT.sourceBytes).toBe(3_377_620);
+    expect(VALKYRA_RIDER_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "valkyra-rider")).toMatchObject({
+      tribeIndex: 6,
+      unitType: "rider",
+      candidate: VALKYRA_RIDER_PILOT,
     });
   });
 
