@@ -28,6 +28,7 @@ import {
   VALKYRA_DEFENDER_PILOT,
   VALKYRA_WARRIOR_PILOT,
   VESSARI_ARCHER_PILOT,
+  VESSARI_DEFENDER_PILOT,
   VESSARI_WARRIOR_PILOT,
   passesImportedModelPilotBudget,
   type ImportedModelCandidate,
@@ -253,6 +254,23 @@ describe("imported model pilot registry", () => {
       tribeIndex: 3,
       unitType: "archer",
       candidate: VESSARI_ARCHER_PILOT,
+    });
+  });
+
+  it("keeps Vessari Defender's audited shield model opt-in and mapped to the Defender role", () => {
+    expect(passesImportedModelPilotBudget(VESSARI_DEFENDER_PILOT)).toBe(true);
+    expect(VESSARI_DEFENDER_PILOT.decision).toBe("review-candidate");
+    expect(VESSARI_DEFENDER_PILOT.assetId).toBe("asset_2YedqmFoW12sJYZtTFCzWdL6");
+    expect(VESSARI_DEFENDER_PILOT.modelUrl).toBe("/manus-storage/vessari-defender-tripo-p2-v1_333cf8da.glb");
+    expect(VESSARI_DEFENDER_PILOT.vertices).toBe(6_891);
+    expect(VESSARI_DEFENDER_PILOT.triangles).toBe(4_878);
+    expect(VESSARI_DEFENDER_PILOT.runtimePrimitives).toBe(1);
+    expect(VESSARI_DEFENDER_PILOT.sourceBytes).toBe(3_163_676);
+    expect(VESSARI_DEFENDER_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "vessari-defender")).toMatchObject({
+      tribeIndex: 3,
+      unitType: "defender",
+      candidate: VESSARI_DEFENDER_PILOT,
     });
   });
 
