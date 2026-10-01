@@ -155,6 +155,19 @@ export const AUREN_RIDER_PILOT: ImportedModelCandidate = {
   decision: "review-candidate",
 };
 
+/** Auren's distinct staff-and-lens unique unit; kept opt-in until the full roster review. */
+export const AUREN_ARCANIST_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Auren Arcanist v1",
+  assetId: "asset_58PE3HsUFbcBsPvT8sxrFuJh",
+  modelUrl: "/manus-storage/auren-arcanist-tripo-p2-v1_bccc218f.glb",
+  vertices: 6_767,
+  triangles: 4_686,
+  runtimePrimitives: 1,
+  sourceBytes: 3_328_668,
+  textureResolution: 2_048,
+  decision: "review-candidate",
+};
+
 /** Approved targets and first-pass studies remain separate; only cataloged entries get review routes. */
 export interface CrossTribeModelPilot {
   slug: string;
@@ -168,6 +181,7 @@ export const CROSS_TRIBE_P2_PILOTS: readonly CrossTribeModelPilot[] = [
   { slug: "auren-archer", tribeIndex: 0, unitType: "archer", candidate: AUREN_ARCHER_PILOT },
   { slug: "auren-defender", tribeIndex: 0, unitType: "defender", candidate: AUREN_DEFENDER_PILOT },
   { slug: "auren-rider", tribeIndex: 0, unitType: "rider", candidate: AUREN_RIDER_PILOT },
+  { slug: "auren-arcanist", tribeIndex: 0, unitType: "arcanist", candidate: AUREN_ARCANIST_PILOT },
 ];
 
 export const NERIVANE_WARRIOR_GOLDEN_V2: ImportedModelCandidate = {

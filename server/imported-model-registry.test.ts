@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  AUREN_ARCANIST_PILOT,
   AUREN_ARCHER_PILOT,
   AUREN_DEFENDER_PILOT,
   AUREN_RIDER_PILOT,
@@ -142,6 +143,18 @@ describe("imported model pilot registry", () => {
     expect(AUREN_RIDER_PILOT.triangles).toBe(4_880);
     expect(AUREN_RIDER_PILOT.runtimePrimitives).toBe(1);
     expect(AUREN_RIDER_PILOT.sourceBytes).toBe(3_543_656);
+  });
+
+  it("keeps Auren Arcanist's first-pass model reviewed, budgeted, and separate from the hero", () => {
+    expect(passesImportedModelPilotBudget(AUREN_ARCANIST_PILOT)).toBe(true);
+    expect(AUREN_ARCANIST_PILOT.decision).toBe("review-candidate");
+    expect(AUREN_ARCANIST_PILOT.assetId).toBe("asset_58PE3HsUFbcBsPvT8sxrFuJh");
+    expect(AUREN_ARCANIST_PILOT.modelUrl).toBe("/manus-storage/auren-arcanist-tripo-p2-v1_bccc218f.glb");
+    expect(AUREN_ARCANIST_PILOT.vertices).toBe(6_767);
+    expect(AUREN_ARCANIST_PILOT.triangles).toBe(4_686);
+    expect(AUREN_ARCANIST_PILOT.runtimePrimitives).toBe(1);
+    expect(AUREN_ARCANIST_PILOT.sourceBytes).toBe(3_328_668);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "auren-arcanist")?.unitType).toBe("arcanist");
   });
 
   it("keeps every cross-tribe pilot unique, budgeted and review-only", () => {
