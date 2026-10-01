@@ -220,6 +220,19 @@ export const VALKYRA_WARRIOR_PILOT: ImportedModelCandidate = {
   decision: "review-candidate",
 };
 
+/** Mycelon's spore infantry first pass; ordinary matches remain procedural. */
+export const MYCELON_WARRIOR_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Mycelon Warrior v1",
+  assetId: "asset_xvpEHJBy5FW2BPCKRjh1QapM",
+  modelUrl: "/manus-storage/mycelon-warrior-tripo-p2-v1_786024e4.glb",
+  vertices: 3_523,
+  triangles: 4_518,
+  runtimePrimitives: 1,
+  sourceBytes: 2_504_068,
+  textureResolution: 2_048,
+  decision: "review-candidate",
+};
+
 /** Approved targets and first-pass studies remain separate; only cataloged entries get review routes. */
 export interface CrossTribeModelPilot {
   slug: string;
@@ -238,6 +251,7 @@ export const CROSS_TRIBE_P2_PILOTS: readonly CrossTribeModelPilot[] = [
   { slug: "dravok-warrior", tribeIndex: 5, unitType: "warrior", candidate: DRAVOK_WARRIOR_PILOT },
   { slug: "vessari-warrior", tribeIndex: 3, unitType: "warrior", candidate: VESSARI_WARRIOR_PILOT },
   { slug: "valkyra-warrior", tribeIndex: 6, unitType: "warrior", candidate: VALKYRA_WARRIOR_PILOT },
+  { slug: "mycelon-warrior", tribeIndex: 7, unitType: "warrior", candidate: MYCELON_WARRIOR_PILOT },
 ];
 
 export const NERIVANE_WARRIOR_GOLDEN_V2: ImportedModelCandidate = {

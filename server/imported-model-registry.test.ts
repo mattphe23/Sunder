@@ -9,6 +9,7 @@ import {
   CROSS_TRIBE_P2_PILOTS,
   DRAVOK_WARRIOR_PILOT,
   IMPORTED_MODEL_PILOT_LIMITS,
+  MYCELON_WARRIOR_PILOT,
   NERIVANE_ARCHER_PILOT,
   NERIVANE_DEFENDER_PILOT,
   NERIVANE_RIDER_AQUATIC_V2,
@@ -226,6 +227,23 @@ describe("imported model pilot registry", () => {
       tribeIndex: 6,
       unitType: "warrior",
       candidate: VALKYRA_WARRIOR_PILOT,
+    });
+  });
+
+  it("keeps Mycelon Warrior's first-pass GLB opt-in and within the mobile budget", () => {
+    expect(passesImportedModelPilotBudget(MYCELON_WARRIOR_PILOT)).toBe(true);
+    expect(MYCELON_WARRIOR_PILOT.decision).toBe("review-candidate");
+    expect(MYCELON_WARRIOR_PILOT.assetId).toBe("asset_xvpEHJBy5FW2BPCKRjh1QapM");
+    expect(MYCELON_WARRIOR_PILOT.modelUrl).toBe("/manus-storage/mycelon-warrior-tripo-p2-v1_786024e4.glb");
+    expect(MYCELON_WARRIOR_PILOT.vertices).toBe(3_523);
+    expect(MYCELON_WARRIOR_PILOT.triangles).toBe(4_518);
+    expect(MYCELON_WARRIOR_PILOT.runtimePrimitives).toBe(1);
+    expect(MYCELON_WARRIOR_PILOT.sourceBytes).toBe(2_504_068);
+    expect(MYCELON_WARRIOR_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "mycelon-warrior")).toMatchObject({
+      tribeIndex: 7,
+      unitType: "warrior",
+      candidate: MYCELON_WARRIOR_PILOT,
     });
   });
 
