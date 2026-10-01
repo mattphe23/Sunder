@@ -22,6 +22,7 @@ import {
   SUNWEI_WARRIOR_PILOT,
   VALKYRA_ARCHER_PILOT,
   VALKYRA_WARRIOR_PILOT,
+  VESSARI_ARCHER_PILOT,
   VESSARI_WARRIOR_PILOT,
   passesImportedModelPilotBudget,
   type ImportedModelCandidate,
@@ -213,6 +214,23 @@ describe("imported model pilot registry", () => {
       tribeIndex: 3,
       unitType: "warrior",
       candidate: VESSARI_WARRIOR_PILOT,
+    });
+  });
+
+  it("keeps Vessari Archer's first-pass GLB opt-in, budgeted and mapped to the Archer role", () => {
+    expect(passesImportedModelPilotBudget(VESSARI_ARCHER_PILOT)).toBe(true);
+    expect(VESSARI_ARCHER_PILOT.decision).toBe("review-candidate");
+    expect(VESSARI_ARCHER_PILOT.assetId).toBe("asset_TBuK3UTJKU9ztSs3T1EiWL9v");
+    expect(VESSARI_ARCHER_PILOT.modelUrl).toBe("/manus-storage/vessari-archer-tripo-p2-v1_a629c752.glb");
+    expect(VESSARI_ARCHER_PILOT.vertices).toBe(6_630);
+    expect(VESSARI_ARCHER_PILOT.triangles).toBe(4_627);
+    expect(VESSARI_ARCHER_PILOT.runtimePrimitives).toBe(1);
+    expect(VESSARI_ARCHER_PILOT.sourceBytes).toBe(3_340_612);
+    expect(VESSARI_ARCHER_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "vessari-archer")).toMatchObject({
+      tribeIndex: 3,
+      unitType: "archer",
+      candidate: VESSARI_ARCHER_PILOT,
     });
   });
 
