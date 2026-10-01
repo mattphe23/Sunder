@@ -23,6 +23,7 @@ import {
   NERIVANE_WARRIOR_GOLDEN_V2,
   NERIVANE_WARRIOR_PILOT,
   SUNWEI_ARCHER_PILOT,
+  SUNWEI_DEFENDER_PILOT,
   SUNWEI_WARRIOR_PILOT,
   VALKYRA_ARCHER_PILOT,
   VALKYRA_DEFENDER_PILOT,
@@ -390,6 +391,23 @@ describe("imported model pilot registry", () => {
       tribeIndex: 2,
       unitType: "archer",
       candidate: SUNWEI_ARCHER_PILOT,
+    });
+  });
+
+  it("keeps Sunwei Defender's audited shield model review-only and mapped to Defender", () => {
+    expect(passesImportedModelPilotBudget(SUNWEI_DEFENDER_PILOT)).toBe(true);
+    expect(SUNWEI_DEFENDER_PILOT.decision).toBe("review-candidate");
+    expect(SUNWEI_DEFENDER_PILOT.assetId).toBe("asset_qPrvb3YcC2sD4MzhYV5BV4Hs");
+    expect(SUNWEI_DEFENDER_PILOT.modelUrl).toBe("/manus-storage/sunwei-defender-tripo-p2-v1_e386fdc1.glb");
+    expect(SUNWEI_DEFENDER_PILOT.vertices).toBe(7_163);
+    expect(SUNWEI_DEFENDER_PILOT.triangles).toBe(4_551);
+    expect(SUNWEI_DEFENDER_PILOT.runtimePrimitives).toBe(1);
+    expect(SUNWEI_DEFENDER_PILOT.sourceBytes).toBe(3_072_148);
+    expect(SUNWEI_DEFENDER_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "sunwei-defender")).toMatchObject({
+      tribeIndex: 2,
+      unitType: "defender",
+      candidate: SUNWEI_DEFENDER_PILOT,
     });
   });
 
