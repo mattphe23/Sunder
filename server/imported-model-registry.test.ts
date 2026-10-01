@@ -9,6 +9,7 @@ import {
   CROSS_TRIBE_P2_PILOTS,
   DRAVOK_ARCHER_PILOT,
   DRAVOK_DEFENDER_PILOT,
+  DRAVOK_RIDER_PILOT,
   DRAVOK_WARRIOR_PILOT,
   IMPORTED_MODEL_PILOT_LIMITS,
   KHARZUL_ARCHER_PILOT,
@@ -244,6 +245,23 @@ describe("imported model pilot registry", () => {
       tribeIndex: 5,
       unitType: "defender",
       candidate: DRAVOK_DEFENDER_PILOT,
+    });
+  });
+
+  it("keeps Dravok Rider's audited ram model budgeted, review-only and mapped to tribe 5 Rider", () => {
+    expect(passesImportedModelPilotBudget(DRAVOK_RIDER_PILOT)).toBe(true);
+    expect(DRAVOK_RIDER_PILOT.decision).toBe("review-candidate");
+    expect(DRAVOK_RIDER_PILOT.assetId).toBe("asset_1v41P7Exr45acZHqYTrLnUzN");
+    expect(DRAVOK_RIDER_PILOT.modelUrl).toBe("/manus-storage/dravok-rider-tripo-p2-v1_296fcc0d.glb");
+    expect(DRAVOK_RIDER_PILOT.vertices).toBe(2_766);
+    expect(DRAVOK_RIDER_PILOT.triangles).toBe(3_558);
+    expect(DRAVOK_RIDER_PILOT.runtimePrimitives).toBe(1);
+    expect(DRAVOK_RIDER_PILOT.sourceBytes).toBe(2_807_708);
+    expect(DRAVOK_RIDER_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "dravok-rider")).toMatchObject({
+      tribeIndex: 5,
+      unitType: "rider",
+      candidate: DRAVOK_RIDER_PILOT,
     });
   });
 
