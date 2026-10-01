@@ -19,6 +19,7 @@ import {
   NERIVANE_NERETH_PILOT,
   NERIVANE_WARRIOR_GOLDEN_V2,
   NERIVANE_WARRIOR_PILOT,
+  SUNWEI_ARCHER_PILOT,
   SUNWEI_WARRIOR_PILOT,
   VALKYRA_ARCHER_PILOT,
   VALKYRA_WARRIOR_PILOT,
@@ -299,6 +300,23 @@ describe("imported model pilot registry", () => {
       tribeIndex: 2,
       unitType: "warrior",
       candidate: SUNWEI_WARRIOR_PILOT,
+    });
+  });
+
+  it("keeps Sunwei Archer's first-pass GLB review-only, budgeted and mapped to the bow role", () => {
+    expect(passesImportedModelPilotBudget(SUNWEI_ARCHER_PILOT)).toBe(true);
+    expect(SUNWEI_ARCHER_PILOT.decision).toBe("review-candidate");
+    expect(SUNWEI_ARCHER_PILOT.assetId).toBe("asset_pCbHBgedxLF7KxE8gPsHrseU");
+    expect(SUNWEI_ARCHER_PILOT.modelUrl).toBe("/manus-storage/sunwei-archer-tripo-p2-v1_580bcfff.glb");
+    expect(SUNWEI_ARCHER_PILOT.vertices).toBe(7_661);
+    expect(SUNWEI_ARCHER_PILOT.triangles).toBe(5_006);
+    expect(SUNWEI_ARCHER_PILOT.runtimePrimitives).toBe(1);
+    expect(SUNWEI_ARCHER_PILOT.sourceBytes).toBe(2_811_944);
+    expect(SUNWEI_ARCHER_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "sunwei-archer")).toMatchObject({
+      tribeIndex: 2,
+      unitType: "archer",
+      candidate: SUNWEI_ARCHER_PILOT,
     });
   });
 
