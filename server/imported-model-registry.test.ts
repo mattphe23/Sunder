@@ -12,6 +12,7 @@ import {
   DRAVOK_WARRIOR_PILOT,
   IMPORTED_MODEL_PILOT_LIMITS,
   KHARZUL_ARCHER_PILOT,
+  KHARZUL_DEFENDER_PILOT,
   KHARZUL_WARRIOR_PILOT,
   MYCELON_ARCHER_PILOT,
   MYCELON_DEFENDER_PILOT,
@@ -478,6 +479,23 @@ describe("imported model pilot registry", () => {
       tribeIndex: 1,
       unitType: "archer",
       candidate: KHARZUL_ARCHER_PILOT,
+    });
+  });
+
+  it("keeps Kharzul Defender's audited shield model budgeted, review-only and mapped to tribe 1 Defender", () => {
+    expect(passesImportedModelPilotBudget(KHARZUL_DEFENDER_PILOT)).toBe(true);
+    expect(KHARZUL_DEFENDER_PILOT.decision).toBe("review-candidate");
+    expect(KHARZUL_DEFENDER_PILOT.assetId).toBe("asset_R2vBuw2Z4atCcgmt6aBsVKPw");
+    expect(KHARZUL_DEFENDER_PILOT.modelUrl).toBe("/manus-storage/kharzul-defender-tripo-p2-v1_15e05ad1.glb");
+    expect(KHARZUL_DEFENDER_PILOT.vertices).toBe(3_746);
+    expect(KHARZUL_DEFENDER_PILOT.triangles).toBe(4_842);
+    expect(KHARZUL_DEFENDER_PILOT.runtimePrimitives).toBe(1);
+    expect(KHARZUL_DEFENDER_PILOT.sourceBytes).toBe(2_881_528);
+    expect(KHARZUL_DEFENDER_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "kharzul-defender")).toMatchObject({
+      tribeIndex: 1,
+      unitType: "defender",
+      candidate: KHARZUL_DEFENDER_PILOT,
     });
   });
 

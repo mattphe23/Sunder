@@ -402,6 +402,19 @@ export const KHARZUL_ARCHER_PILOT: ImportedModelCandidate = {
   decision: "review-candidate",
 };
 
+/** Kharzul's first-pass tower-shield Defender; only explicit review routes request this GLB. */
+export const KHARZUL_DEFENDER_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Kharzul Defender v1",
+  assetId: "asset_R2vBuw2Z4atCcgmt6aBsVKPw",
+  modelUrl: "/manus-storage/kharzul-defender-tripo-p2-v1_15e05ad1.glb",
+  vertices: 3_746,
+  triangles: 4_842,
+  runtimePrimitives: 1,
+  sourceBytes: 2_881_528,
+  textureResolution: 2_048,
+  decision: "review-candidate",
+};
+
 /** Approved targets and first-pass studies remain separate; only cataloged entries get review routes. */
 export interface CrossTribeModelPilot {
   slug: string;
@@ -434,6 +447,7 @@ export const CROSS_TRIBE_P2_PILOTS: readonly CrossTribeModelPilot[] = [
   { slug: "sunwei-defender", tribeIndex: 2, unitType: "defender", candidate: SUNWEI_DEFENDER_PILOT },
   { slug: "kharzul-warrior", tribeIndex: 1, unitType: "warrior", candidate: KHARZUL_WARRIOR_PILOT },
   { slug: "kharzul-archer", tribeIndex: 1, unitType: "archer", candidate: KHARZUL_ARCHER_PILOT },
+  { slug: "kharzul-defender", tribeIndex: 1, unitType: "defender", candidate: KHARZUL_DEFENDER_PILOT },
 ];
 
 export const NERIVANE_WARRIOR_GOLDEN_V2: ImportedModelCandidate = {
