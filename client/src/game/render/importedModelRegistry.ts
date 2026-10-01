@@ -324,6 +324,19 @@ export const KHARZUL_WARRIOR_PILOT: ImportedModelCandidate = {
   decision: "review-candidate",
 };
 
+/** Kharzul's short-crest Archer first pass; ordinary matches remain procedural. */
+export const KHARZUL_ARCHER_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Kharzul Archer v1",
+  assetId: "asset_gFTUWnhneufVBjVATNDdcWWU",
+  modelUrl: "/manus-storage/kharzul-archer-tripo-p2-v1_8ff6d78c.glb",
+  vertices: 7_103,
+  triangles: 4_772,
+  runtimePrimitives: 1,
+  sourceBytes: 3_330_404,
+  textureResolution: 2_048,
+  decision: "review-candidate",
+};
+
 /** Approved targets and first-pass studies remain separate; only cataloged entries get review routes. */
 export interface CrossTribeModelPilot {
   slug: string;
@@ -350,6 +363,7 @@ export const CROSS_TRIBE_P2_PILOTS: readonly CrossTribeModelPilot[] = [
   { slug: "sunwei-warrior", tribeIndex: 2, unitType: "warrior", candidate: SUNWEI_WARRIOR_PILOT },
   { slug: "sunwei-archer", tribeIndex: 2, unitType: "archer", candidate: SUNWEI_ARCHER_PILOT },
   { slug: "kharzul-warrior", tribeIndex: 1, unitType: "warrior", candidate: KHARZUL_WARRIOR_PILOT },
+  { slug: "kharzul-archer", tribeIndex: 1, unitType: "archer", candidate: KHARZUL_ARCHER_PILOT },
 ];
 
 export const NERIVANE_WARRIOR_GOLDEN_V2: ImportedModelCandidate = {

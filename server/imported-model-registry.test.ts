@@ -10,6 +10,7 @@ import {
   DRAVOK_ARCHER_PILOT,
   DRAVOK_WARRIOR_PILOT,
   IMPORTED_MODEL_PILOT_LIMITS,
+  KHARZUL_ARCHER_PILOT,
   KHARZUL_WARRIOR_PILOT,
   MYCELON_ARCHER_PILOT,
   MYCELON_WARRIOR_PILOT,
@@ -370,6 +371,23 @@ describe("imported model pilot registry", () => {
       tribeIndex: 1,
       unitType: "warrior",
       candidate: KHARZUL_WARRIOR_PILOT,
+    });
+  });
+
+  it("keeps Kharzul Archer's short-crest model budgeted and query-gated for the correct role", () => {
+    expect(passesImportedModelPilotBudget(KHARZUL_ARCHER_PILOT)).toBe(true);
+    expect(KHARZUL_ARCHER_PILOT.decision).toBe("review-candidate");
+    expect(KHARZUL_ARCHER_PILOT.assetId).toBe("asset_gFTUWnhneufVBjVATNDdcWWU");
+    expect(KHARZUL_ARCHER_PILOT.modelUrl).toBe("/manus-storage/kharzul-archer-tripo-p2-v1_8ff6d78c.glb");
+    expect(KHARZUL_ARCHER_PILOT.vertices).toBe(7_103);
+    expect(KHARZUL_ARCHER_PILOT.triangles).toBe(4_772);
+    expect(KHARZUL_ARCHER_PILOT.runtimePrimitives).toBe(1);
+    expect(KHARZUL_ARCHER_PILOT.sourceBytes).toBe(3_330_404);
+    expect(KHARZUL_ARCHER_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "kharzul-archer")).toMatchObject({
+      tribeIndex: 1,
+      unitType: "archer",
+      candidate: KHARZUL_ARCHER_PILOT,
     });
   });
 
