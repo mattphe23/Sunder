@@ -25,6 +25,7 @@ import {
   SUNWEI_ARCHER_PILOT,
   SUNWEI_WARRIOR_PILOT,
   VALKYRA_ARCHER_PILOT,
+  VALKYRA_DEFENDER_PILOT,
   VALKYRA_WARRIOR_PILOT,
   VESSARI_ARCHER_PILOT,
   VESSARI_WARRIOR_PILOT,
@@ -286,6 +287,23 @@ describe("imported model pilot registry", () => {
       tribeIndex: 6,
       unitType: "archer",
       candidate: VALKYRA_ARCHER_PILOT,
+    });
+  });
+
+  it("keeps Valkyra Defender's audited shield model budgeted and strictly opt-in", () => {
+    expect(passesImportedModelPilotBudget(VALKYRA_DEFENDER_PILOT)).toBe(true);
+    expect(VALKYRA_DEFENDER_PILOT.decision).toBe("review-candidate");
+    expect(VALKYRA_DEFENDER_PILOT.assetId).toBe("asset_D3DLdcPWMhHRRq8T1PxunKWd");
+    expect(VALKYRA_DEFENDER_PILOT.modelUrl).toBe("/manus-storage/valkyra-defender-tripo-p2-v1_02d56868.glb");
+    expect(VALKYRA_DEFENDER_PILOT.vertices).toBe(6_391);
+    expect(VALKYRA_DEFENDER_PILOT.triangles).toBe(4_655);
+    expect(VALKYRA_DEFENDER_PILOT.runtimePrimitives).toBe(1);
+    expect(VALKYRA_DEFENDER_PILOT.sourceBytes).toBe(3_652_184);
+    expect(VALKYRA_DEFENDER_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "valkyra-defender")).toMatchObject({
+      tribeIndex: 6,
+      unitType: "defender",
+      candidate: VALKYRA_DEFENDER_PILOT,
     });
   });
 
