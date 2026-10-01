@@ -181,6 +181,19 @@ export const AUREN_MAELIS_PILOT: ImportedModelCandidate = {
   decision: "review-candidate",
 };
 
+/** Dravok's first-pass stone infantry study; only an explicit review route imports this GLB. */
+export const DRAVOK_WARRIOR_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Dravok Warrior v1",
+  assetId: "asset_5BXDnyUni43NVPN2tRTpsRwT",
+  modelUrl: "/manus-storage/dravok-warrior-tripo-p2-v1_881c5daf.glb",
+  vertices: 5_270,
+  triangles: 3_593,
+  runtimePrimitives: 1,
+  sourceBytes: 3_162_552,
+  textureResolution: 2_048,
+  decision: "review-candidate",
+};
+
 /** Approved targets and first-pass studies remain separate; only cataloged entries get review routes. */
 export interface CrossTribeModelPilot {
   slug: string;
@@ -196,6 +209,7 @@ export const CROSS_TRIBE_P2_PILOTS: readonly CrossTribeModelPilot[] = [
   { slug: "auren-rider", tribeIndex: 0, unitType: "rider", candidate: AUREN_RIDER_PILOT },
   { slug: "auren-arcanist", tribeIndex: 0, unitType: "arcanist", candidate: AUREN_ARCANIST_PILOT },
   { slug: "auren-maelis", tribeIndex: 0, unitType: "hero", candidate: AUREN_MAELIS_PILOT },
+  { slug: "dravok-warrior", tribeIndex: 5, unitType: "warrior", candidate: DRAVOK_WARRIOR_PILOT },
 ];
 
 export const NERIVANE_WARRIOR_GOLDEN_V2: ImportedModelCandidate = {

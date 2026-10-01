@@ -7,6 +7,7 @@ import {
   AUREN_RIDER_PILOT,
   AUREN_WARRIOR_PILOT,
   CROSS_TRIBE_P2_PILOTS,
+  DRAVOK_WARRIOR_PILOT,
   IMPORTED_MODEL_PILOT_LIMITS,
   NERIVANE_ARCHER_PILOT,
   NERIVANE_DEFENDER_PILOT,
@@ -172,6 +173,23 @@ describe("imported model pilot registry", () => {
       tribeIndex: 0,
       unitType: "hero",
       candidate: AUREN_MAELIS_PILOT,
+    });
+  });
+
+  it("keeps Dravok Warrior's first-pass GLB opt-in and within the mobile budget", () => {
+    expect(passesImportedModelPilotBudget(DRAVOK_WARRIOR_PILOT)).toBe(true);
+    expect(DRAVOK_WARRIOR_PILOT.decision).toBe("review-candidate");
+    expect(DRAVOK_WARRIOR_PILOT.assetId).toBe("asset_5BXDnyUni43NVPN2tRTpsRwT");
+    expect(DRAVOK_WARRIOR_PILOT.modelUrl).toBe("/manus-storage/dravok-warrior-tripo-p2-v1_881c5daf.glb");
+    expect(DRAVOK_WARRIOR_PILOT.vertices).toBe(5_270);
+    expect(DRAVOK_WARRIOR_PILOT.triangles).toBe(3_593);
+    expect(DRAVOK_WARRIOR_PILOT.runtimePrimitives).toBe(1);
+    expect(DRAVOK_WARRIOR_PILOT.sourceBytes).toBe(3_162_552);
+    expect(DRAVOK_WARRIOR_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "dravok-warrior")).toMatchObject({
+      tribeIndex: 5,
+      unitType: "warrior",
+      candidate: DRAVOK_WARRIOR_PILOT,
     });
   });
 
