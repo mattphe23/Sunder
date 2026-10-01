@@ -272,6 +272,19 @@ export const MYCELON_WARRIOR_PILOT: ImportedModelCandidate = {
   decision: "review-candidate",
 };
 
+/** Mycelon's first-pass mushroom bow unit; ordinary matches remain procedural. */
+export const MYCELON_ARCHER_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Mycelon Archer v1",
+  assetId: "asset_QXDWHvq8529Q9MEc6u6Marsb",
+  modelUrl: "/manus-storage/mycelon-archer-tripo-p2-v1_8fa3590e.glb",
+  vertices: 6_249,
+  triangles: 4_336,
+  runtimePrimitives: 1,
+  sourceBytes: 3_452_104,
+  textureResolution: 2_048,
+  decision: "review-candidate",
+};
+
 /** Sunwei's first-pass solar infantry; only the explicit development route imports it. */
 export const SUNWEI_WARRIOR_PILOT: ImportedModelCandidate = {
   name: "Scenario Tripo P2 Sunwei Warrior v1",
@@ -333,6 +346,7 @@ export const CROSS_TRIBE_P2_PILOTS: readonly CrossTribeModelPilot[] = [
   { slug: "valkyra-warrior", tribeIndex: 6, unitType: "warrior", candidate: VALKYRA_WARRIOR_PILOT },
   { slug: "valkyra-archer", tribeIndex: 6, unitType: "archer", candidate: VALKYRA_ARCHER_PILOT },
   { slug: "mycelon-warrior", tribeIndex: 7, unitType: "warrior", candidate: MYCELON_WARRIOR_PILOT },
+  { slug: "mycelon-archer", tribeIndex: 7, unitType: "archer", candidate: MYCELON_ARCHER_PILOT },
   { slug: "sunwei-warrior", tribeIndex: 2, unitType: "warrior", candidate: SUNWEI_WARRIOR_PILOT },
   { slug: "sunwei-archer", tribeIndex: 2, unitType: "archer", candidate: SUNWEI_ARCHER_PILOT },
   { slug: "kharzul-warrior", tribeIndex: 1, unitType: "warrior", candidate: KHARZUL_WARRIOR_PILOT },

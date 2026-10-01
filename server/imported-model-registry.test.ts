@@ -11,6 +11,7 @@ import {
   DRAVOK_WARRIOR_PILOT,
   IMPORTED_MODEL_PILOT_LIMITS,
   KHARZUL_WARRIOR_PILOT,
+  MYCELON_ARCHER_PILOT,
   MYCELON_WARRIOR_PILOT,
   NERIVANE_ARCHER_PILOT,
   NERIVANE_DEFENDER_PILOT,
@@ -301,6 +302,23 @@ describe("imported model pilot registry", () => {
       tribeIndex: 7,
       unitType: "warrior",
       candidate: MYCELON_WARRIOR_PILOT,
+    });
+  });
+
+  it("keeps Mycelon Archer's first-pass GLB review-only, budgeted and mapped to the bow role", () => {
+    expect(passesImportedModelPilotBudget(MYCELON_ARCHER_PILOT)).toBe(true);
+    expect(MYCELON_ARCHER_PILOT.decision).toBe("review-candidate");
+    expect(MYCELON_ARCHER_PILOT.assetId).toBe("asset_QXDWHvq8529Q9MEc6u6Marsb");
+    expect(MYCELON_ARCHER_PILOT.modelUrl).toBe("/manus-storage/mycelon-archer-tripo-p2-v1_8fa3590e.glb");
+    expect(MYCELON_ARCHER_PILOT.vertices).toBe(6_249);
+    expect(MYCELON_ARCHER_PILOT.triangles).toBe(4_336);
+    expect(MYCELON_ARCHER_PILOT.runtimePrimitives).toBe(1);
+    expect(MYCELON_ARCHER_PILOT.sourceBytes).toBe(3_452_104);
+    expect(MYCELON_ARCHER_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "mycelon-archer")).toMatchObject({
+      tribeIndex: 7,
+      unitType: "archer",
+      candidate: MYCELON_ARCHER_PILOT,
     });
   });
 
