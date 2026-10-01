@@ -168,6 +168,19 @@ export const AUREN_ARCANIST_PILOT: ImportedModelCandidate = {
   decision: "review-candidate",
 };
 
+/** Auren's Maelis hero; a first-pass visual study only, not the default hero model. */
+export const AUREN_MAELIS_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Auren Maelis v1",
+  assetId: "asset_GWe6ZsbiKvpS9YsQ46goLMsf",
+  modelUrl: "/manus-storage/auren-maelis-tripo-p2-v1_443cbc66.glb",
+  vertices: 7_382,
+  triangles: 5_105,
+  runtimePrimitives: 1,
+  sourceBytes: 3_476_540,
+  textureResolution: 2_048,
+  decision: "review-candidate",
+};
+
 /** Approved targets and first-pass studies remain separate; only cataloged entries get review routes. */
 export interface CrossTribeModelPilot {
   slug: string;
@@ -182,6 +195,7 @@ export const CROSS_TRIBE_P2_PILOTS: readonly CrossTribeModelPilot[] = [
   { slug: "auren-defender", tribeIndex: 0, unitType: "defender", candidate: AUREN_DEFENDER_PILOT },
   { slug: "auren-rider", tribeIndex: 0, unitType: "rider", candidate: AUREN_RIDER_PILOT },
   { slug: "auren-arcanist", tribeIndex: 0, unitType: "arcanist", candidate: AUREN_ARCANIST_PILOT },
+  { slug: "auren-maelis", tribeIndex: 0, unitType: "hero", candidate: AUREN_MAELIS_PILOT },
 ];
 
 export const NERIVANE_WARRIOR_GOLDEN_V2: ImportedModelCandidate = {

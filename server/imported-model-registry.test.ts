@@ -3,6 +3,7 @@ import {
   AUREN_ARCANIST_PILOT,
   AUREN_ARCHER_PILOT,
   AUREN_DEFENDER_PILOT,
+  AUREN_MAELIS_PILOT,
   AUREN_RIDER_PILOT,
   AUREN_WARRIOR_PILOT,
   CROSS_TRIBE_P2_PILOTS,
@@ -155,6 +156,23 @@ describe("imported model pilot registry", () => {
     expect(AUREN_ARCANIST_PILOT.runtimePrimitives).toBe(1);
     expect(AUREN_ARCANIST_PILOT.sourceBytes).toBe(3_328_668);
     expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "auren-arcanist")?.unitType).toBe("arcanist");
+  });
+
+  it("keeps Auren's true hero Maelis a budgeted, opt-in review candidate", () => {
+    expect(passesImportedModelPilotBudget(AUREN_MAELIS_PILOT)).toBe(true);
+    expect(AUREN_MAELIS_PILOT.decision).toBe("review-candidate");
+    expect(AUREN_MAELIS_PILOT.assetId).toBe("asset_GWe6ZsbiKvpS9YsQ46goLMsf");
+    expect(AUREN_MAELIS_PILOT.modelUrl).toBe("/manus-storage/auren-maelis-tripo-p2-v1_443cbc66.glb");
+    expect(AUREN_MAELIS_PILOT.vertices).toBe(7_382);
+    expect(AUREN_MAELIS_PILOT.triangles).toBe(5_105);
+    expect(AUREN_MAELIS_PILOT.runtimePrimitives).toBe(1);
+    expect(AUREN_MAELIS_PILOT.sourceBytes).toBe(3_476_540);
+    expect(AUREN_MAELIS_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "auren-maelis")).toMatchObject({
+      tribeIndex: 0,
+      unitType: "hero",
+      candidate: AUREN_MAELIS_PILOT,
+    });
   });
 
   it("keeps every cross-tribe pilot unique, budgeted and review-only", () => {
