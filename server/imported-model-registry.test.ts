@@ -14,6 +14,7 @@ import {
   KHARZUL_ARCHER_PILOT,
   KHARZUL_WARRIOR_PILOT,
   MYCELON_ARCHER_PILOT,
+  MYCELON_DEFENDER_PILOT,
   MYCELON_WARRIOR_PILOT,
   NERIVANE_ARCHER_PILOT,
   NERIVANE_DEFENDER_PILOT,
@@ -375,6 +376,23 @@ describe("imported model pilot registry", () => {
       tribeIndex: 7,
       unitType: "archer",
       candidate: MYCELON_ARCHER_PILOT,
+    });
+  });
+
+  it("keeps Mycelon Defender's audited spore-shield GLB review-only and mapped to tribe 7 Defender", () => {
+    expect(passesImportedModelPilotBudget(MYCELON_DEFENDER_PILOT)).toBe(true);
+    expect(MYCELON_DEFENDER_PILOT.decision).toBe("review-candidate");
+    expect(MYCELON_DEFENDER_PILOT.assetId).toBe("asset_rDVB52yVEAHL2D473tqdi56L");
+    expect(MYCELON_DEFENDER_PILOT.modelUrl).toBe("/manus-storage/mycelon-defender-tripo-p2-v1_225e0a80.glb");
+    expect(MYCELON_DEFENDER_PILOT.vertices).toBe(6_443);
+    expect(MYCELON_DEFENDER_PILOT.triangles).toBe(4_968);
+    expect(MYCELON_DEFENDER_PILOT.runtimePrimitives).toBe(1);
+    expect(MYCELON_DEFENDER_PILOT.sourceBytes).toBe(3_056_332);
+    expect(MYCELON_DEFENDER_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "mycelon-defender")).toMatchObject({
+      tribeIndex: 7,
+      unitType: "defender",
+      candidate: MYCELON_DEFENDER_PILOT,
     });
   });
 

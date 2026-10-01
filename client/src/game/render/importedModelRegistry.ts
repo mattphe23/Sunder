@@ -324,6 +324,19 @@ export const MYCELON_ARCHER_PILOT: ImportedModelCandidate = {
   decision: "review-candidate",
 };
 
+/** Mycelon's first-pass spore-shield Defender; ordinary gameplay stays procedural. */
+export const MYCELON_DEFENDER_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Mycelon Defender v1",
+  assetId: "asset_rDVB52yVEAHL2D473tqdi56L",
+  modelUrl: "/manus-storage/mycelon-defender-tripo-p2-v1_225e0a80.glb",
+  vertices: 6_443,
+  triangles: 4_968,
+  runtimePrimitives: 1,
+  sourceBytes: 3_056_332,
+  textureResolution: 2_048,
+  decision: "review-candidate",
+};
+
 /** Sunwei's first-pass solar infantry; only the explicit development route imports it. */
 export const SUNWEI_WARRIOR_PILOT: ImportedModelCandidate = {
   name: "Scenario Tripo P2 Sunwei Warrior v1",
@@ -415,6 +428,7 @@ export const CROSS_TRIBE_P2_PILOTS: readonly CrossTribeModelPilot[] = [
   { slug: "valkyra-defender", tribeIndex: 6, unitType: "defender", candidate: VALKYRA_DEFENDER_PILOT },
   { slug: "mycelon-warrior", tribeIndex: 7, unitType: "warrior", candidate: MYCELON_WARRIOR_PILOT },
   { slug: "mycelon-archer", tribeIndex: 7, unitType: "archer", candidate: MYCELON_ARCHER_PILOT },
+  { slug: "mycelon-defender", tribeIndex: 7, unitType: "defender", candidate: MYCELON_DEFENDER_PILOT },
   { slug: "sunwei-warrior", tribeIndex: 2, unitType: "warrior", candidate: SUNWEI_WARRIOR_PILOT },
   { slug: "sunwei-archer", tribeIndex: 2, unitType: "archer", candidate: SUNWEI_ARCHER_PILOT },
   { slug: "sunwei-defender", tribeIndex: 2, unitType: "defender", candidate: SUNWEI_DEFENDER_PILOT },
