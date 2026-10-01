@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { UnitType } from "@/game/core/types";
 import {
+  AUREN_WARRIOR_PILOT,
   NERIVANE_ARCHER_PILOT,
   NERIVANE_DEFENDER_PILOT,
   NERIVANE_RIDER_AQUATIC_V2,
@@ -66,6 +67,7 @@ const RIDER_SCENARIO_ASSET_URL = `https://app.scenario.com/assets?openAssetId=${
 const RIDER_V2_SCENARIO_ASSET_URL = `https://app.scenario.com/assets?openAssetId=${NERIVANE_RIDER_AQUATIC_V2.assetId}`;
 const TIDECALLER_SCENARIO_ASSET_URL = `https://app.scenario.com/assets?openAssetId=${NERIVANE_TIDECALLER_PILOT.assetId}`;
 const NERETH_SCENARIO_ASSET_URL = `https://app.scenario.com/assets?openAssetId=${NERIVANE_NERETH_PILOT.assetId}`;
+const AUREN_WARRIOR_SCENARIO_ASSET_URL = `https://app.scenario.com/assets?openAssetId=${AUREN_WARRIOR_PILOT.assetId}`;
 
 interface Row {
   type: UnitType;
@@ -158,6 +160,7 @@ export default function ModelLab() {
   const [p2Tidecaller, setP2Tidecaller] =
     useState<ImportedPortraitResult | null>(null);
   const [p2Nereth, setP2Nereth] = useState<ImportedPortraitResult | null>(null);
+  const [p2AurenWarrior, setP2AurenWarrior] = useState<ImportedPortraitResult | null>(null);
   const [blenderStudy, setBlenderStudy] =
     useState<ImportedPortraitResult | null>(null);
   const [pilotError, setPilotError] = useState<string | null>(null);
@@ -211,7 +214,7 @@ export default function ModelLab() {
   }, [setForTribe]);
 
   useEffect(() => {
-    if (!rows || rows.length !== setForTribe.length) return;
+    if (TRIBE !== 4 || !rows || rows.length !== setForTribe.length) return;
     let cancelled = false;
     (async () => {
       try {
@@ -270,6 +273,21 @@ export default function ModelLab() {
     };
   }, [rows, setForTribe.length]);
 
+  useEffect(() => {
+    if (TRIBE !== 0 || !rows || rows.length !== setForTribe.length) return;
+    let cancelled = false;
+    renderImportedModel(AUREN_WARRIOR_PILOT)
+      .then(result => {
+        if (cancelled) return;
+        if (result) setP2AurenWarrior(result);
+        else setPilotError("WebGL could not initialize the Auren imported-model renderer.");
+      })
+      .catch(error => {
+        if (!cancelled) setPilotError(error instanceof Error ? error.message : "The Auren GLB could not be rendered.");
+      });
+    return () => { cancelled = true; };
+  }, [rows, setForTribe.length]);
+
   if (failed)
     return (
       <div className="p-8 text-red-400">
@@ -297,10 +315,83 @@ export default function ModelLab() {
         <p className="max-w-4xl text-sm text-slate-400">
           Every candidate shares the same orthographic framing, transparent
           background, feet baseline, 40px test, and eight-view rotation strip.
-          Approved P2 models are locked visual targets; replacing the normal
-          gameplay lineup remains a separate production step.
+          Approved Nerivane P2 models are locked visual targets; cross-tribe
+          candidates remain under review. Replacing normal gameplay remains
+          a separate production step.
         </p>
       </header>
+
+      {TRIBE === 0 && (
+        <section id="auren-warrior-comparison" className="space-y-5 rounded-2xl border border-blue-300/20 bg-[#1c1c46] p-5 shadow-2xl shadow-black/20">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-300">
+                Cross-tribe first pass — review candidate
+              </p>
+              <h2 className="mt-1 text-xl font-semibold">Auren Warrior: procedural versus Scenario P2 v1</h2>
+              <p className="mt-1 max-w-3xl text-sm text-slate-400">
+                Compare the faceted mask, blue-and-bone armor, long sword, and fractured base at
+                full size, 40 pixels, in grayscale, across eight views, and on one hex. This
+                candidate is not approved and does not replace the ordinary game unit.
+              </p>
+            </div>
+            <a href={AUREN_WARRIOR_SCENARIO_ASSET_URL} target="_blank" rel="noreferrer">
+              <Button variant="outline" size="sm">Scenario asset</Button>
+            </a>
+          </div>
+          {(!baseline || !p2AurenWarrior) && !pilotError && (
+            <div className="text-sm text-slate-400">Rendering procedural and imported Auren Warrior comparisons…</div>
+          )}
+          {pilotError && (
+            <div className="rounded-lg bg-red-950/40 p-3 text-sm text-red-300">Imported-model preview failed: {pilotError}</div>
+          )}
+          {baseline && p2AurenWarrior && (
+            <>
+              <div className="grid gap-4 lg:grid-cols-2">
+                {[
+                  { name: "Current procedural Auren Warrior", source: baseline.master, status: "Current live model" },
+                  { name: AUREN_WARRIOR_PILOT.name, source: p2AurenWarrior.masterPng, status: "Review candidate" },
+                ].map(item => (
+                  <article key={item.name} className="rounded-xl bg-[#101030] p-4">
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                      <h3 className="text-sm font-semibold text-slate-200">{item.name}</h3>
+                      <span className="rounded-full bg-blue-300/10 px-2 py-1 text-[10px] font-semibold text-blue-200">{item.status}</span>
+                    </div>
+                    <div className="flex flex-wrap items-end gap-6">
+                      <img src={item.source} alt={item.name} className="h-48 w-48 rounded-lg bg-[#0b0b27] object-contain" />
+                      <SmallReadabilityPair src={item.source} label={item.name} />
+                    </div>
+                  </article>
+                ))}
+              </div>
+              <div className="space-y-4 rounded-xl bg-[#101030] p-4">
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Current procedural rotation</p>
+                  <RotationStrip angles={baseline.angles} label="Current procedural Auren Warrior" />
+                </div>
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-blue-300">P2 v1 rotation</p>
+                  <RotationStrip angles={p2AurenWarrior.angles} label="Scenario P2 Auren Warrior v1" />
+                </div>
+              </div>
+              <div className="rounded-xl bg-[#101030] p-4">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Approximate occupied-hex scale</p>
+                <div className="flex flex-wrap justify-center gap-6 sm:justify-start">
+                  <BoardContextTile src={baseline.master} label="Procedural Auren Warrior" />
+                  <BoardContextTile src={p2AurenWarrior.masterPng} label="Scenario P2 v1" />
+                </div>
+              </div>
+              <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-5">
+                <div className="rounded-lg bg-[#101030] p-3"><dt className="text-slate-500">Triangles</dt><dd className="font-semibold">{AUREN_WARRIOR_PILOT.triangles.toLocaleString()}</dd></div>
+                <div className="rounded-lg bg-[#101030] p-3"><dt className="text-slate-500">GLB</dt><dd className="font-semibold">{(AUREN_WARRIOR_PILOT.sourceBytes / 1024 / 1024).toFixed(2)} MB</dd></div>
+                <div className="rounded-lg bg-[#101030] p-3"><dt className="text-slate-500">Runtime</dt><dd className="font-semibold">{AUREN_WARRIOR_PILOT.runtimePrimitives} draw call</dd></div>
+                <div className="rounded-lg bg-[#101030] p-3"><dt className="text-slate-500">Texture</dt><dd className="font-semibold">{AUREN_WARRIOR_PILOT.textureResolution}px PBR</dd></div>
+                <div className="rounded-lg bg-[#101030] p-3"><dt className="text-slate-500">Status</dt><dd className="font-semibold text-blue-300">Review only</dd></div>
+              </dl>
+            </>
+          )}
+        </section>
+      )}
 
       {TRIBE === 4 && (
         <section className="space-y-5 rounded-2xl border border-cyan-300/20 bg-[#1c1c46] p-5 shadow-2xl shadow-black/20">

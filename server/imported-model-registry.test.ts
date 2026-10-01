@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  AUREN_WARRIOR_PILOT,
   IMPORTED_MODEL_PILOT_LIMITS,
   NERIVANE_ARCHER_PILOT,
   NERIVANE_DEFENDER_PILOT,
@@ -96,6 +97,15 @@ describe("imported model pilot registry", () => {
     );
     expect(NERIVANE_NERETH_PILOT.runtimePrimitives).toBe(1);
     expect(NERIVANE_NERETH_PILOT.triangles).toBeLessThan(5_000);
+  });
+
+  it("keeps the Auren Warrior first-pass GLB within budget and explicitly review-only", () => {
+    expect(passesImportedModelPilotBudget(AUREN_WARRIOR_PILOT)).toBe(true);
+    expect(AUREN_WARRIOR_PILOT.decision).toBe("review-candidate");
+    expect(AUREN_WARRIOR_PILOT.assetId).toBe("asset_wiR5LFhSSf5bEMUYttpSSPZt");
+    expect(AUREN_WARRIOR_PILOT.modelUrl).toMatch(/^\/manus-storage\/.+\.glb$/);
+    expect(AUREN_WARRIOR_PILOT.runtimePrimitives).toBe(1);
+    expect(AUREN_WARRIOR_PILOT.triangles).toBeLessThan(5_000);
   });
 
   it("rejects candidates that exceed the triangle budget", () => {

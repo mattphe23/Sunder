@@ -2197,6 +2197,24 @@ if (typeof window !== "undefined") {
         );
         if (starter) starter.type = reviewType;
       }
+      // The Auren Warrior starts on the capital's occupied city hex. That
+      // hides most of a 3D import behind buildings, so only this development
+      // review route places the same starter on a free grass hex just east of
+      // the capital. Never move a unit in an ordinary match.
+      if (reviewParams.get("p2-auren-warrior") === "1" && req === 0) {
+        const starter = game.state.units.find(
+          unit => unit.tribe === game.state.humanTribe && unit.type === "warrior",
+        );
+        const destination = starter && game.state.tiles.find(tile =>
+          tile.x === starter.x + 1 && tile.y === starter.y &&
+          tile.terrain === "grass" && tile.cityId == null &&
+          !game.state.units.some(unit => unit.x === tile.x && unit.y === tile.y),
+        );
+        if (starter && destination) {
+          starter.x = destination.x;
+          starter.y = destination.y;
+        }
+      }
       game.state.showIntro = false;
       game.emit({ type: "changed" });
     }

@@ -101,6 +101,19 @@ export const NERIVANE_NERETH_PILOT: ImportedModelCandidate = {
   decision: "approved-target",
 };
 
+/** First cross-tribe P2 pilot; visual direction remains unapproved pending the complete lineup review. */
+export const AUREN_WARRIOR_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Auren Warrior v1",
+  assetId: "asset_wiR5LFhSSf5bEMUYttpSSPZt",
+  modelUrl: "/manus-storage/auren-warrior-tripo-p2-v1_75223405.glb",
+  vertices: 6_301,
+  triangles: 4_353,
+  runtimePrimitives: 1,
+  sourceBytes: 3_073_496,
+  textureResolution: 2_048,
+  decision: "review-candidate",
+};
+
 export const NERIVANE_WARRIOR_GOLDEN_V2: ImportedModelCandidate = {
   name: "Blender Golden Warrior v2",
   assetId: "asset_S3nV1cxW54UkqNKXcU5Vtdpz",

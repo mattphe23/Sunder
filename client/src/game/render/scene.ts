@@ -25,6 +25,7 @@ import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTexture";
 import { buildCharacter, skinFor, tribeGlow, setCustomCostume, Costume } from "./characters";
 import {
+  AUREN_WARRIOR_PILOT,
   NERIVANE_ARCHER_PILOT,
   NERIVANE_DEFENDER_PILOT,
   NERIVANE_RIDER_AQUATIC_V2,
@@ -176,6 +177,10 @@ export class BoardRenderer {
   private readonly p2NerethPreview =
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("p2-nereth") === "1";
+  private readonly p2AurenWarriorPreview =
+    import.meta.env.DEV && typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).has("devgame") &&
+    new URLSearchParams(window.location.search).get("p2-auren-warrior") === "1";
   private waterMats: StandardMaterial[] = [];
   private shimmerT = 0;
   /** sea life + surface motion: bobbing fish, drifting glints, cloud puffs */
@@ -2198,7 +2203,8 @@ export class BoardRenderer {
   /**
    * Review-only swap used by the `?p2-warrior=1`, `?p2-archer=1`,
    * `?p2-defender=1`, `?p2-rider=1`, `?p2-rider-v2=1`, and
-   * `?p2-tidecaller=1`, and `?p2-nereth=1` routes. The
+   * `?p2-tidecaller=1`, `?p2-nereth=1`, and devgame-only
+   * `?p2-auren-warrior=1` routes. The
    * stable unit node remains the animation/picking anchor, so movement,
    * visibility, hit flash, and camera behavior exercise each candidate in the
    * real board renderer. Normal gameplay never enters this path.
@@ -2213,7 +2219,8 @@ export class BoardRenderer {
       | "p2RiderPreview"
       | "p2RiderV2Preview"
       | "p2TidecallerPreview"
-      | "p2NerethPreview",
+      | "p2NerethPreview"
+      | "p2AurenWarriorPreview",
   ) {
     const existingChildren = parent.getChildren();
     try {
@@ -2450,6 +2457,9 @@ export class BoardRenderer {
     node.scaling.setAll(UNIT_SCALE);
     if (this.p2WarriorPreview && defIndex === 4 && u.type === "warrior" && !u.boat) {
       void this.replaceWithP2Unit(node, NERIVANE_WARRIOR_PILOT, "p2WarriorPreview");
+    }
+    if (this.p2AurenWarriorPreview && defIndex === 0 && u.type === "warrior" && !u.boat) {
+      void this.replaceWithP2Unit(node, AUREN_WARRIOR_PILOT, "p2AurenWarriorPreview");
     }
     if (this.p2ArcherPreview && defIndex === 4 && u.type === "archer" && !u.boat) {
       void this.replaceWithP2Unit(node, NERIVANE_ARCHER_PILOT, "p2ArcherPreview");
