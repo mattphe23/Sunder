@@ -32,6 +32,7 @@ import { recordGameResult } from "./profile";
 import { checkPathVictory } from "./victory";
 import { evaluateMission, markMissionDone, computeMissionStars, recordMissionStars, type StarBreakdown } from "./story";
 import { fatalityAllowed, markFatality, type FatalityKind, type FatalitySpec } from "./fatality";
+import { CROSS_TRIBE_P2_PILOTS } from "../render/importedModelRegistry";
 export type GameEvent =
   | { type: "changed" }
   | { type: "unitMoved"; unitId: number; fromX: number; fromY: number; toX: number; toY: number }
@@ -2181,7 +2182,12 @@ if (typeof window !== "undefined") {
       // The opening roster normally contains only a Warrior. Explicit class
       // art-review routes convert that local starter without changing rules.
       const reviewParams = new URLSearchParams(window.location.search);
-      const reviewType = reviewParams.get("p2-rider") === "1" ||
+      const crossPilot = CROSS_TRIBE_P2_PILOTS.find(pilot =>
+        pilot.slug === reviewParams.get("p2-candidate") && pilot.tribeIndex === req
+      );
+      const reviewType = crossPilot && crossPilot.unitType !== "hero"
+        ? crossPilot.unitType
+        : reviewParams.get("p2-rider") === "1" ||
         reviewParams.get("p2-rider-v2") === "1"
         ? "rider"
         : reviewParams.get("p2-tidecaller") === "1"
@@ -2197,13 +2203,14 @@ if (typeof window !== "undefined") {
         );
         if (starter) starter.type = reviewType;
       }
-      // The Auren Warrior starts on the capital's occupied city hex. That
-      // hides most of a 3D import behind buildings, so only this development
-      // review route places the same starter on a free grass hex just east of
-      // the capital. Never move a unit in an ordinary match.
-      if (reviewParams.get("p2-auren-warrior") === "1" && req === 0) {
+      // The opening Warrior occupies a city, which hides imported geometry
+      // behind its buildings. Only cataloged development-review routes place
+      // the same starter on a free adjacent grass tile, when available.
+      if ((crossPilot && crossPilot.unitType !== "hero") ||
+          (reviewParams.get("p2-auren-warrior") === "1" && req === 0)) {
         const starter = game.state.units.find(
-          unit => unit.tribe === game.state.humanTribe && unit.type === "warrior",
+          unit => unit.tribe === game.state.humanTribe &&
+            unit.type === (crossPilot?.unitType ?? "warrior"),
         );
         const destination = starter && game.state.tiles.find(tile =>
           tile.x === starter.x + 1 && tile.y === starter.y &&

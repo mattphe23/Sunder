@@ -26,6 +26,7 @@ import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTextur
 import { buildCharacter, skinFor, tribeGlow, setCustomCostume, Costume } from "./characters";
 import {
   AUREN_WARRIOR_PILOT,
+  CROSS_TRIBE_P2_PILOTS,
   NERIVANE_ARCHER_PILOT,
   NERIVANE_DEFENDER_PILOT,
   NERIVANE_RIDER_AQUATIC_V2,
@@ -181,6 +182,12 @@ export class BoardRenderer {
     import.meta.env.DEV && typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).has("devgame") &&
     new URLSearchParams(window.location.search).get("p2-auren-warrior") === "1";
+  private readonly crossTribePilot =
+    import.meta.env.DEV && typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).has("devgame") &&
+    CROSS_TRIBE_P2_PILOTS.find(pilot =>
+      pilot.slug === new URLSearchParams(window.location.search).get("p2-candidate")
+    );
   private waterMats: StandardMaterial[] = [];
   private shimmerT = 0;
   /** sea life + surface motion: bobbing fish, drifting glints, cloud puffs */
@@ -2204,7 +2211,7 @@ export class BoardRenderer {
    * Review-only swap used by the `?p2-warrior=1`, `?p2-archer=1`,
    * `?p2-defender=1`, `?p2-rider=1`, `?p2-rider-v2=1`, and
    * `?p2-tidecaller=1`, `?p2-nereth=1`, and devgame-only
-   * `?p2-auren-warrior=1` routes. The
+   * `?p2-auren-warrior=1` or cataloged `?p2-candidate=<slug>` routes. The
    * stable unit node remains the animation/picking anchor, so movement,
    * visibility, hit flash, and camera behavior exercise each candidate in the
    * real board renderer. Normal gameplay never enters this path.
@@ -2220,7 +2227,8 @@ export class BoardRenderer {
       | "p2RiderV2Preview"
       | "p2TidecallerPreview"
       | "p2NerethPreview"
-      | "p2AurenWarriorPreview",
+      | "p2AurenWarriorPreview"
+      | "p2CrossTribePreview",
   ) {
     const existingChildren = parent.getChildren();
     try {
@@ -2460,6 +2468,12 @@ export class BoardRenderer {
     }
     if (this.p2AurenWarriorPreview && defIndex === 0 && u.type === "warrior" && !u.boat) {
       void this.replaceWithP2Unit(node, AUREN_WARRIOR_PILOT, "p2AurenWarriorPreview");
+    }
+    const pilot = this.crossTribePilot;
+    if (pilot && !this.p2AurenWarriorPreview &&
+        pilot.tribeIndex === defIndex && u.type === pilot.unitType &&
+        (pilot.unitType !== "hero" || u.hero) && !u.boat) {
+      void this.replaceWithP2Unit(node, pilot.candidate, "p2CrossTribePreview");
     }
     if (this.p2ArcherPreview && defIndex === 4 && u.type === "archer" && !u.boat) {
       void this.replaceWithP2Unit(node, NERIVANE_ARCHER_PILOT, "p2ArcherPreview");

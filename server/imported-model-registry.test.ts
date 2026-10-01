@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AUREN_WARRIOR_PILOT,
+  CROSS_TRIBE_P2_PILOTS,
   IMPORTED_MODEL_PILOT_LIMITS,
   NERIVANE_ARCHER_PILOT,
   NERIVANE_DEFENDER_PILOT,
@@ -106,6 +107,22 @@ describe("imported model pilot registry", () => {
     expect(AUREN_WARRIOR_PILOT.modelUrl).toMatch(/^\/manus-storage\/.+\.glb$/);
     expect(AUREN_WARRIOR_PILOT.runtimePrimitives).toBe(1);
     expect(AUREN_WARRIOR_PILOT.triangles).toBeLessThan(5_000);
+  });
+
+  it("keeps every cross-tribe pilot unique, budgeted and review-only", () => {
+    const slugs = CROSS_TRIBE_P2_PILOTS.map(pilot => pilot.slug);
+    const roles = CROSS_TRIBE_P2_PILOTS.map(pilot => `${pilot.tribeIndex}:${pilot.unitType}`);
+    expect(new Set(slugs).size).toBe(slugs.length);
+    expect(new Set(roles).size).toBe(roles.length);
+    for (const pilot of CROSS_TRIBE_P2_PILOTS) {
+      expect(pilot.slug).toMatch(/^[a-z]+-[a-z]+$/);
+      expect(pilot.tribeIndex).toBeGreaterThanOrEqual(0);
+      expect(pilot.tribeIndex).toBeLessThanOrEqual(7);
+      expect(pilot.tribeIndex).not.toBe(4);
+      expect(pilot.candidate.decision).toBe("review-candidate");
+      expect(passesImportedModelPilotBudget(pilot.candidate)).toBe(true);
+    }
+    expect(CROSS_TRIBE_P2_PILOTS[0]?.candidate).toBe(AUREN_WARRIOR_PILOT);
   });
 
   it("rejects candidates that exceed the triangle budget", () => {

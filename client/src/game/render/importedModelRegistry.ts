@@ -1,3 +1,5 @@
+import type { UnitType } from "../core/types";
+
 export interface ImportedModelCandidate {
   name: string;
   assetId: string;
@@ -113,6 +115,18 @@ export const AUREN_WARRIOR_PILOT: ImportedModelCandidate = {
   textureResolution: 2_048,
   decision: "review-candidate",
 };
+
+/** Approved targets and first-pass studies remain separate; only cataloged entries get review routes. */
+export interface CrossTribeModelPilot {
+  slug: string;
+  tribeIndex: number;
+  unitType: UnitType;
+  candidate: ImportedModelCandidate;
+}
+
+export const CROSS_TRIBE_P2_PILOTS: readonly CrossTribeModelPilot[] = [
+  { slug: "auren-warrior", tribeIndex: 0, unitType: "warrior", candidate: AUREN_WARRIOR_PILOT },
+];
 
 export const NERIVANE_WARRIOR_GOLDEN_V2: ImportedModelCandidate = {
   name: "Blender Golden Warrior v2",
