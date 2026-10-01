@@ -129,6 +129,19 @@ export const AUREN_ARCHER_PILOT: ImportedModelCandidate = {
   decision: "review-candidate",
 };
 
+/** First-pass Defender study; only the explicit development preview can load this GLB. */
+export const AUREN_DEFENDER_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Auren Defender v1",
+  assetId: "asset_rzu3ZxDAeW6MZ6CDm4KBKMyN",
+  modelUrl: "/manus-storage/auren-defender-tripo-p2-v1_7a2eaa5e.glb",
+  vertices: 6_791,
+  triangles: 4_553,
+  runtimePrimitives: 1,
+  sourceBytes: 3_463_632,
+  textureResolution: 2_048,
+  decision: "review-candidate",
+};
+
 /** Approved targets and first-pass studies remain separate; only cataloged entries get review routes. */
 export interface CrossTribeModelPilot {
   slug: string;
@@ -140,6 +153,7 @@ export interface CrossTribeModelPilot {
 export const CROSS_TRIBE_P2_PILOTS: readonly CrossTribeModelPilot[] = [
   { slug: "auren-warrior", tribeIndex: 0, unitType: "warrior", candidate: AUREN_WARRIOR_PILOT },
   { slug: "auren-archer", tribeIndex: 0, unitType: "archer", candidate: AUREN_ARCHER_PILOT },
+  { slug: "auren-defender", tribeIndex: 0, unitType: "defender", candidate: AUREN_DEFENDER_PILOT },
 ];
 
 export const NERIVANE_WARRIOR_GOLDEN_V2: ImportedModelCandidate = {
