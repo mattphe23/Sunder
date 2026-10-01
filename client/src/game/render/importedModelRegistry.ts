@@ -220,6 +220,19 @@ export const VALKYRA_WARRIOR_PILOT: ImportedModelCandidate = {
   decision: "review-candidate",
 };
 
+/** Valkyra's first-pass bow infantry; only an explicit review route requests this GLB. */
+export const VALKYRA_ARCHER_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Valkyra Archer v1",
+  assetId: "asset_w7FQvv7yUNsXbzRtg1rAzWV4",
+  modelUrl: "/manus-storage/valkyra-archer-tripo-p2-v1_616c7c8e.glb",
+  vertices: 6_212,
+  triangles: 4_639,
+  runtimePrimitives: 1,
+  sourceBytes: 3_068_676,
+  textureResolution: 2_048,
+  decision: "review-candidate",
+};
+
 /** Mycelon's spore infantry first pass; ordinary matches remain procedural. */
 export const MYCELON_WARRIOR_PILOT: ImportedModelCandidate = {
   name: "Scenario Tripo P2 Mycelon Warrior v1",
@@ -277,6 +290,7 @@ export const CROSS_TRIBE_P2_PILOTS: readonly CrossTribeModelPilot[] = [
   { slug: "dravok-warrior", tribeIndex: 5, unitType: "warrior", candidate: DRAVOK_WARRIOR_PILOT },
   { slug: "vessari-warrior", tribeIndex: 3, unitType: "warrior", candidate: VESSARI_WARRIOR_PILOT },
   { slug: "valkyra-warrior", tribeIndex: 6, unitType: "warrior", candidate: VALKYRA_WARRIOR_PILOT },
+  { slug: "valkyra-archer", tribeIndex: 6, unitType: "archer", candidate: VALKYRA_ARCHER_PILOT },
   { slug: "mycelon-warrior", tribeIndex: 7, unitType: "warrior", candidate: MYCELON_WARRIOR_PILOT },
   { slug: "sunwei-warrior", tribeIndex: 2, unitType: "warrior", candidate: SUNWEI_WARRIOR_PILOT },
   { slug: "kharzul-warrior", tribeIndex: 1, unitType: "warrior", candidate: KHARZUL_WARRIOR_PILOT },

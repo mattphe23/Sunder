@@ -20,6 +20,7 @@ import {
   NERIVANE_WARRIOR_GOLDEN_V2,
   NERIVANE_WARRIOR_PILOT,
   SUNWEI_WARRIOR_PILOT,
+  VALKYRA_ARCHER_PILOT,
   VALKYRA_WARRIOR_PILOT,
   VESSARI_WARRIOR_PILOT,
   passesImportedModelPilotBudget,
@@ -229,6 +230,23 @@ describe("imported model pilot registry", () => {
       tribeIndex: 6,
       unitType: "warrior",
       candidate: VALKYRA_WARRIOR_PILOT,
+    });
+  });
+
+  it("keeps Valkyra Archer's first-pass GLB review-only and within the mobile budget", () => {
+    expect(passesImportedModelPilotBudget(VALKYRA_ARCHER_PILOT)).toBe(true);
+    expect(VALKYRA_ARCHER_PILOT.decision).toBe("review-candidate");
+    expect(VALKYRA_ARCHER_PILOT.assetId).toBe("asset_w7FQvv7yUNsXbzRtg1rAzWV4");
+    expect(VALKYRA_ARCHER_PILOT.modelUrl).toBe("/manus-storage/valkyra-archer-tripo-p2-v1_616c7c8e.glb");
+    expect(VALKYRA_ARCHER_PILOT.vertices).toBe(6_212);
+    expect(VALKYRA_ARCHER_PILOT.triangles).toBe(4_639);
+    expect(VALKYRA_ARCHER_PILOT.runtimePrimitives).toBe(1);
+    expect(VALKYRA_ARCHER_PILOT.sourceBytes).toBe(3_068_676);
+    expect(VALKYRA_ARCHER_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "valkyra-archer")).toMatchObject({
+      tribeIndex: 6,
+      unitType: "archer",
+      candidate: VALKYRA_ARCHER_PILOT,
     });
   });
 
