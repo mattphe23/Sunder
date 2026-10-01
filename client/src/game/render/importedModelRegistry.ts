@@ -142,6 +142,19 @@ export const AUREN_DEFENDER_PILOT: ImportedModelCandidate = {
   decision: "review-candidate",
 };
 
+/** Auren's mounted first-pass study; gameplay remains procedural outside the opt-in preview. */
+export const AUREN_RIDER_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Auren Rider v1",
+  assetId: "asset_r2PMcxBsrzmPB96StyVZ6BoC",
+  modelUrl: "/manus-storage/auren-rider-tripo-p2-v1_127d9a50.glb",
+  vertices: 7_311,
+  triangles: 4_880,
+  runtimePrimitives: 1,
+  sourceBytes: 3_543_656,
+  textureResolution: 2_048,
+  decision: "review-candidate",
+};
+
 /** Approved targets and first-pass studies remain separate; only cataloged entries get review routes. */
 export interface CrossTribeModelPilot {
   slug: string;
@@ -154,6 +167,7 @@ export const CROSS_TRIBE_P2_PILOTS: readonly CrossTribeModelPilot[] = [
   { slug: "auren-warrior", tribeIndex: 0, unitType: "warrior", candidate: AUREN_WARRIOR_PILOT },
   { slug: "auren-archer", tribeIndex: 0, unitType: "archer", candidate: AUREN_ARCHER_PILOT },
   { slug: "auren-defender", tribeIndex: 0, unitType: "defender", candidate: AUREN_DEFENDER_PILOT },
+  { slug: "auren-rider", tribeIndex: 0, unitType: "rider", candidate: AUREN_RIDER_PILOT },
 ];
 
 export const NERIVANE_WARRIOR_GOLDEN_V2: ImportedModelCandidate = {

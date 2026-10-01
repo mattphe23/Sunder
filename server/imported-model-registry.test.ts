@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   AUREN_ARCHER_PILOT,
   AUREN_DEFENDER_PILOT,
+  AUREN_RIDER_PILOT,
   AUREN_WARRIOR_PILOT,
   CROSS_TRIBE_P2_PILOTS,
   IMPORTED_MODEL_PILOT_LIMITS,
@@ -130,6 +131,17 @@ describe("imported model pilot registry", () => {
     expect(AUREN_DEFENDER_PILOT.triangles).toBe(4_553);
     expect(AUREN_DEFENDER_PILOT.runtimePrimitives).toBe(1);
     expect(AUREN_DEFENDER_PILOT.sourceBytes).toBe(3_463_632);
+  });
+
+  it("keeps the first-pass Auren Rider review-only and within the GLB budget", () => {
+    expect(passesImportedModelPilotBudget(AUREN_RIDER_PILOT)).toBe(true);
+    expect(AUREN_RIDER_PILOT.decision).toBe("review-candidate");
+    expect(AUREN_RIDER_PILOT.assetId).toBe("asset_r2PMcxBsrzmPB96StyVZ6BoC");
+    expect(AUREN_RIDER_PILOT.modelUrl).toBe("/manus-storage/auren-rider-tripo-p2-v1_127d9a50.glb");
+    expect(AUREN_RIDER_PILOT.vertices).toBe(7_311);
+    expect(AUREN_RIDER_PILOT.triangles).toBe(4_880);
+    expect(AUREN_RIDER_PILOT.runtimePrimitives).toBe(1);
+    expect(AUREN_RIDER_PILOT.sourceBytes).toBe(3_543_656);
   });
 
   it("keeps every cross-tribe pilot unique, budgeted and review-only", () => {
