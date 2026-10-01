@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  AUREN_ARCHER_PILOT,
   AUREN_WARRIOR_PILOT,
   CROSS_TRIBE_P2_PILOTS,
   IMPORTED_MODEL_PILOT_LIMITS,
@@ -107,6 +108,16 @@ describe("imported model pilot registry", () => {
     expect(AUREN_WARRIOR_PILOT.modelUrl).toMatch(/^\/manus-storage\/.+\.glb$/);
     expect(AUREN_WARRIOR_PILOT.runtimePrimitives).toBe(1);
     expect(AUREN_WARRIOR_PILOT.triangles).toBeLessThan(5_000);
+  });
+
+  it("keeps Auren Archer review-only and its generated GLB within the mobile budget", () => {
+    expect(passesImportedModelPilotBudget(AUREN_ARCHER_PILOT)).toBe(true);
+    expect(AUREN_ARCHER_PILOT.decision).toBe("review-candidate");
+    expect(AUREN_ARCHER_PILOT.assetId).toBe("asset_eNPksMqxoZUYdAcncHHYBxjG");
+    expect(AUREN_ARCHER_PILOT.modelUrl).toBe("/manus-storage/auren-archer-tripo-p2-v1_d0a2631a.glb");
+    expect(AUREN_ARCHER_PILOT.runtimePrimitives).toBe(1);
+    expect(AUREN_ARCHER_PILOT.triangles).toBeLessThan(5_000);
+    expect(AUREN_ARCHER_PILOT.sourceBytes).toBe(3_191_580);
   });
 
   it("keeps every cross-tribe pilot unique, budgeted and review-only", () => {
