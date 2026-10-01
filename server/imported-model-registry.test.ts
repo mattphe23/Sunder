@@ -27,6 +27,7 @@ import {
   NERIVANE_WARRIOR_PILOT,
   SUNWEI_ARCHER_PILOT,
   SUNWEI_DEFENDER_PILOT,
+  SUNWEI_RIDER_PILOT,
   SUNWEI_WARRIOR_PILOT,
   VALKYRA_ARCHER_PILOT,
   VALKYRA_DEFENDER_PILOT,
@@ -481,6 +482,23 @@ describe("imported model pilot registry", () => {
       tribeIndex: 2,
       unitType: "defender",
       candidate: SUNWEI_DEFENDER_PILOT,
+    });
+  });
+
+  it("keeps Sunwei Rider's audited pack mount budgeted, review-only and mapped to tribe 2 Rider", () => {
+    expect(passesImportedModelPilotBudget(SUNWEI_RIDER_PILOT)).toBe(true);
+    expect(SUNWEI_RIDER_PILOT.decision).toBe("review-candidate");
+    expect(SUNWEI_RIDER_PILOT.assetId).toBe("asset_LspM7h5PKh5maxNp8kUH7y8R");
+    expect(SUNWEI_RIDER_PILOT.modelUrl).toBe("/manus-storage/sunwei-rider-tripo-p2-v1_ccc4c855.glb");
+    expect(SUNWEI_RIDER_PILOT.vertices).toBe(8_017);
+    expect(SUNWEI_RIDER_PILOT.triangles).toBe(5_294);
+    expect(SUNWEI_RIDER_PILOT.runtimePrimitives).toBe(1);
+    expect(SUNWEI_RIDER_PILOT.sourceBytes).toBe(3_600_564);
+    expect(SUNWEI_RIDER_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "sunwei-rider")).toMatchObject({
+      tribeIndex: 2,
+      unitType: "rider",
+      candidate: SUNWEI_RIDER_PILOT,
     });
   });
 
