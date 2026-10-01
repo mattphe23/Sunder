@@ -9,6 +9,7 @@ import {
   CROSS_TRIBE_P2_PILOTS,
   DRAVOK_WARRIOR_PILOT,
   IMPORTED_MODEL_PILOT_LIMITS,
+  KHARZUL_WARRIOR_PILOT,
   MYCELON_WARRIOR_PILOT,
   NERIVANE_ARCHER_PILOT,
   NERIVANE_DEFENDER_PILOT,
@@ -262,6 +263,23 @@ describe("imported model pilot registry", () => {
       tribeIndex: 2,
       unitType: "warrior",
       candidate: SUNWEI_WARRIOR_PILOT,
+    });
+  });
+
+  it("keeps Kharzul Warrior's repaired-view GLB review-only and within the mobile budget", () => {
+    expect(passesImportedModelPilotBudget(KHARZUL_WARRIOR_PILOT)).toBe(true);
+    expect(KHARZUL_WARRIOR_PILOT.decision).toBe("review-candidate");
+    expect(KHARZUL_WARRIOR_PILOT.assetId).toBe("asset_dbYL3ACetv23YrHQ8NProoWX");
+    expect(KHARZUL_WARRIOR_PILOT.modelUrl).toBe("/manus-storage/kharzul-warrior-tripo-p2-v1_0dfbcc82.glb");
+    expect(KHARZUL_WARRIOR_PILOT.vertices).toBe(6_526);
+    expect(KHARZUL_WARRIOR_PILOT.triangles).toBe(4_411);
+    expect(KHARZUL_WARRIOR_PILOT.runtimePrimitives).toBe(1);
+    expect(KHARZUL_WARRIOR_PILOT.sourceBytes).toBe(3_368_484);
+    expect(KHARZUL_WARRIOR_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "kharzul-warrior")).toMatchObject({
+      tribeIndex: 1,
+      unitType: "warrior",
+      candidate: KHARZUL_WARRIOR_PILOT,
     });
   });
 

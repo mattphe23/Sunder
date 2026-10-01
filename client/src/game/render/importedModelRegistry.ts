@@ -246,6 +246,19 @@ export const SUNWEI_WARRIOR_PILOT: ImportedModelCandidate = {
   decision: "review-candidate",
 };
 
+/** Kharzul's first-pass infantry, reconstructed from three original views and a repaired right profile. */
+export const KHARZUL_WARRIOR_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Kharzul Warrior v1",
+  assetId: "asset_dbYL3ACetv23YrHQ8NProoWX",
+  modelUrl: "/manus-storage/kharzul-warrior-tripo-p2-v1_0dfbcc82.glb",
+  vertices: 6_526,
+  triangles: 4_411,
+  runtimePrimitives: 1,
+  sourceBytes: 3_368_484,
+  textureResolution: 2_048,
+  decision: "review-candidate",
+};
+
 /** Approved targets and first-pass studies remain separate; only cataloged entries get review routes. */
 export interface CrossTribeModelPilot {
   slug: string;
@@ -266,6 +279,7 @@ export const CROSS_TRIBE_P2_PILOTS: readonly CrossTribeModelPilot[] = [
   { slug: "valkyra-warrior", tribeIndex: 6, unitType: "warrior", candidate: VALKYRA_WARRIOR_PILOT },
   { slug: "mycelon-warrior", tribeIndex: 7, unitType: "warrior", candidate: MYCELON_WARRIOR_PILOT },
   { slug: "sunwei-warrior", tribeIndex: 2, unitType: "warrior", candidate: SUNWEI_WARRIOR_PILOT },
+  { slug: "kharzul-warrior", tribeIndex: 1, unitType: "warrior", candidate: KHARZUL_WARRIOR_PILOT },
 ];
 
 export const NERIVANE_WARRIOR_GOLDEN_V2: ImportedModelCandidate = {
