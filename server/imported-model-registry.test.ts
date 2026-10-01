@@ -7,6 +7,7 @@ import {
   AUREN_RIDER_PILOT,
   AUREN_WARRIOR_PILOT,
   CROSS_TRIBE_P2_PILOTS,
+  DRAVOK_ARCHER_PILOT,
   DRAVOK_WARRIOR_PILOT,
   IMPORTED_MODEL_PILOT_LIMITS,
   KHARZUL_WARRIOR_PILOT,
@@ -198,6 +199,23 @@ describe("imported model pilot registry", () => {
       tribeIndex: 5,
       unitType: "warrior",
       candidate: DRAVOK_WARRIOR_PILOT,
+    });
+  });
+
+  it("keeps Dravok Archer's first-pass GLB budgeted, opt-in and mapped to the bow role", () => {
+    expect(passesImportedModelPilotBudget(DRAVOK_ARCHER_PILOT)).toBe(true);
+    expect(DRAVOK_ARCHER_PILOT.decision).toBe("review-candidate");
+    expect(DRAVOK_ARCHER_PILOT.assetId).toBe("asset_SGhUdcFdjyUUneqUaAdw6GwZ");
+    expect(DRAVOK_ARCHER_PILOT.modelUrl).toBe("/manus-storage/dravok-archer-tripo-p2-v1_36b23044.glb");
+    expect(DRAVOK_ARCHER_PILOT.vertices).toBe(7_055);
+    expect(DRAVOK_ARCHER_PILOT.triangles).toBe(4_841);
+    expect(DRAVOK_ARCHER_PILOT.runtimePrimitives).toBe(1);
+    expect(DRAVOK_ARCHER_PILOT.sourceBytes).toBe(2_861_332);
+    expect(DRAVOK_ARCHER_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "dravok-archer")).toMatchObject({
+      tribeIndex: 5,
+      unitType: "archer",
+      candidate: DRAVOK_ARCHER_PILOT,
     });
   });
 
