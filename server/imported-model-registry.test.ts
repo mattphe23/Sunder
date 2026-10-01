@@ -8,6 +8,7 @@ import {
   AUREN_WARRIOR_PILOT,
   CROSS_TRIBE_P2_PILOTS,
   DRAVOK_ARCHER_PILOT,
+  DRAVOK_DEFENDER_PILOT,
   DRAVOK_WARRIOR_PILOT,
   IMPORTED_MODEL_PILOT_LIMITS,
   KHARZUL_ARCHER_PILOT,
@@ -221,6 +222,23 @@ describe("imported model pilot registry", () => {
       tribeIndex: 5,
       unitType: "archer",
       candidate: DRAVOK_ARCHER_PILOT,
+    });
+  });
+
+  it("keeps Dravok Defender's audited tower-shield GLB opt-in for the correct tribe and role", () => {
+    expect(passesImportedModelPilotBudget(DRAVOK_DEFENDER_PILOT)).toBe(true);
+    expect(DRAVOK_DEFENDER_PILOT.decision).toBe("review-candidate");
+    expect(DRAVOK_DEFENDER_PILOT.assetId).toBe("asset_TcpQiTL2ENqZanWhsCAeLYvY");
+    expect(DRAVOK_DEFENDER_PILOT.modelUrl).toBe("/manus-storage/dravok-defender-tripo-p2-v1_f9f69e23.glb");
+    expect(DRAVOK_DEFENDER_PILOT.vertices).toBe(5_177);
+    expect(DRAVOK_DEFENDER_PILOT.triangles).toBe(3_200);
+    expect(DRAVOK_DEFENDER_PILOT.runtimePrimitives).toBe(1);
+    expect(DRAVOK_DEFENDER_PILOT.sourceBytes).toBe(3_246_060);
+    expect(DRAVOK_DEFENDER_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "dravok-defender")).toMatchObject({
+      tribeIndex: 5,
+      unitType: "defender",
+      candidate: DRAVOK_DEFENDER_PILOT,
     });
   });
 

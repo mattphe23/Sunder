@@ -207,6 +207,19 @@ export const DRAVOK_ARCHER_PILOT: ImportedModelCandidate = {
   decision: "review-candidate",
 };
 
+/** Dravok's first-pass tower-shield Defender; ordinary gameplay stays procedural. */
+export const DRAVOK_DEFENDER_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Dravok Defender v1",
+  assetId: "asset_TcpQiTL2ENqZanWhsCAeLYvY",
+  modelUrl: "/manus-storage/dravok-defender-tripo-p2-v1_f9f69e23.glb",
+  vertices: 5_177,
+  triangles: 3_200,
+  runtimePrimitives: 1,
+  sourceBytes: 3_246_060,
+  textureResolution: 2_048,
+  decision: "review-candidate",
+};
+
 /** Vessari's first-pass cavalry-border infantry; not a gameplay-default model. */
 export const VESSARI_WARRIOR_PILOT: ImportedModelCandidate = {
   name: "Scenario Tripo P2 Vessari Warrior v1",
@@ -393,6 +406,7 @@ export const CROSS_TRIBE_P2_PILOTS: readonly CrossTribeModelPilot[] = [
   { slug: "auren-maelis", tribeIndex: 0, unitType: "hero", candidate: AUREN_MAELIS_PILOT },
   { slug: "dravok-warrior", tribeIndex: 5, unitType: "warrior", candidate: DRAVOK_WARRIOR_PILOT },
   { slug: "dravok-archer", tribeIndex: 5, unitType: "archer", candidate: DRAVOK_ARCHER_PILOT },
+  { slug: "dravok-defender", tribeIndex: 5, unitType: "defender", candidate: DRAVOK_DEFENDER_PILOT },
   { slug: "vessari-warrior", tribeIndex: 3, unitType: "warrior", candidate: VESSARI_WARRIOR_PILOT },
   { slug: "vessari-archer", tribeIndex: 3, unitType: "archer", candidate: VESSARI_ARCHER_PILOT },
   { slug: "vessari-defender", tribeIndex: 3, unitType: "defender", candidate: VESSARI_DEFENDER_PILOT },
