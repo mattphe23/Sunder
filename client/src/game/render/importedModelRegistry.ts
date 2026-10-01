@@ -207,6 +207,19 @@ export const VESSARI_WARRIOR_PILOT: ImportedModelCandidate = {
   decision: "review-candidate",
 };
 
+/** Valkyra's storm infantry first pass; ordinary matches remain procedural. */
+export const VALKYRA_WARRIOR_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Valkyra Warrior v1",
+  assetId: "asset_FWzXYDdh2CP2CN4zBJo7UmJe",
+  modelUrl: "/manus-storage/valkyra-warrior-tripo-p2-v1_051262b9.glb",
+  vertices: 3_652,
+  triangles: 4_612,
+  runtimePrimitives: 1,
+  sourceBytes: 3_039_560,
+  textureResolution: 2_048,
+  decision: "review-candidate",
+};
+
 /** Approved targets and first-pass studies remain separate; only cataloged entries get review routes. */
 export interface CrossTribeModelPilot {
   slug: string;
@@ -224,6 +237,7 @@ export const CROSS_TRIBE_P2_PILOTS: readonly CrossTribeModelPilot[] = [
   { slug: "auren-maelis", tribeIndex: 0, unitType: "hero", candidate: AUREN_MAELIS_PILOT },
   { slug: "dravok-warrior", tribeIndex: 5, unitType: "warrior", candidate: DRAVOK_WARRIOR_PILOT },
   { slug: "vessari-warrior", tribeIndex: 3, unitType: "warrior", candidate: VESSARI_WARRIOR_PILOT },
+  { slug: "valkyra-warrior", tribeIndex: 6, unitType: "warrior", candidate: VALKYRA_WARRIOR_PILOT },
 ];
 
 export const NERIVANE_WARRIOR_GOLDEN_V2: ImportedModelCandidate = {
