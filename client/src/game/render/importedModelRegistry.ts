@@ -233,6 +233,19 @@ export const MYCELON_WARRIOR_PILOT: ImportedModelCandidate = {
   decision: "review-candidate",
 };
 
+/** Sunwei's first-pass solar infantry; only the explicit development route imports it. */
+export const SUNWEI_WARRIOR_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Sunwei Warrior v1",
+  assetId: "asset_pef1PPu7X8gmcLFEeifiXhq8",
+  modelUrl: "/manus-storage/sunwei-warrior-tripo-p2-v1_af991702.glb",
+  vertices: 7_259,
+  triangles: 4_858,
+  runtimePrimitives: 1,
+  sourceBytes: 3_171_352,
+  textureResolution: 2_048,
+  decision: "review-candidate",
+};
+
 /** Approved targets and first-pass studies remain separate; only cataloged entries get review routes. */
 export interface CrossTribeModelPilot {
   slug: string;
@@ -252,6 +265,7 @@ export const CROSS_TRIBE_P2_PILOTS: readonly CrossTribeModelPilot[] = [
   { slug: "vessari-warrior", tribeIndex: 3, unitType: "warrior", candidate: VESSARI_WARRIOR_PILOT },
   { slug: "valkyra-warrior", tribeIndex: 6, unitType: "warrior", candidate: VALKYRA_WARRIOR_PILOT },
   { slug: "mycelon-warrior", tribeIndex: 7, unitType: "warrior", candidate: MYCELON_WARRIOR_PILOT },
+  { slug: "sunwei-warrior", tribeIndex: 2, unitType: "warrior", candidate: SUNWEI_WARRIOR_PILOT },
 ];
 
 export const NERIVANE_WARRIOR_GOLDEN_V2: ImportedModelCandidate = {

@@ -18,6 +18,7 @@ import {
   NERIVANE_NERETH_PILOT,
   NERIVANE_WARRIOR_GOLDEN_V2,
   NERIVANE_WARRIOR_PILOT,
+  SUNWEI_WARRIOR_PILOT,
   VALKYRA_WARRIOR_PILOT,
   VESSARI_WARRIOR_PILOT,
   passesImportedModelPilotBudget,
@@ -244,6 +245,23 @@ describe("imported model pilot registry", () => {
       tribeIndex: 7,
       unitType: "warrior",
       candidate: MYCELON_WARRIOR_PILOT,
+    });
+  });
+
+  it("keeps Sunwei Warrior's first-pass GLB opt-in and within the mobile budget", () => {
+    expect(passesImportedModelPilotBudget(SUNWEI_WARRIOR_PILOT)).toBe(true);
+    expect(SUNWEI_WARRIOR_PILOT.decision).toBe("review-candidate");
+    expect(SUNWEI_WARRIOR_PILOT.assetId).toBe("asset_pef1PPu7X8gmcLFEeifiXhq8");
+    expect(SUNWEI_WARRIOR_PILOT.modelUrl).toBe("/manus-storage/sunwei-warrior-tripo-p2-v1_af991702.glb");
+    expect(SUNWEI_WARRIOR_PILOT.vertices).toBe(7_259);
+    expect(SUNWEI_WARRIOR_PILOT.triangles).toBe(4_858);
+    expect(SUNWEI_WARRIOR_PILOT.runtimePrimitives).toBe(1);
+    expect(SUNWEI_WARRIOR_PILOT.sourceBytes).toBe(3_171_352);
+    expect(SUNWEI_WARRIOR_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "sunwei-warrior")).toMatchObject({
+      tribeIndex: 2,
+      unitType: "warrior",
+      candidate: SUNWEI_WARRIOR_PILOT,
     });
   });
 
