@@ -34,6 +34,7 @@ import {
   VALKYRA_WARRIOR_PILOT,
   VESSARI_ARCHER_PILOT,
   VESSARI_DEFENDER_PILOT,
+  VESSARI_RIDER_PILOT,
   VESSARI_WARRIOR_PILOT,
   passesImportedModelPilotBudget,
   type ImportedModelCandidate,
@@ -293,6 +294,23 @@ describe("imported model pilot registry", () => {
       tribeIndex: 3,
       unitType: "defender",
       candidate: VESSARI_DEFENDER_PILOT,
+    });
+  });
+
+  it("keeps Vessari Rider's audited mounted model budgeted, review-only and mapped to tribe 3 Rider", () => {
+    expect(passesImportedModelPilotBudget(VESSARI_RIDER_PILOT)).toBe(true);
+    expect(VESSARI_RIDER_PILOT.decision).toBe("review-candidate");
+    expect(VESSARI_RIDER_PILOT.assetId).toBe("asset_uM254DMFypPTGURMtnCJEWfj");
+    expect(VESSARI_RIDER_PILOT.modelUrl).toBe("/manus-storage/vessari-rider-tripo-p2-v1_d1b5684e.glb");
+    expect(VESSARI_RIDER_PILOT.vertices).toBe(8_071);
+    expect(VESSARI_RIDER_PILOT.triangles).toBe(5_303);
+    expect(VESSARI_RIDER_PILOT.runtimePrimitives).toBe(1);
+    expect(VESSARI_RIDER_PILOT.sourceBytes).toBe(3_519_888);
+    expect(VESSARI_RIDER_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "vessari-rider")).toMatchObject({
+      tribeIndex: 3,
+      unitType: "rider",
+      candidate: VESSARI_RIDER_PILOT,
     });
   });
 
