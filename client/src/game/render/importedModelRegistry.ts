@@ -194,6 +194,19 @@ export const DRAVOK_WARRIOR_PILOT: ImportedModelCandidate = {
   decision: "review-candidate",
 };
 
+/** Vessari's first-pass cavalry-border infantry; not a gameplay-default model. */
+export const VESSARI_WARRIOR_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Vessari Warrior v1",
+  assetId: "asset_bWQmtZAKzZQNpGRuDv72oTka",
+  modelUrl: "/manus-storage/vessari-warrior-tripo-p2-v1_88434b73.glb",
+  vertices: 7_376,
+  triangles: 5_176,
+  runtimePrimitives: 1,
+  sourceBytes: 3_035_204,
+  textureResolution: 2_048,
+  decision: "review-candidate",
+};
+
 /** Approved targets and first-pass studies remain separate; only cataloged entries get review routes. */
 export interface CrossTribeModelPilot {
   slug: string;
@@ -210,6 +223,7 @@ export const CROSS_TRIBE_P2_PILOTS: readonly CrossTribeModelPilot[] = [
   { slug: "auren-arcanist", tribeIndex: 0, unitType: "arcanist", candidate: AUREN_ARCANIST_PILOT },
   { slug: "auren-maelis", tribeIndex: 0, unitType: "hero", candidate: AUREN_MAELIS_PILOT },
   { slug: "dravok-warrior", tribeIndex: 5, unitType: "warrior", candidate: DRAVOK_WARRIOR_PILOT },
+  { slug: "vessari-warrior", tribeIndex: 3, unitType: "warrior", candidate: VESSARI_WARRIOR_PILOT },
 ];
 
 export const NERIVANE_WARRIOR_GOLDEN_V2: ImportedModelCandidate = {

@@ -2212,14 +2212,20 @@ if (typeof window !== "undefined") {
           unit => unit.tribe === game.state.humanTribe &&
             unit.type === (crossPilot?.unitType ?? "warrior"),
         );
-        const destination = starter && game.state.tiles.find(tile =>
-          tile.x === starter.x + 1 && tile.y === starter.y &&
-          tile.terrain === "grass" && tile.cityId == null &&
-          !game.state.units.some(unit => unit.x === tile.x && unit.y === tile.y),
-        );
-        if (starter && destination) {
-          starter.x = destination.x;
-          starter.y = destination.y;
+        if (starter) {
+          // Some capital surroundings have forest or mountains to the east.
+          // Try the other immediately adjacent tiles before leaving the
+          // review subject hidden beneath city geometry.
+          const destination = ([[1, 0], [-1, 0], [0, 1], [0, -1]] as const)
+            .map(([dx, dy]) => game.state.tiles.find(tile =>
+              tile.x === starter.x + dx && tile.y === starter.y + dy,
+            ))
+            .find(tile => tile?.terrain === "grass" && tile.cityId == null &&
+              !game.state.units.some(unit => unit.x === tile.x && unit.y === tile.y));
+          if (destination) {
+            starter.x = destination.x;
+            starter.y = destination.y;
+          }
         }
       }
       game.state.showIntro = false;

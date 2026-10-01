@@ -17,6 +17,7 @@ import {
   NERIVANE_NERETH_PILOT,
   NERIVANE_WARRIOR_GOLDEN_V2,
   NERIVANE_WARRIOR_PILOT,
+  VESSARI_WARRIOR_PILOT,
   passesImportedModelPilotBudget,
   type ImportedModelCandidate,
 } from "../client/src/game/render/importedModelRegistry";
@@ -190,6 +191,23 @@ describe("imported model pilot registry", () => {
       tribeIndex: 5,
       unitType: "warrior",
       candidate: DRAVOK_WARRIOR_PILOT,
+    });
+  });
+
+  it("keeps Vessari Warrior's first-pass GLB opt-in and within the mobile budget", () => {
+    expect(passesImportedModelPilotBudget(VESSARI_WARRIOR_PILOT)).toBe(true);
+    expect(VESSARI_WARRIOR_PILOT.decision).toBe("review-candidate");
+    expect(VESSARI_WARRIOR_PILOT.assetId).toBe("asset_bWQmtZAKzZQNpGRuDv72oTka");
+    expect(VESSARI_WARRIOR_PILOT.modelUrl).toBe("/manus-storage/vessari-warrior-tripo-p2-v1_88434b73.glb");
+    expect(VESSARI_WARRIOR_PILOT.vertices).toBe(7_376);
+    expect(VESSARI_WARRIOR_PILOT.triangles).toBe(5_176);
+    expect(VESSARI_WARRIOR_PILOT.runtimePrimitives).toBe(1);
+    expect(VESSARI_WARRIOR_PILOT.sourceBytes).toBe(3_035_204);
+    expect(VESSARI_WARRIOR_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "vessari-warrior")).toMatchObject({
+      tribeIndex: 3,
+      unitType: "warrior",
+      candidate: VESSARI_WARRIOR_PILOT,
     });
   });
 
