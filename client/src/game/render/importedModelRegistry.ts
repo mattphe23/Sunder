@@ -428,6 +428,19 @@ export const MYCELON_RIDER_PILOT: ImportedModelCandidate = {
   decision: "review-candidate",
 };
 
+/** Mycelon's named hero Morel first pass; never a default hero replacement. */
+export const MYCELON_MOREL_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Mycelon Morel v1",
+  assetId: "asset_jX26UZ72AaQiT4UrhSX5JYTY",
+  modelUrl: "/manus-storage/mycelon-morel-tripo-p2-v1_aa065466.glb",
+  vertices: 6_770,
+  triangles: 4_641,
+  runtimePrimitives: 1,
+  sourceBytes: 3_633_000,
+  textureResolution: 2_048,
+  decision: "review-candidate",
+};
+
 /** Sunwei's first-pass solar infantry; only the explicit development route imports it. */
 export const SUNWEI_WARRIOR_PILOT: ImportedModelCandidate = {
   name: "Scenario Tripo P2 Sunwei Warrior v1",
@@ -592,6 +605,7 @@ export const CROSS_TRIBE_P2_PILOTS: readonly CrossTribeModelPilot[] = [
   { slug: "mycelon-archer", tribeIndex: 7, unitType: "archer", candidate: MYCELON_ARCHER_PILOT },
   { slug: "mycelon-defender", tribeIndex: 7, unitType: "defender", candidate: MYCELON_DEFENDER_PILOT },
   { slug: "mycelon-rider", tribeIndex: 7, unitType: "rider", candidate: MYCELON_RIDER_PILOT },
+  { slug: "mycelon-morel", tribeIndex: 7, unitType: "hero", candidate: MYCELON_MOREL_PILOT },
   { slug: "sunwei-warrior", tribeIndex: 2, unitType: "warrior", candidate: SUNWEI_WARRIOR_PILOT },
   { slug: "sunwei-archer", tribeIndex: 2, unitType: "archer", candidate: SUNWEI_ARCHER_PILOT },
   { slug: "sunwei-defender", tribeIndex: 2, unitType: "defender", candidate: SUNWEI_DEFENDER_PILOT },

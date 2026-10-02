@@ -20,6 +20,7 @@ import {
   KHARZUL_WARRIOR_PILOT,
   MYCELON_ARCHER_PILOT,
   MYCELON_DEFENDER_PILOT,
+  MYCELON_MOREL_PILOT,
   MYCELON_RIDER_PILOT,
   MYCELON_WARRIOR_PILOT,
   NERIVANE_ARCHER_PILOT,
@@ -528,6 +529,24 @@ describe("imported model pilot registry", () => {
       unitType: "rider",
       candidate: MYCELON_RIDER_PILOT,
     });
+  });
+
+  it("keeps Morel's audited GLB review-only and mapped only to Mycelon's named hero", () => {
+    expect(passesImportedModelPilotBudget(MYCELON_MOREL_PILOT)).toBe(true);
+    expect(MYCELON_MOREL_PILOT.decision).toBe("review-candidate");
+    expect(MYCELON_MOREL_PILOT.assetId).toBe("asset_jX26UZ72AaQiT4UrhSX5JYTY");
+    expect(MYCELON_MOREL_PILOT.modelUrl).toBe("/manus-storage/mycelon-morel-tripo-p2-v1_aa065466.glb");
+    expect(MYCELON_MOREL_PILOT.vertices).toBe(6_770);
+    expect(MYCELON_MOREL_PILOT.triangles).toBe(4_641);
+    expect(MYCELON_MOREL_PILOT.runtimePrimitives).toBe(1);
+    expect(MYCELON_MOREL_PILOT.sourceBytes).toBe(3_633_000);
+    expect(MYCELON_MOREL_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "mycelon-morel")).toMatchObject({
+      tribeIndex: 7,
+      unitType: "hero",
+      candidate: MYCELON_MOREL_PILOT,
+    });
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "mycelon-rider")?.unitType).toBe("rider");
   });
 
   it("keeps Sunwei Warrior's first-pass GLB opt-in and within the mobile budget", () => {
