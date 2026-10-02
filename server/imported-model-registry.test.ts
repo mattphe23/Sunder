@@ -17,6 +17,7 @@ import {
   KHARZUL_WARRIOR_PILOT,
   MYCELON_ARCHER_PILOT,
   MYCELON_DEFENDER_PILOT,
+  MYCELON_RIDER_PILOT,
   MYCELON_WARRIOR_PILOT,
   NERIVANE_ARCHER_PILOT,
   NERIVANE_DEFENDER_PILOT,
@@ -449,6 +450,23 @@ describe("imported model pilot registry", () => {
       tribeIndex: 7,
       unitType: "defender",
       candidate: MYCELON_DEFENDER_PILOT,
+    });
+  });
+
+  it("keeps Mycelon Rider's audited beetle budgeted, review-only and mapped to tribe 7 Rider", () => {
+    expect(passesImportedModelPilotBudget(MYCELON_RIDER_PILOT)).toBe(true);
+    expect(MYCELON_RIDER_PILOT.decision).toBe("review-candidate");
+    expect(MYCELON_RIDER_PILOT.assetId).toBe("asset_tk6JQ9todKh6wYoQc6BfkYW7");
+    expect(MYCELON_RIDER_PILOT.modelUrl).toBe("/manus-storage/mycelon-rider-tripo-p2-v1_2190494a.glb");
+    expect(MYCELON_RIDER_PILOT.vertices).toBe(6_948);
+    expect(MYCELON_RIDER_PILOT.triangles).toBe(4_853);
+    expect(MYCELON_RIDER_PILOT.runtimePrimitives).toBe(1);
+    expect(MYCELON_RIDER_PILOT.sourceBytes).toBe(3_294_512);
+    expect(MYCELON_RIDER_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "mycelon-rider")).toMatchObject({
+      tribeIndex: 7,
+      unitType: "rider",
+      candidate: MYCELON_RIDER_PILOT,
     });
   });
 

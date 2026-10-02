@@ -376,6 +376,19 @@ export const MYCELON_DEFENDER_PILOT: ImportedModelCandidate = {
   decision: "review-candidate",
 };
 
+/** Mycelon's mounted beetle first pass; only explicit development review routes import it. */
+export const MYCELON_RIDER_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Mycelon Rider v1",
+  assetId: "asset_tk6JQ9todKh6wYoQc6BfkYW7",
+  modelUrl: "/manus-storage/mycelon-rider-tripo-p2-v1_2190494a.glb",
+  vertices: 6_948,
+  triangles: 4_853,
+  runtimePrimitives: 1,
+  sourceBytes: 3_294_512,
+  textureResolution: 2_048,
+  decision: "review-candidate",
+};
+
 /** Sunwei's first-pass solar infantry; only the explicit development route imports it. */
 export const SUNWEI_WARRIOR_PILOT: ImportedModelCandidate = {
   name: "Scenario Tripo P2 Sunwei Warrior v1",
@@ -497,6 +510,7 @@ export const CROSS_TRIBE_P2_PILOTS: readonly CrossTribeModelPilot[] = [
   { slug: "mycelon-warrior", tribeIndex: 7, unitType: "warrior", candidate: MYCELON_WARRIOR_PILOT },
   { slug: "mycelon-archer", tribeIndex: 7, unitType: "archer", candidate: MYCELON_ARCHER_PILOT },
   { slug: "mycelon-defender", tribeIndex: 7, unitType: "defender", candidate: MYCELON_DEFENDER_PILOT },
+  { slug: "mycelon-rider", tribeIndex: 7, unitType: "rider", candidate: MYCELON_RIDER_PILOT },
   { slug: "sunwei-warrior", tribeIndex: 2, unitType: "warrior", candidate: SUNWEI_WARRIOR_PILOT },
   { slug: "sunwei-archer", tribeIndex: 2, unitType: "archer", candidate: SUNWEI_ARCHER_PILOT },
   { slug: "sunwei-defender", tribeIndex: 2, unitType: "defender", candidate: SUNWEI_DEFENDER_PILOT },
