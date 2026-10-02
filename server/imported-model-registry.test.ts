@@ -13,6 +13,7 @@ import {
   DRAVOK_WARRIOR_PILOT,
   IMPORTED_MODEL_PILOT_LIMITS,
   KHARZUL_ARCHER_PILOT,
+  KHARZUL_BERSERKER_PILOT,
   KHARZUL_DEFENDER_PILOT,
   KHARZUL_RIDER_PILOT,
   KHARZUL_WARRIOR_PILOT,
@@ -604,6 +605,23 @@ describe("imported model pilot registry", () => {
       tribeIndex: 1,
       unitType: "rider",
       candidate: KHARZUL_RIDER_PILOT,
+    });
+  });
+
+  it("keeps Kharzul Berserker's dual-axe GLB budgeted, review-only and mapped only to tribe 1 Berserker", () => {
+    expect(passesImportedModelPilotBudget(KHARZUL_BERSERKER_PILOT)).toBe(true);
+    expect(KHARZUL_BERSERKER_PILOT.decision).toBe("review-candidate");
+    expect(KHARZUL_BERSERKER_PILOT.assetId).toBe("asset_Dq81oqMB2WMgcBSVTHS77qVT");
+    expect(KHARZUL_BERSERKER_PILOT.modelUrl).toBe("/manus-storage/kharzul-berserker-tripo-p2-v1_dac5bf8a.glb");
+    expect(KHARZUL_BERSERKER_PILOT.vertices).toBe(7_036);
+    expect(KHARZUL_BERSERKER_PILOT.triangles).toBe(4_596);
+    expect(KHARZUL_BERSERKER_PILOT.runtimePrimitives).toBe(1);
+    expect(KHARZUL_BERSERKER_PILOT.sourceBytes).toBe(3_623_140);
+    expect(KHARZUL_BERSERKER_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "kharzul-berserker")).toMatchObject({
+      tribeIndex: 1,
+      unitType: "berserker",
+      candidate: KHARZUL_BERSERKER_PILOT,
     });
   });
 

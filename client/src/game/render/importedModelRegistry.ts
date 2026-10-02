@@ -493,6 +493,19 @@ export const KHARZUL_RIDER_PILOT: ImportedModelCandidate = {
   decision: "review-candidate",
 };
 
+/** Kharzul's dual-axe specialist first pass; explicit development review routes only. */
+export const KHARZUL_BERSERKER_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Kharzul Berserker v1",
+  assetId: "asset_Dq81oqMB2WMgcBSVTHS77qVT",
+  modelUrl: "/manus-storage/kharzul-berserker-tripo-p2-v1_dac5bf8a.glb",
+  vertices: 7_036,
+  triangles: 4_596,
+  runtimePrimitives: 1,
+  sourceBytes: 3_623_140,
+  textureResolution: 2_048,
+  decision: "review-candidate",
+};
+
 /** Approved targets and first-pass studies remain separate; only cataloged entries get review routes. */
 export interface CrossTribeModelPilot {
   slug: string;
@@ -532,6 +545,7 @@ export const CROSS_TRIBE_P2_PILOTS: readonly CrossTribeModelPilot[] = [
   { slug: "kharzul-archer", tribeIndex: 1, unitType: "archer", candidate: KHARZUL_ARCHER_PILOT },
   { slug: "kharzul-defender", tribeIndex: 1, unitType: "defender", candidate: KHARZUL_DEFENDER_PILOT },
   { slug: "kharzul-rider", tribeIndex: 1, unitType: "rider", candidate: KHARZUL_RIDER_PILOT },
+  { slug: "kharzul-berserker", tribeIndex: 1, unitType: "berserker", candidate: KHARZUL_BERSERKER_PILOT },
 ];
 
 export const NERIVANE_WARRIOR_GOLDEN_V2: ImportedModelCandidate = {
