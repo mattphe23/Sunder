@@ -285,6 +285,19 @@ export const VESSARI_RIDER_PILOT: ImportedModelCandidate = {
   decision: "review-candidate",
 };
 
+/** Vessari's unique mounted axe-and-pennant Raider; explicit development review only. */
+export const VESSARI_RAIDER_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Vessari Raider v1",
+  assetId: "asset_AqYTZ4dcJfBSoTPyDv5ejHAR",
+  modelUrl: "/manus-storage/vessari-raider-tripo-p2-v1_1999984e.glb",
+  vertices: 8_721,
+  triangles: 5_466,
+  runtimePrimitives: 1,
+  sourceBytes: 3_510_336,
+  textureResolution: 2_048,
+  decision: "review-candidate",
+};
+
 /** Valkyra's storm infantry first pass; ordinary matches remain procedural. */
 export const VALKYRA_WARRIOR_PILOT: ImportedModelCandidate = {
   name: "Scenario Tripo P2 Valkyra Warrior v1",
@@ -542,6 +555,7 @@ export const CROSS_TRIBE_P2_PILOTS: readonly CrossTribeModelPilot[] = [
   { slug: "vessari-archer", tribeIndex: 3, unitType: "archer", candidate: VESSARI_ARCHER_PILOT },
   { slug: "vessari-defender", tribeIndex: 3, unitType: "defender", candidate: VESSARI_DEFENDER_PILOT },
   { slug: "vessari-rider", tribeIndex: 3, unitType: "rider", candidate: VESSARI_RIDER_PILOT },
+  { slug: "vessari-raider", tribeIndex: 3, unitType: "raider", candidate: VESSARI_RAIDER_PILOT },
   { slug: "valkyra-warrior", tribeIndex: 6, unitType: "warrior", candidate: VALKYRA_WARRIOR_PILOT },
   { slug: "valkyra-archer", tribeIndex: 6, unitType: "archer", candidate: VALKYRA_ARCHER_PILOT },
   { slug: "valkyra-defender", tribeIndex: 6, unitType: "defender", candidate: VALKYRA_DEFENDER_PILOT },

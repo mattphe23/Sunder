@@ -40,6 +40,7 @@ import {
   VALKYRA_WARRIOR_PILOT,
   VESSARI_ARCHER_PILOT,
   VESSARI_DEFENDER_PILOT,
+  VESSARI_RAIDER_PILOT,
   VESSARI_RIDER_PILOT,
   VESSARI_WARRIOR_PILOT,
   passesImportedModelPilotBudget,
@@ -335,6 +336,24 @@ describe("imported model pilot registry", () => {
       unitType: "rider",
       candidate: VESSARI_RIDER_PILOT,
     });
+  });
+
+  it("keeps Vessari's unique mounted Raider budgeted, review-only and distinct from Rider", () => {
+    expect(passesImportedModelPilotBudget(VESSARI_RAIDER_PILOT)).toBe(true);
+    expect(VESSARI_RAIDER_PILOT.decision).toBe("review-candidate");
+    expect(VESSARI_RAIDER_PILOT.assetId).toBe("asset_AqYTZ4dcJfBSoTPyDv5ejHAR");
+    expect(VESSARI_RAIDER_PILOT.modelUrl).toBe("/manus-storage/vessari-raider-tripo-p2-v1_1999984e.glb");
+    expect(VESSARI_RAIDER_PILOT.vertices).toBe(8_721);
+    expect(VESSARI_RAIDER_PILOT.triangles).toBe(5_466);
+    expect(VESSARI_RAIDER_PILOT.runtimePrimitives).toBe(1);
+    expect(VESSARI_RAIDER_PILOT.sourceBytes).toBe(3_510_336);
+    expect(VESSARI_RAIDER_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "vessari-raider")).toMatchObject({
+      tribeIndex: 3,
+      unitType: "raider",
+      candidate: VESSARI_RAIDER_PILOT,
+    });
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "vessari-rider")?.unitType).toBe("rider");
   });
 
   it("keeps Valkyra Warrior's first-pass GLB opt-in and within the mobile budget", () => {
