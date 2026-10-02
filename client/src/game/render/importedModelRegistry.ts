@@ -480,6 +480,19 @@ export const KHARZUL_DEFENDER_PILOT: ImportedModelCandidate = {
   decision: "review-candidate",
 };
 
+/** Kharzul's tusked boar mount first pass; only explicit development review routes import it. */
+export const KHARZUL_RIDER_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Kharzul Rider v1",
+  assetId: "asset_hru9LsudGhfU6FJk2ZzU2koe",
+  modelUrl: "/manus-storage/kharzul-rider-tripo-p2-v1_2b25fb34.glb",
+  vertices: 7_327,
+  triangles: 4_889,
+  runtimePrimitives: 1,
+  sourceBytes: 3_616_972,
+  textureResolution: 2_048,
+  decision: "review-candidate",
+};
+
 /** Approved targets and first-pass studies remain separate; only cataloged entries get review routes. */
 export interface CrossTribeModelPilot {
   slug: string;
@@ -518,6 +531,7 @@ export const CROSS_TRIBE_P2_PILOTS: readonly CrossTribeModelPilot[] = [
   { slug: "kharzul-warrior", tribeIndex: 1, unitType: "warrior", candidate: KHARZUL_WARRIOR_PILOT },
   { slug: "kharzul-archer", tribeIndex: 1, unitType: "archer", candidate: KHARZUL_ARCHER_PILOT },
   { slug: "kharzul-defender", tribeIndex: 1, unitType: "defender", candidate: KHARZUL_DEFENDER_PILOT },
+  { slug: "kharzul-rider", tribeIndex: 1, unitType: "rider", candidate: KHARZUL_RIDER_PILOT },
 ];
 
 export const NERIVANE_WARRIOR_GOLDEN_V2: ImportedModelCandidate = {

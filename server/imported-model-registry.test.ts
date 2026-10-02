@@ -14,6 +14,7 @@ import {
   IMPORTED_MODEL_PILOT_LIMITS,
   KHARZUL_ARCHER_PILOT,
   KHARZUL_DEFENDER_PILOT,
+  KHARZUL_RIDER_PILOT,
   KHARZUL_WARRIOR_PILOT,
   MYCELON_ARCHER_PILOT,
   MYCELON_DEFENDER_PILOT,
@@ -586,6 +587,23 @@ describe("imported model pilot registry", () => {
       tribeIndex: 1,
       unitType: "defender",
       candidate: KHARZUL_DEFENDER_PILOT,
+    });
+  });
+
+  it("keeps Kharzul Rider's audited boar model budgeted, review-only and mapped to tribe 1 Rider", () => {
+    expect(passesImportedModelPilotBudget(KHARZUL_RIDER_PILOT)).toBe(true);
+    expect(KHARZUL_RIDER_PILOT.decision).toBe("review-candidate");
+    expect(KHARZUL_RIDER_PILOT.assetId).toBe("asset_hru9LsudGhfU6FJk2ZzU2koe");
+    expect(KHARZUL_RIDER_PILOT.modelUrl).toBe("/manus-storage/kharzul-rider-tripo-p2-v1_2b25fb34.glb");
+    expect(KHARZUL_RIDER_PILOT.vertices).toBe(7_327);
+    expect(KHARZUL_RIDER_PILOT.triangles).toBe(4_889);
+    expect(KHARZUL_RIDER_PILOT.runtimePrimitives).toBe(1);
+    expect(KHARZUL_RIDER_PILOT.sourceBytes).toBe(3_616_972);
+    expect(KHARZUL_RIDER_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "kharzul-rider")).toMatchObject({
+      tribeIndex: 1,
+      unitType: "rider",
+      candidate: KHARZUL_RIDER_PILOT,
     });
   });
 
