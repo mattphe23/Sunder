@@ -38,6 +38,7 @@ import {
   VALKYRA_ARCHER_PILOT,
   VALKYRA_DEFENDER_PILOT,
   VALKYRA_RIDER_PILOT,
+  VALKYRA_SKADI_PILOT,
   VALKYRA_WARRIOR_PILOT,
   VESSARI_ARCHER_PILOT,
   VESSARI_DEFENDER_PILOT,
@@ -441,6 +442,24 @@ describe("imported model pilot registry", () => {
       unitType: "rider",
       candidate: VALKYRA_RIDER_PILOT,
     });
+  });
+
+  it("keeps Skadi's audited GLB budgeted, review-only and mapped only to Valkyra's named hero", () => {
+    expect(passesImportedModelPilotBudget(VALKYRA_SKADI_PILOT)).toBe(true);
+    expect(VALKYRA_SKADI_PILOT.decision).toBe("review-candidate");
+    expect(VALKYRA_SKADI_PILOT.assetId).toBe("asset_YUMkCC8p146AWCXTQinRYpSo");
+    expect(VALKYRA_SKADI_PILOT.modelUrl).toBe("/manus-storage/valkyra-skadi-tripo-p2-v1_80cb7846.glb");
+    expect(VALKYRA_SKADI_PILOT.vertices).toBe(6_430);
+    expect(VALKYRA_SKADI_PILOT.triangles).toBe(4_691);
+    expect(VALKYRA_SKADI_PILOT.runtimePrimitives).toBe(1);
+    expect(VALKYRA_SKADI_PILOT.sourceBytes).toBe(3_376_220);
+    expect(VALKYRA_SKADI_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "valkyra-skadi")).toMatchObject({
+      tribeIndex: 6,
+      unitType: "hero",
+      candidate: VALKYRA_SKADI_PILOT,
+    });
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "valkyra-rider")?.unitType).toBe("rider");
   });
 
   it("keeps Mycelon Warrior's first-pass GLB opt-in and within the mobile budget", () => {

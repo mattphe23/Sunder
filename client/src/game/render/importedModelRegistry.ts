@@ -363,6 +363,19 @@ export const VALKYRA_RIDER_PILOT: ImportedModelCandidate = {
   decision: "review-candidate",
 };
 
+/** Valkyra's named hero Skadi first pass; never a default hero replacement. */
+export const VALKYRA_SKADI_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Valkyra Skadi v1",
+  assetId: "asset_YUMkCC8p146AWCXTQinRYpSo",
+  modelUrl: "/manus-storage/valkyra-skadi-tripo-p2-v1_80cb7846.glb",
+  vertices: 6_430,
+  triangles: 4_691,
+  runtimePrimitives: 1,
+  sourceBytes: 3_376_220,
+  textureResolution: 2_048,
+  decision: "review-candidate",
+};
+
 /** Mycelon's spore infantry first pass; ordinary matches remain procedural. */
 export const MYCELON_WARRIOR_PILOT: ImportedModelCandidate = {
   name: "Scenario Tripo P2 Mycelon Warrior v1",
@@ -574,6 +587,7 @@ export const CROSS_TRIBE_P2_PILOTS: readonly CrossTribeModelPilot[] = [
   { slug: "valkyra-archer", tribeIndex: 6, unitType: "archer", candidate: VALKYRA_ARCHER_PILOT },
   { slug: "valkyra-defender", tribeIndex: 6, unitType: "defender", candidate: VALKYRA_DEFENDER_PILOT },
   { slug: "valkyra-rider", tribeIndex: 6, unitType: "rider", candidate: VALKYRA_RIDER_PILOT },
+  { slug: "valkyra-skadi", tribeIndex: 6, unitType: "hero", candidate: VALKYRA_SKADI_PILOT },
   { slug: "mycelon-warrior", tribeIndex: 7, unitType: "warrior", candidate: MYCELON_WARRIOR_PILOT },
   { slug: "mycelon-archer", tribeIndex: 7, unitType: "archer", candidate: MYCELON_ARCHER_PILOT },
   { slug: "mycelon-defender", tribeIndex: 7, unitType: "defender", candidate: MYCELON_DEFENDER_PILOT },
