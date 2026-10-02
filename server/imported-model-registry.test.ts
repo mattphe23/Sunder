@@ -8,6 +8,7 @@ import {
   AUREN_WARRIOR_PILOT,
   CROSS_TRIBE_P2_PILOTS,
   DRAVOK_ARCHER_PILOT,
+  DRAVOK_BULWARK_PILOT,
   DRAVOK_DEFENDER_PILOT,
   DRAVOK_RIDER_PILOT,
   DRAVOK_WARRIOR_PILOT,
@@ -268,6 +269,24 @@ describe("imported model pilot registry", () => {
       unitType: "rider",
       candidate: DRAVOK_RIDER_PILOT,
     });
+  });
+
+  it("keeps Dravok's unique Bulwark GLB budgeted, review-only and distinct from its Defender", () => {
+    expect(passesImportedModelPilotBudget(DRAVOK_BULWARK_PILOT)).toBe(true);
+    expect(DRAVOK_BULWARK_PILOT.decision).toBe("review-candidate");
+    expect(DRAVOK_BULWARK_PILOT.assetId).toBe("asset_7VJKCbNncPof23qfcu8LpsyR");
+    expect(DRAVOK_BULWARK_PILOT.modelUrl).toBe("/manus-storage/dravok-bulwark-tripo-p2-v1_17deec7d.glb");
+    expect(DRAVOK_BULWARK_PILOT.vertices).toBe(6_381);
+    expect(DRAVOK_BULWARK_PILOT.triangles).toBe(5_275);
+    expect(DRAVOK_BULWARK_PILOT.runtimePrimitives).toBe(1);
+    expect(DRAVOK_BULWARK_PILOT.sourceBytes).toBe(3_310_528);
+    expect(DRAVOK_BULWARK_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "dravok-bulwark")).toMatchObject({
+      tribeIndex: 5,
+      unitType: "bulwark",
+      candidate: DRAVOK_BULWARK_PILOT,
+    });
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "dravok-defender")?.unitType).toBe("defender");
   });
 
   it("keeps Vessari Warrior's first-pass GLB opt-in and within the mobile budget", () => {

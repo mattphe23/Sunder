@@ -233,6 +233,19 @@ export const DRAVOK_RIDER_PILOT: ImportedModelCandidate = {
   decision: "review-candidate",
 };
 
+/** Dravok's stone-wall unique Bulwark first pass; explicit development review only. */
+export const DRAVOK_BULWARK_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Dravok Bulwark v1",
+  assetId: "asset_7VJKCbNncPof23qfcu8LpsyR",
+  modelUrl: "/manus-storage/dravok-bulwark-tripo-p2-v1_17deec7d.glb",
+  vertices: 6_381,
+  triangles: 5_275,
+  runtimePrimitives: 1,
+  sourceBytes: 3_310_528,
+  textureResolution: 2_048,
+  decision: "review-candidate",
+};
+
 /** Vessari's first-pass cavalry-border infantry; not a gameplay-default model. */
 export const VESSARI_WARRIOR_PILOT: ImportedModelCandidate = {
   name: "Scenario Tripo P2 Vessari Warrior v1",
@@ -551,6 +564,7 @@ export const CROSS_TRIBE_P2_PILOTS: readonly CrossTribeModelPilot[] = [
   { slug: "dravok-archer", tribeIndex: 5, unitType: "archer", candidate: DRAVOK_ARCHER_PILOT },
   { slug: "dravok-defender", tribeIndex: 5, unitType: "defender", candidate: DRAVOK_DEFENDER_PILOT },
   { slug: "dravok-rider", tribeIndex: 5, unitType: "rider", candidate: DRAVOK_RIDER_PILOT },
+  { slug: "dravok-bulwark", tribeIndex: 5, unitType: "bulwark", candidate: DRAVOK_BULWARK_PILOT },
   { slug: "vessari-warrior", tribeIndex: 3, unitType: "warrior", candidate: VESSARI_WARRIOR_PILOT },
   { slug: "vessari-archer", tribeIndex: 3, unitType: "archer", candidate: VESSARI_ARCHER_PILOT },
   { slug: "vessari-defender", tribeIndex: 3, unitType: "defender", candidate: VESSARI_DEFENDER_PILOT },
