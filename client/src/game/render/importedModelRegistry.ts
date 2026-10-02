@@ -441,6 +441,19 @@ export const SUNWEI_RIDER_PILOT: ImportedModelCandidate = {
   decision: "review-candidate",
 };
 
+/** Sunwei's lantern-and-staff Warden first pass; only explicit development review routes import it. */
+export const SUNWEI_SUNWARDEN_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Sunwei Sunwarden v1",
+  assetId: "asset_Bm98ibq6UYW9UMSsmwJznFgQ",
+  modelUrl: "/manus-storage/sunwei-sunwarden-tripo-p2-v1_53de92df.glb",
+  vertices: 7_766,
+  triangles: 5_008,
+  runtimePrimitives: 1,
+  sourceBytes: 3_852_780,
+  textureResolution: 2_048,
+  decision: "review-candidate",
+};
+
 /** Kharzul's first-pass infantry, reconstructed from three original views and a repaired right profile. */
 export const KHARZUL_WARRIOR_PILOT: ImportedModelCandidate = {
   name: "Scenario Tripo P2 Kharzul Warrior v1",
@@ -541,6 +554,7 @@ export const CROSS_TRIBE_P2_PILOTS: readonly CrossTribeModelPilot[] = [
   { slug: "sunwei-archer", tribeIndex: 2, unitType: "archer", candidate: SUNWEI_ARCHER_PILOT },
   { slug: "sunwei-defender", tribeIndex: 2, unitType: "defender", candidate: SUNWEI_DEFENDER_PILOT },
   { slug: "sunwei-rider", tribeIndex: 2, unitType: "rider", candidate: SUNWEI_RIDER_PILOT },
+  { slug: "sunwei-sunwarden", tribeIndex: 2, unitType: "warden", candidate: SUNWEI_SUNWARDEN_PILOT },
   { slug: "kharzul-warrior", tribeIndex: 1, unitType: "warrior", candidate: KHARZUL_WARRIOR_PILOT },
   { slug: "kharzul-archer", tribeIndex: 1, unitType: "archer", candidate: KHARZUL_ARCHER_PILOT },
   { slug: "kharzul-defender", tribeIndex: 1, unitType: "defender", candidate: KHARZUL_DEFENDER_PILOT },

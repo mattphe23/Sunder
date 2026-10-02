@@ -32,6 +32,7 @@ import {
   SUNWEI_ARCHER_PILOT,
   SUNWEI_DEFENDER_PILOT,
   SUNWEI_RIDER_PILOT,
+  SUNWEI_SUNWARDEN_PILOT,
   SUNWEI_WARRIOR_PILOT,
   VALKYRA_ARCHER_PILOT,
   VALKYRA_DEFENDER_PILOT,
@@ -537,6 +538,23 @@ describe("imported model pilot registry", () => {
       tribeIndex: 2,
       unitType: "rider",
       candidate: SUNWEI_RIDER_PILOT,
+    });
+  });
+
+  it("keeps Sunwei Sunwarden's audited GLB budgeted, opt-in and mapped to tribe 2 Warden", () => {
+    expect(passesImportedModelPilotBudget(SUNWEI_SUNWARDEN_PILOT)).toBe(true);
+    expect(SUNWEI_SUNWARDEN_PILOT.decision).toBe("review-candidate");
+    expect(SUNWEI_SUNWARDEN_PILOT.assetId).toBe("asset_Bm98ibq6UYW9UMSsmwJznFgQ");
+    expect(SUNWEI_SUNWARDEN_PILOT.modelUrl).toBe("/manus-storage/sunwei-sunwarden-tripo-p2-v1_53de92df.glb");
+    expect(SUNWEI_SUNWARDEN_PILOT.vertices).toBe(7_766);
+    expect(SUNWEI_SUNWARDEN_PILOT.triangles).toBe(5_008);
+    expect(SUNWEI_SUNWARDEN_PILOT.runtimePrimitives).toBe(1);
+    expect(SUNWEI_SUNWARDEN_PILOT.sourceBytes).toBe(3_852_780);
+    expect(SUNWEI_SUNWARDEN_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "sunwei-sunwarden")).toMatchObject({
+      tribeIndex: 2,
+      unitType: "warden",
+      candidate: SUNWEI_SUNWARDEN_PILOT,
     });
   });
 
