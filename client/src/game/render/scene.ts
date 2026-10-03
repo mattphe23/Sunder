@@ -81,6 +81,7 @@ import { game } from "../core/state";
 import { reachableTiles, attackableUnits, cityAt, isVisibleTo, plannerSites, tradeRouteTiles, raidedRoadTiles, unitHasActions } from "../core/rules";
 import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import { PALETTE, darken, lighten, biomeFor, BiomePalette } from "./palette";
+import { coastBandLocalY, coastPilotEnabled } from "./landscapePilot";
 
 const TILE = 1.02;
 // Mountain sits FLUSH with the other land tiles rather than on a raised plate.
@@ -188,6 +189,8 @@ export class BoardRenderer {
     CROSS_TRIBE_P2_PILOTS.find(pilot =>
       pilot.slug === new URLSearchParams(window.location.search).get("p2-candidate")
     );
+  private readonly coastPilotPreview =
+    typeof window !== "undefined" && coastPilotEnabled(window.location.search, import.meta.env.DEV);
   private waterMats: StandardMaterial[] = [];
   private shimmerT = 0;
   /** sea life + surface motion: bobbing fish, drifting glints, cloud puffs */
@@ -1031,6 +1034,28 @@ export class BoardRenderer {
       box.material = fogged
         ? this.foggedMat(deep ? this.bio.terrain.ocean.top : this.bio.terrain.water.top)
         : this.waterMat(deep);
+      if (this.coastPilotPreview && !fogged) {
+        // A narrow shallow-water shelf belongs to the WATER tile, not to the
+        // cliff: it makes the coast continuous without a texture or a new GLB.
+        // Never reveal an unexplored or currently hidden land neighbour.
+        const shelfHex = deep ? this.bio.terrain.water.top : lighten(this.bio.terrain.water.top, 0.25);
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+          const nx = t.x + dx, ny = t.y + dy;
+          if (nx < 0 || ny < 0 || nx >= s.size || ny >= s.size) continue;
+          const nb = s.tiles[idx(nx, ny, s.size)];
+          if (nb.terrain === "water" || nb.terrain === "ocean" ||
+              !nb.explored[s.humanTribe] || !isVisibleTo(s, s.humanTribe, nx, ny)) continue;
+          const shelf = MeshBuilder.CreateBox("coastPilot-shelf", {
+            width: dx !== 0 ? 0.20 : TILE * 0.96,
+            depth: dy !== 0 ? 0.20 : TILE * 0.96,
+            height: 0.016,
+          }, this.scene);
+          shelf.position = new Vector3(dx * 0.41, h / 2 + 0.016, dy * 0.41);
+          shelf.material = this.mat(shelfHex);
+          shelf.isPickable = false;
+          shelf.parent = box;
+        }
+      }
     } else {
       // land: top plate carries the palette top step, slab body the darker side step
       const topHex = this.tileColor(s, t);
@@ -1050,6 +1075,7 @@ export class BoardRenderer {
         if (nx < 0 || ny < 0 || nx >= s.size || ny >= s.size) continue;
         const nb = s.tiles[idx(nx, ny, s.size)];
         if (nb.terrain !== "water" && nb.terrain !== "ocean") continue;
+        if (this.coastPilotPreview && (!nb.explored[s.humanTribe] || !isVisibleTo(s, s.humanTribe, nx, ny))) continue;
         const band = MeshBuilder.CreateBox("shore", {
           width: dx !== 0 ? 0.09 : TILE * 0.98,
           depth: dy !== 0 ? 0.09 : TILE * 0.98,
@@ -1057,7 +1083,9 @@ export class BoardRenderer {
         }, this.scene);
         band.position = new Vector3(
           dx * (TILE * 0.96) / 2,
-          -h / 2 + TERRAIN_H[nb.terrain] - 0.028,
+          this.coastPilotPreview
+            ? coastBandLocalY(h, TERRAIN_H[nb.terrain], LAND_SKIRT, 0.035)
+            : -h / 2 + TERRAIN_H[nb.terrain] - 0.028,
           dy * (TILE * 0.96) / 2
         );
         band.material = shoreMat;
@@ -1072,7 +1100,9 @@ export class BoardRenderer {
         }, this.scene);
         sand.position = new Vector3(
           dx * (TILE * 0.96) / 2 + dx * 0.005,
-          -h / 2 + TERRAIN_H[nb.terrain] - 0.1,
+          this.coastPilotPreview
+            ? coastBandLocalY(h, TERRAIN_H[nb.terrain], LAND_SKIRT, -0.063)
+            : -h / 2 + TERRAIN_H[nb.terrain] - 0.1,
           dy * (TILE * 0.96) / 2 + dy * 0.005
         );
         sand.material = sandMat;
@@ -1089,7 +1119,9 @@ export class BoardRenderer {
           }, this.scene);
           ledge.position = new Vector3(
             dx * ((TILE * 0.96) / 2 + 0.03) + (dy !== 0 ? (stepSeed - 0.5) * 0.3 : 0),
-            -h / 2 + TERRAIN_H[nb.terrain] - 0.26,
+            this.coastPilotPreview
+              ? coastBandLocalY(h, TERRAIN_H[nb.terrain], LAND_SKIRT, -0.19)
+              : -h / 2 + TERRAIN_H[nb.terrain] - 0.26,
             dy * ((TILE * 0.96) / 2 + 0.03) + (dx !== 0 ? (stepSeed - 0.5) * 0.3 : 0)
           );
           ledge.material = ledgeMat;
