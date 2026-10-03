@@ -37,6 +37,7 @@ import {
   SUNWEI_RIDER_PILOT,
   SUNWEI_SUNWARDEN_PILOT,
   SUNWEI_WARRIOR_PILOT,
+  SUNWEI_WU_JIAN_PILOT,
   VALKYRA_ARCHER_PILOT,
   VALKYRA_DEFENDER_PILOT,
   VALKYRA_RIDER_PILOT,
@@ -635,6 +636,25 @@ describe("imported model pilot registry", () => {
     });
   });
 
+  it("keeps Wu Jian's audited GLB budgeted, review-only and mapped only to Sunwei's named hero", () => {
+    expect(passesImportedModelPilotBudget(SUNWEI_WU_JIAN_PILOT)).toBe(true);
+    expect(SUNWEI_WU_JIAN_PILOT.decision).toBe("review-candidate");
+    expect(SUNWEI_WU_JIAN_PILOT.assetId).toBe("asset_zKRVjstDxASNhTheReGLYRNr");
+    expect(SUNWEI_WU_JIAN_PILOT.modelUrl).toBe("/manus-storage/sunwei-wu-jian-tripo-p2-v1_3c76da9b.glb");
+    expect(SUNWEI_WU_JIAN_PILOT.vertices).toBe(6_978);
+    expect(SUNWEI_WU_JIAN_PILOT.triangles).toBe(4_928);
+    expect(SUNWEI_WU_JIAN_PILOT.runtimePrimitives).toBe(1);
+    expect(SUNWEI_WU_JIAN_PILOT.sourceBytes).toBe(3_253_736);
+    expect(SUNWEI_WU_JIAN_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "sunwei-wu-jian")).toMatchObject({
+      tribeIndex: 2,
+      unitType: "hero",
+      candidate: SUNWEI_WU_JIAN_PILOT,
+    });
+    expect(CROSS_TRIBE_P2_PILOTS.filter(p => p.tribeIndex === 2 && p.unitType === "hero")).toHaveLength(1);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "sunwei-sunwarden")?.unitType).toBe("warden");
+  });
+
   it("keeps Kharzul Warrior's repaired-view GLB review-only and within the mobile budget", () => {
     expect(passesImportedModelPilotBudget(KHARZUL_WARRIOR_PILOT)).toBe(true);
     expect(KHARZUL_WARRIOR_PILOT.decision).toBe("review-candidate");
@@ -744,7 +764,7 @@ describe("imported model pilot registry", () => {
     expect(new Set(slugs).size).toBe(slugs.length);
     expect(new Set(roles).size).toBe(roles.length);
     for (const pilot of CROSS_TRIBE_P2_PILOTS) {
-      expect(pilot.slug).toMatch(/^[a-z]+-[a-z]+$/);
+      expect(pilot.slug).toMatch(/^[a-z]+(?:-[a-z]+)+$/);
       expect(pilot.tribeIndex).toBeGreaterThanOrEqual(0);
       expect(pilot.tribeIndex).toBeLessThanOrEqual(7);
       expect(pilot.tribeIndex).not.toBe(4);

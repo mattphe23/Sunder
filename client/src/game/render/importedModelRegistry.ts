@@ -506,6 +506,19 @@ export const SUNWEI_SUNWARDEN_PILOT: ImportedModelCandidate = {
   decision: "review-candidate",
 };
 
+/** Sunwei's named hero Wu Jian first pass; never a default hero replacement. */
+export const SUNWEI_WU_JIAN_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Sunwei Wu Jian v1",
+  assetId: "asset_zKRVjstDxASNhTheReGLYRNr",
+  modelUrl: "/manus-storage/sunwei-wu-jian-tripo-p2-v1_3c76da9b.glb",
+  vertices: 6_978,
+  triangles: 4_928,
+  runtimePrimitives: 1,
+  sourceBytes: 3_253_736,
+  textureResolution: 2_048,
+  decision: "review-candidate",
+};
+
 /** Kharzul's first-pass infantry, reconstructed from three original views and a repaired right profile. */
 export const KHARZUL_WARRIOR_PILOT: ImportedModelCandidate = {
   name: "Scenario Tripo P2 Kharzul Warrior v1",
@@ -624,6 +637,7 @@ export const CROSS_TRIBE_P2_PILOTS: readonly CrossTribeModelPilot[] = [
   { slug: "sunwei-defender", tribeIndex: 2, unitType: "defender", candidate: SUNWEI_DEFENDER_PILOT },
   { slug: "sunwei-rider", tribeIndex: 2, unitType: "rider", candidate: SUNWEI_RIDER_PILOT },
   { slug: "sunwei-sunwarden", tribeIndex: 2, unitType: "warden", candidate: SUNWEI_SUNWARDEN_PILOT },
+  { slug: "sunwei-wu-jian", tribeIndex: 2, unitType: "hero", candidate: SUNWEI_WU_JIAN_PILOT },
   { slug: "kharzul-warrior", tribeIndex: 1, unitType: "warrior", candidate: KHARZUL_WARRIOR_PILOT },
   { slug: "kharzul-archer", tribeIndex: 1, unitType: "archer", candidate: KHARZUL_ARCHER_PILOT },
   { slug: "kharzul-defender", tribeIndex: 1, unitType: "defender", candidate: KHARZUL_DEFENDER_PILOT },
