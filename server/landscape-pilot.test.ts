@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coastBandLocalY, coastPilotEnabled, landscapeVariantEnabled, type LandscapeVariant } from "../client/src/game/render/landscapePilot";
+import { coastBandLocalY, coastPilotEnabled, forestTreeCount, forestUnderbrushLimit, landscapeVariantEnabled, type LandscapeVariant } from "../client/src/game/render/landscapePilot";
 describe("review-only coastal landscape pilot", () => {
   it("requires a development build, a devgame and an exact opt-in slug", () => {
     const optedIn = "?devgame=6104,11,4,archipelago&landscape-pilot=coast-v1";
@@ -35,5 +35,21 @@ describe("review-only coastal landscape pilot", () => {
         expect(landscapeVariantEnabled("?devgame=6104,11,4,highlands&landscape-pilot=review-v2", true, variant)).toBe(true);
       }
     }
+  });
+
+  it("limits foreground forest clutter near a settlement without changing unflagged forest budgets", () => {
+    for (const kind of ["conifer", "pine", "palm", "acacia"] as const) {
+      for (const [x, y] of [[8, 6], [7, 5], [10, 9]]) {
+        const original = (kind === "palm" || kind === "acacia" ? 2 : 3) + ((x * 7 + y * 11) % 2);
+        expect(forestTreeCount(kind, x, y, true, false)).toBe(original);
+        expect(forestTreeCount(kind, x, y, false, false)).toBe(original);
+        expect(forestTreeCount(kind, x, y, true, true)).toBe(2);
+        expect(forestTreeCount(kind, x, y, false, true)).toBeLessThanOrEqual(3);
+      }
+    }
+    expect(forestUnderbrushLimit(true, false)).toBe(7);
+    expect(forestUnderbrushLimit(false, false)).toBe(7);
+    expect(forestUnderbrushLimit(true, true)).toBe(3);
+    expect(forestUnderbrushLimit(false, true)).toBe(11);
   });
 });

@@ -14,6 +14,17 @@ export function coastPilotEnabled(search: string, dev: boolean): boolean {
   return landscapeVariantEnabled(search, dev, "coast-v1");
 }
 
+/** Clear a visual lane around settlements while retaining biome tree shapes. */
+export function forestTreeCount(kind: "conifer" | "pine" | "palm" | "acacia", x: number, y: number, nearSettlement: boolean, review: boolean): number {
+  const original = (kind === "palm" || kind === "acacia" ? 2 : 3) + ((x * 7 + y * 11) % 2);
+  return review ? (nearSettlement ? 2 : Math.min(original, 3)) : original;
+}
+
+/** Keep a more planted forest floor away from settlements, not under units. */
+export function forestUnderbrushLimit(nearSettlement: boolean, review: boolean): number {
+  return review ? (nearSettlement ? 3 : 11) : 7;
+}
+
 /**
  * The terrain body is centred below the logical land cap by half its full
  * height (land slab plus skirt). Convert a world-space waterline offset into

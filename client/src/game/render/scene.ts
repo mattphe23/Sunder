@@ -81,7 +81,7 @@ import { game } from "../core/state";
 import { reachableTiles, attackableUnits, cityAt, isVisibleTo, plannerSites, tradeRouteTiles, raidedRoadTiles, unitHasActions } from "../core/rules";
 import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import { PALETTE, darken, lighten, biomeFor, BiomePalette } from "./palette";
-import { coastBandLocalY, coastPilotEnabled, landscapeVariantEnabled } from "./landscapePilot";
+import { coastBandLocalY, coastPilotEnabled, forestTreeCount, forestUnderbrushLimit, landscapeVariantEnabled } from "./landscapePilot";
 
 const TILE = 1.02;
 // Mountain sits FLUSH with the other land tiles rather than on a raised plate.
@@ -193,6 +193,8 @@ export class BoardRenderer {
     typeof window !== "undefined" && coastPilotEnabled(window.location.search, import.meta.env.DEV);
   private readonly fogPilotPreview =
     typeof window !== "undefined" && landscapeVariantEnabled(window.location.search, import.meta.env.DEV, "fog-v1");
+  private readonly vegetationPilotPreview =
+    typeof window !== "undefined" && landscapeVariantEnabled(window.location.search, import.meta.env.DEV, "vegetation-v1");
   private waterMats: StandardMaterial[] = [];
   private shimmerT = 0;
   /** sea life + surface motion: bobbing fish, drifting glints, cloud puffs */
@@ -1249,7 +1251,9 @@ export class BoardRenderer {
       // preset, not just its color (conifer / pine / palm / acacia)
       const kind = this.bio.treeKind;
       const md = { tile: true, x: t.x, y: t.y };
-      const treeCount = (kind === "palm" || kind === "acacia" ? 2 : 3) + ((t.x * 7 + t.y * 11) % 2);
+      const nearSettlement = this.vegetationPilotPreview && s.cities.some(ci =>
+        Math.max(Math.abs(ci.x - t.x), Math.abs(ci.y - t.y)) <= 1);
+      const treeCount = forestTreeCount(kind, t.x, t.y, nearSettlement, this.vegetationPilotPreview);
       for (let i = 0; i < treeCount; i++) {
         const px = t.x - c + (i === 3 ? 0.08 : (i - 1) * 0.26);
         const pz = t.y - c + (i === 3 ? -0.32 : ((i * 7) % 3 - 1) * 0.24);
@@ -1318,7 +1322,7 @@ export class BoardRenderer {
       // v58 density: forest-floor underbrush between the trunks (~35% of
       // forests) — the canopy floats over a floor, not over bare green
       const ub = (t.x * 29 + t.y * 43) % 20;
-      if (ub < 7) {
+      if (ub < forestUnderbrushLimit(nearSettlement, this.vegetationPilotPreview)) {
         for (let k = 0; k <= (ub & 1); k++) {
           const shrub = MeshBuilder.CreateCylinder("shrub", { diameterTop: 0, diameterBottom: 0.12, height: 0.09, tessellation: 4 }, this.scene);
           shrub.position = new Vector3(
