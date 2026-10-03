@@ -16,6 +16,7 @@ import {
   KHARZUL_ARCHER_PILOT,
   KHARZUL_BERSERKER_PILOT,
   KHARZUL_DEFENDER_PILOT,
+  KHARZUL_DRUKHAR_PILOT,
   KHARZUL_RIDER_PILOT,
   KHARZUL_WARRIOR_PILOT,
   MYCELON_ARCHER_PILOT,
@@ -717,6 +718,24 @@ describe("imported model pilot registry", () => {
       unitType: "berserker",
       candidate: KHARZUL_BERSERKER_PILOT,
     });
+  });
+
+  it("keeps Drukhar's audited GLB budgeted, review-only and mapped only to Kharzul's hero", () => {
+    expect(passesImportedModelPilotBudget(KHARZUL_DRUKHAR_PILOT)).toBe(true);
+    expect(KHARZUL_DRUKHAR_PILOT.decision).toBe("review-candidate");
+    expect(KHARZUL_DRUKHAR_PILOT.assetId).toBe("asset_zsReDteyPKieB1NEGZf14rWo");
+    expect(KHARZUL_DRUKHAR_PILOT.modelUrl).toBe("/manus-storage/kharzul-drukhar-tripo-p2-v1_5e9069d5.glb");
+    expect(KHARZUL_DRUKHAR_PILOT.vertices).toBe(6_884);
+    expect(KHARZUL_DRUKHAR_PILOT.triangles).toBe(4_693);
+    expect(KHARZUL_DRUKHAR_PILOT.runtimePrimitives).toBe(1);
+    expect(KHARZUL_DRUKHAR_PILOT.sourceBytes).toBe(3_809_500);
+    expect(KHARZUL_DRUKHAR_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "kharzul-drukhar")).toMatchObject({
+      tribeIndex: 1,
+      unitType: "hero",
+      candidate: KHARZUL_DRUKHAR_PILOT,
+    });
+    expect(CROSS_TRIBE_P2_PILOTS.filter(p => p.tribeIndex === 1 && p.unitType === "hero")).toHaveLength(1);
   });
 
   it("keeps every cross-tribe pilot unique, budgeted and review-only", () => {

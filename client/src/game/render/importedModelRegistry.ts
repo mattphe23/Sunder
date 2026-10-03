@@ -571,6 +571,19 @@ export const KHARZUL_BERSERKER_PILOT: ImportedModelCandidate = {
   decision: "review-candidate",
 };
 
+/** Kharzul's named hero Drukhar first pass; only explicit development review loads it. */
+export const KHARZUL_DRUKHAR_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Kharzul Drukhar v1",
+  assetId: "asset_zsReDteyPKieB1NEGZf14rWo",
+  modelUrl: "/manus-storage/kharzul-drukhar-tripo-p2-v1_5e9069d5.glb",
+  vertices: 6_884,
+  triangles: 4_693,
+  runtimePrimitives: 1,
+  sourceBytes: 3_809_500,
+  textureResolution: 2_048,
+  decision: "review-candidate",
+};
+
 /** Approved targets and first-pass studies remain separate; only cataloged entries get review routes. */
 export interface CrossTribeModelPilot {
   slug: string;
@@ -616,6 +629,7 @@ export const CROSS_TRIBE_P2_PILOTS: readonly CrossTribeModelPilot[] = [
   { slug: "kharzul-defender", tribeIndex: 1, unitType: "defender", candidate: KHARZUL_DEFENDER_PILOT },
   { slug: "kharzul-rider", tribeIndex: 1, unitType: "rider", candidate: KHARZUL_RIDER_PILOT },
   { slug: "kharzul-berserker", tribeIndex: 1, unitType: "berserker", candidate: KHARZUL_BERSERKER_PILOT },
+  { slug: "kharzul-drukhar", tribeIndex: 1, unitType: "hero", candidate: KHARZUL_DRUKHAR_PILOT },
 ];
 
 export const NERIVANE_WARRIOR_GOLDEN_V2: ImportedModelCandidate = {
