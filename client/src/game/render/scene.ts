@@ -81,7 +81,7 @@ import { game } from "../core/state";
 import { reachableTiles, attackableUnits, cityAt, isVisibleTo, plannerSites, tradeRouteTiles, raidedRoadTiles, unitHasActions } from "../core/rules";
 import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import { PALETTE, darken, lighten, biomeFor, BiomePalette } from "./palette";
-import { coastBandLocalY, coastPilotEnabled, forestTreeCount, forestUnderbrushLimit, landscapeVariantEnabled } from "./landscapePilot";
+import { broadMountainSilhouette, coastBandLocalY, coastPilotEnabled, forestTreeCount, forestUnderbrushLimit, landscapeVariantEnabled } from "./landscapePilot";
 
 const TILE = 1.02;
 // Mountain sits FLUSH with the other land tiles rather than on a raised plate.
@@ -195,6 +195,8 @@ export class BoardRenderer {
     typeof window !== "undefined" && landscapeVariantEnabled(window.location.search, import.meta.env.DEV, "fog-v1");
   private readonly vegetationPilotPreview =
     typeof window !== "undefined" && landscapeVariantEnabled(window.location.search, import.meta.env.DEV, "vegetation-v1");
+  private readonly mountainPilotPreview =
+    typeof window !== "undefined" && landscapeVariantEnabled(window.location.search, import.meta.env.DEV, "mountain-v1");
   private waterMats: StandardMaterial[] = [];
   private shimmerT = 0;
   /** sea life + surface motion: bobbing fish, drifting glints, cloud puffs */
@@ -1428,6 +1430,7 @@ export class BoardRenderer {
       // and a couple of scree boulders scattered at the foot.
       const seed = (t.x * 31 + t.y * 17) % 7;
       const yaw = seed * 0.37;
+      const broad = broadMountainSilhouette(seed, this.mountainPilotPreview);
       const md = { tile: true, x: t.x, y: t.y };
       // 1. base skirt: broad, low frustum nearly spanning the tile — its rim
       //    sinks slightly INTO the tile top so there is no hard 90° seam
@@ -1440,56 +1443,56 @@ export class BoardRenderer {
       const rk = this.bio.rockKind;
       if (rk === "mesa") {
         // mesa: flat-topped stepped butte (arid / island volcanic plateau)
-        const tier1 = MeshBuilder.CreateCylinder("pk", { diameterTop: 0.5, diameterBottom: 0.66, height: 0.3, tessellation: 6 }, this.scene);
-        tier1.position = new Vector3(t.x - c, top + 0.26, t.y - c);
+        const tier1 = MeshBuilder.CreateCylinder("pk", { diameterTop: broad ? 0.57 : 0.5, diameterBottom: broad ? 0.72 : 0.66, height: broad ? 0.27 : 0.3, tessellation: 6 }, this.scene);
+        tier1.position = new Vector3(t.x - c, top + (broad ? 0.25 : 0.26), t.y - c);
         tier1.rotation.y = yaw + 0.3;
         tier1.material = this.litMat(this.bio.rock.body); this.facet(tier1);
         tier1.metadata = md; tier1.parent = this.root; decor.push(tier1);
-        const tier2 = MeshBuilder.CreateCylinder("pk", { diameterTop: 0.3, diameterBottom: 0.44, height: 0.24, tessellation: 6 }, this.scene);
-        tier2.position = new Vector3(t.x - c + 0.04, top + 0.52, t.y - c - 0.03);
+        const tier2 = MeshBuilder.CreateCylinder("pk", { diameterTop: broad ? 0.35 : 0.3, diameterBottom: broad ? 0.48 : 0.44, height: broad ? 0.2 : 0.24, tessellation: 6 }, this.scene);
+        tier2.position = new Vector3(t.x - c + 0.04, top + (broad ? 0.47 : 0.52), t.y - c - 0.03);
         tier2.rotation.y = yaw - 0.4;
         tier2.material = this.litMat(this.bio.rock.shadow); this.facet(tier2);
         tier2.metadata = md; tier2.parent = this.root; decor.push(tier2);
-        const capm = MeshBuilder.CreateCylinder("snow", { diameterTop: 0.26, diameterBottom: 0.3, height: 0.05, tessellation: 6 }, this.scene);
-        capm.position = new Vector3(t.x - c + 0.04, top + 0.66, t.y - c - 0.03);
+        const capm = MeshBuilder.CreateCylinder("snow", { diameterTop: broad ? 0.3 : 0.26, diameterBottom: broad ? 0.35 : 0.3, height: 0.05, tessellation: 6 }, this.scene);
+        capm.position = new Vector3(t.x - c + 0.04, top + (broad ? 0.59 : 0.66), t.y - c - 0.03);
         capm.rotation.y = yaw - 0.4;
         capm.material = this.litMat(this.bio.rock.snow); this.facet(capm);
         capm.metadata = md; capm.parent = this.root; decor.push(capm);
       } else if (rk === "crag") {
         // crag: steep twin spires with heavy snow — alpine
-        const spire = MeshBuilder.CreateCylinder("pk", { diameterTop: 0.06, diameterBottom: 0.5, height: 0.66, tessellation: 5 }, this.scene);
-        spire.position = new Vector3(t.x - c - 0.03, top + 0.42, t.y - c + 0.02);
+        const spire = MeshBuilder.CreateCylinder("pk", { diameterTop: broad ? 0.14 : 0.06, diameterBottom: broad ? 0.62 : 0.5, height: broad ? 0.55 : 0.66, tessellation: 5 }, this.scene);
+        spire.position = new Vector3(t.x - c - 0.03, top + (broad ? 0.39 : 0.42), t.y - c + 0.02);
         spire.rotation.y = yaw + 0.3;
         spire.rotation.z = 0.05;
         spire.material = this.litMat(this.bio.rock.body); this.facet(spire);
         spire.metadata = md; spire.parent = this.root; decor.push(spire);
-        const snowC = MeshBuilder.CreateCylinder("snow", { diameterTop: 0, diameterBottom: 0.17, height: 0.2, tessellation: 5 }, this.scene);
-        snowC.position = new Vector3(t.x - c - 0.03, top + 0.75, t.y - c + 0.02);
+        const snowC = MeshBuilder.CreateCylinder("snow", { diameterTop: broad ? 0.09 : 0, diameterBottom: broad ? 0.21 : 0.17, height: broad ? 0.14 : 0.2, tessellation: 5 }, this.scene);
+        snowC.position = new Vector3(t.x - c - 0.03, top + (broad ? 0.7 : 0.75), t.y - c + 0.02);
         snowC.rotation.y = yaw + 0.3;
         snowC.material = this.litMat(this.bio.rock.snow); this.facet(snowC);
         snowC.metadata = md; snowC.parent = this.root; decor.push(snowC);
-        const sub = MeshBuilder.CreateCylinder("pk", { diameterTop: 0.04, diameterBottom: 0.28, height: 0.42, tessellation: 5 }, this.scene);
-        sub.position = new Vector3(t.x - c + 0.24, top + 0.3, t.y - c - 0.16);
+        const sub = MeshBuilder.CreateCylinder("pk", { diameterTop: broad ? 0.1 : 0.04, diameterBottom: broad ? 0.34 : 0.28, height: broad ? 0.34 : 0.42, tessellation: 5 }, this.scene);
+        sub.position = new Vector3(t.x - c + 0.24, top + (broad ? 0.29 : 0.3), t.y - c - 0.16);
         sub.rotation.y = yaw - 0.6;
         sub.material = this.litMat(this.bio.rock.shadow); this.facet(sub);
         sub.metadata = md; sub.parent = this.root; decor.push(sub);
-        const subSnow = MeshBuilder.CreateCylinder("snow", { diameterTop: 0, diameterBottom: 0.1, height: 0.11, tessellation: 5 }, this.scene);
-        subSnow.position = new Vector3(t.x - c + 0.24, top + 0.53, t.y - c - 0.16);
+        const subSnow = MeshBuilder.CreateCylinder("snow", { diameterTop: broad ? 0.04 : 0, diameterBottom: broad ? 0.12 : 0.1, height: broad ? 0.09 : 0.11, tessellation: 5 }, this.scene);
+        subSnow.position = new Vector3(t.x - c + 0.24, top + (broad ? 0.485 : 0.53), t.y - c - 0.16);
         subSnow.material = this.litMat(this.bio.rock.snow); this.facet(subSnow);
         subSnow.metadata = md; subSnow.parent = this.root; decor.push(subSnow);
       } else {
         // Squatter and broader than it used to be. A tall thin cone reads as a
         // party hat and, repeated across a range, as visual noise; mass low and
         // wide is what makes a mountain look heavy rather than pointy.
-        const rock = MeshBuilder.CreateCylinder("pk", { diameterTop: 0.12, diameterBottom: 0.64, height: 0.38, tessellation: 6 }, this.scene);
-        rock.position = new Vector3(t.x - c, top + 0.29, t.y - c);
+        const rock = MeshBuilder.CreateCylinder("pk", { diameterTop: broad ? 0.2 : 0.12, diameterBottom: broad ? 0.72 : 0.64, height: broad ? 0.32 : 0.38, tessellation: 6 }, this.scene);
+        rock.position = new Vector3(t.x - c, top + (broad ? 0.27 : 0.29), t.y - c);
         rock.rotation.y = yaw + 0.3;
         rock.material = this.litMat(this.bio.rock.body); this.facet(rock);
         rock.metadata = md; rock.parent = this.root; decor.push(rock);
         // The cap is a hint of snow on a summit, not a hat. Big white cones pull
         // the eye away from the units, which are what the player is reading.
-        const snow = MeshBuilder.CreateCylinder("snow", { diameterTop: 0, diameterBottom: 0.17, height: 0.14, tessellation: 6 }, this.scene);
-        snow.position = new Vector3(t.x - c, top + 0.52, t.y - c);
+        const snow = MeshBuilder.CreateCylinder("snow", { diameterTop: broad ? 0.06 : 0, diameterBottom: broad ? 0.2 : 0.17, height: broad ? 0.11 : 0.14, tessellation: 6 }, this.scene);
+        snow.position = new Vector3(t.x - c, top + (broad ? 0.46 : 0.52), t.y - c);
         snow.rotation.y = rock.rotation.y;
         snow.material = this.litMat(this.bio.rock.snow); this.facet(snow);
         snow.metadata = md; snow.parent = this.root; decor.push(snow);

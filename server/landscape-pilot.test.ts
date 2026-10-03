@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coastBandLocalY, coastPilotEnabled, forestTreeCount, forestUnderbrushLimit, landscapeVariantEnabled, type LandscapeVariant } from "../client/src/game/render/landscapePilot";
+import { broadMountainSilhouette, coastBandLocalY, coastPilotEnabled, forestTreeCount, forestUnderbrushLimit, landscapeVariantEnabled, type LandscapeVariant } from "../client/src/game/render/landscapePilot";
 describe("review-only coastal landscape pilot", () => {
   it("requires a development build, a devgame and an exact opt-in slug", () => {
     const optedIn = "?devgame=6104,11,4,archipelago&landscape-pilot=coast-v1";
@@ -51,5 +51,12 @@ describe("review-only coastal landscape pilot", () => {
     expect(forestUnderbrushLimit(false, false)).toBe(7);
     expect(forestUnderbrushLimit(true, true)).toBe(3);
     expect(forestUnderbrushLimit(false, true)).toBe(11);
+  });
+
+  it("keeps original mountain geometry unflagged and varies only a deterministic subset in review", () => {
+    for (let seed = 0; seed < 7; seed++) {
+      expect(broadMountainSilhouette(seed, false)).toBe(false);
+      expect(broadMountainSilhouette(seed, true)).toBe(seed % 3 !== 0);
+    }
   });
 });

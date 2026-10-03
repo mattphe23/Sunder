@@ -25,6 +25,11 @@ export function forestUnderbrushLimit(nearSettlement: boolean, review: boolean):
   return review ? (nearSettlement ? 3 : 11) : 7;
 }
 
+/** Break up repetitive tall peaks without adding meshes or changing tile height. */
+export function broadMountainSilhouette(seed: number, review: boolean): boolean {
+  return review && seed % 3 !== 0;
+}
+
 /**
  * The terrain body is centred below the logical land cap by half its full
  * height (land slab plus skirt). Convert a world-space waterline offset into
