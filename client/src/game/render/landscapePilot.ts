@@ -1,11 +1,17 @@
-/**
- * A visual-only coastline experiment. It cannot activate in ordinary gameplay
- * or a production build, and it never changes Tile terrain or movement rules.
- */
-export function coastPilotEnabled(search: string, dev: boolean): boolean {
+/** Visual-only, independently comparable landscape variants. */
+export type LandscapeVariant = "coast-v1" | "fog-v1" | "vegetation-v1" | "mountain-v1";
+
+/** Requires a dev build AND an explicit devgame; never alters a normal match. */
+export function landscapeVariantEnabled(search: string, dev: boolean, variant: LandscapeVariant): boolean {
   if (!dev) return false;
   const query = new URLSearchParams(search);
-  return query.has("devgame") && query.get("landscape-pilot") === "coast-v1";
+  if (!query.has("devgame")) return false;
+  const selected = query.get("landscape-pilot");
+  return selected === variant || selected === "review-v2";
+}
+
+export function coastPilotEnabled(search: string, dev: boolean): boolean {
+  return landscapeVariantEnabled(search, dev, "coast-v1");
 }
 
 /**

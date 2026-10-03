@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coastBandLocalY, coastPilotEnabled } from "../client/src/game/render/landscapePilot";
-
+import { coastBandLocalY, coastPilotEnabled, landscapeVariantEnabled, type LandscapeVariant } from "../client/src/game/render/landscapePilot";
 describe("review-only coastal landscape pilot", () => {
   it("requires a development build, a devgame and an exact opt-in slug", () => {
     const optedIn = "?devgame=6104,11,4,archipelago&landscape-pilot=coast-v1";
@@ -21,5 +20,20 @@ describe("review-only coastal landscape pilot", () => {
     expect(rimWorldY - seaSurface).toBeCloseTo(0.035);
     expect(sandWorldY - seaSurface).toBeCloseTo(-0.063);
     expect(rimWorldY).toBeLessThan(land - 0.4);
+  });
+
+  it("isolates fog, vegetation, mountain and coast, and gates the combined review", () => {
+    const variants: LandscapeVariant[] = ["coast-v1", "fog-v1", "vegetation-v1", "mountain-v1"];
+    for (const selected of variants) {
+      const flagged = `?devgame=6104,11,4,highlands&landscape-pilot=${selected}`;
+      for (const variant of variants) {
+        expect(landscapeVariantEnabled(flagged, true, variant)).toBe(variant === selected);
+        expect(landscapeVariantEnabled(flagged, false, variant)).toBe(false);
+        expect(landscapeVariantEnabled(`?landscape-pilot=${selected}`, true, variant)).toBe(false);
+        expect(landscapeVariantEnabled("?devgame=6104,11,4,highlands", true, variant)).toBe(false);
+        expect(landscapeVariantEnabled("?devgame=6104,11,4,highlands&landscape-pilot=unknown", true, variant)).toBe(false);
+        expect(landscapeVariantEnabled("?devgame=6104,11,4,highlands&landscape-pilot=review-v2", true, variant)).toBe(true);
+      }
+    }
   });
 });

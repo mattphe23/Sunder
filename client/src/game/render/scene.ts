@@ -81,7 +81,7 @@ import { game } from "../core/state";
 import { reachableTiles, attackableUnits, cityAt, isVisibleTo, plannerSites, tradeRouteTiles, raidedRoadTiles, unitHasActions } from "../core/rules";
 import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import { PALETTE, darken, lighten, biomeFor, BiomePalette } from "./palette";
-import { coastBandLocalY, coastPilotEnabled } from "./landscapePilot";
+import { coastBandLocalY, coastPilotEnabled, landscapeVariantEnabled } from "./landscapePilot";
 
 const TILE = 1.02;
 // Mountain sits FLUSH with the other land tiles rather than on a raised plate.
@@ -191,6 +191,8 @@ export class BoardRenderer {
     );
   private readonly coastPilotPreview =
     typeof window !== "undefined" && coastPilotEnabled(window.location.search, import.meta.env.DEV);
+  private readonly fogPilotPreview =
+    typeof window !== "undefined" && landscapeVariantEnabled(window.location.search, import.meta.env.DEV, "fog-v1");
   private waterMats: StandardMaterial[] = [];
   private shimmerT = 0;
   /** sea life + surface motion: bobbing fish, drifting glints, cloud puffs */
@@ -970,7 +972,10 @@ export class BoardRenderer {
     // draw calls on an opening board.
     const tops: Mesh[] = [];
     const bellies: Mesh[] = [];
-    for (const [ox, oz, r, lift] of puffs) {
+    // Review only: keep the fully opaque pick slab and exactly the same
+    // explored/visible logic, but reduce the bright cloud bank's visual mass.
+    for (const [ox, oz, originalRadius, lift] of this.fogPilotPreview ? puffs.slice(0, 3) : puffs) {
+      const r = originalRadius * (this.fogPilotPreview ? 0.87 : 1);
       const puff = MeshBuilder.CreateIcoSphere("cloud", { radius: r, subdivisions: 2 }, this.scene);
       puff.position = new Vector3(t.x - c + ox, -0.2 + r * 0.4 + lift, t.y - c + oz);
       puff.scaling.y = 0.58;
@@ -980,11 +985,14 @@ export class BoardRenderer {
       belly.scaling.y = 0.42;
       bellies.push(belly);
     }
-    const bank: [Mesh[], string][] = [[tops, this.bio.cloud], [bellies, this.bio.cloudShade]];
+    const bank: [Mesh[], string][] = [
+      [tops, this.fogPilotPreview ? darken(this.bio.cloud, 0.84) : this.bio.cloud],
+      [bellies, this.fogPilotPreview ? darken(this.bio.cloudShade, 0.91) : this.bio.cloudShade],
+    ];
     for (const [group, hex] of bank) {
       const merged = Mesh.MergeMeshes(group, true, true);
       if (!merged) continue;
-      merged.name = "cloud";
+      merged.name = this.fogPilotPreview ? "fogPilot-cloud" : "cloud";
       merged.material = this.mat(hex);
       merged.metadata = { tile: true, x: t.x, y: t.y };
       merged.parent = this.root;
