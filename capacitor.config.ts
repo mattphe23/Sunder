@@ -14,7 +14,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
  *   npx cap open ios      -> Xcode (needed to archive; cannot be done headless)
  */
 const config: CapacitorConfig = {
-  appId: "com.sunder.livingforge",
+  appId: "com.islandroadco.sunder",
   appName: "Sunder",
   // vite emits the client into dist/public; the Express bundle beside it is
   // server-only and must not be shipped inside the app

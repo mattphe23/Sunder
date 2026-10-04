@@ -50,9 +50,12 @@ distribution certificate with `openssl` rather than Keychain Access.
 
 ## Before submitting
 
-- [ ] Set the team and bundle identifier in Xcode (`com.sunder.livingforge` is a
-      placeholder until the real one is registered).
-- [ ] Bump `CFBundleShortVersionString` / `CFBundleVersion`.
+- [ ] Register the selected **`com.islandroadco.sunder`** as an explicit Apple
+      App ID and create its matching App Store Connect record and distribution
+      profile. Capacitor and both Xcode targets already use this identifier;
+      the team is supplied from the private `APPLE_TEAM_ID` CI secret.
+- [ ] Confirm the marketing version for upload; CI assigns a monotonically
+      increasing build number using its workflow run number.
 - [ ] Run on a device with a notch and one without. The layout is verified at
       393×852 with simulated insets, which is not the same as the real thing.
 - [ ] Check the launch → first frame transition for a flash. If one appears, it

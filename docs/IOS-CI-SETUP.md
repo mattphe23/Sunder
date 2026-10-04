@@ -51,20 +51,21 @@ string such as `A1B2C3D4E5`. That becomes the `APPLE_TEAM_ID` secret.
 
 ## Step 2 — Decide the bundle identifier
 
-The project currently carries the placeholder `com.sunder.livingforge`. A bundle
-id is permanent once an app exists in App Store Connect, so choose deliberately.
-Convention is reverse-DNS on a domain you control, for example
-`com.yourcompany.sunder`.
+The owner selected **`com.islandroadco.sunder`**, based on a domain the
+organization controls. Both `capacitor.config.ts` and the Xcode Debug/Release
+targets already declare this exact identifier. Do not register the former
+placeholder or invent a different suffix: the Apple App ID, app record and
+distribution profile must all match `com.islandroadco.sunder`.
 
 Register it at
 [Certificates, Identifiers & Profiles → Identifiers](https://developer.apple.com/account/resources/identifiers/list)
-→ **+** → App IDs → App. Give it a description, paste the bundle id, and leave
-every capability switched off — Sunder needs none of them, and each one you add
-becomes a question on the privacy form later.
+→ **+** → App IDs → App. Give it a description and register an **explicit**
+App ID with bundle ID `com.islandroadco.sunder`. Do not enable extra optional
+capabilities solely for the smoke build; use only capabilities the app needs.
 
-> The workflow reads the real bundle id out of the provisioning profile at build
-> time, so you never have to edit the Xcode project to match. Registering a
-> different id than the placeholder is fine and expected.
+> The workflow reads the bundle ID from the provisioning profile at build time.
+> Because the Xcode project is now aligned, creating a profile for a different
+> App ID is an error, not a way to override this choice.
 
 ---
 
@@ -158,9 +159,10 @@ base64 -w0 AuthKey_XXXXXXXXXX.p8 > key.base64
 ## Step 6 — Register the app record
 
 In [App Store Connect → Apps](https://appstoreconnect.apple.com/apps) → **+** →
-**New App**, pick iOS, choose the bundle id from step 2, and set a name and
-primary language. An SKU is an internal string only you see; `sunder-ios` is
-fine.
+**New App**, pick iOS, choose **`com.islandroadco.sunder`** from step 2, and
+set a name and primary language. An SKU is an internal string only you see;
+`sunder-ios` is fine. Apple requires the Account Holder to accept the latest
+agreement before a new app record can be created.
 
 Uploads fail with a confusing "no such app" style error if this record does not
 exist yet, so do not skip it.

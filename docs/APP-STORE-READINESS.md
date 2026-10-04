@@ -82,9 +82,10 @@ dependency you would otherwise discover weeks from now.
 
 ### Register the bundle ID exactly
 
-`com.sunder.livingforge` — from `capacitor.config.ts`. The CI pipeline reads
-the bundle id back out of the provisioning profile, so a mismatch here fails the
-signed build rather than silently producing the wrong app.
+`com.islandroadco.sunder` — selected by the owner and aligned in
+`capacitor.config.ts` and both Xcode configurations. Register an explicit App ID
+and matching App Store Connect record and profile with precisely this string.
+CI reads the bundle ID back out of the profile; a mismatch will fail signing.
 
 ### Then the seven repo secrets
 
