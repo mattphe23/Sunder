@@ -8,6 +8,7 @@ import {
   AUREN_WARRIOR_PILOT,
   CROSS_TRIBE_P2_PILOTS,
   DRAVOK_ARCHER_PILOT,
+  DRAVOK_BORVAK_PILOT,
   DRAVOK_BULWARK_PILOT,
   DRAVOK_DEFENDER_PILOT,
   DRAVOK_RIDER_PILOT,
@@ -292,6 +293,25 @@ describe("imported model pilot registry", () => {
       candidate: DRAVOK_BULWARK_PILOT,
     });
     expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "dravok-defender")?.unitType).toBe("defender");
+  });
+
+  it("keeps Borvak's original GLB budgeted and opt-in for Dravok's true named hero only", () => {
+    expect(passesImportedModelPilotBudget(DRAVOK_BORVAK_PILOT)).toBe(true);
+    expect(DRAVOK_BORVAK_PILOT.decision).toBe("review-candidate");
+    expect(DRAVOK_BORVAK_PILOT.assetId).toBe("asset_Lh5XQ5X1KNGj34FdLLYxiSZW");
+    expect(DRAVOK_BORVAK_PILOT.modelUrl).toBe("/manus-storage/dravok-borvak-tripo-p2-v1_039d22a8.glb");
+    expect(DRAVOK_BORVAK_PILOT.vertices).toBe(6_862);
+    expect(DRAVOK_BORVAK_PILOT.triangles).toBe(4_587);
+    expect(DRAVOK_BORVAK_PILOT.runtimePrimitives).toBe(1);
+    expect(DRAVOK_BORVAK_PILOT.sourceBytes).toBe(3_509_108);
+    expect(DRAVOK_BORVAK_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "dravok-borvak")).toMatchObject({
+      tribeIndex: 5,
+      unitType: "hero",
+      candidate: DRAVOK_BORVAK_PILOT,
+    });
+    expect(CROSS_TRIBE_P2_PILOTS.filter(p => p.tribeIndex === 5 && p.unitType === "hero")).toHaveLength(1);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "dravok-bulwark")?.unitType).toBe("bulwark");
   });
 
   it("keeps Vessari Warrior's first-pass GLB opt-in and within the mobile budget", () => {
