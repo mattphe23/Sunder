@@ -81,7 +81,7 @@ import { game } from "../core/state";
 import { reachableTiles, attackableUnits, cityAt, isVisibleTo, plannerSites, tradeRouteTiles, raidedRoadTiles, unitHasActions } from "../core/rules";
 import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import { PALETTE, darken, lighten, biomeFor, BiomePalette } from "./palette";
-import { broadMountainSilhouette, coastBandLocalY, coastPilotEnabled, forestTreeCount, forestUnderbrushLimit, landscapeVariantEnabled } from "./landscapePilot";
+import { broadMountainSilhouette, coastBandLocalY, coastPilotEnabled, forestTreeCount, forestUnderbrushLimit, landscapeVariantEnabled, terrainRegionLinked, worldGroundFacets, worldRegionTone } from "./landscapePilot";
 
 const TILE = 1.02;
 // Mountain sits FLUSH with the other land tiles rather than on a raised plate.
@@ -197,6 +197,8 @@ export class BoardRenderer {
     typeof window !== "undefined" && landscapeVariantEnabled(window.location.search, import.meta.env.DEV, "vegetation-v1");
   private readonly mountainPilotPreview =
     typeof window !== "undefined" && landscapeVariantEnabled(window.location.search, import.meta.env.DEV, "mountain-v1");
+  private readonly worldPilotPreview =
+    typeof window !== "undefined" && landscapeVariantEnabled(window.location.search, import.meta.env.DEV, "world-v3");
   private waterMats: StandardMaterial[] = [];
   private shimmerT = 0;
   /** sea life + surface motion: bobbing fish, drifting glints, cloud puffs */
@@ -980,9 +982,13 @@ export class BoardRenderer {
     // explored/visible logic, but reduce the bright cloud bank's visual mass.
     for (const [ox, oz, originalRadius, lift] of this.fogPilotPreview ? puffs.slice(0, 3) : puffs) {
       const r = originalRadius * (this.fogPilotPreview ? 0.87 : 1);
-      const puff = MeshBuilder.CreateIcoSphere("cloud", { radius: r, subdivisions: 2 }, this.scene);
+      // Sunder's own faceted ash-mist shape for the complete world study. The
+      // material/opaque slab and visibility behavior remain unchanged.
+      const puff = this.worldPilotPreview
+        ? MeshBuilder.CreateCylinder("cloud", { diameterTop: r * 1.65, diameterBottom: r * 1.9, height: r * 0.58, tessellation: 6 }, this.scene)
+        : MeshBuilder.CreateIcoSphere("cloud", { radius: r, subdivisions: 2 }, this.scene);
       puff.position = new Vector3(t.x - c + ox, -0.2 + r * 0.4 + lift, t.y - c + oz);
-      puff.scaling.y = 0.58;
+      puff.scaling.y = this.worldPilotPreview ? 0.72 : 0.58;
       tops.push(puff);
       const belly = MeshBuilder.CreateIcoSphere("cloud", { radius: r * 0.92, subdivisions: 1 }, this.scene);
       belly.position = new Vector3(puff.position.x, puff.position.y - r * 0.2, puff.position.z);
@@ -1050,7 +1056,9 @@ export class BoardRenderer {
         // A narrow shallow-water shelf belongs to the WATER tile, not to the
         // cliff: it makes the coast continuous without a texture or a new GLB.
         // Never reveal an unexplored or currently hidden land neighbour.
-        const shelfHex = deep ? this.bio.terrain.water.top : lighten(this.bio.terrain.water.top, 0.25);
+        const shelfHex = this.worldPilotPreview
+          ? (deep ? darken(this.bio.terrain.water.top, 0.93) : lighten(this.bio.terrain.water.top, 0.12))
+          : (deep ? this.bio.terrain.water.top : lighten(this.bio.terrain.water.top, 0.25));
         for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
           const nx = t.x + dx, ny = t.y + dy;
           if (nx < 0 || ny < 0 || nx >= s.size || ny >= s.size) continue;
@@ -1058,8 +1066,8 @@ export class BoardRenderer {
           if (nb.terrain === "water" || nb.terrain === "ocean" ||
               !nb.explored[s.humanTribe] || !isVisibleTo(s, s.humanTribe, nx, ny)) continue;
           const shelf = MeshBuilder.CreateBox("coastPilot-shelf", {
-            width: dx !== 0 ? 0.20 : TILE * 0.96,
-            depth: dy !== 0 ? 0.20 : TILE * 0.96,
+            width: dx !== 0 ? (this.worldPilotPreview ? 0.16 : 0.20) : TILE * 0.96,
+            depth: dy !== 0 ? (this.worldPilotPreview ? 0.16 : 0.20) : TILE * 0.96,
             height: 0.016,
           }, this.scene);
           shelf.position = new Vector3(dx * 0.41, h / 2 + 0.016, dy * 0.41);
@@ -1070,15 +1078,20 @@ export class BoardRenderer {
       }
     } else {
       // land: top plate carries the palette top step, slab body the darker side step
-      const topHex = this.tileColor(s, t);
+      let topHex = this.tileColor(s, t);
+      const tone = worldRegionTone(t.x, t.y, t.terrain, visible, this.worldPilotPreview);
+      if (tone < 0) topHex = darken(topHex, 1 + tone);
+      else if (tone > 0) topHex = lighten(topHex, tone);
       const swatch = this.bio.terrain[t.terrain];
       // owned-border tint shifts the top; derive the side from the tinted top
       const sideHex = topHex === swatch?.top && swatch ? swatch.side : darken(topHex);
       box = this.buildSlab("t" + key, t.x - c, t.y - c, h, topHex, sideHex, fogged);
       // shallow-water shore band: pale trim on land edges that touch water
-      const shoreMat = fogged ? this.foggedMat(this.bio.shore) : this.mat(this.bio.shore);
+      const shoreHex = this.worldPilotPreview && !fogged ? darken(this.bio.shore, 0.78) : this.bio.shore;
+      const shoreMat = fogged ? this.foggedMat(this.bio.shore) : this.mat(shoreHex);
       // v34 coastal variation: sandy band + stepped rock ledge on cliff faces
-      const sandMat = fogged ? this.foggedMat(this.bio.sand) : this.mat(this.bio.sand);
+      const sandHex = this.worldPilotPreview && !fogged ? darken(this.bio.sand, 0.88) : this.bio.sand;
+      const sandMat = fogged ? this.foggedMat(this.bio.sand) : this.mat(sandHex);
       const ledgeHex = darken(this.bio.soil, 0.78);
       const ledgeMat = fogged ? this.foggedMat(ledgeHex) : this.mat(ledgeHex);
       const dirs: [number, number, number][] = [[1, 0, 0], [-1, 0, Math.PI], [0, 1, Math.PI / 2], [0, -1, -Math.PI / 2]];
@@ -1142,6 +1155,28 @@ export class BoardRenderer {
         }
       }
 
+      // Two-sided links are NOT a new terrain type: narrow, non-pickable
+      // ground-color connectors make visible forest/ridge cells read as one
+      // patch. Never bridge hidden cells, borders, roads, or water.
+      if (this.worldPilotPreview && !fogged && !t.road && t.cityId === null && !t.building) {
+        for (const [dx, dy] of [[1, 0], [0, 1]] as const) {
+          const nx = t.x + dx, ny = t.y + dy;
+          if (nx >= s.size || ny >= s.size) continue;
+          const neighbor = s.tiles[idx(nx, ny, s.size)];
+          if (!terrainRegionLinked(t.terrain, neighbor.terrain,
+              neighbor.explored[s.humanTribe] && isVisibleTo(s, s.humanTribe, nx, ny), true) ||
+              neighbor.road || neighbor.cityId !== null || neighbor.building ||
+              this.ownerTribeOf(s, t) !== this.ownerTribeOf(s, neighbor)) continue;
+          const link = MeshBuilder.CreateBox("worldPilot-region-link", {
+            width: dx ? 0.105 : 0.32, depth: dy ? 0.105 : 0.32, height: 0.012,
+          }, this.scene);
+          link.position = new Vector3(dx * 0.5, (h + LAND_SKIRT) / 2 + 0.022, dy * 0.5);
+          link.material = this.mat(darken(this.bio.terrain[t.terrain].top, 0.93));
+          link.isPickable = false;
+          link.parent = box;
+        }
+      }
+
       // ---- territory border ------------------------------------------------
       // Ownership is drawn as an edge on the tile cap, not as a wash through
       // the fill. An edge carries FULL faction saturation over a small area, so
@@ -1201,6 +1236,19 @@ export class BoardRenderer {
 
     const decor: Mesh[] = [];
     const top = h - 0.4;
+    const plainGrass = t.terrain === "grass" && !t.resource && !t.building && !t.road &&
+      !t.ruin && !t.greatRuin && t.cityId === null;
+    for (const [fx, fz] of worldGroundFacets(t.x, t.y, plainGrass && visible, this.worldPilotPreview)) {
+      const patch = MeshBuilder.CreateCylinder("worldPilot-ground", {
+        diameterTop: 0.3, diameterBottom: 0.3, height: 0.008, tessellation: 5,
+      }, this.scene);
+      patch.position = new Vector3(t.x - c + fx, top + 0.021, t.y - c + fz);
+      patch.rotation.y = (t.x * 11 + t.y * 7) * 0.37;
+      patch.material = this.mat(darken(this.tileColor(s, t), 0.92));
+      patch.metadata = { tile: true, x: t.x, y: t.y };
+      patch.parent = this.root;
+      decor.push(patch);
+    }
     if (t.road) {
       // v38 roads: sandy paving — a center disc plus strips reaching toward each
       // 4-adjacent road tile or friendly-city tile, so paths read as connected
@@ -1319,6 +1367,20 @@ export class BoardRenderer {
             cone.material = this.litMat(k === 0 ? leafHex : k === 1 ? this.bio.tree.canopyB : this.bio.tree.canopyLight); this.facet(cone);
             cone.metadata = md; cone.parent = this.root; decor.push(cone);
           }
+        }
+      }
+      if (this.worldPilotPreview && visible) {
+        // A quiet second scale of five-sided foliage creates a GROVE surface
+        // under the existing biome-specific trees; the central unit lane is
+        // still open, unlike adding more full-height palms or pines.
+        for (const [i, ox, oz] of [[0, -0.31, 0.25], [1, 0.27, 0.27], [2, 0.23, -0.29]] as const) {
+          const leaf = MeshBuilder.CreateCylinder("worldPilot-grove", {
+            diameterTop: 0.12, diameterBottom: 0.19, height: 0.085, tessellation: 5,
+          }, this.scene);
+          leaf.position = new Vector3(t.x - c + ox, top + 0.047, t.y - c + oz);
+          leaf.rotation.y = (t.x * 5 + t.y * 3 + i) * 0.6;
+          leaf.material = this.mat(i === 1 ? this.bio.tree.canopyB : darken(this.bio.tree.canopyA, 0.83));
+          leaf.metadata = md; leaf.parent = this.root; decor.push(leaf);
         }
       }
       // v58 density: forest-floor underbrush between the trunks (~35% of

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { broadMountainSilhouette, coastBandLocalY, coastPilotEnabled, forestTreeCount, forestUnderbrushLimit, landscapeVariantEnabled, type LandscapeVariant } from "../client/src/game/render/landscapePilot";
+import { broadMountainSilhouette, coastBandLocalY, coastPilotEnabled, forestTreeCount, forestUnderbrushLimit, landscapeVariantEnabled, terrainRegionLinked, worldGroundFacets, worldRegionTone, type LandscapeVariant } from "../client/src/game/render/landscapePilot";
 describe("review-only coastal landscape pilot", () => {
   it("requires a development build, a devgame and an exact opt-in slug", () => {
     const optedIn = "?devgame=6104,11,4,archipelago&landscape-pilot=coast-v1";
@@ -58,5 +58,52 @@ describe("review-only coastal landscape pilot", () => {
       expect(broadMountainSilhouette(seed, false)).toBe(false);
       expect(broadMountainSilhouette(seed, true)).toBe(seed % 3 !== 0);
     }
+  });
+
+  it("requires an exact world-v3 devgame flag and keeps previous pilots independent", () => {
+    const world = "?devgame=6104,11,4,archipelago&landscape-pilot=world-v3";
+    expect(landscapeVariantEnabled(world, true, "world-v3")).toBe(true);
+    expect(coastPilotEnabled(world, true)).toBe(true);
+    expect(landscapeVariantEnabled(world, true, "fog-v1")).toBe(true);
+    expect(landscapeVariantEnabled(world, true, "vegetation-v1")).toBe(true);
+    expect(landscapeVariantEnabled(world, true, "mountain-v1")).toBe(true);
+    expect(landscapeVariantEnabled(world, false, "world-v3")).toBe(false);
+    expect(landscapeVariantEnabled("?landscape-pilot=world-v3", true, "world-v3")).toBe(false);
+    expect(landscapeVariantEnabled("?devgame=6104,11,4,archipelago", true, "world-v3")).toBe(false);
+    expect(landscapeVariantEnabled("?devgame=6104,11,4,archipelago&landscape-pilot=review-v2", true, "world-v3")).toBe(false);
+  });
+
+  it("links only revealed same-biome land and seeds patches only on empty reviewed grass", () => {
+    for (const kind of ["forest", "mountain"]) {
+      expect(terrainRegionLinked(kind, kind, true, true)).toBe(true);
+      expect(terrainRegionLinked(kind, kind, false, true)).toBe(false);
+      expect(terrainRegionLinked(kind, kind, true, false)).toBe(false);
+      expect(terrainRegionLinked(kind, "water", true, true)).toBe(false);
+    }
+    expect(terrainRegionLinked("grass", "grass", true, true)).toBe(false);
+    expect(worldGroundFacets(8, 7, false, true)).toEqual([]);
+    expect(worldGroundFacets(8, 7, true, false)).toEqual([]);
+    const patches = worldGroundFacets(8, 7, true, true);
+    expect(patches).toEqual(worldGroundFacets(8, 7, true, true));
+    expect(patches).toHaveLength(2);
+    for (const [x, y] of patches) {
+      expect(Math.abs(x)).toBeLessThan(0.35);
+      expect(Math.abs(y)).toBeLessThan(0.35);
+    }
+  });
+
+  it("uses broad subdued land value steps without changing water or fogged tiles", () => {
+    const steps = new Set<number>();
+    for (let x = 0; x < 11; x++) for (let y = 0; y < 11; y++) {
+      const value = worldRegionTone(x, y, "grass", true, true);
+      steps.add(value);
+      expect(worldRegionTone(x, y, "grass", true, true)).toBe(value);
+      expect(worldRegionTone(x, y, "forest", true, true)).toBe(value);
+      expect(worldRegionTone(x, y, "water", true, true)).toBe(0);
+      expect(worldRegionTone(x, y, "mountain", true, true)).toBe(0);
+      expect(worldRegionTone(x, y, "grass", false, true)).toBe(0);
+      expect(worldRegionTone(x, y, "grass", true, false)).toBe(0);
+    }
+    expect(steps).toEqual(new Set([-0.07, 0.055, 0]));
   });
 });
