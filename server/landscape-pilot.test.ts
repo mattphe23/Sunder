@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { broadMountainSilhouette, coastBandLocalY, coastPilotEnabled, forestTreeCount, forestUnderbrushLimit, landscapeVariantEnabled, terrainRegionLinked, worldGroundFacets, worldRegionTone, type LandscapeVariant } from "../client/src/game/render/landscapePilot";
+import { ashMistPuffs, broadMountainSilhouette, coastBandLocalY, coastPilotEnabled, forestTreeCount, forestUnderbrushLimit, landscapeVariantEnabled, worldGroundFacets, worldRegionTone, worldSurfaceSpan, type LandscapeVariant } from "../client/src/game/render/landscapePilot";
 describe("review-only coastal landscape pilot", () => {
   it("requires a development build, a devgame and an exact opt-in slug", () => {
     const optedIn = "?devgame=6104,11,4,archipelago&landscape-pilot=coast-v1";
@@ -73,14 +73,15 @@ describe("review-only coastal landscape pilot", () => {
     expect(landscapeVariantEnabled("?devgame=6104,11,4,archipelago&landscape-pilot=review-v2", true, "world-v3")).toBe(false);
   });
 
-  it("links only revealed same-biome land and seeds patches only on empty reviewed grass", () => {
-    for (const kind of ["forest", "mountain"]) {
-      expect(terrainRegionLinked(kind, kind, true, true)).toBe(true);
-      expect(terrainRegionLinked(kind, kind, false, true)).toBe(false);
-      expect(terrainRegionLinked(kind, kind, true, false)).toBe(false);
-      expect(terrainRegionLinked(kind, "water", true, true)).toBe(false);
+  it("closes only the visible world-v3 cap, turf and water gaps at cell boundaries", () => {
+    for (const original of [1.02 * 0.96, 1.02 * 0.962, 1.02 * 0.965]) {
+      expect(worldSurfaceSpan(original, true, true)).toBe(1);
+      expect(worldSurfaceSpan(original, false, true)).toBe(original);
+      expect(worldSurfaceSpan(original, true, false)).toBe(original);
     }
-    expect(terrainRegionLinked("grass", "grass", true, true)).toBe(false);
+  });
+
+  it("seeds patches only on empty reviewed grass", () => {
     expect(worldGroundFacets(8, 7, false, true)).toEqual([]);
     expect(worldGroundFacets(8, 7, true, false)).toEqual([]);
     const patches = worldGroundFacets(8, 7, true, true);
@@ -90,6 +91,49 @@ describe("review-only coastal landscape pilot", () => {
       expect(Math.abs(x)).toBeLessThan(0.35);
       expect(Math.abs(y)).toBeLessThan(0.35);
     }
+  });
+
+  it("replaces short-cycle mist repetition with bounded seed-stable irregular profiles", () => {
+    const signatures = new Set<string>();
+    const counts = new Set<number>();
+    for (let x = 0; x < 11; x++) for (let y = 0; y < 11; y++) {
+      const puffs = ashMistPuffs(x, y, 6104);
+      expect(puffs).toEqual(ashMistPuffs(x, y, 6104));
+      counts.add(puffs.length);
+      signatures.add(JSON.stringify(puffs));
+      expect(puffs.length).toBeGreaterThanOrEqual(2);
+      expect(puffs.length).toBeLessThanOrEqual(4);
+      for (const puff of puffs) {
+        expect(Math.abs(puff.x)).toBeLessThan(0.111);
+        expect(Math.abs(puff.z)).toBeLessThan(0.111);
+        expect(puff.radius).toBeGreaterThanOrEqual(0.23);
+        expect(puff.radius).toBeLessThan(0.45);
+        expect(puff.stretchX).toBeGreaterThanOrEqual(0.84);
+        expect(puff.stretchZ).toBeLessThan(1.14);
+      }
+    }
+    expect(counts).toEqual(new Set([2, 3, 4]));
+    expect(signatures.size).toBeGreaterThan(110);
+    expect(ashMistPuffs(8, 7, 6104)).not.toEqual(ashMistPuffs(8, 7, 6105));
+  });
+
+  it("uses sparse broad banks only deep within fog while its visible frontier keeps cloud cover", () => {
+    let emptyInteriors = 0;
+    let occupiedInteriors = 0;
+    for (let x = 1; x < 12; x++) for (let y = 1; y < 12; y++) {
+      const interior = ashMistPuffs(x, y, 6104, true);
+      expect(interior).toEqual(ashMistPuffs(x, y, 6104, true));
+      expect(ashMistPuffs(x, y, 6104, false).length).toBeGreaterThanOrEqual(2);
+      expect(interior.length).toBeLessThanOrEqual(2);
+      if (!interior.length) emptyInteriors++;
+      else {
+        occupiedInteriors++;
+        expect(interior[0].radius).toBeGreaterThanOrEqual(0.53);
+        expect(interior[0].radius).toBeLessThan(0.73);
+      }
+    }
+    expect(emptyInteriors).toBeGreaterThan(25);
+    expect(occupiedInteriors).toBeGreaterThan(35);
   });
 
   it("uses broad subdued land value steps without changing water or fogged tiles", () => {

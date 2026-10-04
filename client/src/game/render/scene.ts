@@ -81,7 +81,7 @@ import { game } from "../core/state";
 import { reachableTiles, attackableUnits, cityAt, isVisibleTo, plannerSites, tradeRouteTiles, raidedRoadTiles, unitHasActions } from "../core/rules";
 import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import { PALETTE, darken, lighten, biomeFor, BiomePalette } from "./palette";
-import { broadMountainSilhouette, coastBandLocalY, coastPilotEnabled, forestTreeCount, forestUnderbrushLimit, landscapeVariantEnabled, terrainRegionLinked, worldGroundFacets, worldRegionTone } from "./landscapePilot";
+import { ashMistPuffs, broadMountainSilhouette, coastBandLocalY, coastPilotEnabled, forestTreeCount, forestUnderbrushLimit, landscapeVariantEnabled, worldGroundFacets, worldRegionTone, worldSurfaceSpan } from "./landscapePilot";
 
 const TILE = 1.02;
 // Mountain sits FLUSH with the other land tiles rather than on a raised plate.
@@ -598,16 +598,19 @@ export class BoardRenderer {
     // makes the board read as a slab of world floating in the void rather
     // than a green plate.
     const soilMat = fogged ? this.foggedMat(this.bio.soil) : this.terrainMat(this.bio.soil);
-    const body = MeshBuilder.CreateBox(name, { width: TILE * 0.96, depth: TILE * 0.96, height: bodyH }, this.scene);
+    const bodySpan = worldSurfaceSpan(TILE * 0.96, !fogged, this.worldPilotPreview);
+    const body = MeshBuilder.CreateBox(name, { width: bodySpan, depth: bodySpan, height: bodyH }, this.scene);
     // top face must stay at the original y (= h - 0.4), so center sits lower
     body.position = new Vector3(x, h - 0.4 - bodyH / 2, z);
     body.material = soilMat;
     const turfH = 0.13;
-    const turf = MeshBuilder.CreateBox(name + "-turf", { width: TILE * 0.962, depth: TILE * 0.962, height: turfH }, this.scene);
+    const turfSpan = worldSurfaceSpan(TILE * 0.962, !fogged, this.worldPilotPreview);
+    const turf = MeshBuilder.CreateBox(name + "-turf", { width: turfSpan, depth: turfSpan, height: turfH }, this.scene);
     turf.position = new Vector3(0, bodyH / 2 - turfH / 2, 0);
     turf.material = sideMat;
     turf.parent = body;
-    const cap = MeshBuilder.CreateBox(name + "-cap", { width: TILE * 0.965, depth: TILE * 0.965, height: 0.03 }, this.scene);
+    const capSpan = worldSurfaceSpan(TILE * 0.965, !fogged, this.worldPilotPreview);
+    const cap = MeshBuilder.CreateBox(name + "-cap", { width: capSpan, depth: capSpan, height: 0.03 }, this.scene);
     cap.position = new Vector3(0, bodyH / 2 + 0.001, 0);
     cap.material = topMat;
     cap.parent = body;
@@ -951,7 +954,8 @@ export class BoardRenderer {
     // shaded underside slab: keeps the board footprint legible between puffs
     // and gives clicks a reliable pick target. Sits low and dim so the puffs
     // above it carry the read.
-    const box = MeshBuilder.CreateBox("t" + key, { width: TILE * 0.96, depth: TILE * 0.96, height: 0.1 }, this.scene);
+    const fogSpan = worldSurfaceSpan(TILE * 0.96, true, this.worldPilotPreview);
+    const box = MeshBuilder.CreateBox("t" + key, { width: fogSpan, depth: fogSpan, height: 0.1 }, this.scene);
     box.position = new Vector3(t.x - c, -0.36, t.y - c);
     box.material = this.mat(this.bio.cloudShade);
     box.metadata = { tile: true, x: t.x, y: t.y };
@@ -972,6 +976,13 @@ export class BoardRenderer {
       [(j2 - 0.2) * 0.3, (0.42 - j) * 0.34, 0.22 + j3 * 0.07, 0.03],
       [(j3 - 0.5) * 0.4, (j2 - 0.6) * 0.3, 0.18 + j * 0.05, -0.02],
     ];
+    const deepFog = this.worldPilotPreview &&
+      [-1, 0, 1].every(dx => [-1, 0, 1].every(dy => {
+        const nx = t.x + dx, ny = t.y + dy;
+        return nx >= 0 && nx < s.size && ny >= 0 && ny < s.size &&
+          !s.tiles[idx(nx, ny, s.size)].explored[s.humanTribe];
+      }));
+    const ashPuffs = this.worldPilotPreview ? ashMistPuffs(t.x, t.y, s.seed, deepFog) : null;
     // Fog covers most of the board early, so this is the heaviest thing the
     // renderer draws. Build the puffs, then MERGE them per tile per material:
     // 8 meshes/tile becomes 2, which is the difference between ~750 and ~190
@@ -980,7 +991,12 @@ export class BoardRenderer {
     const bellies: Mesh[] = [];
     // Review only: keep the fully opaque pick slab and exactly the same
     // explored/visible logic, but reduce the bright cloud bank's visual mass.
-    for (const [ox, oz, originalRadius, lift] of this.fogPilotPreview ? puffs.slice(0, 3) : puffs) {
+    const profiles = ashPuffs ?? (this.fogPilotPreview ? puffs.slice(0, 3) : puffs);
+    for (let i = 0; i < profiles.length; i++) {
+      const profile = profiles[i];
+      const [ox, oz, originalRadius, lift] = ashPuffs
+        ? [ashPuffs[i].x, ashPuffs[i].z, ashPuffs[i].radius, ashPuffs[i].lift]
+        : profile as [number, number, number, number];
       const r = originalRadius * (this.fogPilotPreview ? 0.87 : 1);
       // Sunder's own faceted ash-mist shape for the complete world study. The
       // material/opaque slab and visibility behavior remain unchanged.
@@ -989,10 +1005,19 @@ export class BoardRenderer {
         : MeshBuilder.CreateIcoSphere("cloud", { radius: r, subdivisions: 2 }, this.scene);
       puff.position = new Vector3(t.x - c + ox, -0.2 + r * 0.4 + lift, t.y - c + oz);
       puff.scaling.y = this.worldPilotPreview ? 0.72 : 0.58;
+      if (ashPuffs) {
+        puff.scaling.x = ashPuffs[i].stretchX;
+        puff.scaling.z = ashPuffs[i].stretchZ;
+        puff.rotation.y = ashPuffs[i].angle;
+      }
       tops.push(puff);
       const belly = MeshBuilder.CreateIcoSphere("cloud", { radius: r * 0.92, subdivisions: 1 }, this.scene);
       belly.position = new Vector3(puff.position.x, puff.position.y - r * 0.2, puff.position.z);
       belly.scaling.y = 0.42;
+      if (ashPuffs) {
+        belly.scaling.x = ashPuffs[i].stretchX;
+        belly.scaling.z = ashPuffs[i].stretchZ;
+      }
       bellies.push(belly);
     }
     const bank: [Mesh[], string][] = [
@@ -1000,6 +1025,7 @@ export class BoardRenderer {
       [bellies, this.fogPilotPreview ? darken(this.bio.cloudShade, 0.91) : this.bio.cloudShade],
     ];
     for (const [group, hex] of bank) {
+      if (!group.length) continue;
       const merged = Mesh.MergeMeshes(group, true, true);
       if (!merged) continue;
       merged.name = this.fogPilotPreview ? "fogPilot-cloud" : "cloud";
@@ -1009,7 +1035,9 @@ export class BoardRenderer {
       decor.push(merged);
       // Merged geometry is baked around the world origin, so spinning it would
       // swing the whole bank across the board. Vertical drift only.
-      this.seaMotion.push({ m: merged, y0: merged.position.y, amp: 0.024, sp: 0.45 + j * 0.3, ph: (t.x + t.y) * 0.7, spin: 0 });
+      this.seaMotion.push({ m: merged, y0: merged.position.y, amp: 0.024,
+        sp: ashPuffs ? 0.45 + ashPuffs[0].radius * 0.3 : 0.45 + j * 0.3,
+        ph: ashPuffs ? ashPuffs[0].angle : (t.x + t.y) * 0.7, spin: 0 });
     }
     this.decorMeshes.set(key, decor);
   }
@@ -1047,7 +1075,8 @@ export class BoardRenderer {
     if (t.terrain === "water" || t.terrain === "ocean") {
       // water: flat slab, single animated material; side gets its own darker flat
       const deep = t.terrain === "ocean";
-      box = MeshBuilder.CreateBox("t" + key, { width: TILE * 0.96, depth: TILE * 0.96, height: h }, this.scene);
+      const waterSpan = worldSurfaceSpan(TILE * 0.96, !fogged, this.worldPilotPreview);
+      box = MeshBuilder.CreateBox("t" + key, { width: waterSpan, depth: waterSpan, height: h }, this.scene);
       box.position = new Vector3(t.x - c, h / 2 - 0.4, t.y - c);
       box.material = fogged
         ? this.foggedMat(deep ? this.bio.terrain.ocean.top : this.bio.terrain.water.top)
@@ -1066,8 +1095,8 @@ export class BoardRenderer {
           if (nb.terrain === "water" || nb.terrain === "ocean" ||
               !nb.explored[s.humanTribe] || !isVisibleTo(s, s.humanTribe, nx, ny)) continue;
           const shelf = MeshBuilder.CreateBox("coastPilot-shelf", {
-            width: dx !== 0 ? (this.worldPilotPreview ? 0.16 : 0.20) : TILE * 0.96,
-            depth: dy !== 0 ? (this.worldPilotPreview ? 0.16 : 0.20) : TILE * 0.96,
+            width: dx !== 0 ? (this.worldPilotPreview ? 0.16 : 0.20) : waterSpan,
+            depth: dy !== 0 ? (this.worldPilotPreview ? 0.16 : 0.20) : waterSpan,
             height: 0.016,
           }, this.scene);
           shelf.position = new Vector3(dx * 0.41, h / 2 + 0.016, dy * 0.41);
@@ -1155,28 +1184,6 @@ export class BoardRenderer {
         }
       }
 
-      // Two-sided links are NOT a new terrain type: narrow, non-pickable
-      // ground-color connectors make visible forest/ridge cells read as one
-      // patch. Never bridge hidden cells, borders, roads, or water.
-      if (this.worldPilotPreview && !fogged && !t.road && t.cityId === null && !t.building) {
-        for (const [dx, dy] of [[1, 0], [0, 1]] as const) {
-          const nx = t.x + dx, ny = t.y + dy;
-          if (nx >= s.size || ny >= s.size) continue;
-          const neighbor = s.tiles[idx(nx, ny, s.size)];
-          if (!terrainRegionLinked(t.terrain, neighbor.terrain,
-              neighbor.explored[s.humanTribe] && isVisibleTo(s, s.humanTribe, nx, ny), true) ||
-              neighbor.road || neighbor.cityId !== null || neighbor.building ||
-              this.ownerTribeOf(s, t) !== this.ownerTribeOf(s, neighbor)) continue;
-          const link = MeshBuilder.CreateBox("worldPilot-region-link", {
-            width: dx ? 0.105 : 0.32, depth: dy ? 0.105 : 0.32, height: 0.012,
-          }, this.scene);
-          link.position = new Vector3(dx * 0.5, (h + LAND_SKIRT) / 2 + 0.022, dy * 0.5);
-          link.material = this.mat(darken(this.bio.terrain[t.terrain].top, 0.93));
-          link.isPickable = false;
-          link.parent = box;
-        }
-      }
-
       // ---- territory border ------------------------------------------------
       // Ownership is drawn as an edge on the tile cap, not as a wash through
       // the fill. An edge carries FULL faction saturation over a small area, so
@@ -1192,6 +1199,7 @@ export class BoardRenderer {
         const bodyH = h + LAND_SKIRT;
         const tribe = s.tribes[mine];
         const borderMat = tribe ? this.mat(tribe.color) : null;
+        const borderSpan = worldSurfaceSpan(TILE * 0.965, true, this.worldPilotPreview);
         if (borderMat) {
           for (const [dx, dy] of dirs) {
             const nx = t.x + dx, ny = t.y + dy;
@@ -1206,14 +1214,14 @@ export class BoardRenderer {
             // length closes that hole exactly, with the z-bars stopping where
             // they begin, so corners are neither gapped nor double-thick.
             const edge = MeshBuilder.CreateBox("tborder", {
-              width: dx !== 0 ? BORDER_W : TILE * 0.965,
-              depth: dy !== 0 ? BORDER_W : TILE * 0.965 - BORDER_W * 2,
+              width: dx !== 0 ? BORDER_W : borderSpan,
+              depth: dy !== 0 ? BORDER_W : borderSpan - BORDER_W * 2,
               height: 0.03,
             }, this.scene);
             edge.position = new Vector3(
-              dx * ((TILE * 0.965) / 2 - BORDER_W / 2),
+              dx * (borderSpan / 2 - BORDER_W / 2),
               bodyH / 2 + 0.02,
-              dy * ((TILE * 0.965) / 2 - BORDER_W / 2),
+              dy * (borderSpan / 2 - BORDER_W / 2),
             );
             edge.material = borderMat;
             edge.isPickable = false;

@@ -14,9 +14,42 @@ export function coastPilotEnabled(search: string, dev: boolean): boolean {
   return landscapeVariantEnabled(search, dev, "coast-v1");
 }
 
-/** Regions may visually join only when both terrain cells are actually visible. */
-export function terrainRegionLinked(terrain: string, neighbor: string, bothVisible: boolean, review: boolean): boolean {
-  return review && bothVisible && terrain === neighbor && (terrain === "forest" || terrain === "mountain");
+/** Cap and surface span one world unit in the visible study; hidden/default caps retain their authored gap. */
+export function worldSurfaceSpan(original: number, visible: boolean, review: boolean): number {
+  return visible && review ? 1 : original;
+}
+
+/** Coordinate and game-seed hash. Unlike small modular cycles, adjacent cells have unrelated silhouettes. */
+function mistHash(x: number, y: number, seed: number, channel: number): number {
+  let h = Math.imul(x + 1, 0x9e3779b1) ^ Math.imul(y + 1, 0x85ebca6b) ^
+    Math.imul(seed | 0, 0xc2b2ae35) ^ Math.imul(channel + 1, 0x27d4eb2d);
+  h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+export type AshMistPuff = { x: number; z: number; radius: number; lift: number; stretchX: number; stretchZ: number; angle: number };
+
+/** Close to revealed land retain cover; deep inside the opaque fog slab, use sparse broad banks. */
+export function ashMistPuffs(x: number, y: number, seed: number, deepFog = false): AshMistPuff[] {
+  const density = mistHash(x, y, seed, 0);
+  if (deepFog && density < 0.43) return [];
+  const count = deepFog ? (density > 0.83 ? 2 : 1) : 2 + Math.floor(density * 3);
+  return Array.from({ length: count }, (_, i) => {
+    const angle = mistHash(x, y, seed, i * 7 + 1) * Math.PI * 2;
+    const distance = 0.025 + mistHash(x, y, seed, i * 7 + 2) * (deepFog ? 0.16 : 0.085);
+    return {
+      x: Math.cos(angle) * distance,
+      z: Math.sin(angle) * distance,
+      radius: deepFog ? (i === 0 ? 0.53 + mistHash(x, y, seed, 3) * 0.19 : 0.28 + mistHash(x, y, seed, 10) * 0.14)
+        : i === 0 ? 0.37 + mistHash(x, y, seed, 3) * 0.07
+        : 0.23 + mistHash(x, y, seed, i * 7 + 3) * 0.09,
+      lift: -0.025 + mistHash(x, y, seed, i * 7 + 4) * 0.09,
+      stretchX: 0.84 + mistHash(x, y, seed, i * 7 + 5) * 0.29,
+      stretchZ: 0.84 + mistHash(x, y, seed, i * 7 + 6) * 0.29,
+      angle,
+    };
+  });
 }
 
 /** Seeded face fragments, kept away from a grass tile's resource corner. */
