@@ -47,6 +47,7 @@ import {
   VESSARI_DEFENDER_PILOT,
   VESSARI_RAIDER_PILOT,
   VESSARI_RIDER_PILOT,
+  VESSARI_SZARA_PILOT,
   VESSARI_WARRIOR_PILOT,
   passesImportedModelPilotBudget,
   type ImportedModelCandidate,
@@ -377,6 +378,25 @@ describe("imported model pilot registry", () => {
       candidate: VESSARI_RAIDER_PILOT,
     });
     expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "vessari-rider")?.unitType).toBe("rider");
+  });
+
+  it("keeps Szara's audited GLB review-only and mapped only to Vessari's named hero", () => {
+    expect(passesImportedModelPilotBudget(VESSARI_SZARA_PILOT)).toBe(true);
+    expect(VESSARI_SZARA_PILOT.decision).toBe("review-candidate");
+    expect(VESSARI_SZARA_PILOT.assetId).toBe("asset_8RuPxmRyUP2eUPpB4Mfp4oAG");
+    expect(VESSARI_SZARA_PILOT.modelUrl).toBe("/manus-storage/vessari-szara-tripo-p2-v1_acff22d2.glb");
+    expect(VESSARI_SZARA_PILOT.vertices).toBe(7_058);
+    expect(VESSARI_SZARA_PILOT.triangles).toBe(4_744);
+    expect(VESSARI_SZARA_PILOT.runtimePrimitives).toBe(1);
+    expect(VESSARI_SZARA_PILOT.sourceBytes).toBe(3_254_112);
+    expect(VESSARI_SZARA_PILOT.textureResolution).toBe(2_048);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "vessari-szara")).toMatchObject({
+      tribeIndex: 3,
+      unitType: "hero",
+      candidate: VESSARI_SZARA_PILOT,
+    });
+    expect(CROSS_TRIBE_P2_PILOTS.filter(p => p.tribeIndex === 3 && p.unitType === "hero")).toHaveLength(1);
+    expect(CROSS_TRIBE_P2_PILOTS.find(p => p.slug === "vessari-raider")?.unitType).toBe("raider");
   });
 
   it("keeps Valkyra Warrior's first-pass GLB opt-in and within the mobile budget", () => {

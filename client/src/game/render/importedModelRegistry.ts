@@ -311,6 +311,19 @@ export const VESSARI_RAIDER_PILOT: ImportedModelCandidate = {
   decision: "review-candidate",
 };
 
+/** Vessari's named hero Szara first pass; never a default hero replacement. */
+export const VESSARI_SZARA_PILOT: ImportedModelCandidate = {
+  name: "Scenario Tripo P2 Vessari Szara v1",
+  assetId: "asset_8RuPxmRyUP2eUPpB4Mfp4oAG",
+  modelUrl: "/manus-storage/vessari-szara-tripo-p2-v1_acff22d2.glb",
+  vertices: 7_058,
+  triangles: 4_744,
+  runtimePrimitives: 1,
+  sourceBytes: 3_254_112,
+  textureResolution: 2_048,
+  decision: "review-candidate",
+};
+
 /** Valkyra's storm infantry first pass; ordinary matches remain procedural. */
 export const VALKYRA_WARRIOR_PILOT: ImportedModelCandidate = {
   name: "Scenario Tripo P2 Valkyra Warrior v1",
@@ -622,6 +635,7 @@ export const CROSS_TRIBE_P2_PILOTS: readonly CrossTribeModelPilot[] = [
   { slug: "vessari-defender", tribeIndex: 3, unitType: "defender", candidate: VESSARI_DEFENDER_PILOT },
   { slug: "vessari-rider", tribeIndex: 3, unitType: "rider", candidate: VESSARI_RIDER_PILOT },
   { slug: "vessari-raider", tribeIndex: 3, unitType: "raider", candidate: VESSARI_RAIDER_PILOT },
+  { slug: "vessari-szara", tribeIndex: 3, unitType: "hero", candidate: VESSARI_SZARA_PILOT },
   { slug: "valkyra-warrior", tribeIndex: 6, unitType: "warrior", candidate: VALKYRA_WARRIOR_PILOT },
   { slug: "valkyra-archer", tribeIndex: 6, unitType: "archer", candidate: VALKYRA_ARCHER_PILOT },
   { slug: "valkyra-defender", tribeIndex: 6, unitType: "defender", candidate: VALKYRA_DEFENDER_PILOT },
