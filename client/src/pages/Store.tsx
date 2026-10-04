@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import SkinPreview from "@/components/SkinPreview";
 import { AccountPanel } from "@/game/ui/AccountPanel";
+import { isIosNativeApp } from "@/lib/nativeCommerce";
 import { ArrowLeft, Check, Crown, Loader2, Lock, Map as MapIcon, Palette, ScrollText, Shield, Sparkles } from "lucide-react";
 
 const KIND_META: Record<string, { title: string; blurb: string; icon: React.ReactNode }> = {
@@ -55,6 +56,21 @@ function ProductCard({ p, owned, onBuy, buying }: { p: Product; owned: boolean; 
 }
 
 export default function Store() {
+  if (isIosNativeApp()) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#141433] px-6 text-center text-white">
+        <h1 className="font-display text-xl font-bold">Purchases unavailable in this iOS test build</h1>
+        <p className="max-w-sm text-sm text-slate-300">
+          The free game remains playable. Previously owned content remains accessible when you sign in; no checkout is available inside this app.
+        </p>
+        <Link href="/"><Button variant="outline" className="border-white/20 text-white"><ArrowLeft className="mr-2 h-4 w-4" />Back to game</Button></Link>
+      </main>
+    );
+  }
+  return <WebStore />;
+}
+
+function WebStore() {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const ents = useEntitlements();
   const checkout = useCheckout();

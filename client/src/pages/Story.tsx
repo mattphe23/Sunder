@@ -16,6 +16,7 @@ import { TRIBE_DEFS } from "@/game/core/types";
 import { loadCustomTribe } from "@/game/core/customTribe";
 import { EpilogueCard, epilogueSeen, markEpilogueSeen } from "@/game/ui/Epilogue";
 import { Button } from "@/components/ui/button";
+import { isIosNativeApp } from "@/lib/nativeCommerce";
 import { ArrowLeft, BookOpen, Check, Crown, Flag, Gauge, Lock, Play, Sparkles, Star, Swords, Timer, Trophy } from "lucide-react";
 
 /** three-star row for a mission (0 = completed pre-stars or not completed) */
@@ -30,6 +31,7 @@ function StarRow({ n, size = "h-3.5 w-3.5" }: { n: number; size?: string }) {
 }
 
 export default function Story() {
+  const ios = isIosNativeApp();
   const [, navigate] = useLocation();
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { has, loading: entLoading } = useEntitlements();
@@ -226,12 +228,15 @@ export default function Story() {
         {!owned && !entLoading ? (
           <div className="rounded-2xl border border-amber-400/20 bg-[#161638] p-8 text-center">
             <Lock className="mx-auto mb-3 h-8 w-8 text-amber-300" />
-            <h2 className="text-lg font-bold text-white">Story Mode is a Store unlock</h2>
+            <h2 className="text-lg font-bold text-white">{ios ? "Story Mode unavailable in this iOS test build" : "Story Mode is a Store unlock"}</h2>
             <p className="mx-auto mt-2 max-w-md text-sm text-slate-400">
-              Ten scripted missions across two chapters — lead your forged tribe (or any tribe you own)
-              through the war that reforges the world. One purchase unlocks the whole campaign; included in the Ultimate Pack.
+              {ios
+                ? "The free game is ready to play. If you already own Story Mode, sign in to restore access; purchases are not offered inside this iOS app."
+                : "Ten scripted missions across two chapters — lead your forged tribe (or any tribe you own) through the war that reforges the world. One purchase unlocks the whole campaign; included in the Ultimate Pack."}
             </p>
-            {!isAuthenticated && !authLoading ? (
+            {ios ? (!isAuthenticated && !authLoading && (
+              <Button className="mt-5 bg-amber-400 font-bold text-black hover:bg-amber-300" onClick={() => startLogin()}>Sign in to restore access</Button>
+            )) : !isAuthenticated && !authLoading ? (
               <Button className="mt-5 bg-amber-400 font-bold text-black hover:bg-amber-300" onClick={() => startLogin()}>
                 Sign in to purchase
               </Button>

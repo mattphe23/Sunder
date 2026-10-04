@@ -5,9 +5,10 @@ Guidelines](https://developer.apple.com/app-store/review/guidelines/), run
 2026-08-17 ahead of Apple Developer enrolment. Every claim below was checked
 against the code, not assumed.
 
-Three things were hard blockers. All three are fixed. What remains is a
-monetization decision that only you can make, and a short list of things that
-can only be done inside App Store Connect.
+Three things were hard blockers. All three are fixed. The owner chose a
+**free iOS engineering smoke build with no web checkout**; StoreKit remains
+a later product decision. Apple signing, App Store Connect setup and a real
+device pass are separate gates, not consequences of this client-side change.
 
 ---
 
@@ -134,10 +135,9 @@ There was none, and the App Store Connect field cannot be left empty. New
 **Two things you must set before submitting:**
 
 1. The `CONTACT` constant in `client/src/pages/Privacy.tsx` is
-   `support@example.com`. Apple requires a working contact, and a policy with a
-   dead address is worse than no policy. Decide what address you are willing to
-   publish — a personal inbox on a public listing attracts what you would
-   expect.
+   `support@islandroadco.com`. Apple requires a working contact; the owner must
+   confirm this mailbox is monitored before submission. A published policy
+   with an unanswered address is worse than a missing contact.
 2. The text does not attempt to cover COPPA. If the age rating lands at 4+, or
    you submit to the Kids Category, that brings obligations this policy does not
    address.
@@ -169,20 +169,25 @@ Adding 15×15 is what pushed the second row over. Fixed, and both rows now take
 
 ---
 
-## 3. The monetization decision — yours to make
+## 3. The iOS smoke-build monetization choice
 
-This is the one open item, and it is a business call rather than a bug.
+The smoke-build choice is made. A later public-release StoreKit or
+region-specific external-purchase strategy is a separate business decision.
 
-**Where things stand.** The store sells skins, map packs and the campaign
-through Stripe Checkout. There is no IAP plugin in `package.json` and no
-RevenueCat, so the iOS build will show the same store page and open the same
-Stripe URL as the web build.
+**Where things stand (October 2026 smoke-build choice).** The web store still
+sells skins, map packs and the campaign through Stripe Checkout. There is no
+StoreKit IAP plugin. The native iOS app now hides store links and purchase
+prompts in the menu, map picker, skins and unowned Story screen. Direct `/store`
+navigation returns a non-purchasing notice before any checkout hooks mount.
+Owned entitlements and account restore remain available; ordinary web and
+Android storefronts are unchanged. This is client UI gating, not a general
+server-side prohibition against authenticated web checkout.
 
-(This section previously said there was no native-platform detection anywhere
-in the client. That is no longer true: the fatality share added
-`Capacitor.isNativePlatform()` in `render/capture.ts`, so the check now exists
-and only the policy is missing. Whichever option below you pick, gating the
-store is a small change on top of it.)
+The guard uses `Capacitor.isNativePlatform()` and `getPlatform() === "ios"`,
+not a user-agent string or query flag. A simulated Capacitor iOS-bridge
+browser pass verified direct `/store`, menu, skins, Story and privacy routes,
+one procedural hero, zero imported GLBs, zero checkout requests and zero
+browser errors; a genuine WKWebView/device smoke pass is still required.
 
 **What the rules currently say.** Guideline 3.1.1 still requires in-app purchase
 for digital content. But following the 2025 US court order, Apple's own text now
@@ -216,22 +221,22 @@ Costs 15% under the Small Business Program, plus real work: an IAP plugin or
 RevenueCat, product configuration, receipt validation against the existing
 entitlement system, and a second fulfilment path beside the Stripe webhook.
 
-**C — Ship v1 with no purchases on iOS.** Hide the store behind a platform
-check; the game is complete and free without it. Approval risk drops to
-essentially zero, you learn whether anyone wants the game before building
-payments twice, and the web build keeps selling to whoever finds it.
+**C — Test iOS with no purchases — selected for the engineering smoke build.**
+The native UI offers no new purchase path; the base game remains free and the
+web store stays intact. Do not treat this choice as App Review approval or
+a commitment on the final worldwide monetization model.
 
-**My recommendation: C, then B.** Your goal tomorrow is a first build in
-TestFlight, and every hour spent on payments is an hour not spent there. The
-whole roster is free now anyway — the paid tier is skins, maps and the campaign,
-none of which a new player misses in week one. Ship the game, find out if it
-lands, and add IAP in 1.1 with the benefit of knowing whether it is worth 15%.
+**Next decision later: C versus B for the public app.** The smoke test uses C.
+The base roster is free; skins, map packs and campaign access remain paid on
+the web. If the owner wants in-app purchases later, product setup, StoreKit,
+receipt validation and entitlement fulfilment must be specified and tested.
 
 Option C is also the only one of the three that needs no research into what
 Apple's appeal does next.
 
-The platform check already exists (see above), so whichever you choose is now a
-question of policy rather than plumbing.
+An unsigned macOS CI build is not a signed or uploaded TestFlight build. The
+release workflow needs owner-controlled Apple credentials, provisioning profile
+and App Store Connect record; also verify the support inbox and privacy listing.
 
 ---
 

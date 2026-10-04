@@ -24,6 +24,7 @@
 //   - deletion really does erase all of it                    (db.deleteAccount)
 import { Link } from "wouter";
 import { ArrowLeft } from "lucide-react";
+import { isIosNativeApp } from "@/lib/nativeCommerce";
 
 /** Published contact address. MUST be a real, monitored inbox before launch. */
 const CONTACT = "support@islandroadco.com";
@@ -108,9 +109,8 @@ export default function Privacy() {
         <Section title="Deleting your account">
           <p>
             You can delete your account from inside the game: open{" "}
-            <strong className="text-white/90">Commander&apos;s Record</strong> on the main menu, or the{" "}
-            <Link href="/store"><span className="cursor-pointer text-cyan-300 underline-offset-2 hover:underline">store page</span></Link>,
-            and choose Delete account.
+            <strong className="text-white/90">Commander&apos;s Record</strong> on the main menu
+            {!isIosNativeApp() && <>, or the <Link href="/store"><span className="cursor-pointer text-cyan-300 underline-offset-2 hover:underline">store page</span></Link></>}. Choose Delete account.
           </p>
           <p>
             This erases your profile, your leaderboard scores, your purchase records and your unlocks. Online

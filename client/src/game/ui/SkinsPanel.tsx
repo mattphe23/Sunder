@@ -9,6 +9,7 @@ import SkinPreview from "@/components/SkinPreview";
 import { sound } from "../sound";
 import { Lock, Check, X, Paintbrush, Eye, EyeOff } from "lucide-react";
 import { Link } from "wouter";
+import { isIosNativeApp } from "@/lib/nativeCommerce";
 
 const KEY = "sunder-active-skins-v1";
 
@@ -130,7 +131,7 @@ export function SkinsPanel({ open, onClose }: { open: boolean; onClose: () => vo
             );
           })}
         </div>
-        {!ent.hasAll(SKINS.map((s) => s.key)) && (
+        {!isIosNativeApp() && !ent.hasAll(SKINS.map((s) => s.key)) && (
           <Link
             href="/store"
             className="mt-4 block rounded-md border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-center font-display text-xs font-bold uppercase tracking-wide text-amber-200 hover:bg-amber-400/20"
