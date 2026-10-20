@@ -22,8 +22,9 @@ function Router() {
       {/* Required by App Store Guideline 5.1.1(i); also the URL that goes in
           the App Store Connect listing's Privacy Policy field. */}
       <Route path={"/privacy"} component={Privacy} />
-      <Route path={"/playtest-lab"} component={PlaytestLab} />
-      <Route path={"/model-lab"} component={ModelLab} />
+      {/* Internal QA tools are not shipped gameplay or native visual presets. */}
+      {import.meta.env.DEV && <Route path={"/playtest-lab"} component={PlaytestLab} />}
+      {import.meta.env.DEV && <Route path={"/model-lab"} component={ModelLab} />}
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

@@ -37,6 +37,7 @@ import {
   type ImportedModelCandidate,
 } from "./importedModelRegistry";
 import "@babylonjs/loaders/glTF";
+import { importedUnitPreviewEnabled } from "./importedPreviewGate";
 /**
  * How large a figure stands on its tile.
  *
@@ -159,30 +160,29 @@ export class BoardRenderer {
   private pipeline: DefaultRenderingPipeline | null = null;
   private lowQuality = false;
   private readonly p2WarriorPreview =
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("p2-warrior") === "1";
+    import.meta.env.DEV && typeof window !== "undefined" &&
+    importedUnitPreviewEnabled(window.location.search, import.meta.env.DEV, "p2-warrior");
   private readonly p2ArcherPreview =
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("p2-archer") === "1";
+    import.meta.env.DEV && typeof window !== "undefined" &&
+    importedUnitPreviewEnabled(window.location.search, import.meta.env.DEV, "p2-archer");
   private readonly p2DefenderPreview =
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("p2-defender") === "1";
+    import.meta.env.DEV && typeof window !== "undefined" &&
+    importedUnitPreviewEnabled(window.location.search, import.meta.env.DEV, "p2-defender");
   private readonly p2RiderPreview =
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("p2-rider") === "1";
+    import.meta.env.DEV && typeof window !== "undefined" &&
+    importedUnitPreviewEnabled(window.location.search, import.meta.env.DEV, "p2-rider");
   private readonly p2RiderV2Preview =
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("p2-rider-v2") === "1";
+    import.meta.env.DEV && typeof window !== "undefined" &&
+    importedUnitPreviewEnabled(window.location.search, import.meta.env.DEV, "p2-rider-v2");
   private readonly p2TidecallerPreview =
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("p2-tidecaller") === "1";
+    import.meta.env.DEV && typeof window !== "undefined" &&
+    importedUnitPreviewEnabled(window.location.search, import.meta.env.DEV, "p2-tidecaller");
   private readonly p2NerethPreview =
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("p2-nereth") === "1";
+    import.meta.env.DEV && typeof window !== "undefined" &&
+    importedUnitPreviewEnabled(window.location.search, import.meta.env.DEV, "p2-nereth");
   private readonly p2AurenWarriorPreview =
     import.meta.env.DEV && typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).has("devgame") &&
-    new URLSearchParams(window.location.search).get("p2-auren-warrior") === "1";
+    importedUnitPreviewEnabled(window.location.search, import.meta.env.DEV, "p2-auren-warrior");
   private readonly crossTribePilot =
     import.meta.env.DEV && typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).has("devgame") &&
@@ -2327,8 +2327,9 @@ export class BoardRenderer {
   /**
    * Review-only swap used by the `?p2-warrior=1`, `?p2-archer=1`,
    * `?p2-defender=1`, `?p2-rider=1`, `?p2-rider-v2=1`, and
-   * `?p2-tidecaller=1`, `?p2-nereth=1`, and devgame-only
+   * `?p2-tidecaller=1`, `?p2-nereth=1`, and
    * `?p2-auren-warrior=1` or cataloged `?p2-candidate=<slug>` routes. The
+   * whole family requires a development build and explicit devgame.
    * stable unit node remains the animation/picking anchor, so movement,
    * visibility, hit flash, and camera behavior exercise each candidate in the
    * real board renderer. Normal gameplay never enters this path.

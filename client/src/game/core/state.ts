@@ -112,6 +112,97 @@ export interface PendingAttack {
   breaksTreaty?: boolean;
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+/**
+ * Backfill only fields introduced after older snapshots were written. This is
+ * not a reconstruction of past play: missing metrics begin at zero while any
+ * values the snapshot did record remain intact.
+ */
+function normalizeSnapshot(raw: unknown): GameState | null {
+  if (!isRecord(raw)) return null;
+  const s = raw as unknown as GameState;
+  if (
+    (s.phase !== "playing" && s.phase !== "gameover") ||
+    !Number.isInteger(s.size) || s.size < 1 ||
+    !Number.isFinite(s.seed) ||
+    !Number.isInteger(s.turn) || s.turn < 0 ||
+    !Number.isInteger(s.maxTurns) || s.maxTurns < 1 ||
+    !Array.isArray(s.tribes) || s.tribes.length === 0 ||
+    !Array.isArray(s.tiles) || s.tiles.length !== s.size * s.size ||
+    !Array.isArray(s.cities) || !Array.isArray(s.units) || !Array.isArray(s.log)
+  ) return null;
+
+  const validTribe = (tribe: unknown): tribe is number =>
+    typeof tribe === "number" && Number.isInteger(tribe) && tribe >= 0 && tribe < s.tribes.length;
+  if (!validTribe(s.currentTribe) || !validTribe(s.humanTribe)) return null;
+
+  for (let i = 0; i < s.tribes.length; i++) {
+    const tribe = s.tribes[i];
+    if (!isRecord(tribe) || tribe.index !== i) return null;
+    // Pre-roster saves stored a tribe's slot but not its visual/rules definition.
+    if (tribe.defIndex === undefined) tribe.defIndex = tribe.index;
+    if (!Number.isInteger(tribe.defIndex)) return null;
+  }
+
+  if (s.scoreHistory === undefined) {
+    s.scoreHistory = [];
+  } else if (!Array.isArray(s.scoreHistory) || s.scoreHistory.some((row) =>
+    row !== null && (!Array.isArray(row) || row.some((score) => typeof score !== "number" || !Number.isFinite(score)))
+  )) {
+    return null;
+  } else {
+    // JSON turns unrecorded sparse rounds into null. Restore holes so the
+    // score chart skips them rather than inventing zero scores for old play.
+    for (let turn = 0; turn < s.scoreHistory.length; turn++) {
+      if (s.scoreHistory[turn] === null) delete s.scoreHistory[turn];
+    }
+  }
+
+  const defaults = emptyStats();
+  const statKeys = Object.keys(defaults) as (keyof typeof defaults)[];
+  if (s.stats === undefined) {
+    s.stats = s.tribes.map(() => emptyStats());
+  } else if (!Array.isArray(s.stats)) {
+    return null;
+  } else {
+    const stats = s.stats as unknown[];
+    for (let i = 0; i < s.tribes.length; i++) {
+      const saved = stats[i];
+      if (saved === undefined) {
+        stats[i] = emptyStats();
+        continue;
+      }
+      if (!isRecord(saved)) return null;
+      for (const key of statKeys) {
+        const value = saved[key];
+        if (value === undefined) saved[key] = defaults[key];
+        else if (typeof value !== "number" || !Number.isFinite(value)) return null;
+      }
+    }
+  }
+
+  if (s.turnOrder === undefined) {
+    s.turnOrder = s.tribes.map((_, i) => i);
+  } else if (
+    !Array.isArray(s.turnOrder) ||
+    s.turnOrder.length !== s.tribes.length ||
+    new Set(s.turnOrder).size !== s.tribes.length ||
+    s.turnOrder.some((tribe) => !validTribe(tribe))
+  ) {
+    return null;
+  }
+  if (s.orderPos === undefined) {
+    s.orderPos = s.turnOrder.indexOf(s.currentTribe);
+  } else if (!Number.isInteger(s.orderPos) || s.orderPos < 0 || s.orderPos >= s.turnOrder.length) {
+    return null;
+  }
+  if (s.orderPos < 0) return null;
+
+  return s;
+}
+
 class GameStore {
   state: GameState = emptyState();
   /** last game turn whose round-start hooks (world phase, score snapshot,
@@ -119,6 +210,8 @@ class GameStore {
   private roundOpened = -1;
   /** Non-persisted UI state: attack awaiting confirmation. */
   pendingAttack: PendingAttack | null = null;
+  /** Invalidates callbacks queued for an earlier match, slot, or turn. */
+  private aiEpoch = 0;
   /** Which of the three save slots is active. Slot 1 maps to the legacy key. */
   activeSlot: SaveSlot = ((): SaveSlot => {
     try {
@@ -128,6 +221,7 @@ class GameStore {
   })();
   setActiveSlot(slot: SaveSlot) {
     if (slot === this.activeSlot) return;
+    this.invalidateAi();
     // leaving a running game: it stays saved in its own slot; reset to menu so the
     // in-memory state can never bleed into the newly selected slot via autoSave
     if (this.state.phase === "playing") {
@@ -172,6 +266,31 @@ class GameStore {
     }
   }
 
+  private invalidateAi() {
+    this.aiEpoch++;
+    this.state.aiThinking = false;
+  }
+
+  /** Queue an AI action only for this exact state object and current tribe. */
+  private scheduleAiTurn(tribeIdx: number, delay: number) {
+    const scheduledState = this.state;
+    const epoch = this.aiEpoch;
+    scheduledState.aiThinking = true;
+    setTimeout(() => {
+      if (this.aiEpoch !== epoch || this.state !== scheduledState) return;
+      const tribe = scheduledState.tribes[tribeIdx];
+      if (
+        scheduledState.phase !== "playing" ||
+        scheduledState.currentTribe !== tribeIdx ||
+        !tribe || tribe.isHuman || !tribe.alive
+      ) return;
+      runAiTurn(this, tribeIdx);
+      if (this.aiEpoch !== epoch || this.state !== scheduledState) return;
+      scheduledState.aiThinking = false;
+      if (scheduledState.phase === "playing" && scheduledState.currentTribe === tribeIdx) this.endTurn();
+    }, delay);
+  }
+
   // ---------- v18 online (async multiplayer) ----------
 
   /** Full-state snapshot sent to the server after each online turn. */
@@ -185,21 +304,13 @@ class GameStore {
    */
   loadOnlineSnapshot(json: string, myTribe: number): boolean {
     try {
-      const s = JSON.parse(json) as GameState;
-      if (!s || !Array.isArray(s.tiles) || s.tiles.length === 0) return false;
-      for (const t of s.tribes) if (t.defIndex === undefined) t.defIndex = t.index;
+      const s = normalizeSnapshot(JSON.parse(json));
+      if (!s || !Number.isInteger(myTribe) || myTribe < 0 || myTribe >= s.tribes.length) return false;
+      this.invalidateAi();
       s.selectedUnitId = null;
       s.selectedCityId = null;
       s.aiThinking = false;
       s.humanTribe = myTribe;
-      // v41: backfill turn order for snapshots from pre-v41 clients
-      if (!Array.isArray(s.turnOrder) || s.turnOrder.length !== s.tribes.length) {
-        s.turnOrder = s.tribes.map((_, i) => i);
-      }
-      if (typeof s.orderPos !== "number" || s.orderPos < 0 || s.orderPos >= s.turnOrder.length) {
-        const pos = s.turnOrder.indexOf(s.currentTribe);
-        s.orderPos = pos >= 0 ? pos : 0;
-      }
       // the remote player's pending hand-off is not ours to dismiss visually
       if (s.handoff !== null && s.handoff !== undefined && s.handoff === myTribe) s.handoff = null;
       this.state = s;
@@ -261,10 +372,9 @@ class GameStore {
     try {
       const raw = localStorage.getItem(slotKey(this.activeSlot));
       if (!raw) return false;
-      const s = JSON.parse(raw) as GameState;
-      if (!s || s.phase !== "playing" || !Array.isArray(s.tiles) || s.tiles.length === 0) return false;
-      // legacy saves predate the 6-tribe roster: defIndex mirrors slot index
-      for (const t of s.tribes) if (t.defIndex === undefined) t.defIndex = t.index;
+      const s = normalizeSnapshot(JSON.parse(raw));
+      if (!s || s.phase !== "playing") return false;
+      this.invalidateAi();
       s.selectedUnitId = null;
       s.selectedCityId = null;
       s.aiThinking = false;
@@ -277,12 +387,7 @@ class GameStore {
       if (s.currentTribe !== s.humanTribe) {
         const tribe = s.tribes[s.currentTribe];
         if (tribe && !tribe.isHuman && tribe.alive) {
-          this.state.aiThinking = true;
-          setTimeout(() => {
-            runAiTurn(this, this.state.currentTribe);
-            this.state.aiThinking = false;
-            if (this.state.phase === "playing") this.endTurn();
-          }, 150);
+          this.scheduleAiTurn(s.currentTribe, 150);
         }
       }
       return true;
@@ -294,6 +399,7 @@ class GameStore {
   // ---------- lifecycle ----------
 
   newGame(opts: { size: number; humanTribe: number; difficulty: Difficulty; seed?: number; preset?: MapPreset; humanTribes?: number[]; challenge?: ChallengeKind; roster?: number[]; custom?: { slot: number; config: CustomTribeConfig }; friendChallenge?: { name: string; score: number }; online?: { matchId: string; hostTribe: number; guestTribe: number; hostName: string; guestName: string }; storyMission?: string }) {
+    this.invalidateAi();
     const seed = opts.seed ?? Math.floor(Math.random() * 2 ** 31);
     const preset: MapPreset = opts.preset ?? "continents";
     const humans = opts.humanTribes && opts.humanTribes.length > 0 ? [...opts.humanTribes].sort((a, b) => a - b) : [opts.humanTribe];
@@ -409,12 +515,7 @@ class GameStore {
       const s = this.state;
       const first = s.tribes[s.currentTribe];
       if (first && !first.isHuman && first.alive && s.phase === "playing") {
-        s.aiThinking = true;
-        setTimeout(() => {
-          runAiTurn(this, this.state.currentTribe);
-          this.state.aiThinking = false;
-          if (this.state.phase === "playing") this.endTurn();
-        }, 150);
+        this.scheduleAiTurn(s.currentTribe, 150);
       }
     }
     this.emit({ type: "changed" });
@@ -432,6 +533,7 @@ class GameStore {
   }
 
   toMenu() {
+    this.invalidateAi();
     this.state = emptyState();
     this.pendingAttack = null;
     try { localStorage.removeItem(slotKey(this.activeSlot)); } catch { /* noop */ }
@@ -613,6 +715,9 @@ class GameStore {
     const s = this.state;
     const evs = s.worldEvents ?? [];
     s.worldEvents = [];
+    // The UI intentionally does not emit here: that would re-render the effect
+    // which drains these cards. Persist the acknowledgement directly instead.
+    this.autoSave();
     return evs;
   }
 
@@ -628,6 +733,7 @@ class GameStore {
   }
 
   private nextTribe() {
+    this.invalidateAi();
     const s = this.state;
     // v41: advance along the shuffled round order; reshuffle at each new round.
     // Legacy saves without turnOrder fall back to sequential indices.
@@ -670,18 +776,13 @@ class GameStore {
     if (!s.tribes[next].alive) { this.nextTribe(); return; }
     const tribe = s.tribes[next];
     if (!tribe.isHuman) {
-      s.aiThinking = true;
-      this.emit({ type: "changed" });
       // v29 QoL: Polytopia complaint — waiting on AI turns drags the pace.
       // 150ms keeps the "rivals are acting" beat readable; when no human is
       // still alive (spectating a wipeout) drop to 60ms to fast-forward.
       const humanAlive = s.tribes.some((t) => t.isHuman && t.alive);
       const delay = humanAlive ? 150 : 60;
-      setTimeout(() => {
-        runAiTurn(this, next);
-        s.aiThinking = false;
-        if (this.state.phase === "playing") this.endTurn();
-      }, delay);
+      this.scheduleAiTurn(next, delay);
+      this.emit({ type: "changed" });
     }
   }
 
