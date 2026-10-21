@@ -10,6 +10,7 @@ import ModelLab from "./pages/ModelLab";
 import PlaytestLab from "./pages/PlaytestLab";
 import Privacy from "./pages/Privacy";
 import Store from "./pages/Store";
+import VisualReview from "./pages/VisualReview";
 import Story from "./pages/Story";
 
 function Router() {
@@ -25,6 +26,7 @@ function Router() {
       {/* Internal QA tools are not shipped gameplay or native visual presets. */}
       {import.meta.env.DEV && <Route path={"/playtest-lab"} component={PlaytestLab} />}
       {import.meta.env.DEV && <Route path={"/model-lab"} component={ModelLab} />}
+      {import.meta.env.DEV && <Route path={"/visual-review"} component={VisualReview} />}
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

@@ -38,6 +38,9 @@ import {
 } from "./importedModelRegistry";
 import "@babylonjs/loaders/glTF";
 import { importedUnitPreviewEnabled } from "./importedPreviewGate";
+import { BoardModelCache } from "./importedModelCache";
+import { visualReviewEnabled, visualRosterCandidate } from "./visualReview";
+import { forestUnitLanePlacements, mountainUnitLaneTransform, unitLaneCellSignature, visibleUnitLaneCells } from "./landscapeUnitLanes";
 /**
  * How large a figure stands on its tile.
  *
@@ -153,6 +156,10 @@ export class BoardRenderer {
   private fxMeshes: Mesh[] = [];
   private disposed = false;
   private cameraInitialized = false;
+  private modelCache: BoardModelCache | null = null;
+  private unitLaneCells: ReadonlySet<number> = new Set();
+  private readonly rosterReviewPreview = typeof window !== "undefined" &&
+    visualReviewEnabled(window.location.search, import.meta.env.DEV);
   /** kept so a cinematic can detach and re-attach camera control */
   private canvasEl!: HTMLCanvasElement;
   private cameraGameSig = "";
@@ -688,6 +695,7 @@ export class BoardRenderer {
         t.greatRuin ? "U" : "-",
         t.port === null ? "-" : String(t.port),
       );
+      if (this.rosterReviewPreview) out.push(unitLaneCellSignature(s, idx(t.x, t.y, s.size), true));
     }
     for (const ci of s.cities) {
       out.push(`${ci.id}:${ci.tribe ?? "n"}:${ci.level}:${ci.walls ? 1 : 0}:${ci.isCapital ? 1 : 0}`);
@@ -713,6 +721,8 @@ export class BoardRenderer {
 
   buildBoard(s: GameState) {
     this.applyForgedCostume(s);
+    // Derive drawable occupancy fresh: a hidden rival may never leave a cleared lane behind.
+    this.unitLaneCells = visibleUnitLaneCells(s, this.rosterReviewPreview);
     // The game notifies on every action, so this is called after each move,
     // attack and turn end. Rebuilding ~1000 meshes (with flat-shading
     // conversions) each time caused real hitches on phones; skip when the
@@ -1312,9 +1322,12 @@ export class BoardRenderer {
       const nearSettlement = this.vegetationPilotPreview && s.cities.some(ci =>
         Math.max(Math.abs(ci.x - t.x), Math.abs(ci.y - t.y)) <= 1);
       const treeCount = forestTreeCount(kind, t.x, t.y, nearSettlement, this.vegetationPilotPreview);
-      for (let i = 0; i < treeCount; i++) {
-        const px = t.x - c + (i === 3 ? 0.08 : (i - 1) * 0.26);
-        const pz = t.y - c + (i === 3 ? -0.32 : ((i * 7) % 3 - 1) * 0.24);
+      const placements = forestUnitLanePlacements(t.x, t.y, treeCount, this.unitLaneCells.has(key), this.rosterReviewPreview);
+      for (const placement of placements) {
+        const i = placement.index;
+        const treeStart = decor.length;
+        const px = t.x - c + placement.x;
+        const pz = t.y - c + placement.z;
         const seed = (i * 13 + t.x * 5 + t.y * 3) % 3;
         const leafHex = i === 1 ? this.bio.tree.canopyB : i === 0 ? this.bio.tree.canopyA : this.bio.tree.canopyLight;
         // v58 grounding: a contact disc under every trunk (merged per tile)
@@ -1374,6 +1387,14 @@ export class BoardRenderer {
             cone.position = new Vector3(px, top + 0.2 + frac * th * 0.42 + h / 2, pz);
             cone.material = this.litMat(k === 0 ? leafHex : k === 1 ? this.bio.tree.canopyB : this.bio.tree.canopyLight); this.facet(cone);
             cone.metadata = md; cone.parent = this.root; decor.push(cone);
+          }
+        }
+        if (placement.scale !== 1) {
+          for (const mesh of decor.slice(treeStart)) {
+            mesh.position.x = px + (mesh.position.x - px) * placement.scale;
+            mesh.position.y = top + (mesh.position.y - top) * placement.scale;
+            mesh.position.z = pz + (mesh.position.z - pz) * placement.scale;
+            mesh.scaling.scaleInPlace(placement.scale);
           }
         }
       }
@@ -1495,6 +1516,7 @@ export class BoardRenderer {
       }
     }
     if (t.terrain === "mountain") {
+      const mountainStart = decor.length;
       // Mountain massif: a wide rocky base skirt blends the rock into the tile
       // (fixes "cone sitting on a flat square") + main peak, snow cap, shoulder,
       // and a couple of scree boulders scattered at the foot.
@@ -1584,6 +1606,16 @@ export class BoardRenderer {
         boulder.scaling.y = 0.75;
         boulder.material = this.litMat(this.bio.rock.shadow); this.facet(boulder);
         boulder.metadata = md; boulder.parent = this.root; decor.push(boulder);
+      }
+      const lane = mountainUnitLaneTransform(t.x, t.y, this.unitLaneCells.has(key), this.rosterReviewPreview);
+      if (lane.scale !== 1) {
+        const mx = t.x - c, mz = t.y - c;
+        for (const mesh of decor.slice(mountainStart)) {
+          mesh.position.x = mx + lane.x + (mesh.position.x - mx) * lane.scale;
+          mesh.position.y = top + (mesh.position.y - top) * lane.scale;
+          mesh.position.z = mz + lane.z + (mesh.position.z - mz) * lane.scale;
+          mesh.scaling.scaleInPlace(lane.scale);
+        }
       }
     }
     if (t.resource) {
@@ -2409,6 +2441,35 @@ export class BoardRenderer {
     }
   }
 
+  /** Shared templates exist only in the exact integrated development review; failures leave the original actor visible. */
+  private async replaceWithVisualRosterUnit(parent: TransformNode, candidate: ImportedModelCandidate) {
+    const existingChildren = parent.getChildren();
+    parent.metadata = { ...(parent.metadata ?? {}), visualImportState: "loading" };
+    try {
+      this.modelCache ??= new BoardModelCache(this.scene);
+      const instance = await this.modelCache.instantiate(candidate, parent, 0.62);
+      if (!instance || this.disposed || parent.isDisposed()) return;
+      for (const child of existingChildren) {
+        // These are gameplay-level cues, not the old procedural body. Preserve progression/veterancy readability.
+        if (["crown", "pip", "crest"].includes(child.name)) continue;
+        child.dispose();
+      }
+      for (const mesh of instance.meshes) {
+        mesh.isPickable = false;
+        (mesh as Mesh).renderOutline = true;
+        (mesh as Mesh).outlineWidth = UNIT_OUTLINE;
+        (mesh as Mesh).outlineColor = Color3.FromHexString("#0b0b1e");
+        this.addShadows(mesh as Mesh);
+      }
+      this.addContactShadow(parent, 0.34);
+      parent.metadata = { ...(parent.metadata ?? {}), visualRosterPreview: true, visualImportState: "ready",
+        visualAssetId: candidate.assetId, visualModelUrl: candidate.modelUrl, visualDecision: candidate.decision };
+    } catch (error) {
+      if (!parent.isDisposed()) parent.metadata = { ...(parent.metadata ?? {}), visualImportState: "failed" };
+      console.warn(`${candidate.name} integrated review failed; procedural actor retained.`, error);
+    }
+  }
+
   /**
    * v58 contact grounding for STATIC decor — a ground disc pushed into the
    * tile's decor list. On an unlit flat-shaded board nothing casts anything,
@@ -2581,6 +2642,12 @@ export class BoardRenderer {
     // not cast one of its own
     this.addContactShadow(node);
     node.scaling.setAll(UNIT_SCALE);
+    if (this.rosterReviewPreview) {
+      const candidate = visualRosterCandidate(defIndex, u, true);
+      if (candidate) void this.replaceWithVisualRosterUnit(node, candidate);
+      // One deliberate selection per unit: old query flags cannot trigger a second concurrent replacement.
+      return node;
+    }
     if (this.p2WarriorPreview && defIndex === 4 && u.type === "warrior" && !u.boat) {
       void this.replaceWithP2Unit(node, NERIVANE_WARRIOR_PILOT, "p2WarriorPreview");
     }
@@ -3530,6 +3597,7 @@ export class BoardRenderer {
   dispose() {
     this.disposed = true;
     window.removeEventListener("resize", this.handleResize);
+    this.modelCache?.dispose();
     this.scene.dispose();
     this.engine.dispose();
   }
