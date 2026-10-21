@@ -29,9 +29,10 @@ const config: CapacitorConfig = {
     // viewport-fit=cover, so the web view must not also inset the content —
     // otherwise the padding is applied twice.
     contentInset: "never",
-    // A strategy board is dragged and pinched constantly; rubber-banding at the
-    // edges reads as the map coming loose.
-    scrollEnabled: false,
+    // The setup menu is taller than a phone: allow WKWebView page scrolling.
+    // Gameplay stays viewport-bound with overflow-hidden and canvas touch-action:
+    // none. Capacitor disables native bounce independently of this setting.
+    scrollEnabled: true,
     limitsNavigationsToAppBoundDomains: true,
   },
 
