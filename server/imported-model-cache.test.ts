@@ -171,6 +171,173 @@ describe("BoardModelCache", () => {
     ]);
   });
 
+  it("pre-reserves texture estimates before decode, sharing one reservation per URL", async () => {
+    const { engine, scene } = createScene();
+    cleanup.push(() => {
+      scene.dispose();
+      engine.dispose();
+    });
+    const first = deferred<AssetContainer>();
+    let loadCount = 0;
+    const cache = new BoardModelCache(
+      scene,
+      () => {
+        loadCount += 1;
+        return first.promise;
+      },
+      {
+        maxTextureBytes: 100,
+        textureBytesForUrl: () => 60,
+        maxModels: 2,
+      },
+    );
+    cleanup.push(() => cache.dispose());
+    const parentA = new TransformNode("reservation-a", scene);
+    const parentB = new TransformNode("reservation-b", scene);
+    const firstJob = cache.instantiate(candidate("reserved"), parentA);
+    const sharedJob = cache.instantiate(candidate("reserved"), parentB);
+    await Promise.resolve();
+    expect(loadCount).toBe(1);
+    expect(cache.stats.reservedTextureBytes).toBe(60);
+    expect(cache.stats.queuedLoads + cache.stats.activeLoads).toBe(1);
+
+    await expect(cache.instantiate(candidate("over-budget"), new TransformNode("over-budget", scene)))
+      .rejects.toThrow("reservation exceeds");
+    expect(loadCount).toBe(1);
+    expect(cache.stats.failedModels).toBe(1);
+
+    first.resolve(boxContainer(scene));
+    await expect(Promise.all([firstJob, sharedJob])).resolves.toHaveLength(2);
+    expect(cache.stats.reservedTextureBytes).toBe(0);
+  });
+
+  it("rejects malformed decoded texture footprints instead of admitting a template", async () => {
+    const { engine, scene } = createScene();
+    cleanup.push(() => {
+      scene.dispose();
+      engine.dispose();
+    });
+    const malformed = candidate("malformed-footprint");
+    const container = boxContainer(scene);
+    const texture = container.textures[0] as unknown as {
+      getInternalTexture: () => { width: number; height: number; depth: number; generateMipMaps: boolean };
+    };
+    const originalInternal = texture.getInternalTexture();
+    texture.getInternalTexture = () => ({
+      ...originalInternal,
+      width: Number.NaN,
+      height: 1,
+      depth: 1,
+      generateMipMaps: false,
+    });
+    const cache = new BoardModelCache(scene, async () => container, {
+      maxTextureBytes: 1_000,
+      textureBytesForUrl: () => 4,
+    });
+    cleanup.push(() => cache.dispose());
+
+    await expect(cache.instantiate(malformed, new TransformNode("malformed-parent", scene)))
+      .rejects.toThrow("malformed decoded footprint");
+    await expect(cache.instantiate(malformed, new TransformNode("second-parent", scene)))
+      .rejects.toThrow("malformed decoded footprint");
+    expect(cache.stats.loadedModels).toBe(0);
+    expect(cache.stats.failedModels).toBe(1);
+  });
+
+  it("rejects a negative decoded texture depth instead of treating it as a 2D sentinel", async () => {
+    const { engine, scene } = createScene();
+    cleanup.push(() => {
+      scene.dispose();
+      engine.dispose();
+    });
+    const container = boxContainer(scene);
+    const texture = container.textures[0] as unknown as {
+      getInternalTexture: () => { width: number; height: number; depth: number; generateMipMaps: boolean };
+    };
+    const originalInternal = texture.getInternalTexture();
+    texture.getInternalTexture = () => ({
+      ...originalInternal,
+      width: 1,
+      height: 1,
+      depth: -1,
+      generateMipMaps: false,
+    });
+    const cache = new BoardModelCache(scene, async () => container, {
+      maxTextureBytes: 1_000,
+      textureBytesForUrl: () => 4,
+    });
+    cleanup.push(() => cache.dispose());
+
+    await expect(cache.instantiate(candidate("negative-depth"), new TransformNode("negative-depth-parent", scene)))
+      .rejects.toThrow("malformed decoded footprint");
+  });
+
+  it("fails closed on timeout, releases callers, and disposes a late container without freeing the physical slot early", async () => {
+    const { engine, scene } = createScene();
+    cleanup.push(() => {
+      scene.dispose();
+      engine.dispose();
+    });
+    const late = [deferred<AssetContainer>(), deferred<AssetContainer>()];
+    let started = 0;
+    const cache = new BoardModelCache(
+      scene,
+      () => {
+        const pending = late[started];
+        started += 1;
+        if (!pending) throw new Error("unexpected third physical decode");
+        return pending.promise;
+      },
+      { loadTimeoutMs: 5, maxTextureBytes: 100, textureBytesForUrl: () => 8 },
+    );
+    cleanup.push(() => cache.dispose());
+    const first = cache.instantiate(candidate("timeout-one"), new TransformNode("timeout-one", scene));
+    const second = cache.instantiate(candidate("timeout-two"), new TransformNode("timeout-two", scene));
+    const queued = cache.instantiate(candidate("timeout-three"), new TransformNode("timeout-three", scene));
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await expect(first).rejects.toThrow("timed out");
+    await expect(second).rejects.toThrow("fail-closed");
+    await expect(queued).rejects.toThrow("fail-closed");
+    expect(started).toBe(2);
+    expect(cache.stats.activeLoads).toBe(2);
+    expect(cache.stats.reservedTextureBytes).toBe(16);
+    expect(cache.stats.timedOut).toBe(true);
+
+    const lateContainers = [boxContainer(scene), boxContainer(scene)];
+    late[0].resolve(lateContainers[0]);
+    late[1].resolve(lateContainers[1]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(cache.stats.activeLoads).toBe(0);
+    expect(cache.stats.reservedTextureBytes).toBe(0);
+    expect(lateContainers[0].meshes).toHaveLength(0);
+    expect(lateContainers[1].meshes).toHaveLength(0);
+  });
+
+  it("retains active decode accounting after dispose until a late loader settles", async () => {
+    const { engine, scene } = createScene();
+    cleanup.push(() => engine.dispose());
+    const late = deferred<AssetContainer>();
+    const cache = new BoardModelCache(scene, () => late.promise, {
+      maxTextureBytes: 100,
+      textureBytesForUrl: () => 12,
+    });
+    const job = cache.instantiate(candidate("disposed-late"), new TransformNode("disposed-late", scene));
+    await Promise.resolve();
+    cache.dispose();
+    await expect(job).resolves.toBeNull();
+    expect(cache.stats.activeLoads).toBe(1);
+    expect(cache.stats.reservedTextureBytes).toBe(12);
+
+    const lateContainer = boxContainer(scene);
+    late.resolve(lateContainer);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(cache.stats.activeLoads).toBe(0);
+    expect(cache.stats.reservedTextureBytes).toBe(0);
+    expect(lateContainer.meshes).toHaveLength(0);
+    scene.dispose();
+  });
+
   it("cancels attachment when the parent or owning scene is disposed during a load", async () => {
     const parentCase = createScene();
     cleanup.push(() => {

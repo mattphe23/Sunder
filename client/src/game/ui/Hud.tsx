@@ -15,6 +15,7 @@ import { MuteButton } from "./MuteButton";
 import { sound } from "../sound";
 import { victoryProgress, VICTORY_PATH_START_TURN } from "../core/victory";
 import { missionById } from "@shared/story";
+import { BetaVisualSettingsButton } from "./BetaVisualSettings";
 
 const panel = "rounded-xl border border-white/10 bg-[#1b1b3f]/85 backdrop-blur-md shadow-xl shadow-black/40 text-slate-100";
 
@@ -302,6 +303,7 @@ export function TopBar() {
             <span className="text-emerald-300">Your turn</span>
           )}
         </div>
+        <BetaVisualSettingsButton />
         <MuteButton />
       </div>
     </div>

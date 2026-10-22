@@ -2,6 +2,8 @@
 
 This is an engineering integration of existing audited art, not an aesthetic approval or a replacement of the current TestFlight visuals. No new Scenario generation, purchase, source-image edit, GLB rewrite, or art-status change was made.
 
+**Historical boundary:** the validation and release statements below describe the development review completed on 2026-10-21. The subsequently authorized [opt-in beta rollout](OPT-IN-BETA-VISUALS.md) uses separately audited 512px runtime derivatives, finite cache safeguards and reversible display settings. It does not relax the development review gates or make imported visuals the default. Physical iPhone performance and owner visual judgment remain open gates.
+
 ## What is now connected
 
 The development-only `/visual-review` board brings the tribe rosters and the corrected `world-v3` landscape into the same real Babylon scene. It is a deterministic, isolated fixture built with Sunder's map generator and canonical unit statistics. It does not use `GameStore`, write a save, unlock content, or change combat, movement, terrain or economy rules.

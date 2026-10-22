@@ -41,6 +41,11 @@ import { importedUnitPreviewEnabled } from "./importedPreviewGate";
 import { BoardModelCache } from "./importedModelCache";
 import { visualReviewEnabled, visualRosterCandidate } from "./visualReview";
 import { forestUnitLanePlacements, mountainUnitLaneTransform, unitLaneCellSignature, visibleUnitLaneCells } from "./landscapeUnitLanes";
+import { DEFAULT_BETA_VISUALS, type BetaVisualPreferences } from "./betaVisualPreferences";
+import { betaVisualCandidate, BETA_MODEL_CACHE_LIMITS, type BetaVisualCandidate } from "./betaVisualCandidate";
+import { BETA_VISUAL_MODELS } from "./betaVisualModels";
+import { resolveBetaModelUrl } from "./betaModelUrl";
+import { Capacitor } from "@capacitor/core";
 /**
  * How large a figure stands on its tile.
  *
@@ -157,9 +162,12 @@ export class BoardRenderer {
   private disposed = false;
   private cameraInitialized = false;
   private modelCache: BoardModelCache | null = null;
+  private pendingVisualCacheReset = false;
   private unitLaneCells: ReadonlySet<number> = new Set();
   private readonly rosterReviewPreview = typeof window !== "undefined" &&
     visualReviewEnabled(window.location.search, import.meta.env.DEV);
+  private betaVisualPreferences: Readonly<BetaVisualPreferences> = DEFAULT_BETA_VISUALS;
+  private get unitLanePreview() { return this.rosterReviewPreview || this.betaVisualPreferences.landscape; }
   /** kept so a cinematic can detach and re-attach camera control */
   private canvasEl!: HTMLCanvasElement;
   private cameraGameSig = "";
@@ -196,16 +204,21 @@ export class BoardRenderer {
     CROSS_TRIBE_P2_PILOTS.find(pilot =>
       pilot.slug === new URLSearchParams(window.location.search).get("p2-candidate")
     );
-  private readonly coastPilotPreview =
-    typeof window !== "undefined" && coastPilotEnabled(window.location.search, import.meta.env.DEV);
-  private readonly fogPilotPreview =
-    typeof window !== "undefined" && landscapeVariantEnabled(window.location.search, import.meta.env.DEV, "fog-v1");
-  private readonly vegetationPilotPreview =
-    typeof window !== "undefined" && landscapeVariantEnabled(window.location.search, import.meta.env.DEV, "vegetation-v1");
-  private readonly mountainPilotPreview =
-    typeof window !== "undefined" && landscapeVariantEnabled(window.location.search, import.meta.env.DEV, "mountain-v1");
-  private readonly worldPilotPreview =
-    typeof window !== "undefined" && landscapeVariantEnabled(window.location.search, import.meta.env.DEV, "world-v3");
+  private get coastPilotPreview() {
+    return this.betaVisualPreferences.landscape || (typeof window !== "undefined" && coastPilotEnabled(window.location.search, import.meta.env.DEV));
+  }
+  private get fogPilotPreview() {
+    return this.betaVisualPreferences.landscape || (typeof window !== "undefined" && landscapeVariantEnabled(window.location.search, import.meta.env.DEV, "fog-v1"));
+  }
+  private get vegetationPilotPreview() {
+    return this.betaVisualPreferences.landscape || (typeof window !== "undefined" && landscapeVariantEnabled(window.location.search, import.meta.env.DEV, "vegetation-v1"));
+  }
+  private get mountainPilotPreview() {
+    return this.betaVisualPreferences.landscape || (typeof window !== "undefined" && landscapeVariantEnabled(window.location.search, import.meta.env.DEV, "mountain-v1"));
+  }
+  private get worldPilotPreview() {
+    return this.betaVisualPreferences.landscape || (typeof window !== "undefined" && landscapeVariantEnabled(window.location.search, import.meta.env.DEV, "world-v3"));
+  }
   private waterMats: StandardMaterial[] = [];
   private shimmerT = 0;
   /** sea life + surface motion: bobbing fish, drifting glints, cloud puffs */
@@ -221,7 +234,44 @@ export class BoardRenderer {
   private bio: BiomePalette = biomeFor("continents");
   onPick: ((p: PickInfo) => void) | null = null;
 
-  constructor(canvas: HTMLCanvasElement) {
+  /** Display-only rollback. No GameStore actions, save writes, rules or camera reset. */
+  setBetaVisualPreferences(preferences: Readonly<BetaVisualPreferences>, state: GameState) {
+    if (this.disposed) return;
+    const charactersChanged = preferences.newVisuals !== this.betaVisualPreferences.newVisuals;
+    const landscapeChanged = preferences.landscape !== this.betaVisualPreferences.landscape;
+    if (!charactersChanged && !landscapeChanged) return;
+    this.betaVisualPreferences = preferences;
+    if (charactersChanged) {
+      this.modelCache?.dispose();
+      // A disposed loader may still physically decode. Rapid off/on must not
+      // open another cache and bypass the two-load or texture-reservation cap.
+      this.pendingVisualCacheReset = (this.modelCache?.stats.activeLoads ?? 0) > 0;
+      if (!this.pendingVisualCacheReset) this.modelCache = null;
+    }
+    if (state.phase !== "playing" && state.phase !== "gameover") return;
+    if (landscapeChanged) this.boardSig = "";
+    this.buildBoard(state);
+    if (charactersChanged) this.rebuildVisualUnits(state);
+    else this.syncUnits(state);
+    this.showHighlights(state);
+  }
+
+  private rebuildVisualUnits(state: GameState) {
+    this.unitMeshes.forEach(node => { this.scene.stopAnimation(node); node.dispose(); });
+    this.unitMeshes.clear();
+    this.syncUnits(state);
+    // Don't animate freshly rebuilt actors from the world origin on a toggle.
+    const center = this.center(state.size);
+    for (const unit of state.units) {
+      const node = this.unitMeshes.get(unit.id);
+      if (!node) continue;
+      this.scene.stopAnimation(node);
+      node.position.set(unit.x - center, TERRAIN_H[state.tiles[idx(unit.x, unit.y, state.size)].terrain] - 0.4 + 0.02, unit.y - center);
+    }
+  }
+
+  constructor(canvas: HTMLCanvasElement, preferences: Readonly<BetaVisualPreferences> = DEFAULT_BETA_VISUALS) {
+    this.betaVisualPreferences = preferences;
     this.engine = new Engine(canvas, true, { antialias: true, stencil: false, alpha: true });
     this.scene = new Scene(this.engine);
     // The sky is painted in CSS behind a transparent clear (see GameCanvas).
@@ -231,12 +281,19 @@ export class BoardRenderer {
     this.scene.clearColor = new Color4(0, 0, 0, 0);
     // dev/perf harness hook: lets tooling read live scene statistics
     if (typeof window !== "undefined") (window as unknown as Record<string, unknown>).__sunderScene = this.scene;
+    this.scene.metadata = { betaVisualDiagnostics: () => ({ ...this.betaVisualPreferences, cache: this.modelCache?.stats ?? null }) };
     this.setupCameraLights(canvas);
     this.setupPipeline();
     this.root = new TransformNode("root", this.scene);
 
     // water shimmer: gentle emissive pulse + hue drift on shared water materials
     this.scene.onBeforeRenderObservable.add(() => {
+      if (this.pendingVisualCacheReset && this.modelCache?.stats.activeLoads === 0) {
+        this.pendingVisualCacheReset = false;
+        this.modelCache = null;
+        const state = game.state;
+        if (this.betaVisualPreferences.newVisuals && (state.phase === "playing" || state.phase === "gameover")) this.rebuildVisualUnits(state);
+      }
       this.shimmerT += this.engine.getDeltaTime() / 1000;
       const p = (Math.sin(this.shimmerT * 1.6) + 1) / 2; // 0..1 slow swell
       const q = (Math.sin(this.shimmerT * 2.7 + 1.3) + 1) / 2; // offset ripple
@@ -695,7 +752,7 @@ export class BoardRenderer {
         t.greatRuin ? "U" : "-",
         t.port === null ? "-" : String(t.port),
       );
-      if (this.rosterReviewPreview) out.push(unitLaneCellSignature(s, idx(t.x, t.y, s.size), true));
+      if (this.unitLanePreview) out.push(unitLaneCellSignature(s, idx(t.x, t.y, s.size), true));
     }
     for (const ci of s.cities) {
       out.push(`${ci.id}:${ci.tribe ?? "n"}:${ci.level}:${ci.walls ? 1 : 0}:${ci.isCapital ? 1 : 0}`);
@@ -722,7 +779,7 @@ export class BoardRenderer {
   buildBoard(s: GameState) {
     this.applyForgedCostume(s);
     // Derive drawable occupancy fresh: a hidden rival may never leave a cleared lane behind.
-    this.unitLaneCells = visibleUnitLaneCells(s, this.rosterReviewPreview);
+    this.unitLaneCells = visibleUnitLaneCells(s, this.unitLanePreview);
     // The game notifies on every action, so this is called after each move,
     // attack and turn end. Rebuilding ~1000 meshes (with flat-shading
     // conversions) each time caused real hitches on phones; skip when the
@@ -1322,7 +1379,7 @@ export class BoardRenderer {
       const nearSettlement = this.vegetationPilotPreview && s.cities.some(ci =>
         Math.max(Math.abs(ci.x - t.x), Math.abs(ci.y - t.y)) <= 1);
       const treeCount = forestTreeCount(kind, t.x, t.y, nearSettlement, this.vegetationPilotPreview);
-      const placements = forestUnitLanePlacements(t.x, t.y, treeCount, this.unitLaneCells.has(key), this.rosterReviewPreview);
+      const placements = forestUnitLanePlacements(t.x, t.y, treeCount, this.unitLaneCells.has(key), this.unitLanePreview);
       for (const placement of placements) {
         const i = placement.index;
         const treeStart = decor.length;
@@ -1607,7 +1664,7 @@ export class BoardRenderer {
         boulder.material = this.litMat(this.bio.rock.shadow); this.facet(boulder);
         boulder.metadata = md; boulder.parent = this.root; decor.push(boulder);
       }
-      const lane = mountainUnitLaneTransform(t.x, t.y, this.unitLaneCells.has(key), this.rosterReviewPreview);
+      const lane = mountainUnitLaneTransform(t.x, t.y, this.unitLaneCells.has(key), this.unitLanePreview);
       if (lane.scale !== 1) {
         const mx = t.x - c, mz = t.y - c;
         for (const mesh of decor.slice(mountainStart)) {
@@ -2133,6 +2190,13 @@ export class BoardRenderer {
         node = this.buildUnitMesh(s, u);
         this.unitMeshes.set(u.id, node);
       }
+      // Embarking/disembarking changes beta eligibility. Dispose an in-flight
+      // land actor so it cannot replace the procedural boat after a late load.
+      if ((this.betaVisualPreferences.newVisuals || this.rosterReviewPreview) && !u.guardian && node.metadata?.visualBoat !== !!u.boat) {
+        node.dispose();
+        node = this.buildUnitMesh(s, u);
+        this.unitMeshes.set(u.id, node);
+      }
       // veterancy: if a unit was promoted after its mesh was built, rebuild to add the crest
       if (u.veteran && !node.getChildMeshes().some((m) => m.name === "crest")) {
         node.dispose();
@@ -2441,14 +2505,30 @@ export class BoardRenderer {
     }
   }
 
-  /** Shared templates exist only in the exact integrated development review; failures leave the original actor visible. */
-  private async replaceWithVisualRosterUnit(parent: TransformNode, candidate: ImportedModelCandidate) {
+  /** Shared templates are opt-in only; failed or capped imports keep the procedural actor visible. */
+  private async replaceWithVisualRosterUnit(parent: TransformNode, candidate: ImportedModelCandidate, beta = false, ownerColor?: string) {
     const existingChildren = parent.getChildren();
     parent.metadata = { ...(parent.metadata ?? {}), visualImportState: "loading" };
     try {
-      this.modelCache ??= new BoardModelCache(this.scene);
+      if (this.pendingVisualCacheReset) {
+        parent.metadata = { ...(parent.metadata ?? {}), visualImportState: "deferred" };
+        return;
+      }
+      this.modelCache ??= beta ? new BoardModelCache(this.scene, undefined, {
+        ...BETA_MODEL_CACHE_LIMITS,
+        resolveUrl: path => resolveBetaModelUrl(path, Capacitor.isNativePlatform()),
+        textureBytesForUrl: url => {
+          const model = Object.values(BETA_VISUAL_MODELS).find(value => url.endsWith(value.modelUrl));
+          if (!model) throw new Error("No audited beta texture estimate for this model.");
+          return model.textureBytesEstimated;
+        },
+      }) : new BoardModelCache(this.scene);
       const instance = await this.modelCache.instantiate(candidate, parent, 0.62);
-      if (!instance || this.disposed || parent.isDisposed()) return;
+      if (!instance || this.disposed || parent.isDisposed()) {
+        if (!parent.isDisposed()) parent.metadata = { ...(parent.metadata ?? {}), visualImportState: "failed" };
+        return;
+      }
+      const visibility = Math.max(0, ...existingChildren.flatMap(child => child instanceof Mesh ? [child.visibility] : []));
       for (const child of existingChildren) {
         // These are gameplay-level cues, not the old procedural body. Preserve progression/veterancy readability.
         if (["crown", "pip", "crest"].includes(child.name)) continue;
@@ -2456,17 +2536,28 @@ export class BoardRenderer {
       }
       for (const mesh of instance.meshes) {
         mesh.isPickable = false;
+        mesh.visibility = visibility;
         (mesh as Mesh).renderOutline = true;
         (mesh as Mesh).outlineWidth = UNIT_OUTLINE;
         (mesh as Mesh).outlineColor = Color3.FromHexString("#0b0b1e");
         this.addShadows(mesh as Mesh);
       }
       this.addContactShadow(parent, 0.34);
-      parent.metadata = { ...(parent.metadata ?? {}), visualRosterPreview: true, visualImportState: "ready",
+      if (beta && ownerColor) {
+        // True-owner information remains a renderer cue, not a texture retouch.
+        const marker = MeshBuilder.CreateTorus("owner-marker", { diameter: 0.66, thickness: 0.025, tessellation: 12 }, this.scene);
+        marker.parent = parent;
+        marker.position.y = 0.018;
+        marker.material = this.mat(ownerColor);
+        marker.isPickable = false;
+        marker.visibility = visibility;
+      }
+      parent.metadata = { ...(parent.metadata ?? {}), visualRosterPreview: !beta, visualBeta: beta, visualImportState: "ready",
         visualAssetId: candidate.assetId, visualModelUrl: candidate.modelUrl, visualDecision: candidate.decision };
     } catch (error) {
       if (!parent.isDisposed()) parent.metadata = { ...(parent.metadata ?? {}), visualImportState: "failed" };
-      console.warn(`${candidate.name} integrated review failed; procedural actor retained.`, error);
+      if (beta) console.warn("Beta unit model unavailable; procedural actor retained.");
+      else console.warn(`${candidate.name} integrated review failed; procedural actor retained.`, error);
     }
   }
 
@@ -2642,10 +2733,17 @@ export class BoardRenderer {
     // not cast one of its own
     this.addContactShadow(node);
     node.scaling.setAll(UNIT_SCALE);
+    node.metadata = { ...(node.metadata ?? {}), visualBoat: !!u.boat };
     if (this.rosterReviewPreview) {
       const candidate = visualRosterCandidate(defIndex, u, true);
       if (candidate) void this.replaceWithVisualRosterUnit(node, candidate);
       // One deliberate selection per unit: old query flags cannot trigger a second concurrent replacement.
+      return node;
+    }
+    if (this.betaVisualPreferences.newVisuals) {
+      const tribe = u.tribe >= 0 ? s.tribes[u.tribe] : undefined;
+      const candidate: BetaVisualCandidate | null = betaVisualCandidate(defIndex, u, true, !!skin || !!tribe?.customHeadgear);
+      if (candidate) void this.replaceWithVisualRosterUnit(node, candidate, true, tribe?.color);
       return node;
     }
     if (this.p2WarriorPreview && defIndex === 4 && u.type === "warrior" && !u.boat) {

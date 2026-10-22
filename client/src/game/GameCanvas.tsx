@@ -8,6 +8,7 @@ import { cinema } from "./render/cinema";
 import { shareShot, type ShareShot } from "./render/capture";
 import { sound } from "./sound";
 import { unitAt, cityAt, reachableTiles, attackableUnits } from "./core/rules";
+import { getBetaVisualPreferences, subscribeBetaVisualPreferences } from "./render/betaVisualPreferences";
 
 import { BrandMark, ArtOrFallback } from "./ui/Brand";
 
@@ -57,7 +58,7 @@ export default function GameCanvas() {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const r = new BoardRenderer(canvas);
+    const r = new BoardRenderer(canvas, getBetaVisualPreferences());
     rendererRef.current = r;
 
     const refresh = () => {
@@ -68,6 +69,9 @@ export default function GameCanvas() {
       r.showHighlights(s);
     };
     refresh();
+    const unsubVisuals = subscribeBetaVisualPreferences(() => {
+      r.setBetaVisualPreferences(getBetaVisualPreferences(), game.state);
+    });
     // brand splash: hold one beat after the first build so the reveal feels intentional
     const bootTimer = setTimeout(() => setBooting(false), 700);
 
@@ -234,6 +238,7 @@ export default function GameCanvas() {
     return () => {
       unsub();
       unsubFx();
+      unsubVisuals();
       clearTimeout(bootTimer);
       r.dispose();
       rendererRef.current = null;

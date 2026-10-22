@@ -38,6 +38,7 @@ import { missionById } from "@shared/story";
 import { MAP_PACKS, CuratedMap } from "@shared/mapPacks";
 import { Map as MapIcon } from "lucide-react";
 import { isIosNativeApp } from "@/lib/nativeCommerce";
+import { BetaVisualSettings } from "./BetaVisualSettings";
 
 /** Admin-only entry to the AI Playtest Lab; renders nothing for everyone else. */
 function AdminLabLink() {
@@ -599,6 +600,8 @@ export function MainMenu() {
             }}
           />
         </div>
+
+        <div className="mt-4 w-full"><BetaVisualSettings /></div>
 
         <Button
           size="lg"
