@@ -201,7 +201,7 @@ jobs:
   testflight:
     name: TestFlight
     runs-on: macos-latest
-    if: github.event_name == 'workflow_dispatch'
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
     needs: [verify, ios-build]
     environment: app-store
     timeout-minutes: 60
