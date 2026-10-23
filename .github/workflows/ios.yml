@@ -105,7 +105,7 @@ jobs:
       - name: Build web
         run: pnpm build
 
-       - name: Production API returns JSON, not SPA HTML
+      - name: Production API returns JSON, not SPA HTML
         env:
           STRIPE_SECRET_KEY: sk_test_ci_placeholder
         run: |
