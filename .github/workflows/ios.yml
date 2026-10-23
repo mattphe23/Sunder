@@ -105,12 +105,13 @@ jobs:
       - name: Build web
         run: pnpm build
 
-      - name: Production API returns JSON, not SPA HTML
+       - name: Production API returns JSON, not SPA HTML
         env:
           STRIPE_SECRET_KEY: sk_test_ci_placeholder
         run: |
-          PORT=4175 NODE_ENV=production node dist/index.js > "<LaTex>RUNNER_TEMP/sunder-api-check.log" 2>&1 &           api_pid=</LaTex>!
-          trap 'kill "<LaTex>api_pid" 2>/dev/null || true' EXIT           for attempt in</LaTex>(seq 1 30); do
+          PORT=4175 NODE_ENV=production node dist/index.js > /tmp/sunder-api-check.log 2>&1 &
+          trap 'jobs -pr | xargs -r kill || true' EXIT
+          for attempt in {1..30}; do
             if curl --silent --fail http://127.0.0.1:4175/ > /dev/null; then break; fi
             sleep 1
           done
