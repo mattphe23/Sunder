@@ -118,6 +118,46 @@ export function forestUnitLanePlacements(
 }
 
 /**
+ * Coordinate-only forest grouping for the combined world-v3 study. It retains
+ * that study's already-capped tree budget, but places the smaller trees at
+ * outer corners so syncUnits()' fixed tile-centre origin has a readable lane.
+ *
+ * Deliberately takes no GameState, unit, visibility, or ownership input: a
+ * forest's shape cannot reveal whether an unseen rival occupies the tile. The
+ * unflagged branch exactly reproduces the authored loop.
+ */
+export function forestCenterClearancePlacements(
+  x: number,
+  y: number,
+  authoredCount: number,
+  review: boolean,
+): readonly UnitLaneTreePlacement[] {
+  if (!review) {
+    return Array.from({ length: Math.max(0, Math.floor(authoredCount)) }, (_, index) => ({
+      index,
+      ...authoredForestOffset(index),
+      scale: 1,
+    }));
+  }
+
+  const count = Math.min(3, Math.max(0, Math.floor(authoredCount)));
+  const xDirection = laneHash(x, y, 11) < 0.5 ? -1 : 1;
+  const zDirection = laneHash(x, y, 12) < 0.5 ? -1 : 1;
+  const outer = (channel: number) => 0.30 + laneHash(x, y, channel) * 0.035;
+  const corners: readonly (readonly [number, number])[] = [
+    [-xDirection, -zDirection],
+    [xDirection, zDirection],
+    [-xDirection, zDirection],
+  ];
+  return corners.slice(0, count).map(([xSign, zSign], index) => ({
+    index,
+    x: xSign * outer(13 + index * 2),
+    z: zSign * outer(14 + index * 2),
+    scale: 0.65 + laneHash(x, y, 19 + index) * 0.05,
+  }));
+}
+
+/**
  * Shrinks and nudges a mountain only for a visible occupied review cell. The
  * returned transform is deterministic, has a modest 0.16–0.20 offset on both
  * horizontal axes, and never lets an occupied mountain exceed 0.70 scale.

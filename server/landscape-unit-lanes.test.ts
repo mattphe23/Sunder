@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { idx, type GameState, type Terrain, type Tile, type Unit } from "../client/src/game/core/types";
 import {
+  forestCenterClearancePlacements,
   forestUnitLanePlacements,
   mountainUnitLaneTransform,
   unitLaneCellSignature,
@@ -122,6 +123,35 @@ describe("landscape unit lanes", () => {
     }
     expect(first[0]!.x * first[1]!.x).toBeLessThan(0);
     expect(first[0]!.z * first[1]!.z).toBeLessThan(0);
+  });
+
+  it("keeps every world-v3 forest centre clear with stable coordinate-only grouping", () => {
+    expect(forestCenterClearancePlacements(3, 3, 4, false)).toEqual([
+      { index: 0, x: -0.26, z: -0.24, scale: 1 },
+      { index: 1, x: 0, z: 0, scale: 1 },
+      { index: 2, x: 0.26, z: 0.24, scale: 1 },
+      { index: 3, x: 0.08, z: -0.32, scale: 1 },
+    ]);
+
+    for (let x = 0; x < 11; x++) for (let y = 0; y < 11; y++) {
+      for (const count of [0, 2, 3, 4]) {
+        expect(forestCenterClearancePlacements(x, y, count, false)).toEqual(
+          forestUnitLanePlacements(x, y, count, false, false),
+        );
+      }
+      const first = forestCenterClearancePlacements(x, y, 4, true);
+      expect(first).toEqual(forestCenterClearancePlacements(x, y, 4, true));
+      expect(first).toHaveLength(3);
+      for (const tree of first) {
+        expect(Math.abs(tree.x)).toBeGreaterThanOrEqual(0.30);
+        expect(Math.abs(tree.x)).toBeLessThanOrEqual(0.335);
+        expect(Math.abs(tree.z)).toBeGreaterThanOrEqual(0.30);
+        expect(Math.abs(tree.z)).toBeLessThanOrEqual(0.335);
+        expect(tree.scale).toBeGreaterThanOrEqual(0.65);
+        expect(tree.scale).toBeLessThanOrEqual(0.70);
+      }
+    }
+    expect(forestCenterClearancePlacements(5, 2, 2, true)).toHaveLength(2);
   });
 
   it("makes an occupied mountain deterministic, modestly offset, and never taller than the lane cap", () => {

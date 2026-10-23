@@ -40,7 +40,7 @@ import "@babylonjs/loaders/glTF";
 import { importedUnitPreviewEnabled } from "./importedPreviewGate";
 import { BoardModelCache } from "./importedModelCache";
 import { visualReviewEnabled, visualRosterCandidate } from "./visualReview";
-import { forestUnitLanePlacements, mountainUnitLaneTransform, unitLaneCellSignature, visibleUnitLaneCells } from "./landscapeUnitLanes";
+import { forestCenterClearancePlacements, forestUnitLanePlacements, mountainUnitLaneTransform, unitLaneCellSignature, visibleUnitLaneCells } from "./landscapeUnitLanes";
 import { DEFAULT_BETA_VISUALS, type BetaVisualPreferences } from "./betaVisualPreferences";
 import { betaVisualCandidate, BETA_MODEL_CACHE_LIMITS, type BetaVisualCandidate } from "./betaVisualCandidate";
 import { BETA_VISUAL_MODELS } from "./betaVisualModels";
@@ -1379,7 +1379,12 @@ export class BoardRenderer {
       const nearSettlement = this.vegetationPilotPreview && s.cities.some(ci =>
         Math.max(Math.abs(ci.x - t.x), Math.abs(ci.y - t.y)) <= 1);
       const treeCount = forestTreeCount(kind, t.x, t.y, nearSettlement, this.vegetationPilotPreview);
-      const placements = forestUnitLanePlacements(t.x, t.y, treeCount, this.unitLaneCells.has(key), this.unitLanePreview);
+      // world-v3 keeps this clearance geometric and coordinate-only, rather
+      // than changing a forest when a currently drawable unit enters it. That
+      // preserves a readable actor origin without encoding fogged-unit state.
+      const placements = this.worldPilotPreview
+        ? forestCenterClearancePlacements(t.x, t.y, treeCount, true)
+        : forestUnitLanePlacements(t.x, t.y, treeCount, this.unitLaneCells.has(key), this.unitLanePreview);
       for (const placement of placements) {
         const i = placement.index;
         const treeStart = decor.length;
