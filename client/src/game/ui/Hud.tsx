@@ -1,6 +1,7 @@
 // Sunder HUD — Isoglow glass panels over the indigo void; amber star accent.
 import { useGame } from "../useGame";
 import { game } from "../core/state";
+import { resourceAction, type ResourcePosition } from "./resourceAction";
 import { UNIT_STATS, TECHS, HERO_PERKS, HERO_XP_THRESHOLDS, HERO_MAX_LEVEL, BUILDINGS, REWARD_INFO, rewardChoicesForLevel, RECAP_HIGH_SIGNAL } from "../core/types";
 import {
   techCost, canResearch, trainableUnits, starIncome, cityAt, canHarvest,
@@ -408,7 +409,7 @@ export function BottomBar({ onOpenTech, onOpenDiplo }: { onOpenTech: () => void;
   );
 }
 
-export function SelectionPanel() {
+export function SelectionPanel({ onInspectResource }: { onInspectResource?: (position: ResourcePosition | null) => void } = {}) {
   const g = useGame();
   const s = g.state;
   const unit = s.units.find((u) => u.id === s.selectedUnitId);
@@ -504,6 +505,14 @@ export function SelectionPanel() {
         )}
         {unit.type === "colossus" && unit.quakeUsed && (
           <p className="mt-2 text-center text-[10px] text-slate-500">Quake spent — the earth remembers.</p>
+        )}
+        {onInspectResource && resourceAction(s, unit) && (
+          <button
+            className="mt-2 min-h-[44px] w-full rounded-md border border-amber-300/30 bg-amber-400/10 px-2 py-2 text-xs font-semibold text-amber-200 hover:bg-amber-400/20 focus-visible:outline-2 focus-visible:outline-amber-300"
+            onClick={() => onInspectResource({ x: unit.x, y: unit.y })}
+          >
+            Inspect resource on this tile
+          </button>
         )}
         {unit.moved && unit.attacked && <p className="mt-2 text-center text-[11px] text-slate-400">Done for this turn</p>}
       </div>

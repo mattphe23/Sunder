@@ -9,12 +9,10 @@ import { shareShot, type ShareShot } from "./render/capture";
 import { sound } from "./sound";
 import { unitAt, cityAt, reachableTiles, attackableUnits } from "./core/rules";
 import { getBetaVisualPreferences, subscribeBetaVisualPreferences } from "./render/betaVisualPreferences";
-
 import { BrandMark, ArtOrFallback } from "./ui/Brand";
-
+import { resourceAction, type ResourcePosition } from "./ui/resourceAction";
 const LOGO = "/manus-storage/sunder-mark_d1dbf156.png";
-
-export default function GameCanvas() {
+export default function GameCanvas({ onInspectResource }: { onInspectResource?: (position: ResourcePosition | null) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<BoardRenderer | null>(null);
   const [booting, setBooting] = useState(true);
@@ -194,6 +192,7 @@ export default function GameCanvas() {
     r.onPick = ({ x, y }) => {
       const s = game.state;
       if (s.phase !== "playing" || s.currentTribe !== s.humanTribe || s.aiThinking) return;
+      onInspectResource?.(null);
       const selected = s.units.find((u) => u.id === s.selectedUnitId);
       const clickedUnit = unitAt(s, x, y);
 
@@ -233,6 +232,9 @@ export default function GameCanvas() {
         return;
       }
       game.selectUnit(null);
+      // Inspect only after preserving unit selection and legal movement/attack.
+      // This is presentation state: no harvest occurs until the explicit action.
+      if (onInspectResource && resourceAction(s, { x, y })) onInspectResource({ x, y });
     };
 
     return () => {
@@ -243,7 +245,7 @@ export default function GameCanvas() {
       r.dispose();
       rendererRef.current = null;
     };
-  }, []);
+  }, [onInspectResource]);
 
   return (
     <>
