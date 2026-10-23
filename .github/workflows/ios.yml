@@ -105,6 +105,17 @@ jobs:
       - name: Build web
         run: pnpm build
 
+      - name: Production API returns JSON, not SPA HTML
+        env:
+          STRIPE_SECRET_KEY: sk_test_ci_placeholder
+        run: |
+          PORT=4175 NODE_ENV=production node dist/index.js > "<LaTex>RUNNER_TEMP/sunder-api-check.log" 2>&1 &           api_pid=</LaTex>!
+          trap 'kill "<LaTex>api_pid" 2>/dev/null || true' EXIT           for attempt in</LaTex>(seq 1 30); do
+            if curl --silent --fail http://127.0.0.1:4175/ > /dev/null; then break; fi
+            sleep 1
+          done
+          QA_BASE=http://127.0.0.1:4175 node scripts/check-production-api-contract.mjs
+
       - name: The web build exists where Capacitor expects it
         run: |
           test -f dist/public/index.html \
