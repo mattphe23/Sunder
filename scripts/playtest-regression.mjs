@@ -294,9 +294,9 @@ const testFiles = discoverTestFiles(projectRoot);
 const suitePlans = [
   {
     id: "ios-safearea",
-    names: ["ios-safe-area.test.ts"],
-    seed: "not-applicable (static CSS/native-config contract)",
-    note: "Exercises iOS safe-area and viewport configuration contract only.",
+    names: ["ios-safe-area.test.ts", "hud-readability.test.ts"],
+    seed: "deterministic HUD/architecture fixtures; static CSS/native-config contract",
+    note: "Exercises safe-area guards, shared Map/notification flow, mobile tool labels and presentation-only city inspection; geometry still requires real browser QA.",
   },
   {
     id: "beta-preference-store-cache-nativeurl",

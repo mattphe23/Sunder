@@ -3,8 +3,8 @@ import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { useGame } from "@/game/useGame";
 import { sound } from "@/game/sound";
 import { MainMenu, GameOver } from "@/game/ui/Menu";
-import { TopBar, BottomBar, SelectionPanel, TechPanel, LogTicker, BattlePreview, TurnRecap, PerkChoice, CityRewardChoice } from "@/game/ui/Hud";
-import { Minimap } from "@/game/ui/Minimap";
+import { TopBar, BottomBar, SelectionPanel, TechPanel, BattlePreview, TurnRecap, PerkChoice, CityRewardChoice } from "@/game/ui/Hud";
+import { GameHudRail } from "@/game/ui/GameHudRail";
 import { Tutorial } from "@/game/ui/Tutorial";
 import { FactionIntro } from "@/game/ui/FactionIntro";
 import { HandoffScreen } from "@/game/ui/Handoff";
@@ -54,8 +54,7 @@ export default function Home() {
         <GameCanvas onInspectResource={setResourceTile} />
       </Suspense>
       <TopBar />
-      <LogTicker />
-      <Minimap />
+      <GameHudRail />
       {resourceTile
         ? <ResourceActionPanel position={resourceTile} onClose={closeResource} />
         : <SelectionPanel onInspectResource={setResourceTile} />}

@@ -8,7 +8,7 @@ import {
   techCost, canResearch, trainableUnits, starIncome, cityAt, canHarvest,
   harvestCost, canBuildPort, portCost, wallCost, canBuild, unitCapacity, unitCount,
   adjacencyPop, marketStars, canQuake, quakeVictims, quakeWallTargets, QUAKE_DAMAGE,
-  canBuildRoad, roadCost, connectedCityIds, severedCityIds,
+  canBuildRoad, roadCost, connectedCityIds, severedCityIds, isVisibleTo,
 } from "../core/rules";
 import { Button } from "@/components/ui/button";
 import { Star, Swords, FlaskConical, X, ChevronRight, Anchor, Ship, Skull, Shield, Flag, Landmark, ScrollText, Undo2, Bird, Crown, Sparkles, SkipForward, Zap, Grid3x3, Route, Handshake } from "lucide-react";
@@ -347,45 +347,49 @@ export function BottomBar({ onOpenTech, onOpenDiplo }: { onOpenTech: () => void;
   };
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex items-end justify-between gap-2 p-3 safe-b safe-x" style={{ touchAction: "manipulation" }}>
-      {/* min-w-0 lets this row shrink instead of pushing End Turn off the screen
-          on a phone; labels collapse to icons below sm so the controls still fit */}
-      <div className="pointer-events-auto flex min-w-0 shrink gap-2 overflow-x-auto">
-        <Button variant="secondary" size="sm" className="min-h-[44px] min-w-[44px] shrink-0 gap-1.5 border border-white/10 bg-[#1b1b3f]/85 px-3 text-slate-100 backdrop-blur-md hover:bg-[#2a2a55] sm:min-h-0" onClick={onOpenTech} title="Research">
-          <FlaskConical className="h-4 w-4 text-cyan-300" /> <span className="hidden sm:inline">Research</span>
+      {/* Short stacked phone labels keep actions discoverable. Only utilities
+          scroll when space is tight; End Turn remains fixed and reachable. */}
+      <div role="group" aria-label="Game tools" className="pointer-events-auto flex min-w-0 shrink gap-1 overflow-x-auto sm:gap-2">
+        <Button variant="secondary" size="sm" className="min-h-[44px] min-w-[44px] shrink-0 flex-col gap-1 border border-white/10 bg-[#1b1b3f]/85 px-1 text-slate-100 backdrop-blur-md hover:bg-[#2a2a55] sm:min-h-0 sm:flex-row sm:gap-1.5 sm:px-3" onClick={onOpenTech} title="Research" aria-label="Research">
+          <FlaskConical className="h-4 w-4 text-cyan-300" /> <span className="text-[9px] leading-none sm:text-sm">Research</span>
         </Button>
-        <Button variant="secondary" size="sm" className="min-h-[44px] min-w-[44px] shrink-0 gap-1.5 border border-white/10 bg-[#1b1b3f]/85 px-3 text-slate-100 backdrop-blur-md hover:bg-[#2a2a55] sm:min-h-0" onClick={() => { sound.play("click"); onOpenDiplo(); }} title="Diplomacy">
-          <Bird className="h-4 w-4 text-sky-300" /> <span className="hidden sm:inline">Diplomacy</span>
+        <Button variant="secondary" size="sm" className="min-h-[44px] min-w-[44px] shrink-0 flex-col gap-1 border border-white/10 bg-[#1b1b3f]/85 px-1 text-slate-100 backdrop-blur-md hover:bg-[#2a2a55] sm:min-h-0 sm:flex-row sm:gap-1.5 sm:px-3" onClick={() => { sound.play("click"); onOpenDiplo(); }} title="Diplomacy" aria-label="Diplomacy">
+          <Bird className="h-4 w-4 text-sky-300" /> <span className="text-[9px] leading-none sm:hidden">Pacts</span><span className="hidden sm:inline">Diplomacy</span>
         </Button>
         <Button
           variant="secondary"
           size="sm"
-          className={`min-h-[44px] min-w-[44px] shrink-0 gap-1.5 border px-3 backdrop-blur-md sm:min-h-0 ${s.plannerOpen ? "border-emerald-400/60 bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30" : "border-white/10 bg-[#1b1b3f]/85 text-slate-100 hover:bg-[#2a2a55]"}`}
+          className={`min-h-[44px] min-w-[44px] shrink-0 flex-col gap-1 border px-1 backdrop-blur-md sm:min-h-0 sm:flex-row sm:gap-1.5 sm:px-3 ${s.plannerOpen ? "border-emerald-400/60 bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30" : "border-white/10 bg-[#1b1b3f]/85 text-slate-100 hover:bg-[#2a2a55]"}`}
           onClick={() => { sound.play("click"); g.togglePlanner(); }}
           title="City planner — overlay projected building values on every buildable tile"
+          aria-label="City planner"
+          aria-pressed={s.plannerOpen}
         >
-          <Grid3x3 className="h-4 w-4 text-emerald-300" /> <span className="hidden sm:inline">Planner</span>
+          <Grid3x3 className="h-4 w-4 text-emerald-300" /> <span className="text-[9px] leading-none sm:text-sm">Planner</span>
         </Button>
         {game.canUndo() && (
           <Button
             variant="secondary"
             size="sm"
-            className="min-h-[44px] min-w-[44px] shrink-0 gap-1.5 border border-sky-400/40 bg-[#1b1b3f]/85 px-3 text-sky-200 backdrop-blur-md hover:bg-[#2a2a55] sm:min-h-0"
+            className="min-h-[44px] min-w-[44px] shrink-0 flex-col gap-1 border border-sky-400/40 bg-[#1b1b3f]/85 px-1 text-sky-200 backdrop-blur-md hover:bg-[#2a2a55] sm:min-h-0 sm:flex-row sm:gap-1.5 sm:px-3"
             onClick={() => game.undoMove()}
             title="Undo the last move (before attacking or ending the turn)"
+            aria-label="Undo move"
           >
-            <Undo2 className="h-4 w-4" /> <span className="hidden sm:inline">Undo</span>
+            <Undo2 className="h-4 w-4" /> <span className="text-[9px] leading-none sm:text-sm">Undo</span>
           </Button>
         )}
         {isMyTurn && movesLeft > 0 && (
           <Button
             variant="secondary"
             size="sm"
-            className="min-h-[44px] min-w-[44px] shrink-0 gap-1.5 border border-emerald-400/40 bg-[#1b1b3f]/85 px-3 text-emerald-200 backdrop-blur-md hover:bg-[#2a2a55] sm:min-h-0"
+            className="relative min-h-[44px] min-w-[44px] shrink-0 flex-col gap-1 border border-emerald-400/40 bg-[#1b1b3f]/85 px-1 text-emerald-200 backdrop-blur-md hover:bg-[#2a2a55] sm:min-h-0 sm:flex-row sm:gap-1.5 sm:px-3"
             onClick={() => { sound.play("click"); game.nextUnit(); }}
             title="Cycle to the next unit that can still act (Tab / N)"
+            aria-label={`Next unit (${movesLeft} can still act)`}
           >
-            <SkipForward className="h-4 w-4" /> <span className="hidden sm:inline">Next</span>
-            <span className="ml-0.5 rounded-full bg-emerald-400/20 px-1.5 text-[11px] font-bold text-emerald-300">{movesLeft}</span>
+            <SkipForward className="h-4 w-4" /> <span className="text-[9px] leading-none sm:text-sm">Next</span>
+            <span className="absolute right-0.5 top-0.5 rounded-full bg-emerald-400/20 px-1 text-[9px] font-bold text-emerald-300 sm:static sm:ml-0.5 sm:px-1.5 sm:text-[11px]">{movesLeft}</span>
           </Button>
         )}
       </div>
@@ -428,9 +432,9 @@ export function SelectionPanel({ onInspectResource }: { onInspectResource?: (pos
             {unit.boat && <Ship className="h-4 w-4 text-cyan-300" />}
             {isHero && <Crown className="h-4 w-4 text-amber-300" />}
             {unit.veteran && <span className="text-amber-400" title="Veteran">◆</span>}
-            {unit.veteran ? "Veteran " : ""}{isHero ? game.heroName(unit) : st.name}{unit.boat && " (at sea)"}
+            {unit.veteran ? "Veteran " : ""}{isHero ? game.heroName(unit) : unitDisplayName(unit)}{unit.boat && " (at sea)"}
           </span>
-          <button onClick={() => g.selectUnit(null)}><X className="h-4 w-4 text-slate-400" /></button>
+          <button onClick={() => g.selectUnit(null)} aria-label="Close unit details"><X className="h-4 w-4 text-slate-400" /></button>
         </div>
         {isHero && (
           <div className="mb-2">
@@ -481,6 +485,16 @@ export function SelectionPanel({ onInspectResource }: { onInspectResource?: (pos
           <div><div className="font-mono text-slate-100">{st.defense}</div>DEF</div>
           <div><div className="font-mono text-slate-100">{st.range}</div>RNG</div>
         </div>
+        {here?.tribe === s.humanTribe && isVisibleTo(s, s.humanTribe, unit.x, unit.y) && (
+          <button
+            className="mt-2 min-h-[44px] w-full rounded-md border border-sky-300/25 bg-sky-400/10 px-2 py-2 text-left text-xs text-sky-100 hover:bg-sky-400/20 focus-visible:outline-2 focus-visible:outline-sky-300"
+            onClick={() => g.selectCity(here.id)}
+            aria-label={`Inspect city ${here.name} on this tile`}
+          >
+            <span className="flex items-center gap-1.5 font-semibold"><Landmark className="h-3.5 w-3.5 shrink-0" />City on this tile: {here.name}</span>
+            <span className="mt-0.5 block text-[10px] text-sky-200/75">Level {here.level} · Tap to inspect city</span>
+          </button>
+        )}
         {canCapture && (
           <Button size="sm" className="mt-2 w-full bg-amber-400 font-bold text-[#1b1b3f] hover:bg-amber-300" onClick={() => g.captureCity(unit.id)}>
             <Swords className="h-4 w-4" /> Capture {here!.name}
@@ -740,8 +754,8 @@ export function LogTicker() {
   const s = g.state;
   if (s.log.length === 0) return null;
   return (
-    <div className="pointer-events-none absolute left-1/2 top-14 z-10 -translate-x-1/2 text-center">
-      <p className="rounded-full bg-black/40 px-4 py-1 text-xs text-slate-200 backdrop-blur-sm">{s.log[0]}</p>
+    <div role="status" aria-label="Latest game event" aria-atomic="true" className="min-w-0 text-center sm:flex-1">
+      <p className="mx-auto w-fit max-w-full break-words rounded-xl bg-black/40 px-3 py-1.5 text-xs text-slate-200 backdrop-blur-sm">{s.log[0]}</p>
     </div>
   );
 }

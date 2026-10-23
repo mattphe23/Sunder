@@ -39,8 +39,10 @@ describe("iOS full-bleed safe-area guards", () => {
     expect(sides["padding-left"]).toBe("max(0.75rem, env(safe-area-inset-left, 0px))");
     expect(sides["padding-right"]).toBe("max(0.75rem, env(safe-area-inset-right, 0px))");
     expect(declarations(".safe-r-offset").right).toBe(sides["padding-right"]);
-    const minimap = readFileSync(new URL("../client/src/game/ui/Minimap.tsx", import.meta.url), "utf8");
-    expect(minimap).toContain("safe-t-offset safe-r-offset");
+    const rail = readFileSync(new URL("../client/src/game/ui/GameHudRail.tsx", import.meta.url), "utf8");
+    expect(rail).toContain("safe-t-offset safe-x");
+    expect(rail).toContain("<LogTicker />");
+    expect(rail).toContain("<Minimap />");
   });
 
   it("anchors the minimap below the same top padding floor plus 44px controls and 8px gap", () => {

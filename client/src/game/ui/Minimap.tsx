@@ -99,12 +99,12 @@ export function Minimap() {
   if (s.phase === "menu") return null;
 
   return (
-    <div className="safe-t-offset safe-r-offset pointer-events-auto absolute right-3 z-20">
+    <div role="region" aria-label="Minimap" className="pointer-events-auto shrink-0 self-end sm:self-start">
       {open ? (
         <div className="rounded-xl border border-white/10 bg-[#1b1b3f]/85 p-2 shadow-xl shadow-black/40 backdrop-blur-md">
           <div className="mb-1 flex items-center justify-between">
             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Map</span>
-            <button onClick={() => setOpen(false)} aria-label="Close minimap">
+            <button className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-cyan-300" onClick={() => setOpen(false)} aria-label="Close minimap" aria-expanded="true">
               <X className="h-3.5 w-3.5 text-slate-400" />
             </button>
           </div>
@@ -113,6 +113,7 @@ export function Minimap() {
       ) : (
         <button
           onClick={() => setOpen(true)}
+          aria-expanded="false"
           className="flex min-h-[44px] min-w-[44px] items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-[#1b1b3f]/85 px-3 py-2 text-xs text-slate-200 shadow-xl shadow-black/40 backdrop-blur-md hover:bg-[#2a2a55]"
         >
           <MapIcon className="h-4 w-4 text-cyan-300" /> Map
