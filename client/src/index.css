@@ -137,31 +137,28 @@
   }
 }
 
-@layer components {
-  /**
-   * iOS safe areas.
-   *
-   * The App Store build is a web view running full-bleed: index.html asks for
-   * viewport-fit=cover and the status bar is black-translucent, so the page
-   * genuinely extends under the Dynamic Island and the home indicator. Without
-   * these the turn/stars readout sits under the notch and the End Turn button
-   * sits under the home bar, where iOS steals the swipe.
-   *
-   * env() resolves to 0 everywhere that has no inset (desktop, Android, older
-   * phones), so these are safe to apply unconditionally. max() keeps the
-   * existing padding as a floor rather than replacing it.
-   */
-  .safe-t { padding-top: max(0.75rem, env(safe-area-inset-top)); }
-  .safe-b { padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
-  .safe-x {
-    padding-left: max(0.75rem, env(safe-area-inset-left));
-    padding-right: max(0.75rem, env(safe-area-inset-right));
-  }
-  /** for panels anchored above the bottom bar, so they clear the home indicator */
-  .safe-b-offset { bottom: calc(4rem + env(safe-area-inset-bottom)); }
-  /** for panels anchored below the top bar, so they clear the notch */
-  .safe-t-offset { top: calc(3.5rem + env(safe-area-inset-top)); }
+/**
+ * Full-bleed iOS safe-area guards intentionally live OUTSIDE cascade layers.
+ * A components-layer rule loses to Tailwind utilities such as p-3, even when
+ * its class appears last in JSX. These longhands must win over ordinary HUD
+ * padding so controls stay below the status bar/Dynamic Island and above the
+ * home indicator. Zero/unsupported insets retain the normal 12px padding.
+ * Keep native contentInset: never; changing it would double-apply the insets.
+ */
+.safe-t { padding-top: max(0.75rem, env(safe-area-inset-top, 0px)); }
+.safe-b { padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px)); }
+.safe-x {
+  padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+  padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+}
+/** Panels above the bottom bar clear its 44px controls plus padding and inset. */
+.safe-b-offset { bottom: calc(4rem + env(safe-area-inset-bottom, 0px)); }
+/** The top HUD has 44px controls; leave an 8px gap below the same padding floor. */
+.safe-t-offset { top: calc(max(0.75rem, env(safe-area-inset-top, 0px)) + 3.25rem); }
+/** Right-anchored HUD panels must also clear a landscape notch. */
+.safe-r-offset { right: max(0.75rem, env(safe-area-inset-right, 0px)); }
 
+@layer components {
   /**
    * Custom container utility that centers content and adds responsive padding.
    *

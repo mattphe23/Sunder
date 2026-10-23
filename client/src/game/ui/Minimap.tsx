@@ -99,7 +99,7 @@ export function Minimap() {
   if (s.phase === "menu") return null;
 
   return (
-    <div className="safe-t-offset pointer-events-auto absolute right-3 z-20">
+    <div className="safe-t-offset safe-r-offset pointer-events-auto absolute right-3 z-20">
       {open ? (
         <div className="rounded-xl border border-white/10 bg-[#1b1b3f]/85 p-2 shadow-xl shadow-black/40 backdrop-blur-md">
           <div className="mb-1 flex items-center justify-between">
