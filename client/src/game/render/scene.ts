@@ -40,11 +40,12 @@ import "@babylonjs/loaders/glTF";
 import { importedUnitPreviewEnabled } from "./importedPreviewGate";
 import { BoardModelCache } from "./importedModelCache";
 import { visualReviewEnabled, visualRosterCandidate } from "./visualReview";
-import { forestCenterClearancePlacements, forestUnitLanePlacements, mountainUnitLaneTransform, unitLaneCellSignature, visibleUnitLaneCells } from "./landscapeUnitLanes";
+import { forestUnitLanePlacements, mountainUnitLaneTransform, unitLaneCellSignature, visibleUnitLaneCells } from "./landscapeUnitLanes";
 import { DEFAULT_BETA_VISUALS, type BetaVisualPreferences } from "./betaVisualPreferences";
 import { betaVisualCandidate, BETA_MODEL_CACHE_LIMITS, type BetaVisualCandidate } from "./betaVisualCandidate";
-import { BETA_VISUAL_MODELS } from "./betaVisualModels";
+import { betaVisualTextureBytesForUrl } from "./betaVisualRevisions";
 import { resolveBetaModelUrl } from "./betaModelUrl";
+import { selectionOverlayStyle, type SelectionOverlayStyle } from "./selectionOverlayStyle";
 import { Capacitor } from "@capacitor/core";
 /**
  * How large a figure stands on its tile.
@@ -144,6 +145,14 @@ export interface PickInfo {
   y: number;
 }
 
+type ForestTreeGroup = {
+  root: TransformNode;
+  trees: TransformNode[];
+  x: number;
+  y: number;
+  authoredCount: number;
+};
+
 export class BoardRenderer {
   engine: Engine;
   scene: Scene;
@@ -151,10 +160,17 @@ export class BoardRenderer {
   private root!: TransformNode;
   private tileMeshes = new Map<number, Mesh>();
   private decorMeshes = new Map<number, Mesh[]>();
+  /** Opt-in forest trees stay unbatched by tile so occupancy can retarget only
+   * their local transforms; all ordinary/default decor keeps the batch path. */
+  private forestTreeGroups = new Map<number, ForestTreeGroup>();
   private unitMeshes = new Map<number, TransformNode>();
   private campMeshes = new Map<number, TransformNode>();
   private stormMeshes = new Map<number, TransformNode>();
   private highlightMeshes: Mesh[] = [];
+  /** Materials registered here are made exclusively by selection/planner overlays. */
+  private highlightMaterials = new Set<StandardMaterial>();
+  /** Uncached planner-label textures are owned by the current planner overlay only. */
+  private plannerLabelTextures = new Set<DynamicTexture>();
   private pulseMeshes: Mesh[] = [];
   private pulseObs: any = null;
   private mats = new Map<string, StandardMaterial>();
@@ -168,6 +184,9 @@ export class BoardRenderer {
     visualReviewEnabled(window.location.search, import.meta.env.DEV);
   private betaVisualPreferences: Readonly<BetaVisualPreferences> = DEFAULT_BETA_VISUALS;
   private get unitLanePreview() { return this.rosterReviewPreview || this.betaVisualPreferences.landscape; }
+  /** The explicit world-v3 review route is also an opt-in landscape surface.
+   * Default gameplay never creates locally transformable forest groups. */
+  private get forestLanePreview() { return this.unitLanePreview || this.worldPilotPreview; }
   /** kept so a cinematic can detach and re-attach camera control */
   private canvasEl!: HTMLCanvasElement;
   private cameraGameSig = "";
@@ -281,7 +300,19 @@ export class BoardRenderer {
     this.scene.clearColor = new Color4(0, 0, 0, 0);
     // dev/perf harness hook: lets tooling read live scene statistics
     if (typeof window !== "undefined") (window as unknown as Record<string, unknown>).__sunderScene = this.scene;
-    this.scene.metadata = { betaVisualDiagnostics: () => ({ ...this.betaVisualPreferences, cache: this.modelCache?.stats ?? null }) };
+    this.scene.metadata = {
+      betaVisualDiagnostics: () => ({
+        ...this.betaVisualPreferences,
+        cache: this.modelCache?.stats ?? null,
+        // Reviewer-only observation hook: local forest transitions must change
+        // this list, never force the static-board mesh collection to rebuild.
+        forestLaneGroups: Array.from(this.forestTreeGroups.entries()).map(([cell, group]) => ({
+          cell,
+          treeCount: group.trees.length,
+          occupied: !!group.root.metadata?.forestOccupied,
+        })),
+      }),
+    };
     this.setupCameraLights(canvas);
     this.setupPipeline();
     this.root = new TransformNode("root", this.scene);
@@ -752,7 +783,12 @@ export class BoardRenderer {
         t.greatRuin ? "U" : "-",
         t.port === null ? "-" : String(t.port),
       );
-      if (this.unitLanePreview) out.push(unitLaneCellSignature(s, idx(t.x, t.y, s.size), true));
+      // Forest lanes are local transform groups. Keep mountain's existing
+      // static behavior in the signature, but never rebuild the full world
+      // merely because a visible unit entered or left a forest.
+      if (this.unitLanePreview && t.terrain === "mountain") {
+        out.push(unitLaneCellSignature(s, idx(t.x, t.y, s.size), true));
+      }
     }
     for (const ci of s.cities) {
       out.push(`${ci.id}:${ci.tribe ?? "n"}:${ci.level}:${ci.walls ? 1 : 0}:${ci.isCapital ? 1 : 0}`);
@@ -779,7 +815,7 @@ export class BoardRenderer {
   buildBoard(s: GameState) {
     this.applyForgedCostume(s);
     // Derive drawable occupancy fresh: a hidden rival may never leave a cleared lane behind.
-    this.unitLaneCells = visibleUnitLaneCells(s, this.unitLanePreview);
+    this.unitLaneCells = visibleUnitLaneCells(s, this.forestLanePreview);
     // The game notifies on every action, so this is called after each move,
     // attack and turn end. Rebuilding ~1000 meshes (with flat-shading
     // conversions) each time caused real hitches on phones; skip when the
@@ -799,6 +835,8 @@ export class BoardRenderer {
     this.seaMotion = [];
     this.tileMeshes.forEach((m) => m.dispose());
     this.tileMeshes.clear();
+    this.forestTreeGroups.forEach((group) => group.root.dispose());
+    this.forestTreeGroups.clear();
     this.decorMeshes.forEach((arr) => arr.forEach((m: Mesh) => m.dispose()));
     this.decorMeshes.clear();
 
@@ -1379,12 +1417,24 @@ export class BoardRenderer {
       const nearSettlement = this.vegetationPilotPreview && s.cities.some(ci =>
         Math.max(Math.abs(ci.x - t.x), Math.abs(ci.y - t.y)) <= 1);
       const treeCount = forestTreeCount(kind, t.x, t.y, nearSettlement, this.vegetationPilotPreview);
-      // world-v3 keeps this clearance geometric and coordinate-only, rather
-      // than changing a forest when a currently drawable unit enters it. That
-      // preserves a readable actor origin without encoding fogged-unit state.
-      const placements = this.worldPilotPreview
-        ? forestCenterClearancePlacements(t.x, t.y, treeCount, true)
-        : forestUnitLanePlacements(t.x, t.y, treeCount, this.unitLaneCells.has(key), this.unitLanePreview);
+      // Dynamic lane groups are created only for an explicit landscape/review
+      // opt-in. Their full, authored arrangement is built first; syncUnits()
+      // later retargets just this group's child transforms when a drawable unit
+      // occupies the tile. Default forest decor remains batched below exactly
+      // as before.
+      const dynamicForest = this.forestLanePreview;
+      const placements = forestUnitLanePlacements(
+        t.x, t.y, treeCount,
+        dynamicForest ? false : this.unitLaneCells.has(key),
+        dynamicForest || this.unitLanePreview,
+      );
+      const forestRoot = dynamicForest ? new TransformNode("forest-lane", this.scene) : null;
+      const forestTrees: TransformNode[] = [];
+      if (forestRoot) {
+        forestRoot.parent = this.root;
+        forestRoot.position.set(t.x - c, top, t.y - c);
+        forestRoot.metadata = { tile: true, x: t.x, y: t.y, forestOccupied: false };
+      }
       for (const placement of placements) {
         const i = placement.index;
         const treeStart = decor.length;
@@ -1451,7 +1501,7 @@ export class BoardRenderer {
             cone.metadata = md; cone.parent = this.root; decor.push(cone);
           }
         }
-        if (placement.scale !== 1) {
+        if (!dynamicForest && placement.scale !== 1) {
           for (const mesh of decor.slice(treeStart)) {
             mesh.position.x = px + (mesh.position.x - px) * placement.scale;
             mesh.position.y = top + (mesh.position.y - top) * placement.scale;
@@ -1459,6 +1509,37 @@ export class BoardRenderer {
             mesh.scaling.scaleInPlace(placement.scale);
           }
         }
+        if (forestRoot) {
+          const treeMeshes = decor.splice(treeStart);
+          // Tree geometry was authored in world coordinates above. Preserve its
+          // world transform while parenting, then move the lightweight local
+          // root for occupied/departing transitions.
+          const tree = new TransformNode("forest-lane-tree", this.scene);
+          tree.parent = forestRoot;
+          tree.position.set(placement.x, 0, placement.z);
+          tree.metadata = { tile: true, x: t.x, y: t.y, forestTreeIndex: i };
+          for (const mesh of treeMeshes) {
+            mesh.setParent(tree, true);
+            this.addShadows(mesh);
+          }
+          // Leave this compact opt-in group unfrozen: the local lane transition
+          // adjusts its parent transforms without touching the static board.
+          forestTrees.push(tree);
+        }
+      }
+      if (forestRoot) {
+        const group: ForestTreeGroup = { root: forestRoot, trees: forestTrees, x: t.x, y: t.y, authoredCount: treeCount };
+        this.setForestTreeGroupOccupancy(group, this.unitLaneCells.has(key), false);
+        // Forest meshes were extracted before the normal fog/batch pass, so
+        // reproduce the existing fog treatment locally for this opt-in group.
+        if (!visible) {
+          for (const tree of forestTrees) for (const mesh of tree.getChildMeshes()) {
+            mesh.visibility = 0.6;
+            const material = mesh.material as StandardMaterial | null;
+            if (material?.emissiveColor) mesh.material = this.foggedMat(material.emissiveColor.toHexString());
+          }
+        }
+        this.forestTreeGroups.set(key, group);
       }
       if (this.worldPilotPreview && visible) {
         // A quiet second scale of five-sided foliage creates a GROVE surface
@@ -2254,6 +2335,7 @@ export class BoardRenderer {
       if (!seen.has(id)) { node.dispose(); toRemove.push(id); }
     });
     toRemove.forEach((id) => this.unitMeshes.delete(id));
+    this.syncForestTreeGroups(s);
     this.syncWorld(s);
   }
 
@@ -2522,11 +2604,7 @@ export class BoardRenderer {
       this.modelCache ??= beta ? new BoardModelCache(this.scene, undefined, {
         ...BETA_MODEL_CACHE_LIMITS,
         resolveUrl: path => resolveBetaModelUrl(path, Capacitor.isNativePlatform()),
-        textureBytesForUrl: url => {
-          const model = Object.values(BETA_VISUAL_MODELS).find(value => url.endsWith(value.modelUrl));
-          if (!model) throw new Error("No audited beta texture estimate for this model.");
-          return model.textureBytesEstimated;
-        },
+        textureBytesForUrl: betaVisualTextureBytesForUrl,
       }) : new BoardModelCache(this.scene);
       const instance = await this.modelCache.instantiate(candidate, parent, 0.62);
       if (!instance || this.disposed || parent.isDisposed()) {
@@ -2585,6 +2663,59 @@ export class BoardRenderer {
     disc.isPickable = false;
     disc.parent = this.root;
     decor.push(disc);
+  }
+
+  /** Retarget one already-built opt-in forest only. This intentionally changes
+   * transforms instead of terrain geometry, tile meshes, fog, or game state. */
+  private setForestTreeGroupOccupancy(group: ForestTreeGroup, occupied: boolean, animate: boolean) {
+    const placements = forestUnitLanePlacements(group.x, group.y, group.authoredCount, occupied, true);
+    const byIndex = new Map(placements.map((placement) => [placement.index, placement]));
+    for (let index = 0; index < group.trees.length; index++) {
+      const tree = group.trees[index]!;
+      if (tree.isDisposed()) continue;
+      const placement = byIndex.get(index);
+      const targetPosition = placement
+        ? new Vector3(placement.x, 0, placement.z)
+        // Extra authored trees contract into the open group rather than being
+        // disposed. Departure restores them without a world rebuild.
+        : new Vector3(0, 0, 0);
+      const targetScale = placement?.scale ?? 0.01;
+      if (!animate) {
+        tree.position.copyFrom(targetPosition);
+        tree.scaling.setAll(targetScale);
+        continue;
+      }
+      this.scene.stopAnimation(tree);
+      const move = new Animation("forestLaneMove", "position", 60, Animation.ANIMATIONTYPE_VECTOR3, Animation.ANIMATIONLOOPMODE_CONSTANT);
+      move.setKeys([{ frame: 0, value: tree.position.clone() }, { frame: 10, value: targetPosition }]);
+      const scale = new Animation("forestLaneScale", "scaling", 60, Animation.ANIMATIONTYPE_VECTOR3, Animation.ANIMATIONLOOPMODE_CONSTANT);
+      scale.setKeys([{ frame: 0, value: tree.scaling.clone() }, { frame: 10, value: new Vector3(targetScale, targetScale, targetScale) }]);
+      const ease = new CubicEase();
+      ease.setEasingMode(EasingFunction.EASINGMODE_EASEINOUT);
+      move.setEasingFunction(ease);
+      scale.setEasingFunction(ease);
+      tree.animations = [move, scale];
+      this.scene.beginAnimation(tree, 0, 10, false);
+    }
+    group.root.metadata = { ...(group.root.metadata ?? {}), forestOccupied: occupied };
+  }
+
+  /** Reconcile only dynamic forest groups after units sync. Occupancy is based
+   * on the same drawable-unit predicate as syncUnits(), so fogged rivals can
+   * neither clear a lane nor leave one behind. */
+  private syncForestTreeGroups(s: GameState) {
+    if (!this.forestLanePreview || this.forestTreeGroups.size === 0) return;
+    const visibleCells = visibleUnitLaneCells(s, true);
+    this.unitLaneCells = visibleCells;
+    this.forestTreeGroups.forEach((group, cell) => {
+      if (group.root.isDisposed()) {
+        this.forestTreeGroups.delete(cell);
+        return;
+      }
+      const occupied = visibleCells.has(cell);
+      if (group.root.metadata?.forestOccupied === occupied) return;
+      this.setForestTreeGroupOccupancy(group, occupied, true);
+    });
   }
 
   private buildUnitMesh(s: GameState, u: Unit): TransformNode {
@@ -3269,7 +3400,14 @@ export class BoardRenderer {
 
   /** highlight reachable tiles / attackable enemies for the selected unit */
   showHighlights(s: GameState) {
+    // Overlay meshes do not own their materials in Babylon. Every material in
+    // this set is allocated locally below, so release it without forcing any
+    // texture disposal. In particular, cached sigil textures remain resident.
     this.highlightMeshes.forEach((m) => m.dispose());
+    this.highlightMaterials.forEach((m) => m.dispose(false, false));
+    this.plannerLabelTextures.forEach((t) => t.dispose());
+    this.highlightMaterials.clear();
+    this.plannerLabelTextures.clear();
     this.highlightMeshes = [];
     // v37/v38 city planner: a live planning mode — the overlay persists while a
     // city panel is open (chips re-render after every build via the store's
@@ -3293,6 +3431,7 @@ export class BoardRenderer {
       m.disableDepthWrite = true;
       m.zOffset = -2;
       ring.material = m;
+      this.highlightMaterials.add(m);
       ring.metadata = { tile: true, x: t.x, y: t.y };
       ring.parent = this.root;
       this.highlightMeshes.push(ring);
@@ -3306,6 +3445,7 @@ export class BoardRenderer {
       m.diffuseColor = Color3.FromHexString("#ff5d5d");
       m.zOffset = -2;
       ring.material = m;
+      this.highlightMaterials.add(m);
       ring.metadata = { tile: true, x: e.x, y: e.y };
       ring.parent = this.root;
       this.highlightMeshes.push(ring);
@@ -3320,6 +3460,7 @@ export class BoardRenderer {
     sm.emissiveColor = Color3.FromHexString(accent);
     sm.diffuseColor = Color3.Black();
     sm.disableLighting = true;
+    this.highlightMaterials.add(sm);
     // deterministic per-tile crack layout so the fissure doesn't jitter between frames
     let rnd = (u.x * 73 + u.y * 151) % 97;
     const rand = () => ((rnd = (rnd * 61 + 17) % 97) / 97);
@@ -3358,6 +3499,7 @@ export class BoardRenderer {
     rimM.alpha = 0.18;
     rimM.disableDepthWrite = true;
     rim.material = rimM;
+    this.highlightMaterials.add(rimM);
     rim.isPickable = false;
     rim.parent = this.root;
     this.highlightMeshes.push(rim);
@@ -3367,7 +3509,10 @@ export class BoardRenderer {
     // action game that looks expensive. It is one plane and one cached texture,
     // and it is drawn bright enough to clear the bloom threshold so the glow
     // comes free from the pipeline we already run.
-    this.highlightMeshes.push(this.groundSigil(u.x - c, h - 0.4 + 0.07, u.y - c, accent));
+    const style = selectionOverlayStyle(this.betaVisualPreferences);
+    this.highlightMeshes.push(style.compact
+      ? this.groundSigil(u.x - c, h - 0.4 + 0.07, u.y - c, accent, style)
+      : this.groundSigil(u.x - c, h - 0.4 + 0.07, u.y - c, accent));
   }
 
   /** cached sigil textures, keyed by accent — one canvas per tribe colour */
@@ -3380,7 +3525,13 @@ export class BoardRenderer {
    * numbers are: a texture costs one plane where this much line work would cost
    * hundreds of boxes, and the board already runs ~1200 meshes on a phone.
    */
-  private groundSigil(x: number, y: number, z: number, accent: string): Mesh {
+  private groundSigil(
+    x: number,
+    y: number,
+    z: number,
+    accent: string,
+    compactStyle?: SelectionOverlayStyle,
+  ): Mesh {
     let dt = this.sigilTextures.get(accent);
     if (!dt) {
       const size = 512;
@@ -3439,7 +3590,9 @@ export class BoardRenderer {
       this.sigilTextures.set(accent, dt);
     }
 
-    const plane = MeshBuilder.CreatePlane("sigil", { size: TILE * 1.4 }, this.scene);
+    const plane = MeshBuilder.CreatePlane("sigil", {
+      size: compactStyle ? TILE * 1.4 * compactStyle.sigilScale : TILE * 1.4,
+    }, this.scene);
     plane.rotation.x = Math.PI / 2; // lie flat on the ground
     plane.position = new Vector3(x, y, z);
     const m = new StandardMaterial("sigilm", this.scene);
@@ -3464,7 +3617,9 @@ export class BoardRenderer {
     m.disableDepthWrite = true;
     m.backFaceCulling = false;
     m.zOffset = -3;
+    if (compactStyle) m.alpha = compactStyle.sigilOpacity;
     plane.material = m;
+    this.highlightMaterials.add(m);
     plane.isPickable = false;
     plane.parent = this.root;
 
@@ -3491,6 +3646,7 @@ export class BoardRenderer {
     dm.alpha = 0.38;
     dm.disableDepthWrite = true;
     dim.material = dm;
+    this.highlightMaterials.add(dm);
     dim.isPickable = false;
     dim.parent = this.root;
     this.highlightMeshes.push(dim as unknown as Mesh);
@@ -3507,6 +3663,7 @@ export class BoardRenderer {
       pm.disableDepthWrite = true;
       pm.zOffset = -2;
       pad.material = pm;
+      this.highlightMaterials.add(pm);
       // v38 live planner: pads keep tile metadata so clicking one selects the
       // owning city (opening its build panel) without leaving planner mode
       pad.metadata = { tile: true, x: site.x, y: site.y };
@@ -3516,6 +3673,7 @@ export class BoardRenderer {
       const size = 256;
       const dt = new DynamicTexture("plannerlbl", { width: size, height: size }, this.scene, false);
       dt.hasAlpha = true;
+      this.plannerLabelTextures.add(dt);
       const text = site.kind === "stars" ? `+${site.value}\u2605` : `+${site.value}`;
       dt.drawText(text, null, 150, "bold 96px Fredoka, sans-serif", hex, "transparent", true);
       const plane = MeshBuilder.CreatePlane("plannerlblp", { size: 0.8 }, this.scene);
@@ -3526,6 +3684,7 @@ export class BoardRenderer {
       lm.disableDepthWrite = true;
       lm.backFaceCulling = false;
       plane.material = lm;
+      this.highlightMaterials.add(lm);
       plane.billboardMode = Mesh.BILLBOARDMODE_ALL;
       plane.position = new Vector3(site.x - c, h - 0.4 + 0.75, site.y - c);
       plane.isPickable = false;

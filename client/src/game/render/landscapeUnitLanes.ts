@@ -79,8 +79,10 @@ export function unitLaneCellSignature(s: GameState, cell: number, review: boolea
 /**
  * Tree positions for a forest tile. Outside a visible occupied review cell it
  * reproduces every authored loop index, count, position, and scale exactly.
- * A cleared occupied cell instead retains two smaller biome-native trees at
- * opposite outer corners, leaving the character's centre lane readable.
+ * A visible occupant opens a small outer grouping: shorter trees leave the
+ * actor lane clear while one taller edge tree keeps the forest's vertical
+ * identity. The helper has no visibility knowledge of its own; callers must
+ * pass only occupants already drawable by syncUnits().
  */
 export function forestUnitLanePlacements(
   x: number,
@@ -97,64 +99,37 @@ export function forestUnitLanePlacements(
     }));
   }
 
+  const count = Math.min(3, Math.max(0, Math.floor(authoredCount)));
   const xDirection = laneHash(x, y, 0) < 0.5 ? -1 : 1;
   const zDirection = laneHash(x, y, 1) < 0.5 ? -1 : 1;
-  const xOuter = 0.255 + laneHash(x, y, 2) * 0.035;
-  const zOuter = 0.255 + laneHash(x, y, 3) * 0.035;
-  return [
-    {
-      index: 0,
-      x: -xDirection * xOuter,
-      z: -zDirection * zOuter,
-      scale: 0.70 + laneHash(x, y, 4) * 0.05,
-    },
-    {
-      index: 1,
-      x: xDirection * xOuter,
-      z: zDirection * zOuter,
-      scale: 0.70 + laneHash(x, y, 5) * 0.05,
-    },
-  ];
-}
+  const outer = (channel: number) => 0.27 + laneHash(x, y, channel) * 0.055;
+  const smallCount = Math.max(0, count - 1);
+  const placements: UnitLaneTreePlacement[] = [];
 
-/**
- * Coordinate-only forest grouping for the combined world-v3 study. It retains
- * that study's already-capped tree budget, but places the smaller trees at
- * outer corners so syncUnits()' fixed tile-centre origin has a readable lane.
- *
- * Deliberately takes no GameState, unit, visibility, or ownership input: a
- * forest's shape cannot reveal whether an unseen rival occupies the tile. The
- * unflagged branch exactly reproduces the authored loop.
- */
-export function forestCenterClearancePlacements(
-  x: number,
-  y: number,
-  authoredCount: number,
-  review: boolean,
-): readonly UnitLaneTreePlacement[] {
-  if (!review) {
-    return Array.from({ length: Math.max(0, Math.floor(authoredCount)) }, (_, index) => ({
+  // The short trees stay on the opposite side/corners of the actor lane.
+  for (let index = 0; index < smallCount; index++) {
+    const xSign = index === 0 ? -xDirection : xDirection;
+    const zSign = index === 0 ? -zDirection : zDirection;
+    placements.push({
       index,
-      ...authoredForestOffset(index),
-      scale: 1,
-    }));
+      x: xSign * outer(2 + index * 3),
+      z: zSign * outer(3 + index * 3),
+      scale: 0.64 + laneHash(x, y, 8 + index) * 0.07,
+    });
   }
 
-  const count = Math.min(3, Math.max(0, Math.floor(authoredCount)));
-  const xDirection = laneHash(x, y, 11) < 0.5 ? -1 : 1;
-  const zDirection = laneHash(x, y, 12) < 0.5 ? -1 : 1;
-  const outer = (channel: number) => 0.30 + laneHash(x, y, channel) * 0.035;
-  const corners: readonly (readonly [number, number])[] = [
-    [-xDirection, -zDirection],
-    [xDirection, zDirection],
-    [-xDirection, zDirection],
-  ];
-  return corners.slice(0, count).map(([xSign, zSign], index) => ({
-    index,
-    x: xSign * outer(13 + index * 2),
-    z: zSign * outer(14 + index * 2),
-    scale: 0.65 + laneHash(x, y, 19 + index) * 0.05,
-  }));
+  // The last retained tree is deliberately taller and held to one outer edge,
+  // so a palm/acacia/conifer/pine forest still reads as forest at board scale.
+  if (count > 0) {
+    const index = count - 1;
+    placements.push({
+      index,
+      x: xDirection * outer(14),
+      z: -zDirection * (0.31 + laneHash(x, y, 15) * 0.035),
+      scale: 1.06 + laneHash(x, y, 16) * 0.09,
+    });
+  }
+  return placements;
 }
 
 /**

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { betaVisualCandidate } from "../client/src/game/render/betaVisualCandidate";
+import { MAELIS_BETA_REVISION } from "../client/src/game/render/betaVisualRevisions";
 import {
   VISUAL_REVIEW_ROSTER,
   visualReviewEnabled,
@@ -32,8 +33,19 @@ describe("beta visual selection", () => {
         /^\/manus-storage\/[a-zA-Z0-9_-]+-beta-512_[a-zA-Z0-9]+\.glb$/
       );
       expect(selected?.modelUrl).not.toBe(entry.candidate.modelUrl);
-      expect(selected?.originalModelUrl).toBe(entry.candidate.modelUrl);
-      expect(selected?.assetId).toBe(entry.candidate.assetId);
+      const revisedMaelis =
+        entry.candidate.modelUrl ===
+        MAELIS_BETA_REVISION.replacesOriginalModelUrl;
+      expect(selected?.originalModelUrl).toBe(
+        revisedMaelis
+          ? MAELIS_BETA_REVISION.originalModelUrl
+          : entry.candidate.modelUrl
+      );
+      expect(selected?.assetId).toBe(
+        revisedMaelis
+          ? MAELIS_BETA_REVISION.candidate.assetId
+          : entry.candidate.assetId
+      );
       expect(selected?.decision).toBe(entry.candidate.decision);
       expect(selected?.textureResolution).toBeLessThanOrEqual(512);
       expect(JSON.stringify(entry.candidate)).toBe(before);

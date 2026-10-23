@@ -2,6 +2,7 @@ import type { Unit } from "../core/types";
 import type { ImportedModelCandidate } from "./importedModelRegistry";
 import { betaVisualModelFor } from "./betaVisualModels";
 import { visualRosterCandidate } from "./visualReview";
+import { betaVisualRevisionFor } from "./betaVisualRevisions";
 
 export interface BetaVisualCandidate extends ImportedModelCandidate {
   readonly originalModelUrl: string;
@@ -18,6 +19,8 @@ export function betaVisualCandidate(
   if (!enabled || customOrSkinned) return null;
   const original = visualRosterCandidate(defIndex, unit, true);
   if (!original) return null;
+  const revision = betaVisualRevisionFor(original);
+  if (revision) return revision;
   const derivative = betaVisualModelFor(original.modelUrl);
   if (
     !derivative ||

@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { idx, type GameState, type Terrain, type Tile, type Unit } from "../client/src/game/core/types";
 import {
-  forestCenterClearancePlacements,
   forestUnitLanePlacements,
   mountainUnitLaneTransform,
   unitLaneCellSignature,
   visibleUnitLaneCells,
 } from "../client/src/game/render/landscapeUnitLanes";
+import { forestTreeCount } from "../client/src/game/render/landscapePilot";
 
 const SIZE = 8;
 
@@ -97,6 +97,44 @@ describe("landscape unit lanes", () => {
     expect(unitLaneCellSignature(s, idx(5, 5, SIZE), true)).toBe("");
   });
 
+  it("restores the authored forest after a visible unit leaves and never opens a hidden rival forest", () => {
+    const s = laneState();
+    const forestCell = idx(3, 3, SIZE);
+    const hiddenForestCell = idx(6, 6, SIZE);
+    at(s, 3, 3).terrain = "forest";
+    at(s, 6, 6).terrain = "forest";
+    at(s, 3, 3).explored[0] = true;
+    at(s, 6, 6).explored[0] = true;
+    s.units = [
+      unit(1, 0, 3, 3),
+      // Explored but outside live human sight: this rival must not make its
+      // forest layout expose occupancy through a cleared centre lane.
+      unit(2, 1, 6, 6),
+    ];
+
+    expect(visibleUnitLaneCells(s, true)).toEqual(new Set([forestCell]));
+    expect(unitLaneCellSignature(s, forestCell, true)).toBe("unit-lane");
+    const occupied = forestUnitLanePlacements(3, 3, 4, true, true);
+    expect(occupied).toHaveLength(3);
+    expect(occupied.at(-1)!.scale).toBeGreaterThan(1);
+    expect(unitLaneCellSignature(s, hiddenForestCell, true)).toBe("");
+    expect(forestUnitLanePlacements(6, 6, 4, false, true)).toEqual(
+      forestUnitLanePlacements(6, 6, 4, false, false),
+    );
+
+    // The next state is a genuine leave, rather than a cached placement list:
+    // a renderer must reconstruct the full authored grouping on this tile.
+    s.units[0]!.x = 2;
+    s.units[0]!.y = 3;
+    expect(unitLaneCellSignature(s, forestCell, true)).toBe("");
+    expect(forestUnitLanePlacements(3, 3, 4, false, true)).toEqual([
+      { index: 0, x: -0.26, z: -0.24, scale: 1 },
+      { index: 1, x: 0, z: 0, scale: 1 },
+      { index: 2, x: 0.26, z: 0.24, scale: 1 },
+      { index: 3, x: 0.08, z: -0.32, scale: 1 },
+    ]);
+  });
+
   it("restricts lane cells to land even for a drawable embarked unit", () => {
     const s = laneState();
     s.units = [unit(1, 0, 1, 1), unit(2, 0, 3, 3)];
@@ -108,50 +146,64 @@ describe("landscape unit lanes", () => {
     expect(visibleUnitLaneCells(s, true)).toEqual(new Set());
   });
 
-  it("clears an occupied forest into two deterministic outer-corner trees with bounded scale", () => {
+  it("opens an occupied forest into small outer trees plus one taller edge tree", () => {
     const first = forestUnitLanePlacements(4, 6, 4, true, true);
     expect(first).toEqual(forestUnitLanePlacements(4, 6, 4, true, true));
-    expect(first).toHaveLength(2);
-    expect(first.map(tree => tree.index)).toEqual([0, 1]);
-    for (const tree of first) {
-      expect(Math.abs(tree.x)).toBeGreaterThanOrEqual(0.255);
-      expect(Math.abs(tree.x)).toBeLessThanOrEqual(0.29);
-      expect(Math.abs(tree.z)).toBeGreaterThanOrEqual(0.255);
-      expect(Math.abs(tree.z)).toBeLessThanOrEqual(0.29);
-      expect(tree.scale).toBeGreaterThanOrEqual(0.7);
-      expect(tree.scale).toBeLessThanOrEqual(0.75);
+    expect(first).toHaveLength(3);
+    expect(first.map(tree => tree.index)).toEqual([0, 1, 2]);
+    for (const tree of first.slice(0, -1)) {
+      expect(Math.abs(tree.x)).toBeGreaterThanOrEqual(0.27);
+      expect(Math.abs(tree.x)).toBeLessThanOrEqual(0.325);
+      expect(Math.abs(tree.z)).toBeGreaterThanOrEqual(0.27);
+      expect(Math.abs(tree.z)).toBeLessThanOrEqual(0.325);
+      expect(tree.scale).toBeGreaterThanOrEqual(0.64);
+      expect(tree.scale).toBeLessThanOrEqual(0.71);
     }
-    expect(first[0]!.x * first[1]!.x).toBeLessThan(0);
-    expect(first[0]!.z * first[1]!.z).toBeLessThan(0);
+    const edge = first.at(-1)!;
+    expect(Math.abs(edge.x)).toBeGreaterThanOrEqual(0.27);
+    expect(Math.abs(edge.x)).toBeLessThanOrEqual(0.325);
+    expect(Math.abs(edge.z)).toBeGreaterThanOrEqual(0.31);
+    expect(Math.abs(edge.z)).toBeLessThanOrEqual(0.345);
+    expect(edge.scale).toBeGreaterThanOrEqual(1.06);
+    expect(edge.scale).toBeLessThanOrEqual(1.15);
   });
 
-  it("keeps every world-v3 forest centre clear with stable coordinate-only grouping", () => {
-    expect(forestCenterClearancePlacements(3, 3, 4, false)).toEqual([
-      { index: 0, x: -0.26, z: -0.24, scale: 1 },
-      { index: 1, x: 0, z: 0, scale: 1 },
-      { index: 2, x: 0.26, z: 0.24, scale: 1 },
-      { index: 3, x: 0.08, z: -0.32, scale: 1 },
-    ]);
+  it("keeps fuller authored forests unoccupied and restores them exactly after a visible occupant leaves", () => {
+    for (const [kind, authoredCount] of [["conifer", 4], ["pine", 3], ["palm", 2], ["acacia", 2]] as const) {
+      const full = forestUnitLanePlacements(7, 4, authoredCount, false, true);
+      const cleared = forestUnitLanePlacements(7, 4, authoredCount, true, true);
+      expect(full).toHaveLength(authoredCount);
+      expect(full.every(tree => tree.scale === 1)).toBe(true);
+      expect(cleared).toHaveLength(Math.min(3, authoredCount));
+      expect(cleared.at(-1)!.scale).toBeGreaterThan(1);
+      expect(forestUnitLanePlacements(7, 4, authoredCount, false, true)).toEqual(full);
+      void kind; // documents each real tree-family budget in this pure transform test.
+    }
+  });
 
+  it("keeps every city-adjacent family root within its forest tile while opening and restoring locally", () => {
+    const kinds = ["conifer", "pine", "palm", "acacia"] as const;
     for (let x = 0; x < 11; x++) for (let y = 0; y < 11; y++) {
-      for (const count of [0, 2, 3, 4]) {
-        expect(forestCenterClearancePlacements(x, y, count, false)).toEqual(
-          forestUnitLanePlacements(x, y, count, false, false),
-        );
-      }
-      const first = forestCenterClearancePlacements(x, y, 4, true);
-      expect(first).toEqual(forestCenterClearancePlacements(x, y, 4, true));
-      expect(first).toHaveLength(3);
-      for (const tree of first) {
-        expect(Math.abs(tree.x)).toBeGreaterThanOrEqual(0.30);
-        expect(Math.abs(tree.x)).toBeLessThanOrEqual(0.335);
-        expect(Math.abs(tree.z)).toBeGreaterThanOrEqual(0.30);
-        expect(Math.abs(tree.z)).toBeLessThanOrEqual(0.335);
-        expect(tree.scale).toBeGreaterThanOrEqual(0.65);
-        expect(tree.scale).toBeLessThanOrEqual(0.70);
+      for (const kind of kinds) {
+        // This is the actual vegetation policy for a forest one cell from a
+        // settlement. The transform helper deliberately receives no city data:
+        // it must only alter the forest's own local tree roots.
+        const authoredCount = forestTreeCount(kind, x, y, true, true);
+        const full = forestUnitLanePlacements(x, y, authoredCount, false, true);
+        const open = forestUnitLanePlacements(x, y, authoredCount, true, true);
+
+        expect(full).toHaveLength(authoredCount);
+        expect(open).toHaveLength(Math.min(3, authoredCount));
+        expect(open.at(-1)!.scale).toBeGreaterThan(1);
+        // The group roots stay inside the +/-0.5 local half-tile boundary;
+        // city meshes and tile picking are neither translated nor rebuilt.
+        for (const tree of open) {
+          expect(Math.abs(tree.x)).toBeLessThanOrEqual(0.345);
+          expect(Math.abs(tree.z)).toBeLessThanOrEqual(0.345);
+        }
+        expect(forestUnitLanePlacements(x, y, authoredCount, false, true)).toEqual(full);
       }
     }
-    expect(forestCenterClearancePlacements(5, 2, 2, true)).toHaveLength(2);
   });
 
   it("makes an occupied mountain deterministic, modestly offset, and never taller than the lane cap", () => {
