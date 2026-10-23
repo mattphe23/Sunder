@@ -91,6 +91,8 @@ import { game } from "../core/state";
 import { reachableTiles, attackableUnits, cityAt, isVisibleTo, plannerSites, tradeRouteTiles, raidedRoadTiles, unitHasActions } from "../core/rules";
 import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import { PALETTE, darken, lighten, biomeFor, BiomePalette } from "./palette";
+import { buildCityArchitecture } from "./cityArchitecture";
+import { buildRuinArchitecture } from "./ruinArchitecture";
 import { ashMistPuffs, broadMountainSilhouette, coastBandLocalY, coastPilotEnabled, forestTreeCount, forestUnderbrushLimit, landscapeVariantEnabled, worldGroundFacets, worldRegionTone, worldSurfaceSpan } from "./landscapePilot";
 
 const TILE = 1.02;
@@ -303,6 +305,10 @@ export class BoardRenderer {
     this.scene.metadata = {
       betaVisualDiagnostics: () => ({
         ...this.betaVisualPreferences,
+        architecture: {
+          enabled: this.unitLanePreview || this.worldPilotPreview,
+          gate: this.betaVisualPreferences.landscape ? "beta-landscape" : this.rosterReviewPreview ? "strict-roster-review" : this.worldPilotPreview ? "strict-world-v3" : "default-legacy",
+        },
         cache: this.modelCache?.stats ?? null,
         // Reviewer-only observation hook: local forest transitions must change
         // this list, never force the static-board mesh collection to rebuild.
@@ -1937,6 +1943,26 @@ export class BoardRenderer {
         coin.metadata = md; coin.parent = this.root; decor.push(coin);
       }
     }
+    // New settlement/ruin architecture is a strictly opt-in render surface: the
+    // persisted beta landscape preference, or existing strict DEV roster/world review routes.
+    // Default production continues through the legacy paths below without state/rule changes.
+    const architecturePreview = this.unitLanePreview || this.worldPilotPreview;
+    if (architecturePreview) {
+      const architectureContext = {
+        scene: this.scene,
+        parent: this.root,
+        worldX: t.x - c,
+        worldZ: t.y - c,
+        top,
+        tileX: t.x,
+        tileY: t.y,
+        mat: (hex: string) => this.mat(hex),
+        litMat: (hex: string) => this.litMat(hex),
+        facet: (mesh: Mesh) => this.facet(mesh),
+      };
+      if (t.ruin) decor.push(...buildRuinArchitecture(architectureContext, { great: false }));
+      if (t.greatRuin) decor.push(...buildRuinArchitecture(architectureContext, { great: true }));
+    } else {
     if (t.ruin) {
       // Ancient ruin: a weathered temple remnant — cracked stone plinth, a ring
       // of broken columns at varying heights, a leaning obelisk, scattered
@@ -2046,6 +2072,32 @@ export class BoardRenderer {
       plinth.parent = this.root;
       decor.push(plinth);
     }
+    }
+    if (architecturePreview) {
+      const city = t.cityId !== null ? s.cities[t.cityId] : null;
+      if (city) {
+        const neutral = city.tribe === null;
+        const ownerColor = neutral ? PALETTE.city.neutral : s.tribes[city.tribe!].color;
+        decor.push(...buildCityArchitecture({
+          scene: this.scene,
+          parent: this.root,
+          worldX: t.x - c,
+          worldZ: t.y - c,
+          top,
+          tileX: t.x,
+          tileY: t.y,
+          mat: (hex: string) => this.mat(hex),
+          litMat: (hex: string) => this.litMat(hex),
+          facet: (mesh: Mesh) => this.facet(mesh),
+        }, {
+          level: city.level,
+          isCapital: city.isCapital,
+          neutral,
+          walls: !!city.walls,
+          ownerColor,
+        }));
+      }
+    } else {
     const city = t.cityId !== null ? s.cities[t.cityId] : null;
     if (city) {
       const isNeutral = city.tribe === null;
@@ -2153,6 +2205,7 @@ export class BoardRenderer {
           }
         }
       }
+    }
     }
     if (!visible) {
       // fogged decor: dim AND wash toward indigo so bright meshes (snow caps,
