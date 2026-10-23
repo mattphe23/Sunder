@@ -704,6 +704,7 @@ class GameStore {
         const target = s.units.find((q) => q.id === intent.targetUnitId);
         if (target) this.attack(u.id, target.id);
       } else if (intent.move) {
+        if (s.units.some((q) => q.id !== u.id && q.x === intent.move!.x && q.y === intent.move!.y)) continue;
         u.x = intent.move.x;
         u.y = intent.move.y;
       }

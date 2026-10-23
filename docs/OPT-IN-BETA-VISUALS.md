@@ -12,7 +12,9 @@ On the start menu, the visual settings panel is immediately above **Begin Conque
 
 The choices are local to this installation. They persist in `sunder-beta-visuals-v1`, with schema version 1, separately from game saves and entitlements. Missing, malformed or unsupported-version settings default off. If storage is restricted, changes work for the current session but need not persist.
 
-Models load only when an eligible unit is actually drawable. A new installation with both options off requests zero candidate GLBs, including when legacy development preview query parameters are present. Custom/paid costumes, boats, guardians, camp raiders, unnamed hero slots and unmodeled roles stay procedural. Completed modeled roles are available only under their existing gameplay and unlock rules.
+Models load only when an eligible unit is actually drawable. A new installation with both options off requests zero candidate GLBs, including when legacy development preview query parameters are present. Custom/paid costumes, boats, camp raiders, unnamed hero slots and unmodeled roles stay procedural. Completed modeled roles are available only under their existing gameplay and unlock rules.
+
+The 46-model count covers the designed initial faction roster (Warrior, Archer, Defender, Rider, available specialists and named heroes), **not every gameplay class**. Ordinary Swordsman, Knight, Catapult and Colossus remain procedural and need separate art work. The Vessari Warrior's sword does not count as Swordsman coverage. A separately audited neutral Great Ruin Guardian candidate is selected outside the faction roster through `betaWorldVisuals.ts`, only for flagged neutral guardians with New visuals enabled. Its canonical Swordsman combat stats remain unchanged; the battle preview now names the actor Guardian. The original development-review selector continues to exclude guardians.
 
 ## Original assets and deterministic runtime derivatives
 

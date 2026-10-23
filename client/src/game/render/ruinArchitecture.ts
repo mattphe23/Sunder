@@ -142,9 +142,9 @@ const OATHGATE_PIECES: readonly RuinArchitecturePiece[] = [
   ),
   box(
     "ruin-oathgate-left-crown",
-    -0.285,
-    0.51,
-    -0.3,
+    -0.195,
+    0.526,
+    -0.32,
     0.19,
     0.11,
     0.16,
@@ -171,6 +171,19 @@ const OATHGATE_PIECES: readonly RuinArchitecturePiece[] = [
     0.11,
     WEATHERED_STONE,
     [-0.02, -0.17, -0.12]
+  ),
+  // A low, chipped cap carries the short break into the fallen right lintel.
+  // Its overlap is intentional support; the unequal lintels retain the fracture.
+  box(
+    "ruin-oathgate-right-link-cap",
+    0.275,
+    0.384,
+    -0.305,
+    0.17,
+    0.145,
+    0.15,
+    WEATHERED_LIGHT,
+    [0.035, -0.14, -0.16]
   ),
   // Two unequal lintel blocks and an off-centre keystone make the dramatic break explicit.
   box(
@@ -265,8 +278,8 @@ const CONDUIT_PIECES: readonly RuinArchitecturePiece[] = [
   ),
   box(
     "great-ruin-left-shoulder",
-    -0.235,
-    0.61,
+    -0.185,
+    0.707,
     -0.32,
     0.18,
     0.23,

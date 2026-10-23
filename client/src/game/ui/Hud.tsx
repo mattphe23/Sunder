@@ -2,6 +2,7 @@
 import { useGame } from "../useGame";
 import { game } from "../core/state";
 import { resourceAction, type ResourcePosition } from "./resourceAction";
+import { unitDisplayName } from "./unitDisplayName";
 import { UNIT_STATS, TECHS, HERO_PERKS, HERO_XP_THRESHOLDS, HERO_MAX_LEVEL, BUILDINGS, REWARD_INFO, rewardChoicesForLevel, RECAP_HIGH_SIGNAL } from "../core/types";
 import {
   techCost, canResearch, trainableUnits, starIncome, cityAt, canHarvest,
@@ -169,8 +170,6 @@ export function BattlePreview() {
   const attacker = s.units.find((u) => u.id === p.attackerId);
   const defender = s.units.find((u) => u.id === p.defenderId);
   if (!attacker || !defender) return null;
-  const aStats = UNIT_STATS[attacker.type];
-  const dStats = UNIT_STATS[defender.type];
   return (
     <div className={`${panel} safe-b-offset absolute left-1/2 z-30 w-72 -translate-x-1/2 border-red-400/30 p-3`}>
       <div className="mb-2 flex items-center justify-between">
@@ -183,7 +182,7 @@ export function BattlePreview() {
       </div>
       <div className="mb-2 grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-center">
         <div className="rounded-md bg-white/5 p-2">
-          <p className="text-xs font-bold text-slate-100">{aStats.name}</p>
+          <p className="text-xs font-bold text-slate-100">{unitDisplayName(attacker)}</p>
           <p className="font-mono text-[11px] text-slate-300">{attacker.hp}/{attacker.maxHp} HP</p>
           {p.retaliation > 0 ? (
             <p className={`mt-1 font-mono text-sm font-bold ${p.attackerDies ? "text-red-400" : "text-amber-300"}`}>
@@ -198,7 +197,7 @@ export function BattlePreview() {
         </div>
         <Swords className="h-5 w-5 text-red-400" />
         <div className="rounded-md bg-white/5 p-2">
-          <p className="text-xs font-bold text-slate-100">{dStats.name}</p>
+          <p className="text-xs font-bold text-slate-100">{unitDisplayName(defender)}</p>
           <p className="font-mono text-[11px] text-slate-300">{defender.hp}/{defender.maxHp} HP</p>
           <p className={`mt-1 font-mono text-sm font-bold ${p.defenderDies ? "text-red-400" : "text-red-300"}`}>
             −{p.dmg}

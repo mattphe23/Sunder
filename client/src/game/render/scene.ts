@@ -44,6 +44,7 @@ import { forestUnitLanePlacements, mountainUnitLaneTransform, unitLaneCellSignat
 import { DEFAULT_BETA_VISUALS, type BetaVisualPreferences } from "./betaVisualPreferences";
 import { betaVisualCandidate, BETA_MODEL_CACHE_LIMITS, type BetaVisualCandidate } from "./betaVisualCandidate";
 import { betaVisualTextureBytesForUrl } from "./betaVisualRevisions";
+import { betaGuardianCandidate } from "./betaWorldVisuals";
 import { resolveBetaModelUrl } from "./betaModelUrl";
 import { selectionOverlayStyle, type SelectionOverlayStyle } from "./selectionOverlayStyle";
 import { Capacitor } from "@capacitor/core";
@@ -2646,7 +2647,13 @@ export class BoardRenderer {
   }
 
   /** Shared templates are opt-in only; failed or capped imports keep the procedural actor visible. */
-  private async replaceWithVisualRosterUnit(parent: TransformNode, candidate: ImportedModelCandidate, beta = false, ownerColor?: string) {
+  private async replaceWithVisualRosterUnit(
+    parent: TransformNode,
+    candidate: ImportedModelCandidate,
+    beta = false,
+    ownerColor?: string,
+    options: { preserveGuardianStateBeacon?: boolean } = {},
+  ) {
     const existingChildren = parent.getChildren();
     parent.metadata = { ...(parent.metadata ?? {}), visualImportState: "loading" };
     try {
@@ -2668,6 +2675,21 @@ export class BoardRenderer {
       for (const child of existingChildren) {
         // These are gameplay-level cues, not the old procedural body. Preserve progression/veterancy readability.
         if (["crown", "pip", "crest"].includes(child.name)) continue;
+        // This is deliberately not a global roster exception. The isolated
+        // neutral guardian request retains its existing amber/red state cue
+        // above the imported body without baking a texture edit into the GLB.
+        if (
+          options.preserveGuardianStateBeacon &&
+          parent.metadata?.visualGuardianCandidate === true &&
+          child instanceof Mesh &&
+          child.name === "h"
+        ) {
+          child.position.y = 0.67;
+          child.scaling.setAll(0.45);
+          child.isPickable = false;
+          child.visibility = visibility;
+          continue;
+        }
         child.dispose();
       }
       for (const mesh of instance.meshes) {
@@ -2804,6 +2826,22 @@ export class BoardRenderer {
       }
       node.metadata = { awake: !!u.awake };
       node.getChildMeshes().forEach((m) => this.addShadows(m as Mesh));
+      if (this.betaVisualPreferences.newVisuals) {
+        const candidate = betaGuardianCandidate(u, true);
+        if (candidate) {
+          node.metadata = {
+            ...(node.metadata ?? {}),
+            visualGuardianCandidate: true,
+          };
+          void this.replaceWithVisualRosterUnit(
+            node,
+            candidate,
+            true,
+            undefined,
+            { preserveGuardianStateBeacon: true },
+          );
+        }
+      }
       return node;
     }
     // v17: camp raiders are tribeless — dark iron & bone palette

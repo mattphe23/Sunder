@@ -3,6 +3,7 @@ import { AUREN_MAELIS_PILOT } from "./importedModelRegistry";
 import type { BetaVisualCandidate } from "./betaVisualCandidate";
 import { BETA_VISUAL_MODELS } from "./betaVisualModels";
 import { BETA_MODEL_PUBLIC_ORIGIN } from "./betaModelUrl";
+import { NEUTRAL_OATH_GUARDIAN_BETA } from "./betaWorldVisuals";
 
 /**
  * A separately generated, audited beta revision. The original 46-model map,
@@ -65,6 +66,10 @@ const textureEstimates = new Map<string, number>(
 textureEstimates.set(
   MAELIS_BETA_REVISION.candidate.modelUrl,
   MAELIS_BETA_REVISION.candidate.textureBytesEstimated
+);
+textureEstimates.set(
+  NEUTRAL_OATH_GUARDIAN_BETA.candidate.modelUrl,
+  NEUTRAL_OATH_GUARDIAN_BETA.candidate.textureBytesEstimated
 );
 
 /** Exact canonical or allow-listed native URLs only; originals have no admission entry. */
