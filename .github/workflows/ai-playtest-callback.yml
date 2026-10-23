@@ -1,0 +1,61 @@
+name: Sunder AI Playtesting Callback
+
+on:
+  workflow_run:
+    workflows: [iOS]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  notify-playtest:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Request report-only Sunder playtesting
+        env:
+          CALLBACK_URL: ${{ secrets.SUNDER_PLAYTEST_TRIGGER_URL }}
+          EVENT_FILE: ${{ github.event_path }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          url = os.environ.get("CALLBACK_URL", "")
+          parsed = urllib.parse.urlparse(url)
+          if parsed.scheme != "https" or parsed.hostname != "api.manus.im" or not parsed.path.startswith("/api/webhook/triggers/"):
+              sys.exit("Missing or invalid SUNDER_PLAYTEST_TRIGGER_URL secret. No request sent.")
+          with open(os.environ["EVENT_FILE"], encoding="utf-8") as handle:
+              event = json.load(handle)
+          run = event["workflow_run"]
+          repository = event["repository"]["full_name"]
+          if repository != "mattphe23/Sunder" or run["conclusion"] != "success" or run["head_branch"] != "main":
+              sys.exit("Callback scope mismatch. No request sent.")
+          payload = json.dumps({
+              "repository": repository,
+              "branch": run["head_branch"],
+              "conclusion": run["conclusion"],
+              "run_id": run["id"],
+              "head_sha": run["head_sha"]
+          }).encode("utf-8")
+          request = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+          try:
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  if response.status not in range(200, 300):
+                      sys.exit("Playtest callback rejected; inspect Trigger status before retrying.")
+          except urllib.error.HTTPError as error:
+              sys.exit("Playtest callback HTTP " + str(error.code) + "; inspect Trigger status before retrying.")
+          except Exception as error:
+              sys.exit("Playtest callback outcome uncertain (" + type(error).__name__ + "); inspect Trigger history before any retry.")
+          print("Report-only playtesting callback accepted. This does not mean tests have finished.")
+          PY
