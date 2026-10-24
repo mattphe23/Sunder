@@ -799,10 +799,17 @@ async function runCase(spec) {
       }
     });
 
-    await Promise.race([
-      page.goto(caseUrl(spec), { waitUntil: "domcontentloaded", timeout: NAVIGATION_CAP_MS }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error("Case navigation duration cap reached.")), CASE_CAP_MS)),
-    ]);
+    let navigationTimer;
+    try {
+      await Promise.race([
+        page.goto(caseUrl(spec), { waitUntil: "domcontentloaded", timeout: NAVIGATION_CAP_MS }),
+        new Promise((_, reject) => {
+          navigationTimer = setTimeout(() => reject(new Error("Case navigation duration cap reached.")), CASE_CAP_MS);
+        }),
+      ]);
+    } finally {
+      clearTimeout(navigationTimer);
+    }
     await configureVisualMode(page, spec, caseData);
     const accept = page.getByText("ACCEPT THE DUEL", { exact: true });
     await requireVisible(accept, "real friend challenge acceptance control", NAVIGATION_CAP_MS);

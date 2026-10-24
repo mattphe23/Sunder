@@ -1,5 +1,6 @@
 import type { Unit } from "../core/types";
 import type { ImportedModelCandidate } from "./importedModelRegistry";
+import { betaAdvancedVisualCandidate } from "./betaAdvancedVisuals";
 import { betaVisualModelFor } from "./betaVisualModels";
 import { visualRosterCandidate } from "./visualReview";
 import { betaVisualRevisionFor } from "./betaVisualRevisions";
@@ -12,11 +13,13 @@ export interface BetaVisualCandidate extends ImportedModelCandidate {
 /** Explicit display choice only. Never substitute an unaudited original GLB. */
 export function betaVisualCandidate(
   defIndex: number,
-  unit: Pick<Unit, "type" | "hero" | "boat" | "guardian">,
+  unit: Pick<Unit, "type" | "hero" | "boat" | "guardian" | "raider">,
   enabled: boolean,
   customOrSkinned = false
 ): BetaVisualCandidate | null {
   if (!enabled || customOrSkinned) return null;
+  const advanced = betaAdvancedVisualCandidate(defIndex, unit);
+  if (advanced) return advanced;
   const original = visualRosterCandidate(defIndex, unit, true);
   if (!original) return null;
   const revision = betaVisualRevisionFor(original);

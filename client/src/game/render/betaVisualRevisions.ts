@@ -1,6 +1,7 @@
 import type { ImportedModelCandidate } from "./importedModelRegistry";
 import { AUREN_MAELIS_PILOT } from "./importedModelRegistry";
 import type { BetaVisualCandidate } from "./betaVisualCandidate";
+import { AUREN_SWORDSMAN_ADVANCED_BETA } from "./betaAdvancedVisuals";
 import { BETA_VISUAL_MODELS } from "./betaVisualModels";
 import { BETA_MODEL_PUBLIC_ORIGIN } from "./betaModelUrl";
 import { NEUTRAL_OATH_GUARDIAN_BETA } from "./betaWorldVisuals";
@@ -70,6 +71,10 @@ textureEstimates.set(
 textureEstimates.set(
   NEUTRAL_OATH_GUARDIAN_BETA.candidate.modelUrl,
   NEUTRAL_OATH_GUARDIAN_BETA.candidate.textureBytesEstimated
+);
+textureEstimates.set(
+  AUREN_SWORDSMAN_ADVANCED_BETA.candidate.modelUrl,
+  AUREN_SWORDSMAN_ADVANCED_BETA.candidate.textureBytesEstimated
 );
 
 /** Exact canonical or allow-listed native URLs only; originals have no admission entry. */

@@ -305,9 +305,10 @@ const suitePlans = [
       "beta-visual-store.test.ts",
       "imported-model-cache.test.ts",
       "beta-model-url.test.ts",
+      "beta-advanced-visuals.test.ts",
     ],
     seed: "not-applicable (deterministic unit fixtures)",
-    note: "Exercises beta preference parsing/store isolation, synthetic model-cache limits, and native URL allow-list behavior.",
+    note: "Exercises beta preference/store isolation, model-cache limits, native URL allow-list behavior and the separate Auren ordinary-Swordsman eligibility/provenance boundary.",
   },
   {
     id: "overlaylifecycle",
@@ -338,6 +339,12 @@ const suitePlans = [
     names: ["world-move-occupancy.test.ts", "unit-display-name.test.ts"],
     seed: "6707986 (original collision); deterministic minimal world-turn fixtures",
     note: "Repeats the confirmed neutral-raider destination collision and display-only Guardian identity regressions.",
+  },
+  {
+    id: "playtest-callback-and-navigation-deadline",
+    names: ["ai-playtest-callback.test.ts", "playtest-navigation-deadline.test.ts"],
+    seed: "not-applicable (mocked workflow events and controlled navigation promises)",
+    note: "Executes exact shipped callback/navigation code with mocked HTTP and timers; no callback, browser navigation, build or upload is initiated.",
   },
 ];
 
