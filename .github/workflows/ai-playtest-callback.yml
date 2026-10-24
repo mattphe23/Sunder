@@ -21,7 +21,6 @@ jobs:
       - name: Request report-only Sunder playtesting
         env:
           CALLBACK_URL: ${{ secrets.SUNDER_PLAYTEST_TRIGGER_URL }}
-          EVENT_FILE: ${{ github.event_path }}
         run: |
           python3 - <<'PY'
           import json
@@ -35,7 +34,10 @@ jobs:
           parsed = urllib.parse.urlparse(url)
           if parsed.scheme != "https" or parsed.hostname != "api.manus.im" or not parsed.path.startswith("/api/webhook/triggers/"):
               sys.exit("Missing or invalid SUNDER_PLAYTEST_TRIGGER_URL secret. No request sent.")
-          with open(os.environ["EVENT_FILE"], encoding="utf-8") as handle:
+          event_path = os.environ.get("GITHUB_EVENT_PATH", "")
+          if not event_path:
+              sys.exit("Missing GITHUB_EVENT_PATH runner environment. No request sent.")
+          with open(event_path, encoding="utf-8") as handle:
               event = json.load(handle)
           run = event["workflow_run"]
           repository = event["repository"]["full_name"]
