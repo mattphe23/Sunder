@@ -293,6 +293,17 @@ const sourceSha = git(["rev-parse", "HEAD"]);
 const testFiles = discoverTestFiles(projectRoot);
 const suitePlans = [
   {
+    id: "difficulty-balance-and-access",
+    names: [
+      "difficulty-description.test.ts",
+      "balance-paired.test.ts",
+      "tidecaller-amphibious.test.ts",
+      "match-access.test.ts",
+    ],
+    seed: "deterministic difficulty, paired-matrix, shallow-water and three-user access fixtures",
+    note: "Exercises truthful AI-income disclosure, deterministic audit restoration, Tidecaller movement and member-only online reads; not AI strength, ranked security or physical-device evidence.",
+  },
+  {
     id: "ios-safearea",
     names: ["ios-safe-area.test.ts", "hud-readability.test.ts"],
     seed: "deterministic HUD/architecture fixtures; static CSS/native-config contract",

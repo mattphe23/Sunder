@@ -25,8 +25,9 @@ export function OnlineGame() {
     { enabled: !!online, refetchOnWindowFocus: false },
   );
   const matchInfo = matchData?.match;
-  const myTribe = matchInfo && user
-    ? (matchInfo.hostUserId === user.id ? online!.hostTribe : online!.guestTribe)
+  const memberMatchInfo = matchInfo && "hostUserId" in matchInfo ? matchInfo : null;
+  const myTribe = memberMatchInfo && user
+    ? (memberMatchInfo.hostUserId === user.id ? online!.hostTribe : online!.guestTribe)
     : null;
 
   // Poll match status while waiting for the opponent.
@@ -50,7 +51,7 @@ export function OnlineGame() {
     submittedFor.current = localTurn;
     setWaiting(true);
     submitTurn.mutate(
-      { matchId: online.matchId, turnNumber: (matchInfo?.turnNumber ?? 0) + 1, state: game.serializeState() },
+      { matchId: online.matchId, turnNumber: (memberMatchInfo?.turnNumber ?? 0) + 1, state: game.serializeState() },
       {
         onError: e => setError(e.message),
         onSuccess: () => utils.match.status.invalidate({ matchId: online.matchId }),
@@ -72,7 +73,7 @@ export function OnlineGame() {
       });
       return;
     }
-    if (status.currentUserId === user.id && status.turnNumber > (matchInfo?.turnNumber ?? 0)) {
+    if (status.currentUserId === user.id && status.turnNumber > (memberMatchInfo?.turnNumber ?? 0)) {
       utils.match.get.fetch({ matchId: online.matchId }).then(m => {
         if (m?.state && myTribe !== null && game.loadOnlineSnapshot(m.state, myTribe)) {
           utils.match.get.invalidate({ matchId: online.matchId });
@@ -91,7 +92,7 @@ export function OnlineGame() {
     const winnerName = s.winner !== null ? (s.tribes[s.winner]?.name ?? "Nobody") : "Nobody";
     submitTurn.mutate({
       matchId: online.matchId,
-      turnNumber: (matchInfo?.turnNumber ?? 0) + 1,
+      turnNumber: (memberMatchInfo?.turnNumber ?? 0) + 1,
       state: game.serializeState(),
       finished: true,
       winner: iWon ? "me" : "opponent",
@@ -101,8 +102,8 @@ export function OnlineGame() {
   }, [s.phase, online?.matchId, myTribe]);
 
   if (!online) return null;
-  const oppName = matchInfo && user
-    ? (matchInfo.hostUserId === user.id ? (online.guestName || "your rival") : online.hostName)
+  const oppName = memberMatchInfo && user
+    ? (memberMatchInfo.hostUserId === user.id ? (online.guestName || "your rival") : online.hostName)
     : "your rival";
 
   return (

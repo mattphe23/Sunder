@@ -186,8 +186,24 @@ export const appRouter = router({
       .query(async ({ ctx, input }) => {
         const m = await db.getMatch(input.matchId);
         if (!m) throw new TRPCError({ code: "NOT_FOUND", message: "Match not found" });
-        if (m.hostUserId !== ctx.user.id && m.guestUserId !== ctx.user.id && m.status !== "open") {
+        const isMember = m.hostUserId === ctx.user.id || m.guestUserId === ctx.user.id;
+        if (!isMember && m.status !== "open") {
           throw new TRPCError({ code: "FORBIDDEN", message: "Not your match" });
+        }
+        if (!isMember) {
+          return {
+            match: {
+              id: m.id,
+              hostName: m.hostName,
+              preset: m.preset,
+              size: m.size,
+              hostTribe: m.hostTribe,
+              guestTribe: m.guestTribe,
+              status: m.status,
+              seatAvailable: !m.guestUserId,
+            },
+            state: null,
+          };
         }
         const snap = await db.getLatestSnapshot(m.id);
         return { match: m, state: snap?.state ?? null };
@@ -196,9 +212,12 @@ export const appRouter = router({
     // Lightweight poll — no snapshot payload, safe to call on an interval.
     status: protectedProcedure
       .input(z.object({ matchId: z.string().max(12) }))
-      .query(async ({ input }) => {
+      .query(async ({ ctx, input }) => {
         const m = await db.getMatch(input.matchId);
         if (!m) throw new TRPCError({ code: "NOT_FOUND", message: "Match not found" });
+        if (m.hostUserId !== ctx.user.id && m.guestUserId !== ctx.user.id) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Not your match" });
+        }
         return {
           status: m.status,
           turnNumber: m.turnNumber,

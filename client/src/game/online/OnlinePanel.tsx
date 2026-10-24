@@ -95,7 +95,7 @@ export function OnlinePanel({ faction }: { faction: number }) {
           setCreatedId(id);
           // enter the match now — host plays turn 1 while the invite is out
           utils.match.get.fetch({ matchId: id }).then(res => {
-            if (res && user) enterMatch(res.match, res.state, user.id);
+            if (res && res.state && "hostUserId" in res.match && user) enterMatch(res.match, res.state, user.id);
           });
         },
       },
@@ -120,7 +120,7 @@ export function OnlinePanel({ faction }: { faction: number }) {
         onSuccess: () => {
           try { window.history.replaceState({}, "", window.location.pathname); } catch { /* noop */ }
           utils.match.get.fetch({ matchId: invite }).then(res => {
-            if (res && user) enterMatch(res.match, res.state, user.id);
+            if (res && res.state && "hostUserId" in res.match && user) enterMatch(res.match, res.state, user.id);
           });
         },
       },
@@ -130,7 +130,7 @@ export function OnlinePanel({ faction }: { faction: number }) {
   const resume = (id: string) => {
     sound.play("click");
     utils.match.get.fetch({ matchId: id }).then(res => {
-      if (res && user) enterMatch(res.match, res.state, user.id);
+      if (res && res.state && "hostUserId" in res.match && user) enterMatch(res.match, res.state, user.id);
     });
   };
 

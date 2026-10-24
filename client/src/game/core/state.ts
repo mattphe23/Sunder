@@ -1429,9 +1429,13 @@ class GameStore {
     const wasAttacked = u.attacked;
     u.x = x; u.y = y;
     u.moved = true;
-    // naval: embark when entering water (port required by rules), disembark on land
+    // Naval transition: Tidecallers swim shallow water in their normal form.
+    // This also repairs an older snapshot's erroneously embarked Tidecaller on
+    // its next legal shallow-water move, without rewriting saved games at load.
     const destTerrain = tileAt(s, x, y).terrain;
-    if (destTerrain === "water" || destTerrain === "ocean") {
+    if (destTerrain === "water" && u.type === "tidecaller") {
+      u.boat = false;
+    } else if (destTerrain === "water" || destTerrain === "ocean") {
       if (!u.boat) s.log.unshift(`${UNIT_STATS[u.type].name} embarked at the port.`);
       u.boat = true;
     } else if (u.boat) {

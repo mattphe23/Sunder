@@ -39,6 +39,7 @@ import { MAP_PACKS, CuratedMap } from "@shared/mapPacks";
 import { Map as MapIcon } from "lucide-react";
 import { isIosNativeApp } from "@/lib/nativeCommerce";
 import { BetaVisualSettings } from "./BetaVisualSettings";
+import { difficultyDescription } from "./difficultyDescription";
 
 /** Admin-only entry to the AI Playtest Lab; renders nothing for everyone else. */
 function AdminLabLink() {
@@ -523,18 +524,18 @@ export function MainMenu() {
               <div className="flex gap-1">
                 {(["easy", "normal", "hard", "impossible"] as Difficulty[]).map((d) => (
                   <button key={d} onClick={() => setDifficulty(d)}
-                    title={d === "impossible" ? "A ruthless AI brain: threat maps, coordinated strikes, no mercy. It gets NO resource cheats — it simply plays better." : undefined}
+                    title={difficultyDescription(d).title}
+                    aria-pressed={difficulty === d}
+                    aria-describedby={difficulty === d ? "difficulty-description" : undefined}
                     className={`min-h-[44px] flex-1 rounded-md border px-2 py-1.5 font-display text-xs font-bold capitalize transition-colors ${difficulty === d ? (d === "impossible" ? "border-red-400 bg-red-400/20 text-red-200 shadow-[0_0_12px_rgba(248,113,113,0.3)]" : "border-amber-400 bg-amber-400/20 text-amber-200 shadow-[0_0_12px_rgba(255,185,56,0.25)]") : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"}`}>
                     {d === "impossible" ? "☠ Imposs." : d}
                   </button>
                 ))}
               </div>
-              {difficulty === "impossible" && (
-                <p className="mt-1.5 text-[10px] leading-snug text-red-300/90">
-                  ☠ The Impossible AI hunts with threat maps and strikes in coordinated war
-                  parties. No cheats — it just plays better. Few survive.
-                </p>
-              )}
+              <p id="difficulty-description" aria-live="polite"
+                className={`mt-1.5 text-[11px] leading-snug ${difficulty === "impossible" ? "text-red-300/90" : "text-slate-400"}`}>
+                {difficultyDescription(difficulty).detail}
+              </p>
             </div>
             <div>
               <p className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
