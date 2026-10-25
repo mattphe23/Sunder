@@ -212,6 +212,8 @@ export interface Unit {
   kills: number;
   /** naval: unit is embarked on a boat */
   boat: boolean;
+  /** development-only naval role; absent boats retain the transport rules */
+  vessel?: "wakecutter";
   /** neutral guardian: never moves, guards a great ruin */
   guardian?: boolean;
   /** v17: awakened guardian — roams and attacks once the late game begins */
@@ -418,9 +420,12 @@ export const TRIBE_DEFS = [
 export const PREMIUM_TRIBES: Record<number, string> = {};
 
 export type Phase = "menu" | "playing" | "gameover";
-
 export type Difficulty = "easy" | "normal" | "hard" | "impossible";
-
+/**
+ * `legacy-v0` is implicit and intentionally absent from persisted legacy
+ * states. `experimental-v1` is a private, pinned authority-generation mode.
+ */
+export type GenerationVersion = "legacy-v0" | "experimental-v1";
 /** One entry in the start-of-turn recap of what rivals did. */
 export interface RecapEntry {
   kind: "combat" | "capture" | "cityLost" | "ruin" | "greatRuin" | "fallen" | "treatyBroken";
@@ -490,8 +495,12 @@ export interface GameState {
    *  capital does not stage two cinematics back to back. */
   fatalityTurn?: number;
   phase: Phase;
+  /** Explicit, saved development ruleset. Absent means the production rules. */
+  previewRuleset?: "naval-mvp";
   size: number;
   seed: number;
+  /** Present only for the private experimental authority checkpoint. */
+  generationVersion?: "experimental-v1";
   /** map generation preset id: continents | archipelago | highlands | pangaea */
   preset: string;
   turn: number;

@@ -1,7 +1,11 @@
 import type { ImportedModelCandidate } from "./importedModelRegistry";
 import { AUREN_MAELIS_PILOT } from "./importedModelRegistry";
 import type { BetaVisualCandidate } from "./betaVisualCandidate";
-import { AUREN_SWORDSMAN_ADVANCED_BETA } from "./betaAdvancedVisuals";
+import {
+  AUREN_SWORDSMAN_ADVANCED_BETA,
+  BETA_SWORDSMAN_VISUAL_HOLDS,
+} from "./betaAdvancedVisuals";
+import { TRIBE_SWORDSMAN_ADVANCED_BETA } from "./betaAdvancedTribeVisuals";
 import { BETA_VISUAL_MODELS } from "./betaVisualModels";
 import { BETA_MODEL_PUBLIC_ORIGIN } from "./betaModelUrl";
 import { NEUTRAL_OATH_GUARDIAN_BETA } from "./betaWorldVisuals";
@@ -76,6 +80,10 @@ textureEstimates.set(
   AUREN_SWORDSMAN_ADVANCED_BETA.candidate.modelUrl,
   AUREN_SWORDSMAN_ADVANCED_BETA.candidate.textureBytesEstimated
 );
+for (const [defIndex, candidate] of Object.entries(TRIBE_SWORDSMAN_ADVANCED_BETA)) {
+  if (BETA_SWORDSMAN_VISUAL_HOLDS[Number(defIndex)]) continue;
+  textureEstimates.set(candidate.modelUrl, candidate.textureBytesEstimated);
+}
 
 /** Exact canonical or allow-listed native URLs only; originals have no admission entry. */
 export function betaVisualTextureBytesForUrl(url: string): number {

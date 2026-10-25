@@ -1,5 +1,6 @@
 import type { Unit } from "../core/types";
 import type { BetaVisualCandidate } from "./betaVisualCandidate";
+import { TRIBE_SWORDSMAN_ADVANCED_BETA } from "./betaAdvancedTribeVisuals";
 
 /**
  * Separately audited, opt-in visual for one ordinary Auren Swordsman.
@@ -54,6 +55,12 @@ export const AUREN_SWORDSMAN_ADVANCED_BETA = Object.freeze({
   } satisfies BetaAdvancedVisualCandidate),
 } as const);
 
+/** Audit completeness is not visual release eligibility; never substitute another tribe. */
+export const BETA_SWORDSMAN_VISUAL_HOLDS: Readonly<Record<number, string>> =
+  Object.freeze({
+    4: "Nerivane p1 contrast/readability hold after shader-ready ordinary-game review",
+  });
+
 /**
  * Narrow advanced lookup only. The caller owns the explicit preference and
  * custom/skin gates; this lookup owns designed identity and unit exclusions.
@@ -63,7 +70,10 @@ export function betaAdvancedVisualCandidate(
   unit: Pick<Unit, "type" | "hero" | "boat" | "guardian" | "raider">
 ): BetaVisualCandidate | null {
   if (
-    defIndex !== 0 ||
+    !Number.isInteger(defIndex) ||
+    defIndex < 0 ||
+    defIndex > 7 ||
+    BETA_SWORDSMAN_VISUAL_HOLDS[defIndex] ||
     unit.type !== "swordsman" ||
     unit.hero ||
     unit.boat ||
@@ -72,5 +82,7 @@ export function betaAdvancedVisualCandidate(
   ) {
     return null;
   }
-  return AUREN_SWORDSMAN_ADVANCED_BETA.candidate;
+  return defIndex === 0
+    ? AUREN_SWORDSMAN_ADVANCED_BETA.candidate
+    : TRIBE_SWORDSMAN_ADVANCED_BETA[defIndex] ?? null;
 }

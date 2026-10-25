@@ -57,7 +57,8 @@ describe("Auren swordsman advanced visual", () => {
     });
 
     // A game slot which happens to be Auren cannot override the wrong designed tribe.
-    expect(betaVisualCandidate(1, { ...swordsman, tribe: 0 }, true)).toBeNull();
+    expect(betaVisualCandidate(1, { ...swordsman, tribe: 0 }, true)?.modelUrl)
+      .not.toBe(AUREN_SWORDSMAN_ADVANCED_BETA.candidate.modelUrl);
     expect(betaAdvancedVisualCandidate(0, swordsman)).toBe(selected);
   });
 

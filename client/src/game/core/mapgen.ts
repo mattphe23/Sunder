@@ -3,9 +3,16 @@
 // Presets reshape the world: continents (default), archipelago (many small isles),
 // highlands (mountainous interior), pangaea (one dense landmass, little water).
 
-import { City, Tile, Terrain, VILLAGE_NAMES, idx, inBounds } from "./types";
+import { City, Tile, Terrain, VILLAGE_NAMES, idx, inBounds, type GenerationVersion } from "./types";
 
 export type MapPreset = "continents" | "archipelago" | "highlands" | "pangaea";
+/**
+ * Legacy generation is deliberately the implicit default. The experimental
+ * version is selected only by the internal authority genesis helper; no shared
+ * setting or singleton switches existing seeded content to it.
+ */
+export const LEGACY_GENERATION_VERSION = "legacy-v0" as const;
+export const EXPERIMENTAL_GENERATION_VERSION = "experimental-v1" as const;
 
 export const MAP_PRESETS: { id: MapPreset; name: string; blurb: string }[] = [
   { id: "continents", name: "Continents", blurb: "Balanced isles and seas" },
@@ -44,6 +51,30 @@ export function rng(seed: number) {
   };
 }
 
+/**
+ * A seeded Fisher-Yates shuffle. Comparator sorting with a PRNG is not a
+ * portable permutation algorithm: sort implementation details can produce a
+ * different map from the same seed on another JavaScript runtime.
+ */
+export function seededShuffle<T>(items: readonly T[], rand: () => number): T[] {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+/**
+ * Keep the legacy comparator call byte-for-byte compatible with existing
+ * seeded games. Only an explicitly versioned internal request may opt into
+ * the portable Fisher-Yates order.
+ */
+function orderSeededCandidates<T>(items: readonly T[], rand: () => number, generationVersion: GenerationVersion): T[] {
+  if (generationVersion === EXPERIMENTAL_GENERATION_VERSION) return seededShuffle(items, rand);
+  return [...items].sort(() => rand() - 0.5);
+}
+
 /** simple value noise on a coarse grid, bilinear interpolated */
 function makeNoise(rand: () => number, gridSize: number) {
   const g: number[] = [];
@@ -66,7 +97,13 @@ export interface MapResult {
   capitals: { x: number; y: number }[]; // per tribe index order
 }
 
-export function generateMap(size: number, seed: number, tribeCount: number, preset: MapPreset = "continents"): MapResult {
+export function generateMap(
+  size: number,
+  seed: number,
+  tribeCount: number,
+  preset: MapPreset = "continents",
+  generationVersion: GenerationVersion = LEGACY_GENERATION_VERSION,
+): MapResult {
   const rand = rng(seed);
   const tune = TUNING[preset] ?? TUNING.continents;
   const elevNoise = makeNoise(rand, tune.noiseGrid);
@@ -136,7 +173,7 @@ export function generateMap(size: number, seed: number, tribeCount: number, pres
   });
 
   // villages: spread across land, min manhattan distance 3 from any city
-  const shuffled = [...landTiles].sort(() => rand() - 0.5);
+  const shuffled = orderSeededCandidates(landTiles, rand, generationVersion);
   const targetVillages = Math.floor(size * size * 0.055);
   for (const t of shuffled) {
     if (cities.length - tribeCount >= targetVillages) break;
@@ -162,7 +199,7 @@ export function generateMap(size: number, seed: number, tribeCount: number, pres
 
   // ancient ruins: ~1 per 25 tiles on land, away from cities and other ruins
   const ruinTarget = Math.max(2, Math.floor((size * size) / 25));
-  const ruinCandidates = [...landTiles].sort(() => rand() - 0.5);
+  const ruinCandidates = orderSeededCandidates(landTiles, rand, generationVersion);
   let placedRuins = 0;
   for (const t of ruinCandidates) {
     if (placedRuins >= ruinTarget) break;

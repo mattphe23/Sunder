@@ -297,11 +297,18 @@ const suitePlans = [
     names: [
       "difficulty-description.test.ts",
       "balance-paired.test.ts",
+      "fairness-audit.test.ts",
       "tidecaller-amphibious.test.ts",
       "match-access.test.ts",
     ],
     seed: "deterministic difficulty, paired-matrix, shallow-water and three-user access fixtures",
     note: "Exercises truthful AI-income disclosure, deterministic audit restoration, Tidecaller movement and member-only online reads; not AI strength, ranked security or physical-device evidence.",
+  },
+  {
+    id: "development-naval-and-private-authority",
+    names: ["naval-mvp.test.ts", "onlineAuthority.test.ts"],
+    seed: "controlled development vessel and request-local private authority fixtures",
+    note: "Exercises production-disabled naval gates, legacy/default compatibility, effects-disabled private checkpoints and opaque reference errors; neither feature is publicly activated.",
   },
   {
     id: "ios-safearea",
@@ -317,9 +324,10 @@ const suitePlans = [
       "imported-model-cache.test.ts",
       "beta-model-url.test.ts",
       "beta-advanced-visuals.test.ts",
+      "beta-advanced-tribes.test.ts",
     ],
     seed: "not-applicable (deterministic unit fixtures)",
-    note: "Exercises beta preference/store isolation, model-cache limits, native URL allow-list behavior and the separate Auren ordinary-Swordsman eligibility/provenance boundary.",
+    note: "Exercises beta preference/store isolation, unchanged model-cache limits, exact native URL admission and eight independent tribe-owned ordinary-Swordsman eligibility/provenance boundaries.",
   },
   {
     id: "overlaylifecycle",

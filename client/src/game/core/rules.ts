@@ -76,6 +76,32 @@ function moveCost(s: GameState, unit: Unit, t: Tile): number {
 
 export const BOAT_MOVEMENT = 3;
 
+/** Development-preview only; vessel-less boats stay exact legacy transports. */
+export const WAKECUTTER_COST = 4;
+export const WAKECUTTER_STATS = { attack: 2.5, defense: 1.5, range: 1, dash: false } as const;
+
+export function navalMvpActive(s: GameState): boolean {
+  return s.previewRuleset === "naval-mvp";
+}
+
+export function isWakecutter(s: GameState, unit: Unit): boolean {
+  return navalMvpActive(s) && unit.boat && unit.vessel === "wakecutter";
+}
+
+/** Combat-only override. Movement remains the existing transport behavior. */
+export function combatStats(s: GameState, unit: Unit) {
+  return isWakecutter(s, unit) ? { ...UNIT_STATS[unit.type], ...WAKECUTTER_STATS } : UNIT_STATS[unit.type];
+}
+
+/** A paid Wakecutter is a fresh action on its owning tribe's port tile. */
+export function canUpgradeWakecutter(s: GameState, unit: Unit | undefined): boolean {
+  if (!unit || !navalMvpActive(s) || unit.tribe !== s.currentTribe) return false;
+  if (unit.type !== "warrior" || unit.hero || !unit.boat || unit.vessel || unit.moved || unit.attacked) return false;
+  const t = tileAt(s, unit.x, unit.y);
+  return t.port === unit.tribe && s.tribes[unit.tribe]?.techs.includes("navigation") === true &&
+    s.tribes[unit.tribe].stars >= WAKECUTTER_COST;
+}
+
 /** economy costs with faction passives applied */
 export function portCost(s: GameState, tribe: number): number {
   return s.tribes[tribe]?.passive === "tideborn" ? 1 : 3;
@@ -391,12 +417,16 @@ export function wouldBreakTreaty(s: GameState, attacker: Unit, defender: Unit): 
  */
 export function attackableUnits(s: GameState, unit: Unit, includeTreatyPartners = false): Unit[] {
   if (unit.attacked) return [];
-  const stats = UNIT_STATS[unit.type];
+  const stats = combatStats(s, unit);
   if (unit.moved && !stats.dash) return [];
-  if (unit.boat) return []; // boats cannot attack (transport only)
+  const wakecutter = isWakecutter(s, unit);
+  if (unit.boat && !wakecutter) return []; // transports cannot attack
   return s.units.filter((e) => {
     if (e.tribe === unit.tribe) return false;
     if (!includeTreatyPartners && wouldBreakTreaty(s, unit, e)) return false;
+    // Wakecutters contest embarked vessels only; land units, cities, and
+    // swimming Tidecallers are never legal naval targets.
+    if (wakecutter && (!e.boat || (tileAt(s, e.x, e.y).terrain !== "water" && tileAt(s, e.x, e.y).terrain !== "ocean"))) return false;
     const d = Math.max(Math.abs(e.x - unit.x), Math.abs(e.y - unit.y));
     return d <= stats.range;
   });
@@ -420,9 +450,9 @@ export function unitHasActions(s: GameState, u: Unit): boolean {
   if (attackableUnits(s, u).length > 0) return true;
   if (!u.moved) {
     if (reachableTiles(s, u).length > 0) return true;
-    // capture: a fresh unit standing on a city it does not own may seize it
+    // capture: a fresh unit standing on a capturable city may seize it
     const c = cityAt(s, u.x, u.y);
-    if (c && c.tribe !== u.tribe && !(c.tribe !== null && u.tribe >= 0 && atPeace(s, u.tribe, c.tribe))) return true;
+    if (!isWakecutter(s, u) && c && c.tribe !== u.tribe && !(c.tribe !== null && u.tribe >= 0 && atPeace(s, u.tribe, c.tribe))) return true;
   }
   // colossus: the once-per-game quake is an attack replacement worth surfacing
   if (!u.attacked && u.type === "colossus" && canQuake(s, u)) return true;
@@ -438,7 +468,7 @@ export interface CombatResult {
 
 /** defense bonus from terrain/city (Polytopia-style ideas, our tuning) */
 function defenseBonus(s: GameState, defender: Unit, attacker?: Unit): number {
-  if (defender.boat) return 0.7; // embarked units are vulnerable
+  if (defender.boat) return isWakecutter(s, defender) ? 1 : 0.7;
   const t = tileAt(s, defender.x, defender.y);
   if (defender.guardian) return 1.4; // guardians hold sacred ground
   if (defender.tribe < 0) return 1;
@@ -473,8 +503,8 @@ export function bulwarkShielded(s: GameState, defender: Unit): boolean {
 }
 
 export function previewCombat(s: GameState, attacker: Unit, defender: Unit): CombatResult {
-  const aStats = UNIT_STATS[attacker.type];
-  const dStats = UNIT_STATS[defender.type];
+  const aStats = combatStats(s, attacker);
+  const dStats = combatStats(s, defender);
   let atk = aStats.attack;
   if (attacker.tribe >= 0 && s.tribes[attacker.tribe].passive === "forgeborn") atk *= FORGEBORN_ATTACK;
   // v16 hero perks
@@ -530,7 +560,12 @@ export function combatModifiers(s: GameState, attacker: Unit, defender: Unit): {
   if (wardedBy(s, defender)) out.push({ text: "Warding aura −15% damage taken", side: "def" });
   if (heroHasPerk(defender, "ironskin")) out.push({ text: "Ironskin +30% defense", side: "def" });
   if (heroHasPerk(defender, "relic")) out.push({ text: "Guardian's Relic +15% defense", side: "def" });
-  if (defender.boat) { out.push({ text: "Embarked −30% defense", side: "def" }); return out; }
+  if (defender.boat) {
+    out.push(isWakecutter(s, defender)
+      ? { text: "Wakecutter — normal naval defense", side: "def" }
+      : { text: "Embarked −30% defense", side: "def" });
+    return out;
+  }
   const t = tileAt(s, defender.x, defender.y);
   if (defender.guardian) { out.push({ text: "Sacred ground +40% defense", side: "def" }); return out; }
   if (defender.tribe < 0) return out;
@@ -901,7 +936,7 @@ export function starIncome(s: GameState, tribe: number): number {
     // v29 anti-turtling (Polytopia-authentic siege): an enemy unit standing ON
     // the city tile chokes its production entirely. Turtling behind walls no
     // longer preserves your economy once besiegers arrive.
-    const occupier = s.units.find((u) => u.x === c.x && u.y === c.y && u.tribe !== tribe && u.tribe >= 0);
+    const occupier = s.units.find((u) => u.x === c.x && u.y === c.y && u.tribe !== tribe && u.tribe >= 0 && !isWakecutter(s, u));
     if (occupier) continue;
     income += c.isCapital ? 2 : 1;
     income += Math.max(0, c.level - 1);
@@ -914,7 +949,7 @@ export function starIncome(s: GameState, tribe: number): number {
     for (const id of Array.from(connectedCityIds(s, tribe))) {
       const c = s.cities[id];
       if (!c || c.tribe !== tribe) continue;
-      const occupier = s.units.find((u) => u.x === c.x && u.y === c.y && u.tribe !== tribe && u.tribe >= 0);
+      const occupier = s.units.find((u) => u.x === c.x && u.y === c.y && u.tribe !== tribe && u.tribe >= 0 && !isWakecutter(s, u));
       if (occupier) continue;
       income += 1;
     }
@@ -928,7 +963,7 @@ export function starIncome(s: GameState, tribe: number): number {
       const city = s.cities[t.ownerCityId];
       if (!city || city.tribe !== tribe) continue;
       // a besieged city's market is choked along with the rest of its economy
-      const occupier = s.units.find((u) => u.x === city.x && u.y === city.y && u.tribe !== tribe && u.tribe >= 0);
+      const occupier = s.units.find((u) => u.x === city.x && u.y === city.y && u.tribe !== tribe && u.tribe >= 0 && !isWakecutter(s, u));
       if (occupier) continue;
       income += marketStars(s, t.x, t.y, marketDef);
     }
@@ -940,7 +975,7 @@ export function starIncome(s: GameState, tribe: number): number {
   if (s.tribes[tribe]?.passive === "tideborn") {
     for (const c of s.cities) {
       if (c.tribe !== tribe) continue;
-      const occupier = s.units.find((u) => u.x === c.x && u.y === c.y && u.tribe !== tribe && u.tribe >= 0);
+      const occupier = s.units.find((u) => u.x === c.x && u.y === c.y && u.tribe !== tribe && u.tribe >= 0 && !isWakecutter(s, u));
       if (occupier) continue;
       let coastal = false;
       for (let dy = -1; dy <= 1 && !coastal; dy++) {

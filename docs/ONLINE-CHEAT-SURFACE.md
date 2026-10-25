@@ -4,7 +4,9 @@
 one the original framing ("strip enemy-vision fields in `match.get`") hoped
 for — that fix is architecturally impossible without breaking the game, and
 this document exists so nobody spends an afternoon discovering that the hard
-way.
+way. An internal-only request-local evaluator and projection seam now exists;
+see [`ONLINE-AUTHORITY-EXPERIMENT.md`](./ONLINE-AUTHORITY-EXPERIMENT.md). It
+does not change the legacy flow described below and is not a public v1 mode.
 
 ## The current trust model
 

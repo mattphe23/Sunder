@@ -8,7 +8,8 @@ import {
   techCost, canResearch, trainableUnits, starIncome, cityAt, canHarvest,
   harvestCost, canBuildPort, portCost, wallCost, canBuild, unitCapacity, unitCount,
   adjacencyPop, marketStars, canQuake, quakeVictims, quakeWallTargets, QUAKE_DAMAGE,
-  canBuildRoad, roadCost, connectedCityIds, severedCityIds, isVisibleTo,
+  canBuildRoad, roadCost, connectedCityIds, severedCityIds, isVisibleTo, canUpgradeWakecutter,
+  combatStats, isWakecutter, WAKECUTTER_COST,
 } from "../core/rules";
 import { Button } from "@/components/ui/button";
 import { Star, Swords, FlaskConical, X, ChevronRight, Anchor, Ship, Skull, Shield, Flag, Landmark, ScrollText, Undo2, Bird, Crown, Sparkles, SkipForward, Zap, Grid3x3, Route, Handshake } from "lucide-react";
@@ -420,9 +421,10 @@ export function SelectionPanel({ onInspectResource }: { onInspectResource?: (pos
   if (!unit && !city) return null;
 
   if (unit) {
-    const st = UNIT_STATS[unit.type];
+    const st = combatStats(s, unit);
     const here = cityAt(s, unit.x, unit.y);
-    const canCapture = here && here.tribe !== unit.tribe && !unit.moved;
+    const canCapture = !isWakecutter(s, unit) && here && here.tribe !== unit.tribe && !unit.moved;
+    const canRefitWakecutter = unit.tribe === s.humanTribe && canUpgradeWakecutter(s, unit);
     const isHero = !!unit.hero;
     const xpNeed = isHero && (unit.level ?? 1) < HERO_MAX_LEVEL ? HERO_XP_THRESHOLDS[(unit.level ?? 1) - 1] : null;
     return (
@@ -475,7 +477,8 @@ export function SelectionPanel({ onInspectResource }: { onInspectResource?: (pos
           </p>
         )}
         {unit.veteran && <p className="mb-1 text-[11px] text-amber-300/90">Battle-hardened — promoted for 3 kills (+5 max HP)</p>}
-        {unit.boat && <p className="mb-1 text-[11px] text-cyan-200/80">Embarked — cannot attack; weaker in defense. Land to fight.</p>}
+        {unit.boat && !isWakecutter(s, unit) && <p className="mb-1 text-[11px] text-cyan-200/80">Embarked — cannot attack; weaker in defense. Land to fight.</p>}
+        {isWakecutter(s, unit) && <p className="mb-1 text-[11px] text-cyan-200/80">Wakecutter — water-only melee; land to scuttle the hull.</p>}
         <div className="mb-2 h-1.5 overflow-hidden rounded bg-white/10">
           <div className="h-full rounded bg-emerald-400" style={{ width: `${(unit.hp / unit.maxHp) * 100}%` }} />
         </div>
@@ -498,6 +501,16 @@ export function SelectionPanel({ onInspectResource }: { onInspectResource?: (pos
         {canCapture && (
           <Button size="sm" className="mt-2 w-full bg-amber-400 font-bold text-[#1b1b3f] hover:bg-amber-300" onClick={() => g.captureCity(unit.id)}>
             <Swords className="h-4 w-4" /> Capture {here!.name}
+          </Button>
+        )}
+        {canRefitWakecutter && (
+          <Button
+            size="sm"
+            className="mt-2 min-h-[44px] w-full bg-cyan-400 font-bold text-[#10243f] hover:bg-cyan-300"
+            onClick={() => { sound.play("click"); g.upgradeWakecutter(unit.id); }}
+            title="Development preview: spend 4 stars to refit this Warrior transport at its friendly port"
+          >
+            <Anchor className="h-4 w-4" /> Refit Wakecutter ({WAKECUTTER_COST}★)
           </Button>
         )}
         {unit.type === "colossus" && unit.tribe === s.humanTribe && !unit.quakeUsed && (

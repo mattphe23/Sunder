@@ -3,6 +3,7 @@
 // Three systems: barbarian camps (spawn → grow → raid), storms (roaming water squalls that
 // block naval movement), and awakening guardians (great-ruin sentinels that stir and roam).
 import { GameState, Tile, Unit, GUARDIAN_TRIBE } from "./types";
+import { EXPERIMENTAL_GENERATION_VERSION } from "./mapgen";
 import { commonEnemy } from "./coalition";
 
 /* ------------------------------ world event types ------------------------------ */
@@ -95,7 +96,16 @@ function campSites(s: GameState, rand: () => number): { x: number; y: number }[]
     if (nearCity) continue;
     sites.push({ x: t.x, y: t.y });
   }
-  return sites.sort(() => rand() - 0.5);
+  // Existing maps must preserve their comparator order. The portable shuffle
+  // belongs only to the explicitly pinned experimental authority state.
+  if (s.generationVersion !== EXPERIMENTAL_GENERATION_VERSION) {
+    return sites.sort(() => rand() - 0.5);
+  }
+  for (let i = sites.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [sites[i], sites[j]] = [sites[j], sites[i]];
+  }
+  return sites;
 }
 
 /* ------------------------------ world phase ------------------------------ */

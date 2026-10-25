@@ -1,7 +1,10 @@
 // Sunder central game state store — framework-agnostic, event-emitting.
 // React subscribes via getSnapshot/subscribe; Babylon render layer listens to events.
 
-import { generateMap, claimBorders, rng, MapPreset } from "./mapgen";
+import {
+  generateMap, claimBorders, rng, seededShuffle, MapPreset,
+  LEGACY_GENERATION_VERSION, EXPERIMENTAL_GENERATION_VERSION,
+} from "./mapgen";
 import {
   GameState, Tribe, Unit, UnitType, UNIT_STATS, TRIBE_DEFS, TechId,
   Difficulty, idx, PORT_COST, WALL_COST, TECHS, RecapEntry, GUARDIAN_TRIBE,
@@ -16,7 +19,7 @@ import {
   POP_PER_LEVEL, canBuildPort, portCost, wallCost, canBuild, atUnitCapacity,
   knockbackDestination, adjacencyPop, marketStars, canQuake, quakeVictims, quakeWallTargets, QUAKE_DAMAGE,
   canBuildRoad, roadCost, connectedCityIds, severedCityIds, scoreBreakdown, type ScoreParts,
-  unitHasActions,
+  unitHasActions, canUpgradeWakecutter, WAKECUTTER_COST, isWakecutter,
 } from "./rules";
 import { runAiTurn } from "./ai";
 import { evaluateAchievements, AchievementDef } from "./achievements";
@@ -33,6 +36,7 @@ import { checkPathVictory } from "./victory";
 import { evaluateMission, markMissionDone, computeMissionStars, recordMissionStars, type StarBreakdown } from "./story";
 import { fatalityAllowed, markFatality, type FatalityKind, type FatalitySpec } from "./fatality";
 import { CROSS_TRIBE_P2_PILOTS } from "../render/importedModelRegistry";
+import { navalMvpPreviewEnabled } from "./navalMvp";
 export type GameEvent =
   | { type: "changed" }
   | { type: "unitMoved"; unitId: number; fromX: number; fromY: number; toX: number; toY: number }
@@ -115,6 +119,11 @@ export interface PendingAttack {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
 
+/** Preview snapshots are only meaningful under the exact development query. */
+function navalMvpRuntimeEnabled(): boolean {
+  return typeof window !== "undefined" && navalMvpPreviewEnabled(window.location.search, import.meta.env.DEV);
+}
+
 /**
  * Backfill only fields introduced after older snapshots were written. This is
  * not a reconstruction of past play: missing metrics begin at zero while any
@@ -137,6 +146,17 @@ function normalizeSnapshot(raw: unknown): GameState | null {
   const validTribe = (tribe: unknown): tribe is number =>
     typeof tribe === "number" && Number.isInteger(tribe) && tribe >= 0 && tribe < s.tribes.length;
   if (!validTribe(s.currentTribe) || !validTribe(s.humanTribe)) return null;
+  if (s.previewRuleset !== undefined && s.previewRuleset !== "naval-mvp") return null;
+
+  for (const rawUnit of s.units) {
+    if (!isRecord(rawUnit) || typeof rawUnit.boat !== "boolean") return null;
+    if (rawUnit.vessel === undefined) continue;
+    if (rawUnit.vessel !== "wakecutter" || s.previewRuleset !== "naval-mvp" || rawUnit.boat !== true || rawUnit.type !== "warrior") return null;
+    if (!Number.isInteger(rawUnit.x) || !Number.isInteger(rawUnit.y) || rawUnit.x < 0 || rawUnit.y < 0 || rawUnit.x >= s.size || rawUnit.y >= s.size) return null;
+    const terrain = s.tiles[idx(rawUnit.x, rawUnit.y, s.size)]?.terrain;
+    // Never invent a land-hull interpretation for invalid preview state.
+    if (terrain !== "water" && terrain !== "ocean") return null;
+  }
 
   for (let i = 0; i < s.tribes.length; i++) {
     const tribe = s.tribes[i];
@@ -203,8 +223,17 @@ function normalizeSnapshot(raw: unknown): GameState | null {
   return s;
 }
 
-class GameStore {
+/**
+ * Interactive stores may notify UI, persist local saves, and queue AI.
+ * Authority evaluation creates a fresh store with those effects disabled.
+ */
+export interface GameStoreOptions {
+  effects?: boolean;
+}
+
+export class GameStore {
   state: GameState = emptyState();
+  private readonly effectsEnabled: boolean;
   /** last game turn whose round-start hooks (world phase, score snapshot,
    *  victory check) have run — keyed to the round, not to any tribe slot */
   private roundOpened = -1;
@@ -213,12 +242,15 @@ class GameStore {
   /** Invalidates callbacks queued for an earlier match, slot, or turn. */
   private aiEpoch = 0;
   /** Which of the three save slots is active. Slot 1 maps to the legacy key. */
-  activeSlot: SaveSlot = ((): SaveSlot => {
+  activeSlot: SaveSlot = 1;
+  constructor(options: GameStoreOptions = {}) {
+    this.effectsEnabled = options.effects ?? true;
+    if (!this.effectsEnabled) return;
     try {
       const v = Number(localStorage.getItem(SLOT_KEY));
-      return v === 2 || v === 3 ? (v as SaveSlot) : 1;
-    } catch { return 1; }
-  })();
+      this.activeSlot = v === 2 || v === 3 ? (v as SaveSlot) : 1;
+    } catch { /* browser storage unavailable */ }
+  }
   setActiveSlot(slot: SaveSlot) {
     if (slot === this.activeSlot) return;
     this.invalidateAi();
@@ -244,6 +276,7 @@ class GameStore {
   getVersion = () => this.snapshotVersion;
 
   emit(e: GameEvent) {
+    if (!this.effectsEnabled) return;
     if (e.type === "changed" || true) this.snapshotVersion++;
     this.listeners.forEach((fn) => fn(e));
     if (e.type === "changed") this.autoSave();
@@ -252,6 +285,7 @@ class GameStore {
   // ---------- persistence ----------
 
   private autoSave() {
+    if (!this.effectsEnabled) return;
     const s = this.state;
     try {
       // online matches live on the server, never in local save slots
@@ -273,6 +307,7 @@ class GameStore {
 
   /** Queue an AI action only for this exact state object and current tribe. */
   private scheduleAiTurn(tribeIdx: number, delay: number) {
+    if (!this.effectsEnabled) return;
     const scheduledState = this.state;
     const epoch = this.aiEpoch;
     scheduledState.aiThinking = true;
@@ -305,7 +340,7 @@ class GameStore {
   loadOnlineSnapshot(json: string, myTribe: number): boolean {
     try {
       const s = normalizeSnapshot(JSON.parse(json));
-      if (!s || !Number.isInteger(myTribe) || myTribe < 0 || myTribe >= s.tribes.length) return false;
+      if (!s || (s.previewRuleset === "naval-mvp" && !navalMvpRuntimeEnabled()) || !Number.isInteger(myTribe) || myTribe < 0 || myTribe >= s.tribes.length) return false;
       this.invalidateAi();
       s.selectedUnitId = null;
       s.selectedCityId = null;
@@ -322,6 +357,23 @@ class GameStore {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Internal authority-only hydration. The supplied value must already be a
+   * server-owned canonical checkpoint; this deliberately does not parse a
+   * client payload. The clone prevents one request from mutating the state
+   * retained by a concurrent caller.
+   */
+  loadRequestLocalState(canonical: GameState): void {
+    if (this.effectsEnabled) {
+      throw new Error("Request-local state requires effects disabled");
+    }
+    this.invalidateAi();
+    this.state = JSON.parse(JSON.stringify(canonical)) as GameState;
+    this.pendingAttack = null;
+    this.lastMove = null;
+    this.roundOpened = this.state.turn;
   }
 
   hasSave(): boolean {
@@ -373,7 +425,7 @@ class GameStore {
       const raw = localStorage.getItem(slotKey(this.activeSlot));
       if (!raw) return false;
       const s = normalizeSnapshot(JSON.parse(raw));
-      if (!s || s.phase !== "playing") return false;
+      if (!s || s.phase !== "playing" || (s.previewRuleset === "naval-mvp" && !navalMvpRuntimeEnabled())) return false;
       this.invalidateAi();
       s.selectedUnitId = null;
       s.selectedCityId = null;
@@ -398,16 +450,22 @@ class GameStore {
 
   // ---------- lifecycle ----------
 
-  newGame(opts: { size: number; humanTribe: number; difficulty: Difficulty; seed?: number; preset?: MapPreset; humanTribes?: number[]; challenge?: ChallengeKind; roster?: number[]; custom?: { slot: number; config: CustomTribeConfig }; friendChallenge?: { name: string; score: number }; online?: { matchId: string; hostTribe: number; guestTribe: number; hostName: string; guestName: string }; storyMission?: string }) {
+  newGame(opts: { size: number; humanTribe: number; difficulty: Difficulty; seed?: number; preset?: MapPreset; generationVersion?: "experimental-v1"; humanTribes?: number[]; challenge?: ChallengeKind; roster?: number[]; custom?: { slot: number; config: CustomTribeConfig }; friendChallenge?: { name: string; score: number }; online?: { matchId: string; hostTribe: number; guestTribe: number; hostName: string; guestName: string }; storyMission?: string; previewRuleset?: "naval-mvp" }) {
+    // The portable ordering is a private authority-checkpoint contract, never
+    // a global setting for a UI, save, challenge, replay, or legacy match.
+    if (opts.generationVersion === EXPERIMENTAL_GENERATION_VERSION && this.effectsEnabled) {
+      throw new Error("Experimental generation requires an effects-disabled request-local store");
+    }
     this.invalidateAi();
     const seed = opts.seed ?? Math.floor(Math.random() * 2 ** 31);
     const preset: MapPreset = opts.preset ?? "continents";
+    const generationVersion = opts.generationVersion ?? LEGACY_GENERATION_VERSION;
     const humans = opts.humanTribes && opts.humanTribes.length > 0 ? [...opts.humanTribes].sort((a, b) => a - b) : [opts.humanTribe];
     // roster: which of the 6 TRIBE_DEFS play this match (slot i is def roster[i]).
     // Local games use 4 tribes; online 1v1 uses exactly 2 (no AI in async matches);
     // story missions script 2-4 tribes per battle.
     const roster = opts.roster && opts.roster.length >= 2 && opts.roster.length <= 4 ? opts.roster : [0, 1, 2, 3];
-    const { tiles, cities } = generateMap(opts.size, seed, roster.length, preset);
+    const { tiles, cities } = generateMap(opts.size, seed, roster.length, preset, generationVersion);
     // Counted once, at generation. Great Harvest scales to what the board could
     // ever feed, not to what is left of it.
     const resourceEndowment = tiles.reduce((n, t) => n + (t.resource ? 1 : 0), 0);
@@ -466,8 +524,12 @@ class GameStore {
     this.state = {
       ...emptyState(),
       phase: "playing",
+      // Never accept an internal caller's label in production or outside the
+      // exact development fixture URL.
+      previewRuleset: opts.previewRuleset === "naval-mvp" && navalMvpRuntimeEnabled() ? "naval-mvp" : undefined,
       size: opts.size,
       seed,
+      ...(generationVersion === EXPERIMENTAL_GENERATION_VERSION ? { generationVersion } : {}),
       preset,
       challenge: opts.challenge,
       friendChallenge: opts.friendChallenge ?? null,
@@ -977,9 +1039,12 @@ class GameStore {
     const s = this.state;
     const taken = new Set(u.perks ?? []);
     const pool = HERO_PERK_POOL.filter((p) => !taken.has(p));
-    // seeded shuffle for determinism (same save → same offer)
+    // Preserve legacy seeded offers. Portable ordering is pinned only on a
+    // request-local experimental checkpoint, never by a shared setting.
     const r = rng(s.seed + (u.level ?? 1) * 101 + u.id * 37);
-    const shuffled = [...pool].sort(() => r() - 0.5);
+    const shuffled = s.generationVersion === EXPERIMENTAL_GENERATION_VERSION
+      ? seededShuffle(pool, r)
+      : [...pool].sort(() => r() - 0.5);
     return shuffled.slice(0, Math.min(3, shuffled.length));
   }
 
@@ -1418,6 +1483,20 @@ class GameStore {
 
   // ---------- actions ----------
 
+  /** Development-preview only: turn one friendly-port Warrior transport into a Wakecutter. */
+  upgradeWakecutter(unitId: number) {
+    const s = this.state;
+    const u = s.units.find((q) => q.id === unitId);
+    this.lastMove = null;
+    if (!canUpgradeWakecutter(s, u)) return;
+    s.tribes[u!.tribe].stars -= WAKECUTTER_COST;
+    u!.vessel = "wakecutter";
+    u!.moved = true;
+    u!.attacked = true;
+    s.log.unshift(`${s.tribes[u!.tribe].name} refitted a Warrior transport as a Wakecutter (−${WAKECUTTER_COST}★).`);
+    this.emit({ type: "changed" });
+  }
+
   moveUnit(unitId: number, x: number, y: number) {
     const s = this.state;
     const u = s.units.find((q) => q.id === unitId);
@@ -1426,6 +1505,7 @@ class GameStore {
     if (!legal) return;
     const fromX = u.x, fromY = u.y;
     const wasBoat = u.boat;
+    const wasVessel = u.vessel;
     const wasAttacked = u.attacked;
     u.x = x; u.y = y;
     u.moved = true;
@@ -1440,11 +1520,15 @@ class GameStore {
       u.boat = true;
     } else if (u.boat) {
       u.boat = false;
+      // A Wakecutter hull is paid for at sea and scuttled on its first legal
+      // landing; the passenger returns as the same Warrior.
+      delete u.vessel;
       s.log.unshift(`${UNIT_STATS[u.type].name} came ashore.`);
     }
     const stats = UNIT_STATS[u.type];
     if (!stats.dash) u.attacked = true;
     if (u.boat) u.attacked = true; // boats cannot attack
+    if (wasVessel === "wakecutter" && !u.boat) u.attacked = true; // scuttling ends the turn
     // one-step undo: only for the human's own reversible moves (no ruin, no city tile)
     const destTile = tileAt(s, x, y);
     if (
@@ -1452,7 +1536,7 @@ class GameStore {
       s.currentTribe === s.humanTribe &&
       !destTile.ruin && !destTile.greatRuin && destTile.cityId === null
     ) {
-      this.lastMove = { unitId, fromX, fromY, boat: wasBoat, attacked: wasAttacked };
+      this.lastMove = { unitId, fromX, fromY, boat: wasBoat, vessel: wasVessel, attacked: wasAttacked };
     } else {
       this.lastMove = null;
     }
@@ -1483,7 +1567,7 @@ class GameStore {
   }
 
   /** snapshot of the last human move for one-step undo */
-  private lastMove: { unitId: number; fromX: number; fromY: number; boat: boolean; attacked: boolean } | null = null;
+  private lastMove: { unitId: number; fromX: number; fromY: number; boat: boolean; vessel?: "wakecutter"; attacked: boolean } | null = null;
 
   canUndo(): boolean {
     return this.lastMove !== null && this.state.phase === "playing" &&
@@ -1500,6 +1584,8 @@ class GameStore {
     u.x = m.fromX; u.y = m.fromY;
     u.moved = false;
     u.boat = m.boat;
+    if (m.vessel) u.vessel = m.vessel;
+    else delete u.vessel;
     u.attacked = m.attacked;
     s.selectedUnitId = u.id;
     s.log.unshift(`${UNIT_STATS[u.type].name}'s march was recalled.`);
@@ -1774,10 +1860,9 @@ class GameStore {
     const s = this.state;
     const u = s.units.find((q) => q.id === unitId);
     this.lastMove = null;
-    if (!u || u.moved || u.attacked) {
-      // capture consumes the whole action; require fresh unit standing on city
-    }
-    if (!u) return;
+    // Wakecutters can never capture; existing ordinary-unit behavior is left
+    // untouched for this development-only slice.
+    if (!u || isWakecutter(s, u)) return;
     const city = cityAt(s, u.x, u.y);
     if (!city || city.tribe === u.tribe) return;
     // diplomacy: cannot seize cities of a tribe you are at peace with
@@ -2284,6 +2369,7 @@ if (typeof window !== "undefined") {
         seed: parseInt(seed, 10) || 4242,
         preset: preset as MapPreset,
         roster,
+        previewRuleset: navalMvpPreviewEnabled(window.location.search, import.meta.env.DEV) ? "naval-mvp" : undefined,
       });
       // The opening roster normally contains only a Warrior. Explicit class
       // art-review routes convert that local starter without changing rules.
