@@ -95,6 +95,12 @@ import { PALETTE, darken, lighten, biomeFor, BiomePalette } from "./palette";
 import { buildCityArchitecture } from "./cityArchitecture";
 import { buildRuinArchitecture } from "./ruinArchitecture";
 import { ashMistPuffs, broadMountainSilhouette, coastBandLocalY, coastPilotEnabled, forestTreeCount, forestUnderbrushLimit, landscapeVariantEnabled, worldGroundFacets, worldRegionTone, worldSurfaceSpan } from "./landscapePilot";
+import {
+  cityOccupiedStructureTransform,
+  isReadyAurenSwordsmanCityClearanceUnit,
+  potentialAurenSwordsmanCityClearanceCells,
+  type CityStructureBaseline,
+} from "./cityUnitClearance";
 
 const TILE = 1.02;
 // Mountain sits FLUSH with the other land tiles rather than on a raised plate.
@@ -156,6 +162,27 @@ type ForestTreeGroup = {
   authoredCount: number;
 };
 
+type CityClearanceStructure = {
+  mesh: Mesh;
+  baseline: CityStructureBaseline;
+  footprintRadius: number;
+};
+
+/**
+ * A city-only, opt-in decor owner. Its structures deliberately stay outside
+ * batchDecor so the exact ready Auren Swordsman can compact/reposition only
+ * this tile's architecture without touching terrain, platforms, or unit nodes.
+ */
+type CityClearanceGroup = {
+  root: TransformNode;
+  structures: CityClearanceStructure[];
+  x: number;
+  y: number;
+  worldX: number;
+  worldZ: number;
+  top: number;
+};
+
 export class BoardRenderer {
   engine: Engine;
   scene: Scene;
@@ -166,6 +193,9 @@ export class BoardRenderer {
   /** Opt-in forest trees stay unbatched by tile so occupancy can retarget only
    * their local transforms; all ordinary/default decor keeps the batch path. */
   private forestTreeGroups = new Map<number, ForestTreeGroup>();
+  /** City structure groups exist only for potential exact-candidate city cells. */
+  private cityClearanceGroups = new Map<number, CityClearanceGroup>();
+  private cityClearanceCells: ReadonlySet<number> = new Set();
   private unitMeshes = new Map<number, TransformNode>();
   private campMeshes = new Map<number, TransformNode>();
   private stormMeshes = new Map<number, TransformNode>();
@@ -800,6 +830,11 @@ export class BoardRenderer {
     for (const ci of s.cities) {
       out.push(`${ci.id}:${ci.tribe ?? "n"}:${ci.level}:${ci.walls ? 1 : 0}:${ci.isCapital ? 1 : 0}`);
     }
+    // Unit locations normally do not rebuild the world. This deliberately
+    // narrow display-only exception allocates an independently owned city group
+    // when (and only when) the exact potential Auren Swordsman enters/leaves a
+    // drawable city cell. Ready-state compaction itself stays dynamic below.
+    out.push(`city-clearance:${Array.from(this.cityClearanceCells).sort((a, b) => a - b).join(",")}`);
     for (const tr of s.tribes) out.push(tr.color);
     return out.join("|");
   }
@@ -823,6 +858,14 @@ export class BoardRenderer {
     this.applyForgedCostume(s);
     // Derive drawable occupancy fresh: a hidden rival may never leave a cleared lane behind.
     this.unitLaneCells = visibleUnitLaneCells(s, this.forestLanePreview);
+    this.cityClearanceCells = potentialAurenSwordsmanCityClearanceCells(
+      s,
+      this.betaVisualPreferences.newVisuals,
+      (unit) => {
+        const tribe = unit.tribe >= 0 ? s.tribes[unit.tribe] : undefined;
+        return !!tribe?.customHeadgear || !!(tribe && skinFor(tribe.defIndex));
+      }
+    );
     // The game notifies on every action, so this is called after each move,
     // attack and turn end. Rebuilding ~1000 meshes (with flat-shading
     // conversions) each time caused real hitches on phones; skip when the
@@ -844,6 +887,8 @@ export class BoardRenderer {
     this.tileMeshes.clear();
     this.forestTreeGroups.forEach((group) => group.root.dispose());
     this.forestTreeGroups.clear();
+    this.cityClearanceGroups.forEach((group) => group.root.dispose());
+    this.cityClearanceGroups.clear();
     this.decorMeshes.forEach((arr) => arr.forEach((m: Mesh) => m.dispose()));
     this.decorMeshes.clear();
 
@@ -2079,7 +2124,7 @@ export class BoardRenderer {
       if (city) {
         const neutral = city.tribe === null;
         const ownerColor = neutral ? PALETTE.city.neutral : s.tribes[city.tribe!].color;
-        decor.push(...buildCityArchitecture({
+        const cityMeshes = buildCityArchitecture({
           scene: this.scene,
           parent: this.root,
           worldX: t.x - c,
@@ -2096,11 +2141,18 @@ export class BoardRenderer {
           neutral,
           walls: !!city.walls,
           ownerColor,
-        }));
+        });
+        if (this.cityClearanceCells.has(key))
+          this.ownCityClearanceDecor(key, cityMeshes, t, t.x - c, top, t.y - c);
+        else decor.push(...cityMeshes);
       }
     } else {
     const city = t.cityId !== null ? s.cities[t.cityId] : null;
     if (city) {
+      // Keep the ordinary legacy construction byte-for-byte in its normal
+      // batch path. Only the exact potential city gets a separately owned
+      // structure slice; the preserved platform/kerbs remain full width.
+      const cityDecorStart = decor.length;
       const isNeutral = city.tribe === null;
       const col = isNeutral ? PALETTE.city.neutral : s.tribes[city.tribe!].color;
       // Polytopia-style settlement: a paved town square with a tribe-color
@@ -2205,6 +2257,10 @@ export class BoardRenderer {
             decor.push(tower);
           }
         }
+      }
+      if (this.cityClearanceCells.has(key)) {
+        const cityMeshes = decor.splice(cityDecorStart);
+        this.ownCityClearanceDecor(key, cityMeshes, t, t.x - c, top, t.y - c);
       }
     }
     }
@@ -2390,6 +2446,9 @@ export class BoardRenderer {
     });
     toRemove.forEach((id) => this.unitMeshes.delete(id));
     this.syncForestTreeGroups(s);
+    // Runs after stale/fogged nodes are removed, so exact ready metadata from a
+    // no-longer-drawable unit cannot leave a city display opening behind.
+    this.syncCityClearanceGroups(s);
     this.syncWorld(s);
   }
 
@@ -2712,6 +2771,10 @@ export class BoardRenderer {
       }
       parent.metadata = { ...(parent.metadata ?? {}), visualRosterPreview: !beta, visualBeta: beta, visualImportState: "ready",
         visualAssetId: candidate.assetId, visualModelUrl: candidate.modelUrl, visualDecision: candidate.decision };
+      // The candidate became drawable asynchronously. Re-read only the latest
+      // state after metadata is ready; an old parent, toggled-off preference, or
+      // fogged/moved unit cannot activate city transforms through this callback.
+      this.syncCityClearanceFromLatestState(parent);
     } catch (error) {
       if (!parent.isDisposed()) parent.metadata = { ...(parent.metadata ?? {}), visualImportState: "failed" };
       if (beta) console.warn("Beta unit model unavailable; procedural actor retained.");
@@ -2738,6 +2801,139 @@ export class BoardRenderer {
     disc.isPickable = false;
     disc.parent = this.root;
     decor.push(disc);
+  }
+
+  /** Paving and owner/neutral kerbs remain at full width. They are never part
+   * of the compacted architectural envelope around the grounded actor. */
+  private preservesCityClearancePlatform(mesh: Mesh): boolean {
+    return (
+      mesh.name === "cityplate" ||
+      mesh.name === "cityedge" ||
+      mesh.name === "city-settlement-foundation" ||
+      mesh.name === "city-open-muster-courtyard" ||
+      mesh.name.startsWith("city-court-rim-")
+    );
+  }
+
+  /**
+   * Pull one qualified city's structures out of the ordinary per-tile batch.
+   * Every mesh retains its original tile metadata and world transform; only
+   * this local owner is later adjusted, never a merged decor/terrain surface.
+   */
+  private ownCityClearanceDecor(
+    cell: number,
+    cityMeshes: Mesh[],
+    t: Tile,
+    worldX: number,
+    top: number,
+    worldZ: number,
+  ) {
+    if (cityMeshes.length === 0) return;
+    const root = new TransformNode("city-clearance", this.scene);
+    root.parent = this.root;
+    root.metadata = { tile: true, x: t.x, y: t.y, cityClearance: true, cityClearanceActive: false };
+    const structures: CityClearanceStructure[] = [];
+    for (const mesh of cityMeshes) {
+      mesh.computeWorldMatrix(true);
+      const bounds = mesh.getBoundingInfo().boundingBox;
+      const footprintRadius = Math.max(
+        0.01,
+        Math.abs(bounds.extendSizeWorld.x),
+        Math.abs(bounds.extendSizeWorld.z),
+      );
+      const baseline: CityStructureBaseline = {
+        x: mesh.position.x,
+        y: mesh.position.y,
+        z: mesh.position.z,
+        scaleX: mesh.scaling.x,
+        scaleY: mesh.scaling.y,
+        scaleZ: mesh.scaling.z,
+      };
+      // setParent(..., true) keeps the authored world transform, and parented
+      // meshes retain their established {tile,x,y} pick metadata unchanged.
+      mesh.setParent(root, true);
+      if (!this.preservesCityClearancePlatform(mesh))
+        structures.push({ mesh, baseline, footprintRadius });
+      this.addShadows(mesh);
+    }
+    this.cityClearanceGroups.set(cell, {
+      root,
+      structures,
+      x: t.x,
+      y: t.y,
+      worldX,
+      worldZ,
+      top,
+    });
+  }
+
+  /**
+   * Reconcile only the bounded, independently owned city groups. The strict
+   * ready predicate shares syncUnits()' drawable-unit admission, so a fogged
+   * rival cannot create, retain, or reactivate a city opening.
+   */
+  private syncCityClearanceGroups(s: GameState) {
+    if (this.cityClearanceGroups.size === 0) return;
+    const isCustomOrSkinned = (unit: Unit) => {
+      const tribe = unit.tribe >= 0 ? s.tribes[unit.tribe] : undefined;
+      return !!tribe?.customHeadgear || !!(tribe && skinFor(tribe.defIndex));
+    };
+    this.cityClearanceGroups.forEach((group, cell) => {
+      if (group.root.isDisposed()) {
+        this.cityClearanceGroups.delete(cell);
+        return;
+      }
+      const occupant = s.units.find(unit =>
+        unit.x === group.x &&
+        unit.y === group.y &&
+        isReadyAurenSwordsmanCityClearanceUnit(
+          s,
+          unit,
+          this.unitMeshes.get(unit.id)?.metadata,
+          this.betaVisualPreferences.newVisuals,
+          isCustomOrSkinned(unit),
+        )
+      );
+      const active = !!occupant;
+      for (const structure of group.structures) {
+        const mesh = structure.mesh;
+        if (mesh.isDisposed()) continue;
+        const transform = cityOccupiedStructureTransform({
+          baseline: structure.baseline,
+          cityX: group.worldX,
+          cityTop: group.top,
+          cityZ: group.worldZ,
+          tileX: group.x,
+          tileY: group.y,
+          footprintRadius: structure.footprintRadius,
+          preservePlatform: false,
+          active,
+        });
+        mesh.position.set(transform.x, transform.y, transform.z);
+        mesh.scaling.set(transform.scaleX, transform.scaleY, transform.scaleZ);
+      }
+      group.root.metadata = {
+        ...(group.root.metadata ?? {}),
+        cityClearanceActive: active,
+      };
+    });
+  }
+
+  /**
+   * Async imports complete after a board event. Read only the latest renderer
+   * state and reconcile it if still live; this intentionally performs no game
+   * action, save mutation, camera change, or stale-node transform.
+   */
+  private syncCityClearanceFromLatestState(parent?: TransformNode) {
+    if (
+      this.disposed ||
+      parent?.isDisposed() ||
+      (parent !== undefined && !Array.from(this.unitMeshes.values()).includes(parent))
+    )
+      return;
+    const state = game.state;
+    if (state.phase !== "playing" && state.phase !== "gameover") return;
+    this.syncCityClearanceGroups(state);
   }
 
   /** Retarget one already-built opt-in forest only. This intentionally changes

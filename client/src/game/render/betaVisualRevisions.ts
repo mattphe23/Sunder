@@ -5,6 +5,7 @@ import {
   NERIVANE_SWORDSMAN_P2_ADVANCED_BETA,
   SUNWEI_KNIGHT_P1_ADVANCED_BETA,
 } from "./betaAdvancedRoleRevisions";
+import { TRIBE_KNIGHT_ADVANCED_BETA } from "./betaKnightTribeVisuals";
 import {
   AUREN_SWORDSMAN_ADVANCED_BETA,
   BETA_SWORDSMAN_VISUAL_HOLDS,
@@ -92,6 +93,10 @@ textureEstimates.set(
   SUNWEI_KNIGHT_P1_ADVANCED_BETA.candidate.modelUrl,
   SUNWEI_KNIGHT_P1_ADVANCED_BETA.candidate.textureBytesEstimated
 );
+for (const candidate of Object.values(TRIBE_KNIGHT_ADVANCED_BETA)) {
+  if (!candidate) continue;
+  textureEstimates.set(candidate.modelUrl, candidate.textureBytesEstimated);
+}
 for (const [defIndex, candidate] of Object.entries(
   TRIBE_SWORDSMAN_ADVANCED_BETA
 )) {

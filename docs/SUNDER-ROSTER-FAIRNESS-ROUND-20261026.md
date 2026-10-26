@@ -2,6 +2,8 @@
 
 ## Status and scope
 
+Historical build-125 handoff: the later overnight completion in `docs/SWORDS-KNIGHTS-COVERAGE-20261026.md` supersedes this note's Sunwei-only Knight coverage and records the Auren city-clearance repair. The fairness evidence and inconclusive disposition below remain unchanged.
+
 This is the next bounded round after build 124/source `1db1a102cb361ec0bf0a8579833fdbc7e3eaf94b`. Two separately versioned advanced visual candidates passed source inspection, immutable-original/512px-derivative audits, independent source safety review, actual production-renderer checks and independent multi-angle/small-size review. Procedural visuals remain default/fallback. Imported models remain **review candidates**, not owner aesthetic approval or default-art replacement. Naval remains development-only and online authority remains disconnected.
 
 ## Visual roster

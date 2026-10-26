@@ -1,5 +1,6 @@
 import type { Unit } from "../core/types";
 import type { BetaAdvancedVisualCandidate } from "./betaAdvancedVisuals";
+import { betaKnightTribeVisualFor } from "./betaKnightTribeVisuals";
 
 type AuditedRoleRevisionCandidate = BetaAdvancedVisualCandidate & {
   readonly triangleAcceptanceCeiling: number;
@@ -105,5 +106,6 @@ export function betaAdvancedRoleRevisionFor(
     return NERIVANE_SWORDSMAN_P2_ADVANCED_BETA.candidate;
   if (defIndex === 2 && unit.type === "knight")
     return SUNWEI_KNIGHT_P1_ADVANCED_BETA.candidate;
+  if (unit.type === "knight") return betaKnightTribeVisualFor(defIndex);
   return null;
 }

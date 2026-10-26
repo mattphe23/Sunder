@@ -7,6 +7,10 @@ import {
   betaAdvancedRoleRevisionFor,
 } from "../client/src/game/render/betaAdvancedRoleRevisions";
 import {
+  TRIBE_KNIGHT_ADVANCED_BETA,
+  betaKnightTribeVisualFor,
+} from "../client/src/game/render/betaKnightTribeVisuals";
+import {
   BETA_SWORDSMAN_VISUAL_HOLDS,
   betaAdvancedVisualCandidate,
 } from "../client/src/game/render/betaAdvancedVisuals";
@@ -87,6 +91,16 @@ const swordsmanByDefIndex = [
   TRIBE_SWORDSMAN_ADVANCED_BETA[6],
   TRIBE_SWORDSMAN_ADVANCED_BETA[7],
 ] as const;
+const knightByDefIndex = [
+  TRIBE_KNIGHT_ADVANCED_BETA[0] ?? null,
+  TRIBE_KNIGHT_ADVANCED_BETA[1] ?? null,
+  SUNWEI_KNIGHT_P1_ADVANCED_BETA.candidate,
+  TRIBE_KNIGHT_ADVANCED_BETA[3] ?? null,
+  TRIBE_KNIGHT_ADVANCED_BETA[4] ?? null,
+  TRIBE_KNIGHT_ADVANCED_BETA[5] ?? null,
+  TRIBE_KNIGHT_ADVANCED_BETA[6] ?? null,
+  TRIBE_KNIGHT_ADVANCED_BETA[7] ?? null,
+] as const;
 
 describe("isolated advanced role revisions", () => {
   it("keeps both audit-backed records immutable review candidates within their requested and accepted budgets", () => {
@@ -126,8 +140,8 @@ describe("isolated advanced role revisions", () => {
         const roleRevision =
           defIndex === 4 && role === "swordsman"
             ? NERIVANE_SWORDSMAN_P2_ADVANCED_BETA.candidate
-            : defIndex === 2 && role === "knight"
-              ? SUNWEI_KNIGHT_P1_ADVANCED_BETA.candidate
+            : role === "knight"
+              ? knightByDefIndex[defIndex]
               : null;
         expect(betaAdvancedRoleRevisionFor(defIndex, { type: role })).toBe(
           roleRevision
@@ -136,6 +150,9 @@ describe("isolated advanced role revisions", () => {
           betaAdvancedVisualCandidate(defIndex, { ...land, type: role })
         ).toBe(
           role === "swordsman" ? swordsmanByDefIndex[defIndex] : roleRevision
+        );
+        expect(betaKnightTribeVisualFor(defIndex)).toBe(
+          defIndex === 2 ? null : TRIBE_KNIGHT_ADVANCED_BETA[defIndex] ?? null
         );
       }
     }

@@ -8,6 +8,7 @@ import {
 } from "../client/src/game/render/betaAdvancedVisuals";
 import { NERIVANE_SWORDSMAN_P2_ADVANCED_BETA } from "../client/src/game/render/betaAdvancedRoleRevisions";
 import { SUNWEI_KNIGHT_P1_ADVANCED_BETA } from "../client/src/game/render/betaAdvancedRoleRevisions";
+import { TRIBE_KNIGHT_ADVANCED_BETA } from "../client/src/game/render/betaKnightTribeVisuals";
 import {
   betaVisualCandidate,
   BETA_MODEL_CACHE_LIMITS,
@@ -117,8 +118,10 @@ describe("audited tribe-owned advanced Swordsmen", () => {
         { ...unit, type: "hero" as const },
       ])
         expect(betaAdvancedVisualCandidate(index, excluded)).toBe(
-          index === 2 && excluded.type === "knight"
-            ? SUNWEI_KNIGHT_P1_ADVANCED_BETA.candidate
+          excluded.type === "knight"
+            ? index === 2
+              ? SUNWEI_KNIGHT_P1_ADVANCED_BETA.candidate
+              : TRIBE_KNIGHT_ADVANCED_BETA[index] ?? null
             : null
         );
       for (const url of [

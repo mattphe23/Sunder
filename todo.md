@@ -1117,3 +1117,12 @@ Kharzul 21.5, Mycelon 20. Spread 30, from 46 at the start of the session.
 - [ ] Broader forest/city/ruin/Guardian junction captures, individual mounted-unit hoof contact and owner small-size/material polish review.
 - [ ] Physical iPhone TestFlight performance, total RAM, touch/background-resume and owner aesthetic approval. Browser software checks do not close these gates.
 - [ ] Separately preregistered causal fairness design isolating placements, seat labels, starting-star assignment and opening income timing before any gameplay policy change.
+
+## Overnight Swordsman/Knight completion — 26 October 2026
+- [x] Add independently sourced, audited own-tribe Knights for the seven remaining identities; preserve Sunwei pilot and all Swordsman assets.
+- [x] Complete all 16 lawful Swordsman/Knight production-role checks, exact native proxy hashes, model and in-game review gates.
+- [x] Resolve the Auren Swordsman city-occlusion hold with narrow ready-beta city clearance; both landscape modes, legal movement, restoration and independent re-review passed.
+- [x] Keep procedural default/fallback, exact held-version exclusions, unchanged gameplay/balance and bounded import cache.
+- [ ] Physical iPhone busy-board/touch/offline/resume/thermal/RAM/frame-pacing checks and owner aesthetic approval.
+- [ ] Catapult, Colossus and remaining unmodeled-role visuals; broader landscape/city/ruin polish and deferred Borvak contrast.
+See docs/SWORDS-KNIGHTS-COVERAGE-20261026.md for evidence and limitations. Final source publication remains test/build/native-parity gated; no public App Store release is authorized.

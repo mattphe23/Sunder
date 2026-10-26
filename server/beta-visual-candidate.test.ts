@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { betaVisualCandidate } from "../client/src/game/render/betaVisualCandidate";
 import { MAELIS_BETA_REVISION } from "../client/src/game/render/betaVisualRevisions";
+import { betaAdvancedRoleRevisionFor } from "../client/src/game/render/betaAdvancedRoleRevisions";
 import {
   VISUAL_REVIEW_ROSTER,
   visualReviewEnabled,
@@ -28,7 +29,14 @@ describe("beta visual selection", () => {
         { ...warrior, type: entry.unitType, hero: entry.unitType === "hero" },
         true
       );
+      const advancedRole = betaAdvancedRoleRevisionFor(entry.tribeIndex, {
+        type: entry.unitType,
+      });
       expect(selected).not.toBeNull();
+      if (advancedRole) {
+        expect(selected).toBe(advancedRole);
+        continue;
+      }
       expect(selected?.modelUrl).toMatch(
         /^\/manus-storage\/[a-zA-Z0-9_-]+-beta-512_[a-zA-Z0-9]+\.glb$/
       );
