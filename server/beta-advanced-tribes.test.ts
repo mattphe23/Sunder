@@ -6,6 +6,8 @@ import {
   betaAdvancedVisualCandidate,
   BETA_SWORDSMAN_VISUAL_HOLDS,
 } from "../client/src/game/render/betaAdvancedVisuals";
+import { NERIVANE_SWORDSMAN_P2_ADVANCED_BETA } from "../client/src/game/render/betaAdvancedRoleRevisions";
+import { SUNWEI_KNIGHT_P1_ADVANCED_BETA } from "../client/src/game/render/betaAdvancedRoleRevisions";
 import {
   betaVisualCandidate,
   BETA_MODEL_CACHE_LIMITS,
@@ -91,7 +93,11 @@ describe("audited tribe-owned advanced Swordsmen", () => {
       ).toBeNull();
       expect(betaVisualCandidate(index, unit, true, true)).toBeNull();
       expect(betaVisualCandidate(index, { ...unit, tribe: 0 }, true)).toBe(
-        BETA_SWORDSMAN_VISUAL_HOLDS[index] ? null : candidate
+        index === 4
+          ? NERIVANE_SWORDSMAN_P2_ADVANCED_BETA.candidate
+          : BETA_SWORDSMAN_VISUAL_HOLDS[index]
+            ? null
+            : candidate
       );
       expect(visualRosterCandidate(index, unit, true)).toBeNull();
       for (let other = 0; other <= 7; other += 1) {
@@ -110,7 +116,11 @@ describe("audited tribe-owned advanced Swordsmen", () => {
         { ...unit, type: "knight" as const },
         { ...unit, type: "hero" as const },
       ])
-        expect(betaAdvancedVisualCandidate(index, excluded)).toBeNull();
+        expect(betaAdvancedVisualCandidate(index, excluded)).toBe(
+          index === 2 && excluded.type === "knight"
+            ? SUNWEI_KNIGHT_P1_ADVANCED_BETA.candidate
+            : null
+        );
       for (const url of [
         candidate.modelUrl,
         `${BETA_MODEL_PUBLIC_ORIGIN}${candidate.modelUrl}`,
@@ -139,10 +149,12 @@ describe("audited tribe-owned advanced Swordsmen", () => {
     });
   }
 
-  it("retains Nerivane provenance but refuses the held Swordsman and any cross-tribe substitute", () => {
+  it("retains the held Nerivane p1 provenance while selecting only Nerivane p2", () => {
     expect(Object.isFrozen(BETA_SWORDSMAN_VISUAL_HOLDS)).toBe(true);
     expect(Object.keys(BETA_SWORDSMAN_VISUAL_HOLDS)).toEqual(["4"]);
-    expect(betaAdvancedVisualCandidate(4, unit)).toBeNull();
+    expect(betaAdvancedVisualCandidate(4, unit)).toBe(
+      NERIVANE_SWORDSMAN_P2_ADVANCED_BETA.candidate
+    );
     expect(TRIBE_SWORDSMAN_ADVANCED_BETA[4].decision).toBe("review-candidate");
     expect(
       betaVisualCandidate(4, { ...unit, type: "warrior" }, true)

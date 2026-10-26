@@ -1,0 +1,214 @@
+{
+  "protocolVersion": 1,
+  "protocolId": "start-position-access-audit-20261025-r1",
+  "status": "frozen_pending_independent_parent_review",
+  "frozenAt": "2026-10-25T18:57:30Z",
+  "authorizationGate": {
+    "observedSampleMayRun": false,
+    "requiredBeforeRun": "Independent parent review of this exact protocol, then explicit approval through START_POSITION_AUDIT_APPROVED=approved-by-parent.",
+    "runnerRefusalWithoutApproval": true
+  },
+  "purpose": "Measure start-position resources, lawful land expansion/path accessibility, and chokepoints before considering any balance change. This protocol does not presuppose a causal mechanism, tribe buff, star change, or map-generation change.",
+  "sourceIdentityAtFreeze": {
+    "requiredBaselineCommit": "1db1a102cb361ec0bf0a8579833fdbc7e3eaf94b",
+    "worktree": "/home/ubuntu/sunder-team/roster-fairness-20261025/worktrees/fairness",
+    "requiredGenerationVersion": "legacy-v0 implicit default",
+    "sourceManifestAtExecution": "Record HEAD, dirty paths, and SHA-256 for the runner, audit library, paired-matrix helper, rules, state, types, and mapgen in external output. A run from a different source identity is descriptive only and cannot be combined with this protocol's sample."
+  },
+  "ordinaryMatchConfiguration": {
+    "boardSize": 13,
+    "difficulty": "normal",
+    "presets": [
+      "continents",
+      "archipelago"
+    ],
+    "turnCap": 30,
+    "processCapMs": 1800000,
+    "humanSetupForUserLoadableSave": 0,
+    "allAiSetupForObservedOutcome": -1,
+    "rulesChanges": "none",
+    "mapGenerationChanges": "none",
+    "aiChanges": "none"
+  },
+  "sampling": {
+    "maximumMatches": 512,
+    "matchesPlanned": 512,
+    "independentWorldDefinition": "One unique {worldSeed, preset} generated 13x13 map. The 16 roster/rotation matches played on that map are repeated observations inside the same independent world cluster, not 16 independent maps.",
+    "freshSeedBlocks": [
+      {
+        "id": "continents-9273001-9273016",
+        "preset": "continents",
+        "worldSeeds": [
+          9273001,
+          9273002,
+          9273003,
+          9273004,
+          9273005,
+          9273006,
+          9273007,
+          9273008,
+          9273009,
+          9273010,
+          9273011,
+          9273012,
+          9273013,
+          9273014,
+          9273015,
+          9273016
+        ]
+      },
+      {
+        "id": "archipelago-9274001-9274016",
+        "preset": "archipelago",
+        "worldSeeds": [
+          9274001,
+          9274002,
+          9274003,
+          9274004,
+          9274005,
+          9274006,
+          9274007,
+          9274008,
+          9274009,
+          9274010,
+          9274011,
+          9274012,
+          9274013,
+          9274014,
+          9274015,
+          9274016
+        ]
+      }
+    ],
+    "knownPriorObservedSeedRangeExcluded": [
+      8194401,
+      8194416
+    ],
+    "expectedCounts": {
+      "uniqueRngSeeds": 32,
+      "seedPresetWorlds": 32,
+      "matchesPerWorld": 16,
+      "totalMatches": 512,
+      "terrainFingerprints": "Report observed unique count; do not assume it equals seeds or worlds."
+    },
+    "mixedRosters": [
+      {
+        "id": "mixed-01",
+        "definitionIndices": [
+          0,
+          1,
+          4,
+          5
+        ]
+      },
+      {
+        "id": "mixed-02",
+        "definitionIndices": [
+          2,
+          3,
+          6,
+          7
+        ]
+      },
+      {
+        "id": "mixed-03",
+        "definitionIndices": [
+          0,
+          2,
+          5,
+          7
+        ]
+      },
+      {
+        "id": "mixed-04",
+        "definitionIndices": [
+          1,
+          3,
+          4,
+          6
+        ]
+      }
+    ],
+    "nominalSeatRotations": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "randomness": "For each match randomSeed equals worldSeed. The runner records the engine's realized opening order; it does not infer order from nominal seat."
+  },
+  "observations": {
+    "recordSeparateVariables": [
+      "nominal seat: engine roster/capital/staggered-star slot",
+      "actual opening-turn position: index of nominal seat in realized turnOrder",
+      "tribe definition identity",
+      "roster family",
+      "preset",
+      "world seed",
+      "terrain fingerprint and full map fingerprint"
+    ],
+    "resourceMetrics": [
+      "owned fruit/animal/mineral counts and total",
+      "immediately harvestable owned resources using shipped canHarvest",
+      "owned and capital-adjacent terrain counts"
+    ],
+    "lawfulAccessMetrics": [
+      "first-turn union of shipped reachableTiles for the real initial units",
+      "first-turn legally reachable neutral expansion tiles and neutral villages",
+      "minimum legal full-turn hops to each target class in a single-unit graph whose edges are recomputed solely with shipped reachableTiles while retaining the initial tribe techs, passive, unit type, unit blockers, terrain, ports, and storm rules",
+      "null legal distance, target count, and inaccessible-target count reported separately from Manhattan distance"
+    ],
+    "targetClasses": [
+      "neutral village tile",
+      "unoccupied legal approach tile Chebyshev-adjacent to an opponent capital"
+    ],
+    "chokepointMetric": "For each target class, a transit tile is a non-origin, non-target graph node whose removal makes at least one previously reachable target inaccessible. Report the union count, each target's mandatory-transit count, and the minimum legal hop distance. This directed, single-unit, frozen-initial-state graph is an accessibility diagnostic, not a claim about multi-unit play, AI policy, or future-state path availability.",
+    "distanceComparator": "Manhattan nearest-target distance is descriptive geometry only. It is separately named, never used as a legal-path proxy, and never substituted when legal distance is null."
+  },
+  "outcomes": {
+    "primary": "30-turn all-AI win indicator by nominal seat, with nominal seat and actual opening-turn position always reported separately.",
+    "secondary": [
+      "final score",
+      "cities",
+      "stars",
+      "units",
+      "techs",
+      "battles won",
+      "cities captured",
+      "turn/end path",
+      "all specified resource/access/chokepoint metrics"
+    ],
+    "eligibleForPrimaryOutcome": "Only gameover rows with no callback, deadline, queue, exception, invariant, or save-fixture failure. Incomplete and failed rows remain raw evidence and are summarized by preset, roster, nominal seat, opening position, and world; they are not silently dropped or replaced."
+  },
+  "analysisPlan": {
+    "estimand": "Adjusted nominal-seat win-probability contrasts, separately adjusted opening-position contrasts, over the planned ordinary-map design; neither is a causal tribe-effect estimand.",
+    "model": "Linear probability regression on eligible tribe-match rows with nominal-seat indicators, actual-opening-position indicators, preset, roster-family, and tribe-definition indicators. Report standardized marginal predictions and all nominal-seat pairwise contrasts; do not pool nominal seat with opening position.",
+    "inference": "Cluster bootstrap 95% percentile confidence intervals, resampling the 32 independent {worldSeed,preset} world clusters with all their rows together; 10,000 deterministic resamples from bootstrapSeed 441009. If fewer than 24 world clusters have any eligible outcome rows, label primary inference inconclusive and do not calculate a decision signal.",
+    "resourceAndAccessSummaries": "For each predeclared metric report raw rows, cluster-level means, preset/roster/order-controlled estimates where finite, null/inaccessible denominators, and cluster bootstrap CIs. Do not impute null legal distances or code them as a finite distance.",
+    "fingerprints": "Report three noninterchangeable denominators: unique RNG seeds, unique seed/preset worlds, and unique actual terrain-layout SHA-256 fingerprints. Also report full map-layout fingerprint uniqueness. Rotations and rosters never increase an independence count."
+  },
+  "decisionRuleBeforeMeasurement": {
+    "signalThreshold": "A nominal-seat contrast is a triage signal only when its absolute adjusted estimate is at least 10 percentage points and its 95% cluster-bootstrap CI excludes the practical-equivalence band from -5 to +5 percentage points in the observed direction.",
+    "inconclusive": "If no contrast meets the rule; any relevant CI overlaps the -5 to +5 percentage-point band; fewer than 24 eligible independent worlds remain; map/fingerprint duplication or failures materially reduce coverage; or lawful-access patterns do not coherently support a start-position hypothesis, conclude INCONCLUSIVE. Do not tune, buff, nerf, alter stars, or change map generation from this audit.",
+    "evenWithSignal": "A signal triggers only a separate diagnosis/review of map placement, opening order, resources, lawful access, and chokepoints. It does not authorize a causal claim or gameplay change."
+  },
+  "evidenceRetention": {
+    "externalOutputRequired": "/home/ubuntu/sunder-team/roster-fairness-20261025/fairness/observed-start-position-audit-r1 (created only after approval)",
+    "retain": [
+      "frozen scenario matrix before first match",
+      "one row per attempted match including failures",
+      "raw JSON and CSV",
+      "legal user-loadable initial saves",
+      "all-AI initial-state snapshots",
+      "source manifest",
+      "report",
+      "per-world fingerprints"
+    ],
+    "saveSeparation": "The regular initial save uses humanTribe:0 and must pass loadOnlineSnapshot. The all-AI observed setup uses humanTribe:-1 and is retained separately as evidence only; it is not represented as user-loadable.",
+    "noReplacement": "No seed, preset, roster, rotation, or failed row may be replaced, rerun selectively, or appended to this frozen sample. A later sample requires a new protocol identifier."
+  },
+  "sanityOnlyExclusions": {
+    "permitted": "Harness tests may use test-only seeds outside the frozen blocks and must state that they are not observed sample rows.",
+    "forbidden": "Do not execute any frozen seed/preset scenario before independent parent review."
+  }
+}

@@ -1,5 +1,6 @@
 import type { Unit } from "../core/types";
 import type { BetaVisualCandidate } from "./betaVisualCandidate";
+import { betaAdvancedRoleRevisionFor } from "./betaAdvancedRoleRevisions";
 import { TRIBE_SWORDSMAN_ADVANCED_BETA } from "./betaAdvancedTribeVisuals";
 
 /**
@@ -73,8 +74,6 @@ export function betaAdvancedVisualCandidate(
     !Number.isInteger(defIndex) ||
     defIndex < 0 ||
     defIndex > 7 ||
-    BETA_SWORDSMAN_VISUAL_HOLDS[defIndex] ||
-    unit.type !== "swordsman" ||
     unit.hero ||
     unit.boat ||
     unit.guardian ||
@@ -82,7 +81,11 @@ export function betaAdvancedVisualCandidate(
   ) {
     return null;
   }
+  const roleRevision = betaAdvancedRoleRevisionFor(defIndex, unit);
+  if (roleRevision) return roleRevision;
+  if (BETA_SWORDSMAN_VISUAL_HOLDS[defIndex] || unit.type !== "swordsman")
+    return null;
   return defIndex === 0
     ? AUREN_SWORDSMAN_ADVANCED_BETA.candidate
-    : TRIBE_SWORDSMAN_ADVANCED_BETA[defIndex] ?? null;
+    : (TRIBE_SWORDSMAN_ADVANCED_BETA[defIndex] ?? null);
 }

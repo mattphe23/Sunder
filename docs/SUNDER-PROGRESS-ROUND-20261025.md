@@ -1,5 +1,7 @@
 # Sunder progress round — 25 October 2026
 
+This is the build-124 historical record. The subsequent controlled roster/fairness round is documented in `docs/SUNDER-ROSTER-FAIRNESS-ROUND-20261026.md`, including Nerivane p2, the Sunwei Knight pilot and the separate 128-world diagnostic. Historical Nerivane p1 holds and earlier sample counts below remain unchanged.
+
 ## Scope
 
 This round follows the owner’s authorization to advance the remaining Swordsmen, investigate fairness and AI weaknesses, prototype naval counterplay, and build a safer online foundation. It deliberately distinguishes beta visual availability, development experiments, disconnected server work, and held candidates. It is not full release readiness or aesthetic approval.

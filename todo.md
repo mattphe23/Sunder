@@ -1108,3 +1108,12 @@ Kharzul 21.5, Mycelon 20. Spread 30, from 46 at the start of the session.
       the resource endowment. Re-measure at 11x11 AND 13x13 before flipping the
       default: 11x11 must not move, since it is the board every other target was
       swept against.
+
+# Controlled roster/fairness round — 26 October 2026 UTC
+- [x] Separately versioned Nerivane Swordsman p2 contrast repair: source/geometry/texture audit, legal production recruitment, reload/movement/toggle/fallback, independent multi-angle and measured small-size review. Old p1 asset/provenance/URL hold remains intact; all eight tribe Swordsmen are beta review candidates, procedural remains default.
+- [x] Sunwei ordinary heavy Knight p1 pilot: same audit and production/review gates, exact own-tribe/own-role routing. Eight tribe Knight briefs prepared externally, not eight completed models.
+- [x] Frozen independent-map R2 diagnostic: 512 completed matches / 128 independent worlds, zero invariant/incomplete rows, separate nominal-seat/opening-order analyses. Mandatory INCONCLUSIVE capability adjustment; no stats, AI income, opening-star compensation or map rules changed. Single-use observed evidence is closed and never replayed.
+- [ ] Remaining seven tribes' Knights, then Catapults and Colossi; no cross-tribe substitution.
+- [ ] Broader forest/city/ruin/Guardian junction captures, individual mounted-unit hoof contact and owner small-size/material polish review.
+- [ ] Physical iPhone TestFlight performance, total RAM, touch/background-resume and owner aesthetic approval. Browser software checks do not close these gates.
+- [ ] Separately preregistered causal fairness design isolating placements, seat labels, starting-star assignment and opening income timing before any gameplay policy change.

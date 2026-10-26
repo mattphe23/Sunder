@@ -1,0 +1,406 @@
+{
+  "protocolVersion": 2,
+  "protocolId": "start-position-access-audit-20261025-r2",
+  "status": "frozen_pending_independent_parent_review",
+  "frozenAt": "2026-10-25T19:18:00Z",
+  "authorizationGate": {
+    "observedSampleMayRun": false,
+    "requiredBeforeRun": "An independent reviewer must verify the exact R2 JSON digest, R2 source-identity manifest, matrix-balance self-check, and source-policy check, then explicitly approve this exact protocol with START_POSITION_AUDIT_APPROVED=approved-by-parent.",
+    "runnerRefusalWithoutApproval": true
+  },
+  "purpose": "Premeasurement diagnostic of generated start resources, lawful initial access, and frozen-state transit chokepoints. This protocol does not estimate a causal tribe effect and does not presuppose or authorize a buff, nerf, star change, AI change, rule change, or map-generation change.",
+  "supersedesWithoutAmendment": {
+    "r1ProtocolId": "start-position-access-audit-20261025-r1",
+    "r1ProtocolPath": "/home/ubuntu/sunder-team/roster-fairness-20261025/fairness/START-POSITION-AUDIT-PROTOCOL.json",
+    "r1ProtocolSha256": "89b272313badd104e8b9c3037a3d7ae69022c8f086776168a808b76f82486262",
+    "r1Status": "immutable_and_unrun",
+    "reasonForNewVersion": "R2 replaces—not amends—R1 before measurement to enlarge independent-world coverage and freeze the missing analysis, failure, fingerprint, source-identity, and bootstrap rules."
+  },
+  "sourceIdentityAtFreeze": {
+    "requiredBaselineCommit": "1db1a102cb361ec0bf0a8579833fdbc7e3eaf94b",
+    "worktree": "/home/ubuntu/sunder-team/roster-fairness-20261025/worktrees/fairness",
+    "requiredGenerationVersion": "legacy-v0 implicit default",
+    "approvedDirtyPathAllowlist": [
+      "docs/START-POSITION-AUDIT.md",
+      "scripts/lib/startPositionAudit.ts",
+      "scripts/lib/startPositionAuditR2.ts",
+      "scripts/start-position-audit.mts",
+      "scripts/start-position-audit-r2.mts",
+      "server/start-position-audit.test.ts"
+    ],
+    "outcomeRelevantSourcePaths": [
+      "scripts/start-position-audit-r2.mts",
+      "scripts/lib/startPositionAuditR2.ts",
+      "scripts/lib/balancePaired.ts",
+      "scripts/_rng.mts",
+      "client/src/game/core/ai.ts",
+      "client/src/game/core/rules.ts",
+      "client/src/game/core/state.ts",
+      "client/src/game/core/types.ts",
+      "client/src/game/core/mapgen.ts",
+      "package.json",
+      "pnpm-lock.yaml"
+    ],
+    "executionPolicy": "Before any output directory is created, reject every dirty or untracked path outside approvedDirtyPathAllowlist. Hash every outcomeRelevantSourcePath, record Node executable/version/platform/architecture and package-lock identity, and refuse a source HEAD other than requiredBaselineCommit. A changed digest or source identity requires a new protocol/review; it cannot be appended to this sample."
+  },
+  "ordinaryMatchConfiguration": {
+    "boardSize": 13,
+    "difficulty": "normal",
+    "presets": [
+      "continents",
+      "archipelago"
+    ],
+    "turnCap": 30,
+    "processCapMs": 1800000,
+    "humanSetupForUserLoadableSave": 0,
+    "allAiSetupForObservedOutcome": -1,
+    "rulesChanges": "none",
+    "mapGenerationChanges": "none",
+    "aiChanges": "none",
+    "starChanges": "none",
+    "onlineChanges": "none",
+    "navalChanges": "none"
+  },
+  "sampling": {
+    "maximumMatches": 512,
+    "matchesPlanned": 512,
+    "independentWorldDefinition": "One unique {worldSeed,preset} generated 13x13 map. Exactly four cyclic roster-seat rotations are repeated outcomes inside that world cluster; they are not four independent maps.",
+    "seedSelectionCommitment": {
+      "algorithm": "sha256-counter-v1",
+      "domainStringTemplate": "start-position-access-audit-20261025-r2|sha256-counter-v1|{preset}|{counter}",
+      "candidateTransform": "Interpret the first four SHA-256 digest bytes as an unsigned big-endian integer, then candidate = (integer mod 2147483646) + 1.",
+      "counterRule": "For each preset independently, inspect counters from 0 upward; accept the first 64 candidates that are globally unique and outside every listed exclusion. No generated board, map fingerprint, initial metric, or match result is consulted by selection or acceptance.",
+      "exclusions": {
+        "knownPriorObservedSeedRangeInclusive": [
+          8194401,
+          8194416
+        ],
+        "r1ContinentsSeeds": [
+          9273001,
+          9273002,
+          9273003,
+          9273004,
+          9273005,
+          9273006,
+          9273007,
+          9273008,
+          9273009,
+          9273010,
+          9273011,
+          9273012,
+          9273013,
+          9273014,
+          9273015,
+          9273016
+        ],
+        "r1ArchipelagoSeeds": [
+          9274001,
+          9274002,
+          9274003,
+          9274004,
+          9274005,
+          9274006,
+          9274007,
+          9274008,
+          9274009,
+          9274010,
+          9274011,
+          9274012,
+          9274013,
+          9274014,
+          9274015,
+          9274016
+        ]
+      }
+    },
+    "freshWorldStrata": [
+      {
+        "id": "continents-sha256-counter-000-063",
+        "preset": "continents",
+        "acceptedCounterRangeInclusive": [
+          0,
+          63
+        ],
+        "worlds": [
+          { "worldSeed": 1512122965, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 141652294, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 1769665923, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 353462057, "assignedRosterId": "mixed-04" },
+          { "worldSeed": 613091178, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 1559410211, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 2065578608, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 1672402681, "assignedRosterId": "mixed-04" },
+          { "worldSeed": 64836807, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 1718020093, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 1033570923, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 430999980, "assignedRosterId": "mixed-04" },
+          { "worldSeed": 1278599776, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 1632687636, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 1643241658, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 1158392694, "assignedRosterId": "mixed-04" },
+          { "worldSeed": 1245992197, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 1530860705, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 1301559342, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 711212749, "assignedRosterId": "mixed-04" },
+          { "worldSeed": 1014804139, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 1206629353, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 456317562, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 2001226196, "assignedRosterId": "mixed-04" },
+          { "worldSeed": 1340303016, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 1307167385, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 1701835143, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 2010972370, "assignedRosterId": "mixed-04" },
+          { "worldSeed": 1136912418, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 785670597, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 2086207754, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 1522172826, "assignedRosterId": "mixed-04" },
+          { "worldSeed": 599379795, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 1676459578, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 1911851677, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 951408929, "assignedRosterId": "mixed-04" },
+          { "worldSeed": 1737117412, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 326174692, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 1011833351, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 1433025539, "assignedRosterId": "mixed-04" },
+          { "worldSeed": 246795364, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 544743711, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 779542085, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 2065800552, "assignedRosterId": "mixed-04" },
+          { "worldSeed": 1447294932, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 1917224822, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 849719011, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 107909481, "assignedRosterId": "mixed-04" },
+          { "worldSeed": 1930790839, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 747495823, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 2136199555, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 427032014, "assignedRosterId": "mixed-04" },
+          { "worldSeed": 770741007, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 501804000, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 915536320, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 1448894372, "assignedRosterId": "mixed-04" },
+          { "worldSeed": 2069850350, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 141579858, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 1718763708, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 207147518, "assignedRosterId": "mixed-04" },
+          { "worldSeed": 977868800, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 1402890779, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 1621687616, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 1057262043, "assignedRosterId": "mixed-04" }
+        ]
+      },
+      {
+        "id": "archipelago-sha256-counter-000-063",
+        "preset": "archipelago",
+        "acceptedCounterRangeInclusive": [
+          0,
+          63
+        ],
+        "worlds": [
+          { "worldSeed": 559524415, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 914434976, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 1207860012, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 405105368, "assignedRosterId": "mixed-04" },
+          { "worldSeed": 421548907, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 793230229, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 1213413910, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 402756922, "assignedRosterId": "mixed-04" },
+          { "worldSeed": 408289254, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 1753922304, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 1126275534, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 1359407691, "assignedRosterId": "mixed-04" },
+          { "worldSeed": 850881113, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 2145255894, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 87218671, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 840799207, "assignedRosterId": "mixed-04" },
+          { "worldSeed": 886380669, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 440066847, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 54070846, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 546407998, "assignedRosterId": "mixed-04" },
+          { "worldSeed": 1991998344, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 948049950, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 1721813142, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 693369800, "assignedRosterId": "mixed-04" },
+          { "worldSeed": 777936768, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 417556932, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 1045252780, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 1531297793, "assignedRosterId": "mixed-04" },
+          { "worldSeed": 1303652464, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 1807062775, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 1945155739, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 1884347677, "assignedRosterId": "mixed-04" },
+          { "worldSeed": 474333020, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 492453094, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 1527078126, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 612401530, "assignedRosterId": "mixed-04" },
+          { "worldSeed": 1883241257, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 1151991936, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 1086157411, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 2125406261, "assignedRosterId": "mixed-04" },
+          { "worldSeed": 446017483, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 250694271, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 1686127939, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 2124305337, "assignedRosterId": "mixed-04" },
+          { "worldSeed": 745620498, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 138209455, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 1936627042, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 1108402684, "assignedRosterId": "mixed-04" },
+          { "worldSeed": 1584194375, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 1536985961, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 156983868, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 1528863079, "assignedRosterId": "mixed-04" },
+          { "worldSeed": 1233918710, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 1864383422, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 410515667, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 564634858, "assignedRosterId": "mixed-04" },
+          { "worldSeed": 588695031, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 1850337993, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 113083393, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 2058901513, "assignedRosterId": "mixed-04" },
+          { "worldSeed": 786255011, "assignedRosterId": "mixed-01" },
+          { "worldSeed": 1021908442, "assignedRosterId": "mixed-02" },
+          { "worldSeed": 960083108, "assignedRosterId": "mixed-03" },
+          { "worldSeed": 1054898132, "assignedRosterId": "mixed-04" }
+        ]
+      }
+    ],
+    "mixedRosters": [
+      { "id": "mixed-01", "definitionIndices": [0, 1, 4, 5] },
+      { "id": "mixed-02", "definitionIndices": [2, 3, 6, 7] },
+      { "id": "mixed-03", "definitionIndices": [0, 2, 5, 7] },
+      { "id": "mixed-04", "definitionIndices": [1, 3, 4, 6] }
+    ],
+    "nominalSeatRotations": [0, 1, 2, 3],
+    "rosterAssignmentRule": "Within each preset stratum, the published SHA-counter world sequence assigns mixed-01, mixed-02, mixed-03, mixed-04 in that repeating order. This gives exactly 16 worlds per roster per preset and 32 worlds per roster overall; assignment is fixed before any game/map construction.",
+    "randomness": "For each match randomSeed equals worldSeed. The runner resets its scoped AI RNG before each newGame and records the engine's realized opening order; it does not infer opening order from nominal seat.",
+    "expectedCounts": {
+      "uniqueRngSeeds": 128,
+      "seedPresetWorlds": 128,
+      "worldsPerPreset": 64,
+      "matchesPerWorld": 4,
+      "rostersPerWorld": 1,
+      "totalMatches": 512,
+      "worldsPerRosterPerPreset": 16,
+      "worldsPerRoster": 32,
+      "definitionOutcomeRows": 256,
+      "definitionNominalSeatRows": 64,
+      "terrainFingerprints": "Observed nonempty count only; neither roster rotations nor fingerprints increase the independent-world denominator."
+    }
+  },
+  "observations": {
+    "recordSeparateVariables": [
+      "nominal seat: engine roster/capital/staggered-star slot",
+      "actual opening-turn position: index of nominal seat in realized turnOrder",
+      "tribe definition identity and roster family",
+      "preset, world seed, terrain fingerprint, and full map-layout fingerprint",
+      "initial stars, initial technology signature, tribe passive, and shipped harvest cost",
+      "attemptStage and explicit unavailable/null fields for any failed-before-setup attempt"
+    ],
+    "physicalGeneratedMapMetrics": [
+      "owned fruit, animal, mineral, total owned resources",
+      "owned terrain counts and capital-adjacent terrain counts",
+      "first-turn shipped-reachable tile, neutral-expansion-tile, neutral-village, and terrain counts",
+      "per target class: target count, accessible target count, inaccessible target count, nearest geometric Manhattan comparator when a candidate exists, nearest lawful full-turn hops when any candidate is reachable, and chokepoint union count"
+    ],
+    "stateDependentCapabilityMetrics": {
+      "metrics": [
+        "immediatelyHarvestableOwnedResources using shipped canHarvest"
+      ],
+      "interpretation": "This is an initial action-affordability/capability metric, not a pure generated-resource or map-placement metric. Shipped canHarvest jointly requires owned resource, relevant technology, current stars, and the tribe-specific harvest cost; initial stars can embody nominal-seat and realized-opening-order policy.",
+      "requiredCovariates": [
+        "initialStars",
+        "initialTechSignature",
+        "passive",
+        "harvestCost",
+        "nominalSeat",
+        "openingTurnPosition",
+        "preset",
+        "rosterId"
+      ],
+      "controlledCapabilityEstimand": "Descriptive standardized nominal-seat and opening-position capability contrasts conditional on initialStars, initialTechSignature, passive/harvestCost, preset, and roster. Tribe-definition indicators are intentionally not also included in this model because they deterministically encode the initial technology/passive bundle; this is not a tribe-effect model.",
+      "standardizationTarget": "For each finite capability metric, the empirical distribution of all finite R2 measurement rows for that metric. Predictions replace only the focal nominal-seat or opening-position value and preserve every row's observed capability covariates."
+    },
+    "lawfulAccessDefinition": "First-turn movement is the union of shipped reachableTiles for actual initial units. The multi-turn diagnostic graph places each real initial unit at a candidate location, refreshes only that unit action flags, and recomputes outgoing edges only through shipped reachableTiles while retaining initial terrain, technology, passive, unit type, blockers, ports, and storm state.",
+    "targetClasses": [
+      "neutral village tile",
+      "unoccupied legal approach tile Chebyshev-adjacent to an opponent capital"
+    ],
+    "chokepointMetric": "For each target class, a transit tile is a non-origin, non-target graph node whose removal makes a previously reachable target inaccessible. Record the union count, target-specific mandatory-transit tiles, target count, inaccessible count, and minimum lawful hop distance. This directed, single-unit, frozen-initial-state graph is a diagnostic, not a multiplayer, AI-policy, or causal-path claim.",
+    "nullSemantics": "Do not impute null legal distance or use Manhattan distance as a legal-path substitute. nearestTargetManhattan is null only when a target class has no candidates; nearestLegalFullTurnHops is null when candidates exist but none is lawfully reachable. Report their metric-specific null denominators separately."
+  },
+  "outcomes": {
+    "primary": "30-turn all-AI win indicator by nominal seat, with nominal seat and actual opening-turn position always recorded and analyzed separately.",
+    "secondary": [
+      "final score",
+      "cities",
+      "stars",
+      "units",
+      "techs",
+      "battles won",
+      "cities captured",
+      "turn/end path",
+      "all prespecified physical-map, capability, access, and chokepoint metrics"
+    ],
+    "eligibleForPrimaryOutcome": "Only rows with attemptStage complete, gameover outcome, no callback/deadline/queue/exception/invariant/save-fixture failure, and complete state-derived outcome fields. Incomplete and failed rows remain raw evidence, never become losses, and are summarized by preset, roster, nominal seat, opening position, and world; unavailable state dimensions remain explicit null rather than stale data."
+  },
+  "analysisPlan": {
+    "estimand": "Adjusted nominal-seat win-probability contrasts and separately adjusted opening-position win-probability contrasts over the R2 ordinary-map design. Initial-metric contrasts are descriptive diagnostics. None is a causal tribe, order, map, or rule-effect estimand.",
+    "primaryOutcomeModel": "Linear-probability regression on eligible tribe-match rows with intercept, nominal-seat indicators, actual-opening-position indicators, preset, roster family, and tribe-definition indicators. Standardize each focal nominal seat and separately each opening position over all eligible rows; report both prediction sets and all pairwise contrasts.",
+    "physicalMetricModel": "For each named physical generated-map/access/chokepoint metric with finite values, fit the same descriptive linear model as the primary outcome except the metric is the response. Standardize nominal-seat and opening-position predictions over that metric's finite rows. Report raw-row pointer, metric-specific finite/null denominators, cluster means, overall mean, predictions, and all pairwise contrasts.",
+    "capabilityMetricModel": "For immediatelyHarvestableOwnedResources, fit a separate descriptive linear model with intercept, nominal-seat indicators, actual-opening-position indicators, preset, roster family, initialStars, initial technology-signature indicators, passive/harvest-cost indicators, but no tribe-definition indicators. Standardize over the finite capability rows as stated above and label every output capability/affordability, not pure resource quality.",
+    "clusterMeans": "For every named initial metric, compute an unweighted mean of finite tribe-placement measurements within each {worldSeed,preset} cluster. Preserve finite-row and null-row denominators per cluster; target totals/inaccessible totals are separately aggregated from their raw targets. No null legal distance is numerically imputed.",
+    "bootstrap": {
+      "method": "95% percentile cluster bootstrap",
+      "worldClusterUnit": "Resample the 128 independent {worldSeed,preset} clusters with all roster rotations and tribe-placement rows from a selected cluster together; never resample individual rotations or tribe rows independently.",
+      "replicates": 10000,
+      "bootstrapSeed": 441010,
+      "completeReplicateRule": "Every one of the requested 10,000 resamples must have an identified fit for a reported CI. If a point fit is singular or any bootstrap replicate is singular, retain the exact invalid-replicate count, set that analysis CI outputs to null, label the analysis inconclusive, and prohibit a triage signal. Never silently drop singular fits.",
+      "minimumFiniteWorldClustersForMetricInference": 112
+    },
+    "failureSummaries": "Produce machine-readable strata by preset, roster, nominal seat, opening position, and world. If all-AI setup never initialized, retain the planned preset/roster/world but set state-derived nominal-seat/opening-position/tribe fields null and count it as an unavailable-state failure stratum.",
+    "fingerprints": "Separately report attempted worlds, worlds with all-AI initialization, worlds with complete initial measurement, fully verified world clusters, nonempty unique terrain fingerprints, and nonempty unique full-layout fingerprints. Empty/null fingerprints are never counted as fingerprints. Full-layout duplicate groups are computed across distinct world clusters only."
+  },
+  "decisionRuleBeforeMeasurement": {
+    "signalThreshold": "A nominal-seat primary-outcome contrast is a triage signal only when its absolute adjusted estimate is at least 10 percentage points and its 95% complete-cluster-bootstrap CI excludes the practical-equivalence band from -5 to +5 percentage points in the observed direction.",
+    "coverageAndIntegrityThresholds": {
+      "minimumEligiblePrimaryWorldClusters": 120,
+      "minimumFullyVerifiedWorldClusters": 120,
+      "minimumNonemptyFullLayoutFingerprints": 120,
+      "maximumFailedOrIncompleteAttemptRows": 8,
+      "maximumDistinctWorldClustersWithFailedOrIncompleteRows": 8,
+      "maximumCrossWorldFullLayoutDuplicateGroups": 0,
+      "bootstrapRequirement": "10000 identified resamples for every primary contrast",
+      "failureOfAnyThreshold": "INCONCLUSIVE"
+    },
+    "machineReadableDisposition": {
+      "INCONCLUSIVE": "Use when a coverage/integrity/bootstrap threshold fails, no contrast meets the signal threshold, an access/capability diagnostic is unavailable, or any result is otherwise insufficient. It cannot support a balance or causal conclusion.",
+      "TRIAGE_SIGNAL_REQUIRES_SEPARATE_DIAGNOSIS": "Use only when every threshold passes and at least one primary nominal-seat contrast meets the signal threshold. It only authorizes separate diagnosis/review of placement, opening order, resources, lawful access, and chokepoints; it does not authorize gameplay changes or causal claims."
+    },
+    "evenWithSignal": "Adjusted attenuation or persistence after any physical-map/capability/access adjustment is descriptive only. It must not be described as mediation, explanation, or causal evidence and cannot authorize a buff, nerf, star change, AI change, rule change, map-generation change, online change, or naval change."
+  },
+  "evidenceRetention": {
+    "externalOutputRequired": "/home/ubuntu/sunder-team/roster-fairness-20261025/fairness/observed-start-position-audit-r2",
+    "retain": [
+      "frozen R2 scenario matrix before first match",
+      "one raw row per attempted match including failures and attemptStage",
+      "raw JSON, CSV, and append-only NDJSON",
+      "legal user-loadable initial saves",
+      "all-AI initial-state snapshots",
+      "source manifest with policy result, runtime identity, lockfile identity, and every required digest",
+      "metric analyses, failure strata, coverage/fingerprint accounting, machine-readable final disposition, and Markdown report",
+      "per-world nonempty fingerprints and duplicate-group accounting"
+    ],
+    "saveSeparation": "The regular initial save uses humanTribe:0 and must pass loadOnlineSnapshot. The all-AI observed setup uses humanTribe:-1 and is retained separately as evidence only; it is not represented as user-loadable.",
+    "noReplacement": "No seed, roster assignment, rotation, failed row, incomplete row, or world may be replaced, selectively rerun, or appended. A later sample requires another new protocol identifier, digest, output directory, and review."
+  },
+  "sanityOnlyExclusions": {
+    "permitted": "The R2 premeasurement verifier may validate protocol digest, SHA-counter schedule, matrix balance, and synthetic analysis edge cases without constructing a game or executing a frozen scenario. Generated-state harness tests may use only seeds outside R1 and R2 frozen blocks and must remain excluded from R2 rows.",
+    "forbidden": "Do not execute any R2 frozen seed/preset scenario, construct an R2 game, or create R2 observed output before independent parent review."
+  },
+  "limitations": [
+    "All-AI, normal-difficulty, four-tribe, 13x13, legacy-generation evidence does not establish player-facing, human-strategy, online, or other-board-size fairness.",
+    "Deterministic per-scenario AI streams make runs reproducible but do not independently estimate AI random-stream variability.",
+    "Frozen-initial-state single-unit access and chokepoints exclude discovery, later technology, captures, movement/cooperation, combat, policy, visibility, and future game state.",
+    "Fingerprints can detect duplicate layouts but cannot turn roster rotations into independent maps.",
+    "Every adjusted outcome or metric association remains descriptive and noncausal."
+  ]
+}
