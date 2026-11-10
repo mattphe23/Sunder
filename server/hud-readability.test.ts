@@ -3,20 +3,29 @@ import React, { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, describe, expect, it, vi } from "vitest";
 
-const snapshot = vi.hoisted(() => ({ state: {} as any }));
+const snapshot = vi.hoisted(() => ({
+  state: {} as any,
+  drainWorldEvents: vi.fn(() => []),
+}));
 vi.mock("../client/src/game/useGame", () => ({
-  useGame: () => ({ state: snapshot.state, getVersion: () => 0 }),
+  useGame: () => ({
+    state: snapshot.state,
+    getVersion: () => 0,
+    drainWorldEvents: snapshot.drainWorldEvents,
+  }),
 }));
 
 import { LogTicker, SelectionPanel } from "../client/src/game/ui/Hud";
-import { GameHudRail } from "../client/src/game/ui/GameHudRail";
 import { createVisualReviewState } from "../client/src/game/render/visualReviewFixture";
 
 const source = (path: string) =>
   readFileSync(new URL(`../client/src/${path}`, import.meta.url), "utf8");
 
 // Vitest uses classic JSX for TSX here; production Vite uses its React plugin.
+// WorldEvents creates icons at module scope, so load it only after this shim.
 vi.stubGlobal("React", React);
+const { GameHudRail } = await import("../client/src/game/ui/GameHudRail");
+const { WorldEventCards } = await import("../client/src/game/ui/WorldEvents");
 afterAll(() => vi.unstubAllGlobals());
 
 describe("phone HUD readability", () => {
@@ -62,6 +71,62 @@ describe("phone HUD readability", () => {
     expect(html).toContain("sm:justify-end");
     expect(html).toContain('aria-label="Minimap"');
     expect(html).not.toContain('aria-label="Latest game event"');
+  });
+
+  it("mounts world cards only in the rail after Paths/warnings and before Map", () => {
+    const home = source("pages/Home.tsx");
+    const rail = source("game/ui/GameHudRail.tsx");
+    expect(home.match(/<GameHudRail\s*\/>/g)).toHaveLength(1);
+    expect(home).not.toContain("WorldEventCards");
+    expect(home).toContain('import { HeroFallenCard } from "@/game/ui/WorldEvents"');
+    expect(home).toContain("<HeroFallenCard />");
+    expect(rail.match(/<WorldEventCards\s*\/>/g)).toHaveLength(1);
+    expect(rail).toContain('className="flex min-w-0 flex-1 flex-col gap-2"');
+    expect(rail.indexOf("<LogTicker />")).toBeLessThan(rail.indexOf("<WorldEventCards />"));
+    expect(rail.indexOf("<WorldEventCards />")).toBeLessThan(rail.indexOf("<Minimap />"));
+  });
+
+  it("keeps world cards centered in flow with a short-phone scroll cap and touch-size dismissals", () => {
+    const world = source("game/ui/WorldEvents.tsx");
+    const cards = world.slice(
+      world.indexOf("export function WorldEventCards"),
+      world.indexOf("export function HeroFallenCard")
+    );
+    expect(cards).toContain("mx-auto w-full min-w-0 max-w-[380px]");
+    expect(cards).toContain("max-h-[16dvh]");
+    expect(cards).toContain("overflow-y-auto overscroll-contain");
+    expect(cards).toContain("flex shrink-0 items-start");
+    expect(cards).toContain("min-w-0 flex-1 break-words");
+    expect(cards).toContain("min-h-[44px] min-w-[44px]");
+    expect(cards).toContain('aria-label="Dismiss"');
+    const classes = [...cards.matchAll(/className="([^"]+)"/g)]
+      .map(match => match[1]).join(" ");
+    expect(classes).not.toMatch(/\b(?:fixed|absolute|top-\S+|translate-\S+)\b/);
+  });
+
+  it("does not drain world events during static rendering, including incomplete HUD mocks", () => {
+    snapshot.state = { phase: "playing", size: 15, log: ["A pact has formed."] };
+    snapshot.drainWorldEvents.mockClear();
+    expect(renderToStaticMarkup(createElement(WorldEventCards))).toBe("");
+    const before = JSON.stringify(snapshot.state);
+    const html = renderToStaticMarkup(createElement(GameHudRail));
+    expect(html).toContain("A pact has formed.");
+    expect(html).toContain('aria-label="Minimap"');
+    expect(html).not.toContain('aria-label="Paths"');
+    expect(snapshot.drainWorldEvents).not.toHaveBeenCalled();
+    expect(JSON.stringify(snapshot.state)).toBe(before);
+  });
+
+  it("retains the existing world-event filters, four-card queue and 6.5-second lifecycle", () => {
+    const world = source("game/ui/WorldEvents.tsx");
+    expect(world.match(/g\.drainWorldEvents\(\)/g)).toHaveLength(1);
+    expect(world).toContain('if (s.phase !== "playing") return;');
+    expect(world).toContain("if (s.currentTribe !== s.humanTribe) return;");
+    expect(world).toContain('e.kind !== "stormMoved" && e.kind !== "guardianMoved"');
+    expect(world).toContain("[...prev, ...stamped].slice(-4)");
+    expect(world).toContain("}, 6500);");
+    expect(world).toContain("return () => clearTimeout(timer);");
+    expect(world).toContain("[s.turn, s.currentTribe, s.phase]");
   });
 
   it("retains explicit mobile tool labels and a separately reserved End Turn area", () => {

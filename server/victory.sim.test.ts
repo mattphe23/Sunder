@@ -17,7 +17,7 @@ function fakeState(overrides: Partial<GameState> = {}): GameState {
     stars: 5, techs: [d.startTech], alive: true, score: 0,
   }));
   return {
-    phase: "playing", size: 11, seed: 42, preset: "continents", turn: 10, maxTurns: 30,
+    phase: "playing", size: 11, seed: 42, preset: "continents", turn: VICTORY_PATH_START_TURN, maxTurns: 30,
     difficulty: "normal", currentTribe: 0, tribes, tiles: [], cities: [], units: [],
     nextUnitId: 1, selectedUnitId: null, selectedCityId: null, winner: null, log: [],
     humanTribe: 0, aiThinking: false, recap: [], showRecap: false, scoreHistory: [],

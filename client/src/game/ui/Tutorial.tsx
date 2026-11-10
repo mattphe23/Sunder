@@ -3,7 +3,8 @@
 // player's real actions, skippable, and never shown again once completed.
 import { useEffect, useRef, useState } from "react";
 import { useGame } from "@/game/useGame";
-import { X, MousePointerClick, Move3D, Flag, FlaskConical, Hourglass, Sparkles, Apple, Landmark, Gift } from "lucide-react";
+import { X, MousePointerClick, Move3D, Flag, FlaskConical, Hourglass, Sparkles, Apple, Landmark } from "lucide-react";
+import { tutorialWelcomeBody, tutorialEndTurnBody } from "./tutorialContent";
 
 const DONE_KEY = "polyforge-tutorial-done";
 // v36: economy beats appended after the original flow — bump so existing players
@@ -24,21 +25,21 @@ const STEPS: Step[] = [
     id: "welcome",
     icon: <Sparkles size={18} />,
     title: "Welcome, Commander",
-    body: "Your capital and a lone warrior await in the Shatterlands. Win by capturing every rival capital — or by leading in score when turn 30 ends. Let's take your first turn together.",
+    body: "", // derived from the current match below
     anchor: "center",
   },
   {
     id: "select",
     icon: <MousePointerClick size={18} />,
     title: "Select your warrior",
-    body: "Click the small figure standing on your capital tile. Selected units glow, and every tile they can reach lights up.",
+    body: "Tap the small figure standing on your capital tile. Selected units glow, and every tile they can reach lights up.",
     anchor: "bottom",
   },
   {
     id: "move",
     icon: <Move3D size={18} />,
     title: "March out",
-    body: "Click any highlighted ring to move there. Explore toward the fog — villages, ruins, and rivals hide beyond it.",
+    body: "Tap any highlighted ring to move there. Explore toward the fog — villages, ruins, and rivals hide beyond it.",
     anchor: "bottom",
   },
   {
@@ -59,7 +60,7 @@ const STEPS: Step[] = [
     id: "harvest",
     icon: <Apple size={18} />,
     title: "Feed your cities",
-    body: "Stars win battles; population wins the long game. Click your capital and use Harvest to gather fruit, game, or minerals around it — each adds population, and every 3 population levels the city up for more income.",
+    body: "Stars win battles; population wins the long game. Tap your capital and use Harvest to gather fruit, game, or minerals around it — each adds population, and every 3 population levels the city up for more income.",
     anchor: "bottom",
   },
   {
@@ -70,17 +71,10 @@ const STEPS: Step[] = [
     anchor: "bottom",
   },
   {
-    id: "reward",
-    icon: <Gift size={18} />,
-    title: "Level-up rewards",
-    body: "Each city level offers a choice of two rewards — Workshop income, walls, border growth, and at level 5 the big one: a Park worth 15 score, or a Colossus that crushes city walls and hurls defenders back. Choose for the war you're fighting.",
-    anchor: "center",
-  },
-  {
     id: "endturn",
     icon: <Hourglass size={18} />,
     title: "End your turn",
-    body: "Press End Turn (bottom-right) when your units have acted. The three rival powers move next — a recap will show anything you missed in the fog. Good hunting, Commander.",
+    body: "", // derived from the living roster below
     anchor: "bottom",
   },
 ];
@@ -148,6 +142,9 @@ export function Tutorial() {
   if ((s.humanTribes?.length ?? 1) > 1) return null;
   const cur = STEPS[step];
   if (!cur) return null;
+  const body = cur.id === "welcome"
+    ? tutorialWelcomeBody(s)
+    : cur.id === "endturn" ? tutorialEndTurnBody(s) : cur.body;
 
   const anchorCls =
     cur.anchor === "center"
@@ -157,8 +154,18 @@ export function Tutorial() {
         : "inset-x-0 bottom-24 justify-center";
 
   return (
-    <div className={`pointer-events-none absolute z-40 flex px-4 ${anchorCls}`}>
-      <div className="pointer-events-auto w-full max-w-md rounded-lg border border-amber-400/40 bg-[#1a1a3e]/95 p-4 shadow-[0_0_30px_rgba(255,185,56,0.15)] backdrop-blur">
+    <div
+      className={`pointer-events-none absolute z-40 flex px-4 ${anchorCls}`}
+      style={{
+        paddingLeft: "max(1rem, env(safe-area-inset-left, 0px))",
+        paddingRight: "max(1rem, env(safe-area-inset-right, 0px))",
+        paddingTop: cur.anchor === "center" ? "max(1rem, env(safe-area-inset-top, 0px))" : undefined,
+        paddingBottom: cur.anchor === "center" ? "max(1rem, env(safe-area-inset-bottom, 0px))" : undefined,
+        top: cur.anchor === "top" ? "calc(4rem + env(safe-area-inset-top, 0px))" : undefined,
+        bottom: cur.anchor === "bottom" ? "calc(6rem + env(safe-area-inset-bottom, 0px))" : undefined,
+      }}
+    >
+      <div className="pointer-events-auto max-h-[calc(100dvh-8rem)] w-full max-w-md overflow-y-auto rounded-lg border border-amber-400/40 bg-[#1a1a3e]/95 p-4 shadow-[0_0_30px_rgba(255,185,56,0.15)] backdrop-blur">
         <div className="mb-1 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-amber-300">
             {cur.icon}
@@ -167,12 +174,12 @@ export function Tutorial() {
           <button
             onClick={finish}
             aria-label="Skip tutorial"
-            className="rounded p-1 text-indigo-300/70 transition-colors hover:bg-white/10 hover:text-white"
+            className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded p-1 text-indigo-300/70 transition-colors hover:bg-white/10 hover:text-white"
           >
             <X size={16} />
           </button>
         </div>
-        <p className="text-sm leading-relaxed text-indigo-100/90">{cur.body}</p>
+        <p className="whitespace-pre-line text-sm leading-relaxed text-indigo-100/90">{body}</p>
         <div className="mt-3 flex items-center justify-between">
           <div className="flex gap-1.5">
             {STEPS.map((st, i) => (
@@ -185,22 +192,22 @@ export function Tutorial() {
           <div className="flex gap-2">
             <button
               onClick={finish}
-              className="rounded px-2 py-1 text-xs font-semibold uppercase tracking-wider text-indigo-300/70 transition-colors hover:text-white"
+              className="min-h-[44px] min-w-[44px] rounded px-2 py-1 text-xs font-semibold uppercase tracking-wider text-indigo-300/70 transition-colors hover:text-white"
             >
               Skip
             </button>
             {(cur.id === "welcome" || cur.id === "capture") && (
               <button
                 onClick={() => setStep(step + 1)}
-                className="rounded bg-amber-400 px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#141433] transition-transform active:scale-95"
+                className="min-h-[44px] min-w-[44px] rounded bg-amber-400 px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#141433] transition-transform active:scale-95"
               >
                 {cur.id === "welcome" ? "Let's go" : "Got it"}
               </button>
             )}
-            {(cur.id === "harvest" || cur.id === "build" || cur.id === "reward") && (
+            {(cur.id === "harvest" || cur.id === "build") && (
               <button
                 onClick={() => setStep(step + 1)}
-                className="rounded bg-amber-400 px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#141433] transition-transform active:scale-95"
+                className="min-h-[44px] min-w-[44px] rounded bg-amber-400 px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#141433] transition-transform active:scale-95"
               >
                 Got it
               </button>

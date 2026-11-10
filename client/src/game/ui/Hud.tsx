@@ -19,6 +19,8 @@ import { sound } from "../sound";
 import { victoryProgress, VICTORY_PATH_START_TURN } from "../core/victory";
 import { missionById } from "@shared/story";
 import { BetaVisualSettingsButton } from "./BetaVisualSettings";
+import { VictoryPaths } from "./VictoryPaths";
+import { canShowVictoryPaths, presentVictoryProgress } from "./victoryPathPresentation";
 
 const panel = "rounded-xl border border-white/10 bg-[#1b1b3f]/85 backdrop-blur-md shadow-xl shadow-black/40 text-slate-100";
 
@@ -249,8 +251,8 @@ export function TopBar() {
   if (!me) return null;
   const isMyTurn = s.currentTribe === s.humanTribe && !s.aiThinking;
   // v20: asymmetric faction victory path progress
-  const vp = victoryProgress(s, s.humanTribe);
-  const pathLocked = s.turn < VICTORY_PATH_START_TURN;
+  const vp = canShowVictoryPaths(s) ? victoryProgress(s, s.humanTribe) : null;
+  const path = vp ? presentVictoryProgress(vp, s.turn) : null;
   // v32: story missions surface the 2★ par live, so players can chase it
   // without memorizing the briefing. Same +1 display convention as "Turn N".
   const mission = s.storyMission ? missionById(s.storyMission) : null;
@@ -258,18 +260,20 @@ export function TopBar() {
   const cityLost = mission ? (s.stats?.[s.humanTribe]?.citiesLost ?? 0) > 0 : false;
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-2 p-3 safe-t safe-x">
-      <div className={`${panel} pointer-events-auto flex min-w-0 shrink items-center gap-2 whitespace-nowrap px-3 py-2 sm:gap-3 sm:px-4`}>
-        <span className="h-3 w-3 rounded-full" style={{ background: me.color }} />
-        <span className="truncate font-display text-sm font-bold tracking-wide">{me.name}</span>
-        <span className="flex items-center gap-1 text-amber-300">
-          <Star className="h-4 w-4 fill-amber-300" />
-          <span className="font-mono text-sm">{me.stars}</span>
-          <span className="text-xs text-amber-200/70">+{starIncome(s, s.humanTribe)}</span>
+      {/* Two compact rows on phones stay within the existing 44px rail offset;
+          long forged names yield to Turn, Visuals and Mute rather than overflow. */}
+      <div className={`${panel} pointer-events-auto grid h-11 min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 whitespace-nowrap px-2 py-1 sm:flex sm:h-auto sm:flex-initial sm:gap-3 sm:px-4 sm:py-2`}>
+        <span className="row-span-2 h-2.5 w-2.5 shrink-0 rounded-full sm:h-3 sm:w-3" style={{ background: me.color }} />
+        <span className="col-start-2 row-start-1 min-w-0 truncate font-display text-xs font-bold tracking-wide sm:text-sm" title={me.name}>{me.name}</span>
+        <span className="col-start-2 row-start-2 flex min-w-0 items-center gap-1 text-amber-300">
+          <Star className="h-3 w-3 shrink-0 fill-amber-300 sm:h-4 sm:w-4" />
+          <span className="truncate font-mono text-xs sm:text-sm">{me.stars}</span>
+          <span className="truncate text-[10px] text-amber-200/70 sm:text-xs">+{starIncome(s, s.humanTribe)}</span>
           {s.cities.some((c) => c.tribe === s.humanTribe && s.units.some((u) => u.x === c.x && u.y === c.y && u.tribe !== s.humanTribe && u.tribe >= 0)) && (
             <span className="ml-1 rounded bg-red-500/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-300" title="An enemy stands on one of your cities — it produces no stars">Siege</span>
           )}
         </span>
-        <span className="shrink-0 text-xs text-slate-300/80">Turn {s.turn + 1}/{s.maxTurns}</span>
+        <span className="col-start-3 row-span-2 row-start-1 shrink-0 text-[10px] text-slate-300/80 sm:text-xs">Turn {s.turn + 1}/{s.maxTurns}</span>
         {mission && (
           <span
             className={`hidden items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold sm:flex ${parBlown ? "border-white/15 bg-white/5 text-slate-400" : "border-amber-400/40 bg-amber-400/10 text-amber-200"}`}
@@ -283,14 +287,15 @@ export function TopBar() {
             )}
           </span>
         )}
-        {vp && (
+        {path && (
           <span
-            className={`hidden items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold sm:flex ${vp.done ? "border-amber-400/60 bg-amber-400/15 text-amber-300" : "border-white/15 bg-white/5 text-slate-300"}`}
-            title={`${vp.def.name} — ${vp.def.goal}${pathLocked ? ` (path victories unlock on turn ${VICTORY_PATH_START_TURN + 1})` : ""}. Complete your faction's path to win instantly.`}
+            className={`hidden min-w-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold sm:flex ${path.ready ? "border-amber-400/60 bg-amber-400/15 text-amber-300" : "border-white/15 bg-white/5 text-slate-300"}`}
+            title={`${path.pathName} — ${path.goal}. ${path.status}. Faction-path victories are checked at the start of each round, from Turn ${VICTORY_PATH_START_TURN + 1}. Open Paths for every living rival.`}
           >
-            <Crown className={`h-3 w-3 ${vp.done ? "text-amber-300" : "text-slate-400"}`} />
-            <span className="font-display tracking-wide">{vp.def.name}</span>
-            <span className="font-mono text-slate-400">{vp.current}/{vp.target}</span>
+            <Crown className={`h-3 w-3 shrink-0 ${path.ready ? "text-amber-300" : "text-slate-400"}`} />
+            <span className="truncate font-display tracking-wide">{path.pathName}</span>
+            <span className="shrink-0 font-mono text-slate-400">{path.valid ? `${path.current}/${path.target}` : "—"}</span>
+            {path.ready && path.locked && <span className="shrink-0 text-amber-200">Ready, locked</span>}
           </span>
         )}
       </div>
@@ -765,10 +770,18 @@ export function TechPanel({ open, onClose }: { open: boolean; onClose: () => voi
 export function LogTicker() {
   const g = useGame();
   const s = g.state;
-  if (s.log.length === 0) return null;
+  const showPaths = canShowVictoryPaths(s);
+  if (s.log.length === 0 && !showPaths) return null;
   return (
-    <div role="status" aria-label="Latest game event" aria-atomic="true" className="min-w-0 text-center sm:flex-1">
-      <p className="mx-auto w-fit max-w-full break-words rounded-xl bg-black/40 px-3 py-1.5 text-xs text-slate-200 backdrop-blur-sm">{s.log[0]}</p>
+    <div className="flex min-w-0 flex-col gap-2 text-center sm:flex-1">
+      {/* Share the existing rail so warnings cannot overlap its event/minimap.
+          Keyed local panel state is dropped before another viewer sees it. */}
+      {showPaths && <VictoryPaths key={`${s.seed}:${s.humanTribe}:${s.phase}`} />}
+      {s.log.length > 0 && (
+        <div role="status" aria-label="Latest game event" aria-atomic="true" className="min-w-0">
+          <p className="mx-auto w-fit max-w-full break-words rounded-xl bg-black/40 px-3 py-1.5 text-xs text-slate-200 backdrop-blur-sm">{s.log[0]}</p>
+        </div>
+      )}
     </div>
   );
 }

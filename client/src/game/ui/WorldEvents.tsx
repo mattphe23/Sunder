@@ -41,26 +41,28 @@ export function WorldEventCards() {
 
   if (s.phase !== "playing" || shown.length === 0) return null;
   return (
-    <div className="pointer-events-none fixed left-1/2 top-16 z-40 flex w-[min(92vw,380px)] -translate-x-1/2 flex-col gap-2">
-      {shown.map((e) => (
-        <div
-          key={e.id}
-          className="pointer-events-auto flex items-start gap-2.5 rounded-lg border border-amber-500/20 bg-[#141433]/92 px-3.5 py-2.5 shadow-lg shadow-black/40 backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-300"
-        >
-          <span className="mt-0.5 shrink-0">{EVENT_ICON[e.kind] ?? <Flame className="h-4 w-4 text-amber-400" />}</span>
-          <div className="min-w-0">
-            <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-400/80">The world stirs</div>
-            <div className="text-[13px] leading-snug text-slate-200">{e.text}</div>
-          </div>
-          <button
-            className="ml-auto shrink-0 rounded p-0.5 text-slate-500 transition-colors hover:text-slate-300"
-            onClick={() => setShown((prev) => prev.filter((p) => p.id !== e.id))}
-            aria-label="Dismiss"
+    <div className="pointer-events-none mx-auto w-full min-w-0 max-w-[380px]">
+      <div className="pointer-events-auto flex max-h-[16dvh] flex-col gap-2 overflow-y-auto overscroll-contain">
+        {shown.map((e) => (
+          <div
+            key={e.id}
+            className="pointer-events-auto flex shrink-0 items-start gap-2.5 rounded-lg border border-amber-500/20 bg-[#141433]/92 px-3.5 py-2.5 shadow-lg shadow-black/40 backdrop-blur-md animate-in fade-in duration-300"
           >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      ))}
+            <span className="mt-0.5 shrink-0">{EVENT_ICON[e.kind] ?? <Flame className="h-4 w-4 text-amber-400" />}</span>
+            <div className="min-w-0 flex-1 break-words">
+              <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-400/80">The world stirs</div>
+              <div className="text-[13px] leading-snug text-slate-200">{e.text}</div>
+            </div>
+            <button
+              className="ml-auto flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded text-slate-500 transition-colors hover:text-slate-300 focus-visible:outline-2 focus-visible:outline-cyan-300"
+              onClick={() => setShown((prev) => prev.filter((p) => p.id !== e.id))}
+              aria-label="Dismiss"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

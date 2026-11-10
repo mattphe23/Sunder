@@ -82,7 +82,7 @@ const INTROS: IntroDef[] = [
     openings: [
       "Retaliation against you is halved — trade blows aggressively; you win attrition.",
       "Open with Archery already known: field ranged cover from the very first turns.",
-      "Push for veteran units — four living veterans summon the Storm Legend victory.",
+      "Build surviving veteran units toward Storm Legend — check Paths for the live goal.",
     ],
   },
   {
@@ -92,7 +92,7 @@ const INTROS: IntroDef[] = [
     openings: [
       "Units heal +2 extra HP resting in your territory — defend on home soil and outlast.",
       "Free Spirit is pre-researched: your cities defend strongly from turn 1.",
-      "Spread to 5 cities and the Overgrowth victory blooms — expand relentlessly.",
+      "Expand your city network toward Overgrowth — check Paths for the live goal.",
     ],
   },
 ];

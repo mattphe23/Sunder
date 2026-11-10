@@ -9,7 +9,7 @@ import { Tutorial } from "@/game/ui/Tutorial";
 import { FactionIntro } from "@/game/ui/FactionIntro";
 import { HandoffScreen } from "@/game/ui/Handoff";
 import { DiplomacyPanel, IncomingOfferModal } from "@/game/ui/Diplomacy";
-import { WorldEventCards, HeroFallenCard } from "@/game/ui/WorldEvents";
+import { HeroFallenCard } from "@/game/ui/WorldEvents";
 import { OnlineGame } from "@/game/online/OnlineGame";
 import { useCinema } from "@/game/render/cinema";
 import { ResourceActionPanel } from "@/game/ui/ResourceActionPanel";
@@ -62,7 +62,6 @@ export default function Home() {
       <TurnRecap />
       <PerkChoice />
       <CityRewardChoice />
-      <WorldEventCards />
       <HeroFallenCard />
       <OnlineGame />
       <BottomBar onOpenTech={() => setTechOpen(true)} onOpenDiplo={() => setDiploOpen(true)} />

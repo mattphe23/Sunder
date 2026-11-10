@@ -394,13 +394,26 @@ export function victoryProgress(s: GameState, tribeIdx: number): VictoryProgress
 
 /**
  * Check all living tribes for a completed faction path. Paths only unlock after
- * an early-game grace window so a lucky start can't end the match on turn 4.
+ * an early-game grace window. Internal round 11 is displayed as turn 12; the
+ * engine checks at round start, before the first tribe acts.
  */
-export const VICTORY_PATH_START_TURN = 8;
+export const VICTORY_PATH_START_TURN = 11;
+
+/** Node audit override only; browser/UI imports retain the canonical default.
+ * Read at call time so paired subprocesses need no target or rule edits.
+ * Invalid values fall back safely rather than crashing a browser or match.
+ */
+export function victoryPathStartTurn(): number {
+  if (typeof process === "undefined" || typeof window !== "undefined") return VICTORY_PATH_START_TURN;
+  const raw = process.env?.SUNDER_VICTORY_PATH_START_TURN;
+  if (raw === undefined || !/^\d+$/.test(raw)) return VICTORY_PATH_START_TURN;
+  const value = Number(raw);
+  return Number.isSafeInteger(value) && value >= 0 && value <= 200 ? value : VICTORY_PATH_START_TURN;
+}
 
 export function checkPathVictory(s: GameState): { tribe: number; progress: VictoryProgress } | null {
   if (s.phase !== "playing") return null;
-  if (s.turn < VICTORY_PATH_START_TURN) return null;
+  if (s.turn < victoryPathStartTurn()) return null;
   for (const t of s.tribes) {
     if (!t.alive) continue;
     const p = victoryProgress(s, t.index);
